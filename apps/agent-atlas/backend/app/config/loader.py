@@ -51,6 +51,7 @@ class ConfigLoader:
 
     @classmethod
     def _load_models(cls):
+        cls._models = {}
         path = CONFIG_DIR / "models.yml"
         if not path.exists():
             logger.warning("models.yml not found at %s — using defaults", path)
@@ -91,6 +92,7 @@ class ConfigLoader:
 
     @classmethod
     def _load_agents(cls):
+        cls._agents = {}
         agents_dir = CONFIG_DIR / "agents"
         if not agents_dir.exists():
             logger.warning("config/agents/ not found")
