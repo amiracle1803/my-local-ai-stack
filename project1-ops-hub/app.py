@@ -14,9 +14,14 @@ No database, no accounts, no cloud. Everything is your local Ollama model.
 
 from __future__ import annotations
 import os
+import re
 import shutil
 import subprocess
 import sys
+import threading
+import time
+import traceback
+import uuid
 from datetime import datetime
 from pathlib import Path
 
@@ -85,6 +90,9 @@ def _last_run_status(namespace: str) -> str:
     return "ok" if age < 86400 else "warn"
 
 
+_STAMP_PREFIX_RE = re.compile(r"^\d{4}-\d{2}-\d{2}_\d{6}-")
+
+
 def _recent_tasks(limit: int = 8) -> list[dict]:
     outbox = Path(CFG["task_outbox"])
     if not outbox.exists():
@@ -92,10 +100,13 @@ def _recent_tasks(limit: int = 8) -> list[dict]:
     files = sorted(outbox.glob("*.md"), key=lambda p: p.stat().st_mtime, reverse=True)[:limit]
     out = []
     for f in files:
-        # filename shape: <stamp>-<category>-<title>.md
-        parts = f.stem.split("-", 3)
-        category = parts[2] if len(parts) > 2 else "task"
-        title = parts[3] if len(parts) > 3 else f.stem
+        # filename shape: <stamp>-<category>-<title>.md, where <stamp> is
+        # notes.now_stamp() ("YYYY-MM-DD_HHMMSS") -- it has its own dashes,
+        # so strip it as a fixed prefix instead of splitting on "-" blindly.
+        rest = _STAMP_PREFIX_RE.sub("", f.stem)
+        category, _, title = rest.partition("-")
+        if not title:
+            category, title = "task", category
         out.append({
             "name": f.name,
             "title": title.replace("-", " "),
@@ -155,7 +166,8 @@ def _integrations() -> list[dict]:
     out.append({
         "key": "ollama", "label": "Ollama", "color": "#7DD3FC", "up": ollama_up,
         "detail": f"{len(models)} models pulled" if ollama_up else "not reachable",
-        "link": "http://localhost:11434", "role": "Primary local model engine — everything routes through this.",
+        "link": "http://localhost:11434", "has_ui": False,
+        "role": "Primary local model engine — everything routes through this.",
     })
 
     lmstudio = _get_json("http://127.0.0.1:1234/v1/models")
@@ -163,7 +175,8 @@ def _integrations() -> list[dict]:
     out.append({
         "key": "lmstudio", "label": "LM Studio", "color": "#F5B544", "up": lmstudio is not None,
         "detail": f"{lm_count} models loaded" if lmstudio else "not running",
-        "link": "http://127.0.0.1:1234", "role": "Second local model server (used by Agent Atlas).",
+        "link": "http://127.0.0.1:1234", "has_ui": False,
+        "role": "Second local model server (used by Agent Atlas). Manage models from the LM Studio desktop app, not a browser.",
     })
 
     n8n_up = False
@@ -191,14 +204,14 @@ def _integrations() -> list[dict]:
         n8n_detail = "online (no API key set)"
     out.append({
         "key": "n8n", "label": "n8n", "color": "#F472B6", "up": n8n_up,
-        "detail": n8n_detail,
+        "detail": n8n_detail, "has_ui": True,
         "link": "http://localhost:5678", "role": "Build/run automations (email triage, scheduled workflows).",
     })
 
     allm = _get_json("http://127.0.0.1:3001/api/ping")
     out.append({
         "key": "anythingllm", "label": "AnythingLLM", "color": "#A78BFA", "up": bool(allm and allm.get("online")),
-        "detail": "chat with your vault" if allm else "not running",
+        "detail": "chat with your vault" if allm else "not running", "has_ui": True,
         "link": "http://127.0.0.1:3001", "role": "RAG chat over your Obsidian notes.",
     })
 
@@ -209,7 +222,7 @@ def _integrations() -> list[dict]:
         comfy_detail = gpu.get("name", "image/video generation")
     out.append({
         "key": "comfyui", "label": "ComfyUI", "color": "#5EE2B5", "up": comfy is not None,
-        "detail": comfy_detail, "link": "http://127.0.0.1:8188",
+        "detail": comfy_detail, "link": "http://127.0.0.1:8188", "has_ui": True,
         "role": "Local image/video generation (node graph).",
     })
 
@@ -219,7 +232,7 @@ def _integrations() -> list[dict]:
         atlas_detail = f"{atlas.get('agents_loaded', '?')} agents · {atlas.get('models_loaded', '?')} models"
     out.append({
         "key": "agent_atlas", "label": "Agent Atlas", "color": "#8B5CF6", "up": atlas is not None,
-        "detail": atlas_detail, "link": "http://127.0.0.1:8000",
+        "detail": atlas_detail, "link": "http://127.0.0.1:8000", "has_ui": True,
         "role": "Multi-agent system: persistent memory, background jobs, email, agent factory.",
     })
 
@@ -261,6 +274,42 @@ def dashboard():
 # ---------------------------------------------------------------------------
 # Tasks
 # ---------------------------------------------------------------------------
+# Tasks run an LLM through up to 4 passes, which can take a while on a local
+# model. Running that inline in the request thread meant slow/failed runs
+# looked like "nothing happened" with no feedback. Instead we run each task
+# in a background thread and let the page poll for status -- same shape as
+# Agent Atlas's job queue, just in-memory (no DB, matches this app's
+# no-database design).
+_TASK_JOBS: dict[str, dict] = {}
+_TASK_JOBS_LOCK = threading.Lock()
+
+
+def _run_task_job(job_id: str, task: str, passes: int) -> None:
+    with _TASK_JOBS_LOCK:
+        _TASK_JOBS[job_id]["status"] = "running"
+    try:
+        result = process_task(task, passes=passes)
+    except Exception as exc:  # noqa: BLE001 - keep the worker thread alive
+        traceback.print_exc()
+        result = {"category": "error", "title": "error", "output": f"Unexpected error: {exc}"}
+
+    saved = None
+    save_error = None
+    if result["category"] != "error" and task.strip():
+        try:
+            saved = str(save_result(task, result))
+        except Exception as exc:  # noqa: BLE001
+            save_error = str(exc)
+            print(f"[tasks] failed to save result for job {job_id}: {exc}", file=sys.stderr)
+            traceback.print_exc()
+
+    with _TASK_JOBS_LOCK:
+        _TASK_JOBS[job_id].update({
+            "status": "done", "result": result, "saved": saved,
+            "save_error": save_error, "finished_at": time.time(),
+        })
+
+
 @app.route("/tasks", methods=["GET"])
 def tasks():
     return render_template(
@@ -277,19 +326,34 @@ def run_task():
     except ValueError:
         passes = 3
 
-    result = process_task(task, passes=passes)
+    if not task.strip():
+        return {"error": "Task can't be empty."}, 400
 
-    saved = None
-    if result["category"] != "error" and task.strip():
-        try:
-            saved = str(save_result(task, result))
-        except Exception:  # noqa: BLE001
-            saved = None
+    job_id = uuid.uuid4().hex[:12]
+    with _TASK_JOBS_LOCK:
+        _TASK_JOBS[job_id] = {"status": "queued", "task": task, "passes": passes, "started_at": time.time()}
+    threading.Thread(target=_run_task_job, args=(job_id, task, passes), daemon=True).start()
+    return {"job_id": job_id}
 
-    return render_template(
-        "tasks.html", active="tasks", up=llm.ollama_up(),
-        result=result, task=task, passes=passes, saved=saved, recent=_recent_tasks(),
-    )
+
+@app.route("/tasks/status/<job_id>")
+def task_status(job_id: str):
+    with _TASK_JOBS_LOCK:
+        job = _TASK_JOBS.get(job_id)
+    if job is None:
+        abort(404)
+    payload = {"status": job["status"], "elapsed": round(time.time() - job["started_at"], 1)}
+    if job["status"] == "done":
+        payload["result"] = job["result"]
+        payload["result_html"] = render_markdown_safe(job["result"]["output"])
+        payload["saved"] = job.get("saved")
+        payload["save_error"] = job.get("save_error")
+    return payload
+
+
+@app.route("/tasks/recent.json")
+def tasks_recent_json():
+    return {"recent": _recent_tasks()}
 
 
 @app.route("/outbox/view")

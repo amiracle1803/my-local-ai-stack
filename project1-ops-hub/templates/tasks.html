@@ -11,30 +11,26 @@
     <div>
       <div class="card">
         <h2>New task</h2>
-        <form method="post" action="/tasks/run" onsubmit="document.getElementById('go').disabled=true; document.getElementById('go').textContent='Working…';">
-          <textarea name="task" placeholder="e.g. Plan next week's workouts around 3 gym days&#10;e.g. Draft a polite reply declining this meeting: [paste email]&#10;e.g. Summarise these links: https://... https://...">{{ task or '' }}</textarea>
+        <form id="task-form">
+          <textarea id="task-input" name="task" placeholder="e.g. Plan next week's workouts around 3 gym days&#10;e.g. Draft a polite reply declining this meeting: [paste email]&#10;e.g. Summarise these links: https://... https://...">{{ task or '' }}</textarea>
           <div class="row">
             <button id="go" type="submit">Run</button>
-            <select name="passes" title="More passes = slower but more refined">
+            <select id="passes-input" name="passes" title="More passes = slower but more refined">
               <option value="1" {{ 'selected' if passes==1 else '' }}>Fast (1 pass)</option>
               <option value="3" {{ 'selected' if passes==3 or not passes else '' }}>Balanced (3 passes)</option>
               <option value="4" {{ 'selected' if passes==4 else '' }}>Careful (4 passes)</option>
             </select>
+            <span id="task-status" class="meta"></span>
           </div>
         </form>
       </div>
 
-      {% if result %}
-      <div class="card">
-        <span class="tag">{{ result.category }}</span>
-        <div class="result">{{ result.output }}</div>
-        {% if saved %}<p class="empty">Saved to: {{ saved }}</p>{% endif %}
-      </div>
-      {% endif %}
+      <div id="task-result"></div>
     </div>
 
     <div class="card">
       <h2>Recent tasks</h2>
+      <div id="recent-list">
       {% if recent %}
       <div class="list">
         {% for r in recent %}
@@ -47,6 +43,105 @@
       {% else %}
       <p class="empty">No tasks run yet.</p>
       {% endif %}
+      </div>
     </div>
   </div>
+
+  <script>
+  (function () {
+    const form = document.getElementById('task-form');
+    const goBtn = document.getElementById('go');
+    const statusEl = document.getElementById('task-status');
+    const resultEl = document.getElementById('task-result');
+    let pollTimer = null;
+    let tickTimer = null;
+
+    function escapeHtml(s) {
+      return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    function refreshRecent() {
+      fetch('/tasks/recent.json').then(r => r.json()).then(data => {
+        const list = document.getElementById('recent-list');
+        if (!data.recent || !data.recent.length) {
+          list.innerHTML = '<p class="empty">No tasks run yet.</p>';
+          return;
+        }
+        list.innerHTML = '<div class="list">' + data.recent.map(r =>
+          `<a class="item" href="/outbox/view?name=${encodeURIComponent(r.name)}">` +
+          `<span>${escapeHtml(r.title)}</span>` +
+          `<span class="meta">${escapeHtml(r.category)} · ${escapeHtml(r.when)}</span></a>`
+        ).join('') + '</div>';
+      }).catch(() => {});
+    }
+
+    function stopPolling() {
+      if (pollTimer) clearTimeout(pollTimer);
+      if (tickTimer) clearInterval(tickTimer);
+      pollTimer = null;
+      tickTimer = null;
+    }
+
+    function poll(jobId, startedAt) {
+      fetch('/tasks/status/' + jobId).then(r => r.json()).then(data => {
+        if (data.status === 'done') {
+          stopPolling();
+          goBtn.disabled = false;
+          goBtn.textContent = 'Run';
+          statusEl.textContent = '';
+
+          const cat = data.result.category;
+          let html = `<div class="card"><span class="tag">${escapeHtml(cat)}</span>` +
+            `<div class="result prose">${data.result_html}</div>`;
+          if (data.saved) {
+            html += `<p class="empty">Saved to: ${escapeHtml(data.saved)}</p>`;
+          } else if (data.save_error) {
+            html += `<p class="empty" style="color:var(--red)">Ran, but couldn't save to your outbox (${escapeHtml(data.save_error)}). Copy the result below before it's lost.</p>`;
+          }
+          html += '</div>';
+          resultEl.innerHTML = html;
+          refreshRecent();
+        } else {
+          const elapsed = Math.round((Date.now() - startedAt) / 1000);
+          statusEl.textContent = (data.status === 'queued' ? 'Queued… ' : 'Thinking… ') + elapsed + 's';
+          pollTimer = setTimeout(() => poll(jobId, startedAt), 1500);
+        }
+      }).catch(() => {
+        statusEl.textContent = 'Lost connection — is the dashboard still running?';
+        pollTimer = setTimeout(() => poll(jobId, startedAt), 3000);
+      });
+    }
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      const task = document.getElementById('task-input').value;
+      if (!task.trim()) return;
+      goBtn.disabled = true;
+      goBtn.textContent = 'Working…';
+      statusEl.textContent = 'Queued…';
+      resultEl.innerHTML = '';
+
+      const body = new URLSearchParams();
+      body.set('task', task);
+      body.set('passes', document.getElementById('passes-input').value);
+
+      fetch('/tasks/run', { method: 'POST', body: body })
+        .then(r => r.json())
+        .then(data => {
+          if (data.error) {
+            goBtn.disabled = false;
+            goBtn.textContent = 'Run';
+            statusEl.textContent = data.error;
+            return;
+          }
+          poll(data.job_id, Date.now());
+        })
+        .catch(() => {
+          goBtn.disabled = false;
+          goBtn.textContent = 'Run';
+          statusEl.textContent = 'Could not reach the dashboard server.';
+        });
+    });
+  })();
+  </script>
 {% endblock %}
