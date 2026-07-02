@@ -44,7 +44,8 @@ def _mark_job(job_id: str, status: str, result: dict | None = None, error: str |
         conn.close()
 
 
-async def _run_via_orchestrator(goal: str, context: dict, job_id: str | None = None) -> dict:
+async def _run_via_orchestrator(goal: str, context: dict, job_id: str | None = None,
+                                 model: str | None = None) -> dict:
     """Dispatch to the 'orchestrator' agent over the bus. Raises KeyError
     (via collaboration_bus) if orchestrator isn't registered yet -- callers
     decide how to surface that."""
@@ -52,7 +53,7 @@ async def _run_via_orchestrator(goal: str, context: dict, job_id: str | None = N
         from_agent="api",
         to_agent="orchestrator",
         msg_type="run",
-        payload={"goal": goal, "context": context},
+        payload={"goal": goal, "context": context, "model": model},
         job_id=job_id,
     )
 
@@ -64,6 +65,7 @@ async def run(req: RunRequest):
         "risk_level": req.risk_level,
         "review_policy": req.review_policy,
         "context": req.context,
+        "model": req.model,
     }
     job_id = _create_job(req.goal, payload)
 
@@ -72,7 +74,7 @@ async def run(req: RunRequest):
 
     # sync mode: try to run it now
     try:
-        result = await _run_via_orchestrator(req.goal, req.context, job_id=job_id)
+        result = await _run_via_orchestrator(req.goal, req.context, job_id=job_id, model=req.model)
         _mark_job(job_id, "done", result={"response": result})
         return {"response": result, "job_id": job_id}
     except NoHandlerError:
@@ -88,10 +90,11 @@ async def run(req: RunRequest):
 async def run_quick(body: dict):
     goal = body.get("goal", "")
     system = body.get("system")
+    model = body.get("model")
     if not goal:
         raise HTTPException(status_code=400, detail="'goal' is required")
     try:
-        result = await _run_via_orchestrator(goal, {"system": system} if system else {})
+        result = await _run_via_orchestrator(goal, {"system": system} if system else {}, model=model)
         return {"response": result}
     except NoHandlerError:
         raise HTTPException(

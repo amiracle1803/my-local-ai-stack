@@ -8,7 +8,7 @@ description: >
 inputs: [goal, repo_path]
 outputs: [response]
 tools: []
-model_preference: [ollama_local, lmstudio_local]
+model_preference: [ornith_local, ollama_local, lmstudio_local]
 memory_scopes: []
 policies: []
 system_prompt: |

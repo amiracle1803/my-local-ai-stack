@@ -33,12 +33,12 @@
     <h2>What each one is for</h2>
     <div class="list">
       <div class="item"><span><strong>Ollama</strong> — local model engine. Everything else routes through it.</span></div>
-      <div class="item"><span><strong>LM Studio</strong> — a second local model server, currently used by Agent Atlas only.</span></div>
+      <div class="item"><span><strong>LM Studio</strong> — a second local model server, currently used by Loom only.</span></div>
       <div class="item"><span><strong>n8n</strong> — build automations (email triage, scheduled workflows) that call your local model.</span></div>
       <div class="item"><span><strong>AnythingLLM</strong> — chat conversationally with your real Obsidian vault via RAG.</span></div>
       <div class="item"><span><strong>ComfyUI</strong> — local image/video generation, node-graph based.</span></div>
       <div class="item"><span><strong>Voice Studio</strong> — local TTS: Chatterbox + F5-TTS, voice cloning library.</span></div>
-      <div class="item"><span><strong>Agent Atlas</strong> — the multi-agent system: persistent memory, background jobs, agent factory, email read/write.</span></div>
+      <div class="item"><span><strong>Loom</strong> — the multi-agent system: orchestration, background jobs, Obsidian search, agent factory.</span></div>
       <div class="item"><span><strong>OpenCode</strong> — terminal coding agent, wired to <code>qwen2.5-coder:7b</code> on local Ollama. Run <code>opencode</code> from any repo.</span></div>
     </div>
   </div>
@@ -47,7 +47,7 @@
   <div class="card">
     <h2>Not connected yet</h2>
     <div class="list">
-      <div class="item"><span>n8n → this dashboard — n8n's REST API needs an API key generated once in its own UI (Settings → API) before this dashboard or Agent Atlas can create/manage workflows programmatically.</span></div>
+      <div class="item"><span>n8n → this dashboard — n8n's REST API needs an API key generated once in its own UI (Settings → API) before this dashboard or Loom can create/manage workflows programmatically.</span></div>
     </div>
   </div>
   {% endif %}

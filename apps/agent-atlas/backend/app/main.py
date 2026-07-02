@@ -46,15 +46,15 @@ async def lifespan(app: FastAPI):
     set_trace_hook(trace_agent_call)
     background_runtime.start_workers(n=2)
     logger.info(
-        "Agent Atlas starting: %d models, %d agent configs, %d handlers registered",
+        "Loom starting: %d models, %d agent configs, %d handlers registered",
         len(ConfigLoader.get_all_models()), len(ConfigLoader.get_all_agents()), registered,
     )
     yield
     await background_runtime.stop_workers()
-    logger.info("Agent Atlas shutting down")
+    logger.info("Loom shutting down")
 
 
-app = FastAPI(title="Agent Atlas", lifespan=lifespan)
+app = FastAPI(title="Loom", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

@@ -1,17 +1,16 @@
 """
-mcp_server.py  --  Expose Agent Atlas as an MCP server (SSE, at /mcp/sse)
-for external clients: Claude Desktop, Claude Code, Cursor.
+mcp_server.py  --  Expose Loom as an MCP server (SSE, at /mcp/sse) for
+external clients: Claude Desktop, Claude Code, Cursor.
 
-Deliberately a SHORTER tool list than the old version's ~19 tools.
+Deliberately a SHORTER tool list than the old Agent Atlas's ~19 tools.
 Dropped web_fetch/web_search and the n8n_* CRUD tools -- those are now
 handled by knowledge_hub/automation_agent calling out to Docker's
-cataloged MCP servers (Phase 3c/3d) instead of Agent Atlas hand-rolling
-its own versions. What's left here is what only Agent Atlas itself can
-do: run its orchestrator, search its own indexed vault, manage its own
-job queue, list its own agents, draft (not execute) n8n workflows using
-its own automation_agent. No email tools -- that integration wasn't
-built in this rebuild, so no point exposing a tool with nothing behind
-it.
+cataloged MCP servers (Phase 3c/3d) instead of hand-rolling its own
+versions. What's left here is what only Loom itself can do: run its
+orchestrator, search its own indexed vault, manage its own job queue,
+list its own agents, draft (not execute) n8n workflows using its own
+automation_agent. No email tools -- that integration wasn't built in
+this rebuild, so no point exposing a tool with nothing behind it.
 """
 
 import json
@@ -28,7 +27,7 @@ from app.utils.ids import new_id, now_iso
 logger = logging.getLogger("agent_atlas.mcp_server")
 
 mcp = FastMCP(
-    "agent-atlas",
+    "loom",
     instructions="Local multi-agent system: orchestration, background jobs, "
                  "and semantic search over an Obsidian vault.",
 )
@@ -36,7 +35,7 @@ mcp = FastMCP(
 
 @mcp.tool()
 async def ask_atlas(goal: str) -> str:
-    """Ask Agent Atlas's orchestrator to answer a goal directly and synchronously."""
+    """Ask Loom's orchestrator to answer a goal directly and synchronously."""
     try:
         result = await bus.send_message(from_agent="mcp", to_agent="orchestrator",
                                          msg_type="run", payload={"goal": goal, "context": {}})
@@ -47,7 +46,7 @@ async def ask_atlas(goal: str) -> str:
 
 @mcp.tool()
 async def list_agents() -> str:
-    """List all registered Agent Atlas agents, grouped by layer."""
+    """List all registered Loom agents, grouped by layer."""
     agents = ConfigLoader.get_all_agents()
     by_layer: dict[str, list[str]] = {}
     for a in agents.values():

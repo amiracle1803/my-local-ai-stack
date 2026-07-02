@@ -32,8 +32,11 @@ export default function Dashboard() {
   return (
     <>
       <div className="topbar">
-        <span className="topbar-title">Dashboard</span>
+        <span className="topbar-title">Overview</span>
         <span className="topbar-sub">{health ? `${health.agents_loaded} agents registered` : "connecting…"}</span>
+        <div className="topbar-right">
+          <Link to="/run" className="btn btn-primary btn-sm">+ New task</Link>
+        </div>
       </div>
       <div className="page">
         <div className="stat-grid">

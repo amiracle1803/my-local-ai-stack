@@ -20,6 +20,15 @@ models:
     max_tokens: 4096
     temperature: 0.7
 
+  ornith_local:
+    provider: local
+    type: chat
+    endpoint: http://localhost:11434/v1/chat/completions
+    model: hf.co/deepreinforce-ai/Ornith-1.0-9B-GGUF:Q4_K_M
+    capabilities: [coding, agentic, reasoning]
+    max_tokens: 8192
+    temperature: 0.6
+
   groq_powerful:
     provider: groq
     type: chat
@@ -41,7 +50,7 @@ models:
     temperature: 0.5
 
 routing:
-  discovery_order: [ollama_local, lmstudio_local, groq_powerful, groq_fast]
+  discovery_order: [ollama_local, ornith_local, lmstudio_local, groq_powerful, groq_fast]
   allow_remote_models: true
   allow_remote_search: true
   default_model: ollama_local

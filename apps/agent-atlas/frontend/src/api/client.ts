@@ -78,6 +78,7 @@ export interface HealthInfo {
 export interface RunOpts {
   run_mode?: "sync" | "background";
   context?: Record<string, unknown>;
+  model?: string;
 }
 
 export interface RunResult {

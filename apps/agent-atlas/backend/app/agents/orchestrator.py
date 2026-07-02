@@ -13,6 +13,7 @@ class OrchestratorAgent(BaseAgent):
     async def handle(self, message: AgentMessage) -> str:
         goal = message.payload.get("goal", "")
         context = message.payload.get("context", {}) or {}
+        model_override = message.payload.get("model")
         if not goal.strip():
             return "I need a goal to work with -- the request was empty."
 
@@ -35,11 +36,12 @@ class OrchestratorAgent(BaseAgent):
             steps_hint = "\n\nSuggested approach:\n" + "\n".join(f"- {s}" for s in plan["steps"])
         prompt = f"{preamble}\n\n{goal}{steps_hint}".strip()
 
-        response = await self.llm_call(prompt, system=self.definition.system_prompt)
-        response = await self._maybe_revise(goal, response, message)
+        response = await self.llm_call(prompt, system=self.definition.system_prompt, model_override=model_override)
+        response = await self._maybe_revise(goal, response, message, model_override)
         return response
 
-    async def _maybe_revise(self, goal: str, response: str, message: AgentMessage) -> str:
+    async def _maybe_revise(self, goal: str, response: str, message: AgentMessage,
+                             model_override: str | None = None) -> str:
         """One evaluator pass, one revision at most -- not a loop. If the
         evaluator isn't available or errors, the first draft stands."""
         try:
@@ -62,6 +64,7 @@ class OrchestratorAgent(BaseAgent):
             f"Write a corrected answer."
         )
         try:
-            return await self.llm_call(revised_prompt, system=self.definition.system_prompt)
+            return await self.llm_call(revised_prompt, system=self.definition.system_prompt,
+                                        model_override=model_override)
         except Exception:  # noqa: BLE001
             return response  # revision attempt failed -- the original draft is still valid

@@ -7,14 +7,15 @@ Started via start.bat, serves http://localhost:8750 with five pages:
   /automation   Automation     trigger digests on demand (Project 3)
   /reviews      Knowledge      browse what the AI wrote into your vault (Project 2)
   /integrations Integrations   live status + links for every connected app
-                                (Ollama, LM Studio, n8n, AnythingLLM, ComfyUI, Agent Atlas)
+                                (Ollama, LM Studio, n8n, AnythingLLM, ComfyUI, Loom)
 
 No database, no accounts, no cloud. Everything is your local Ollama model.
 
-Tasks route through Agent Atlas's multi-agent orchestrator (persistent
-memory, specialist agents, n8n authoring) whenever it's running, falling
-back to this app's own single-shot classify-and-generate pipeline when
-it's not. See _run_task_job() / _run_via_agent_atlas().
+Tasks route through Loom's multi-agent orchestrator (persistent memory,
+specialist agents, n8n authoring) whenever it's running, falling back to
+this app's own single-shot classify-and-generate pipeline when it's not.
+See _run_task_job() / _run_via_agent_atlas() (function name predates the
+Loom rename, still accurate -- it's the same integration).
 """
 
 from __future__ import annotations
@@ -184,7 +185,7 @@ def _integrations() -> list[dict]:
         "key": "lmstudio", "label": "LM Studio", "color": "#F5B544", "up": lmstudio is not None,
         "detail": f"{lm_count} models loaded" if lmstudio else "not running",
         "link": "http://127.0.0.1:1234", "has_ui": False,
-        "role": "Second local model server (used by Agent Atlas). Manage models from the LM Studio desktop app, not a browser.",
+        "role": "Second local model server (used by Loom). Manage models from the LM Studio desktop app, not a browser.",
     })
 
     n8n_up = False
@@ -250,7 +251,7 @@ def _integrations() -> list[dict]:
     if atlas:
         atlas_detail = f"{atlas.get('agents_loaded', '?')} agents · {atlas.get('models_loaded', '?')} models"
     out.append({
-        "key": "agent_atlas", "label": "Agent Atlas", "color": "#8B5CF6", "up": atlas is not None,
+        "key": "agent_atlas", "label": "Loom", "color": "#8B5CF6", "up": atlas is not None,
         "detail": atlas_detail, "link": "/agents", "has_ui": True, "internal": True,
         "role": "Multi-agent system: orchestration, background jobs, Obsidian search, agent factory.",
     })
@@ -332,15 +333,15 @@ def _run_via_agent_atlas(task: str, timeout: float = 150.0) -> dict:
     title = notes.slugify(task.splitlines()[0], max_len=40)
     if status not in ("done", "failed"):
         return {
-            "category": "atlas", "title": title,
-            "output": f"Agent Atlas is still working on this after {int(timeout)}s -- "
+            "category": "loom", "title": title,
+            "output": f"Loom is still working on this after {int(timeout)}s -- "
                        f"check the **Agents** tab (job `{atlas_job_id}`) for the result.",
         }
     if status == "failed":
-        return {"category": "error", "title": title, "output": f"Agent Atlas failed: {job.get('error')}"}
+        return {"category": "error", "title": title, "output": f"Loom failed: {job.get('error')}"}
 
-    output = (job.get("result") or {}).get("response", "") or "_(Agent Atlas returned no response)_"
-    return {"category": "atlas", "title": title, "output": output}
+    output = (job.get("result") or {}).get("response", "") or "_(Loom returned no response)_"
+    return {"category": "loom", "title": title, "output": output}
 
 
 def _run_task_job(job_id: str, task: str, passes: int) -> None:

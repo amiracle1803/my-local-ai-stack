@@ -4,9 +4,9 @@ import { api, type HealthInfo } from "../api/client";
 import { useAgentActivity } from "../hooks/useAgentActivity";
 
 const NAV = [
-  { to: "/dashboard", icon: "▣", label: "Dashboard" },
-  { to: "/run", icon: "▶", label: "Run" },
-  { to: "/jobs", icon: "≡", label: "Jobs" },
+  { to: "/run", icon: "✎", label: "New task" },
+  { to: "/dashboard", icon: "▣", label: "Overview" },
+  { to: "/jobs", icon: "≡", label: "History" },
   { to: "/agents", icon: "◉", label: "Agents" },
   { to: "/knowledge", icon: "⌘", label: "Knowledge" },
   { to: "/settings", icon: "⚙", label: "Settings" },
@@ -28,10 +28,10 @@ export default function Layout() {
     <div className="shell">
       <aside className="sb">
         <div className="sb-logo">
-          <div className="sb-logo-icon">⚛</div>
+          <div className="sb-logo-icon">✺</div>
           <div>
-            <div className="sb-logo-name">Agent Atlas</div>
-            <div className="sb-logo-sub">local multi-agent</div>
+            <div className="sb-logo-name">Loom</div>
+            <div className="sb-logo-sub">your local AI crew</div>
           </div>
         </div>
         <nav className="sb-nav">
@@ -48,8 +48,13 @@ export default function Layout() {
         <div className="sb-foot">
           <div className="sb-foot-row">
             <span className={`dot ${health ? "on" : "off"}`} />
-            {health ? `${health.agents_loaded} agents · ${health.models_loaded} models` : "offline"}
+            {health ? `${health.agents_loaded} agents ready` : "can't reach Loom"}
           </div>
+          {health && (
+            <div className="sb-foot-row" style={{ color: "var(--text3)" }}>
+              {health.models_loaded} models · {busyCount > 0 ? `${busyCount} working now` : "idle"}
+            </div>
+          )}
         </div>
       </aside>
       <div className="main">

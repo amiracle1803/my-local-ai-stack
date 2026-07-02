@@ -37,3 +37,4 @@ class RunRequest(BaseModel):
     review_policy: Optional[str] = None
     context: Dict[str, Any] = Field(default_factory=dict)
     system: Optional[str] = None
+    model: Optional[str] = None  # override orchestrator's model_preference for this call only
