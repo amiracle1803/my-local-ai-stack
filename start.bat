@@ -135,6 +135,13 @@ if errorlevel 1 (
 ) else (
     echo     [ok] AnythingLLM    -- http://127.0.0.1:3001
 )
+curl -s -m 2 http://127.0.0.1:8811/sse >nul 2>nul
+if errorlevel 1 (
+    echo     [ ] MCP Gateway     -- optional, only for Agent Atlas's brave/github/n8n
+    echo                            tools -- foundation\start-mcp-gateway.bat
+) else (
+    echo     [ok] MCP Gateway    -- http://127.0.0.1:8811
+)
 
 REM --- 7. Dashboard ----------------------------------------------------------
 echo.
