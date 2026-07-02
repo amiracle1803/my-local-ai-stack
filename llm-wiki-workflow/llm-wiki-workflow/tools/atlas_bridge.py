@@ -76,11 +76,8 @@ def cmd_status(args):
         return
     print(f"[ONLINE] Agent Atlas at {ATLAS_URL}")
     print(f"  Status:  {data.get('status', 'unknown')}")
-    print(f"  Agents:  {data.get('agent_count', '?')} registered")
-    print(f"  Jobs:    {data.get('job_counts', {})}")
-    models = data.get("models_available", [])
-    if models:
-        print(f"  Models:  {', '.join(models)}")
+    print(f"  Agents:  {data.get('agents_loaded', '?')} registered")
+    print(f"  Models:  {data.get('models_loaded', '?')} loaded")
 
 
 def cmd_run(args):
