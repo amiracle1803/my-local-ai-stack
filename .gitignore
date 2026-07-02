@@ -33,12 +33,13 @@ node_modules/
 **/checkpoints/
 voice-studio/_tmp/
 
-# agent-atlas local state
+# agent-atlas local state (covers apps/agent-atlas and any archived/renamed
+# copy, e.g. _archive/agent-atlas-pre-rewrite-*)
 *.sqlite
 *.sqlite3
-**/agent-atlas/data/
-**/agent-atlas/backend/data/
-**/agent-atlas/backend/chroma*/
+**/agent-atlas*/data/
+**/agent-atlas*/backend/data/
+**/agent-atlas*/backend/chroma*/
 
 # OS / editor cruft
 .DS_Store
