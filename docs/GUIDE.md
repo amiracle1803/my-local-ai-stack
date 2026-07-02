@@ -90,7 +90,7 @@ After editing, run `ollama pull <model>`. For structured extraction (Project 2)
 4. Edit **`config.json`** → set `vault_path` to your real Obsidian vault (or
    leave the sample).
 5. (Recommended) Install **AnythingLLM Desktop** and point it at Ollama + your
-   vault (steps in `project2-second-brain/README.md`).
+   vault (steps in `apps/project2-second-brain/README.md`).
 6. Start any project's `start.bat`.
 
 If `setup.bat` reports a missing prerequisite it tells you exactly what to
@@ -118,7 +118,7 @@ Files and roles:
 still works. Every answer is written to disk regardless.
 
 Run: `start.bat` (web) or `run-inbox.bat` (folder) or `install-schedule.bat`
-(poll the folder every 5 min). Deep troubleshooting: `project1-ops-hub/README.md`.
+(poll the folder every 5 min). Deep troubleshooting: `apps/project1-ops-hub/README.md`.
 
 ---
 
@@ -140,7 +140,7 @@ and that you can chat with.
 
 **Half B — chat with your brain (AnythingLLM):** the free desktop app indexes
 your vault into LanceDB and answers questions with citations. Setup steps in
-`project2-second-brain/README.md`.
+`apps/project2-second-brain/README.md`.
 
 **Safety:** the Python side writes **only** into `<vault>/_generated/`. Delete
 that folder to reset the AI's memory; your notes are untouched.
@@ -165,7 +165,7 @@ For actual code changes, use **OpenCode** interactively (it shows diffs to
 approve) rather than automating edits — safer.
 
 Run: `start.bat` (menu) then `install-schedule.bat`. Deep dive:
-`project3-automation/README.md`.
+`apps/project3-automation/README.md`.
 
 ---
 

@@ -43,9 +43,9 @@ your own mailbox — never your prompts, notes, or emails.
 Then start whichever project you like:
 
 ```
-project1-ops-hub\start.bat        →  http://localhost:8750  (task dropbox)
-project2-second-brain\start.bat   →  runs a brain review now
-project3-automation\start.bat     →  research / repo digest menu
+apps\project1-ops-hub\start.bat        →  http://localhost:8750  (task dropbox)
+apps\project2-second-brain\start.bat   →  runs a brain review now
+apps\project3-automation\start.bat     →  research / repo digest menu
 ```
 
 New here? Read **`docs/GUIDE.md`** — it walks through everything piece by piece.
@@ -66,9 +66,9 @@ my-local-ai-stack/
 │   ├── lib/                  ← config, llm, notes, passes, state, webfetch
 │   └── prompts/system-template.md
 ├── vault/                    ← sample Obsidian vault (point config at your real one)
-├── project1-ops-hub/         ← Task Dropbox (web form + folder)
-├── project2-second-brain/    ← nightly extraction + reviews
-├── project3-automation/      ← research + repo digests + n8n email triage
+├── apps/project1-ops-hub/         ← Task Dropbox (web form + folder)
+├── apps/project2-second-brain/    ← nightly extraction + reviews
+├── apps/project3-automation/      ← research + repo digests + n8n email triage
 └── foundation/               ← optional Docker layer (n8n)
 ```
 

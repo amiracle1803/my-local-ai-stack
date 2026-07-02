@@ -16,7 +16,7 @@ import sys
 import shutil
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from process import process_task, save_result  # noqa: E402
 from shared.lib import llm  # noqa: E402

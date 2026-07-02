@@ -90,10 +90,13 @@ echo ============================================================
 echo   Next:
 echo     - Edit config.json and set "vault_path" to your Obsidian vault
 echo       (or leave it to use the sample vault in .\vault).
-echo     - Start a project:
-echo         project1-ops-hub\start.bat        (task dropbox)
-echo         project2-second-brain\start.bat   (nightly brain review)
-echo         project3-automation\start.bat     (research + automation)
+echo     - Or just run start.bat -- it brings up the whole stack, including
+echo       the unified dashboard, in one go.
+echo     - Individual projects also still have their own start.bat if you
+echo       want to run just one:
+echo         apps\project1-ops-hub\start.bat        (task dropbox)
+echo         apps\project2-second-brain\start.bat   (nightly brain review)
+echo         apps\project3-automation\start.bat     (research + automation)
 echo     - Read docs\GUIDE.md for the full walkthrough.
 echo.
 pause

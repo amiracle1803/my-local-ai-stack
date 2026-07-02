@@ -8,8 +8,8 @@ __pycache__/
 *.pyc
 *.log
 vault/_generated/
-project1-ops-hub/task-outbox/*
-project1-ops-hub/done/*
+**/project1-ops-hub/task-outbox/*
+**/project1-ops-hub/done/*
 !**/.gitkeep
 foundation/.env
 **/.env
@@ -36,9 +36,9 @@ voice-studio/_tmp/
 # agent-atlas local state
 *.sqlite
 *.sqlite3
-agent-atlas/data/
-agent-atlas/backend/data/
-agent-atlas/backend/chroma*/
+**/agent-atlas/data/
+**/agent-atlas/backend/data/
+**/agent-atlas/backend/chroma*/
 
 # OS / editor cruft
 .DS_Store

@@ -42,9 +42,9 @@ DEFAULTS = {
     "generated_subdir": "_generated",
 
     # --- Project 1 task dropbox --------------------------------------------
-    "task_inbox": "project1-ops-hub/task-inbox",
-    "task_outbox": "project1-ops-hub/task-outbox",
-    "task_done": "project1-ops-hub/done",
+    "task_inbox": "apps/project1-ops-hub/task-inbox",
+    "task_outbox": "apps/project1-ops-hub/task-outbox",
+    "task_done": "apps/project1-ops-hub/done",
     "flask_port": 8750,
 
     # --- Behaviour ----------------------------------------------------------

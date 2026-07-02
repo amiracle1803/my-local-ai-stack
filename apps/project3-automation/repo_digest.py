@@ -18,7 +18,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from shared.lib import llm, notes  # noqa: E402
 from shared.lib.config import load_config  # noqa: E402

@@ -29,7 +29,7 @@ import sys
 from pathlib import Path
 
 # make the repo root importable so `from shared.lib ...` works from anywhere
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from shared.lib import llm, notes  # noqa: E402
 from shared.lib.passes import looped_generate, DEFAULT_SYSTEM  # noqa: E402

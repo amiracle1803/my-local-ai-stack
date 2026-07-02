@@ -35,7 +35,7 @@ import markdown as md_lib
 import requests
 from flask import Flask, abort, flash, redirect, render_template, request, url_for
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from process import process_task, save_result  # noqa: E402
 from shared.lib import llm  # noqa: E402
@@ -49,9 +49,9 @@ app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
 JOBS = {
-    "nightly": ("project2-second-brain/run_nightly.py", "Nightly Review", "Extract tasks/decisions/insights, write a Daily Review (Project 2)."),
-    "research": ("project3-automation/research.py", "Research Digest", "Read feeds.txt, summarise new articles into the vault (Project 3)."),
-    "repos": ("project3-automation/repo_digest.py", "Repo Digest", "Read-only git log + TODO scan for repos in config.json (Project 3)."),
+    "nightly": ("apps/project2-second-brain/run_nightly.py", "Nightly Review", "Extract tasks/decisions/insights, write a Daily Review (Project 2)."),
+    "research": ("apps/project3-automation/research.py", "Research Digest", "Read feeds.txt, summarise new articles into the vault (Project 3)."),
+    "repos": ("apps/project3-automation/repo_digest.py", "Repo Digest", "Read-only git log + TODO scan for repos in config.json (Project 3)."),
 }
 JOB_COLORS = {"nightly": "#A78BFA", "research": "#7DD3FC", "repos": "#5EE2B5"}
 

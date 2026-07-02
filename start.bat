@@ -83,12 +83,12 @@ if not errorlevel 1 (
 REM --- 4. Agent Atlas (lightweight -- always auto-start) --------------------
 curl -s -m 2 http://127.0.0.1:8000/api/health >nul 2>nul
 if errorlevel 1 (
-    if exist "agent-atlas\backend\.venv\Scripts\python.exe" (
+    if exist "apps\agent-atlas\backend\.venv\Scripts\python.exe" (
         echo [..] Starting Agent Atlas...
-        start "Agent Atlas" cmd /c "cd /d "%~dp0agent-atlas\backend" && .venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000"
+        start "Agent Atlas" cmd /c "cd /d "%~dp0apps\agent-atlas\backend" && .venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000"
         timeout /t 3 /nobreak >nul
     ) else (
-        echo [!] Agent Atlas isn't set up yet -- see agent-atlas\README.md.
+        echo [!] Agent Atlas isn't set up yet -- see apps\agent-atlas\README.md.
         echo     The dashboard's Agents tab and MCP-routed tasks won't work until it is.
     )
 ) else (
@@ -143,5 +143,5 @@ echo      Open your browser at:  http://localhost:8750
 echo      (Press Ctrl+C in this window to stop the dashboard.)
 echo.
 start "" http://localhost:8750
-".venv\Scripts\python.exe" "project1-ops-hub\app.py"
+".venv\Scripts\python.exe" "apps\project1-ops-hub\app.py"
 pause

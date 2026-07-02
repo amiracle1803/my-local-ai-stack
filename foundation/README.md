@@ -19,7 +19,7 @@ that benefits from a always-on background service: **n8n** (email triage).
    — on Windows it sets up WSL2 for you.
 2. `copy .env.example .env` and set a strong `N8N_PASSWORD`.
 3. Run `start-n8n.bat`.
-4. Follow `../project3-automation/n8n/README-email.md` to build the email flow.
+4. Follow `../apps/project3-automation/n8n/README-email.md` to build the email flow.
 
 ## The one gotcha: Docker → Ollama
 

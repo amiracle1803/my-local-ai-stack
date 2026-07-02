@@ -19,7 +19,7 @@ import time
 import datetime as dt
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from shared.lib import llm, notes  # noqa: E402
 from shared.lib.state import load_state, save_state, lock  # noqa: E402
