@@ -12,8 +12,26 @@ export default function Agents() {
   const [search, setSearch] = useState("");
   const [err,    setErr]    = useState<string | null>(null);
   const [ping,   setPing]   = useState<Record<string, "ok"|"err"|"loading">>({});
+  const [busyDelete, setBusyDelete] = useState<string | null>(null);
 
-  useEffect(() => { api.agents.list().then(setAgents).catch(e => setErr(e.message)); }, []);
+  function refresh() {
+    api.agents.list().then(setAgents).catch(e => setErr(e.message));
+  }
+
+  useEffect(() => { refresh(); }, []);
+
+  async function deleteAgent(id: string, displayName: string) {
+    if (!confirm(`Delete "${displayName}"? This removes its config file and can't be undone.`)) return;
+    setBusyDelete(id);
+    try {
+      await api.agents.delete(id);
+      refresh();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusyDelete(null);
+    }
+  }
 
   const agentIds = (agents ?? []).map(a => a.id);
   const activity = useAgentActivity(agentIds);
@@ -128,13 +146,23 @@ export default function Agents() {
                         </div>
                       )}
 
-                      {/* Ping */}
+                      {/* Ping / Delete */}
                       <div style={{ marginTop:8, display:"flex", gap:6, alignItems:"center" }}>
                         <button className="btn btn-ghost btn-xs" onClick={() => pingAgent(agent.id)} disabled={!!ps}>
                           {ps === "loading" ? "…" : "Ping"}
                         </button>
                         {ps === "ok"  && <span style={{ fontSize:11, color:"var(--green)" }}>✓ ok</span>}
                         {ps === "err" && <span style={{ fontSize:11, color:"var(--red)" }}>✕ error</span>}
+                        {agent.deletable && (
+                          <button
+                            className="btn btn-ghost btn-xs"
+                            style={{ color: "var(--red)", marginLeft: "auto" }}
+                            onClick={() => deleteAgent(agent.id, agent.display_name)}
+                            disabled={busyDelete === agent.id}
+                          >
+                            {busyDelete === agent.id ? "…" : "Delete"}
+                          </button>
+                        )}
                       </div>
                     </div>
                   );

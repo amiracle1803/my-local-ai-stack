@@ -16,8 +16,13 @@ CONFIG_AGENTS_DIR = Path(__file__).parent.parent.parent.parent / "config" / "age
 
 @router.get("/", response_model=List[Dict[str, Any]])
 async def list_agents():
+    from app.services import collaboration_bus as bus
+
     agents = ConfigLoader.get_all_agents()
-    return list(agents.values())
+    return [
+        {**a, "deletable": not bus.has_handler(a["id"])}
+        for a in agents.values()
+    ]
 
 
 @router.get("/{agent_id}", response_model=Dict[str, Any])
@@ -114,3 +119,36 @@ async def create_agent(req: AgentCreateRequest):
     # Reload config so new agent is immediately available
     ConfigLoader.load()
     return {"status": "created", "agent_id": agent_id, "path": str(dest)}
+
+
+@router.delete("/{agent_id}")
+async def delete_agent(agent_id: str):
+    """
+    Delete a Factory-created agent's config. Refuses to delete the built-in
+    agents (orchestrator, planner, code_agent, etc.) -- those have real
+    Python handler classes registered on the collaboration bus and the rest
+    of the system assumes they exist; removing just the YAML would leave a
+    handler with no config instead of actually removing the agent.
+    """
+    from app.services import collaboration_bus as bus
+
+    agent = ConfigLoader.get_agent(agent_id)
+    if not agent:
+        raise HTTPException(status_code=404, detail=f"Agent '{agent_id}' not found")
+    if bus.has_handler(agent_id):
+        raise HTTPException(
+            status_code=409,
+            detail=f"'{agent_id}' is a built-in agent with a registered handler -- it can't be deleted.",
+        )
+
+    dest = CONFIG_AGENTS_DIR / f"{agent_id}.yml"
+    try:
+        dest.resolve().relative_to(CONFIG_AGENTS_DIR.resolve())
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid agent ID — path escapes config directory")
+    if not dest.exists():
+        raise HTTPException(status_code=404, detail=f"No config file for '{agent_id}'")
+
+    dest.unlink()
+    ConfigLoader.load()
+    return {"status": "deleted", "agent_id": agent_id}

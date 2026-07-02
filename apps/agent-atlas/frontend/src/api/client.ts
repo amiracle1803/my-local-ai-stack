@@ -37,6 +37,8 @@ export const api = {
         method: "POST",
         body: JSON.stringify(data),
       }),
+    delete: (id: string) =>
+      request<{ status: string; agent_id: string }>(`/agents/${id}`, { method: "DELETE" }),
   },
 
   jobs: {
@@ -144,6 +146,7 @@ export interface AgentDef {
   tools: string[];
   memory_scopes: string[];
   policies: string[];
+  deletable?: boolean;
 }
 
 export interface AgentCreateReq {
