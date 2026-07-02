@@ -56,6 +56,15 @@ def set_broadcast_hook(hook: Optional[BroadcastHook]) -> None:
     _broadcast_hook = hook
 
 
+async def broadcast(event: Dict[str, Any]) -> None:
+    """Send an arbitrary event dict through the same hook dispatch_message
+    uses for agent_message events -- lets other event sources (the job
+    runtime's job_update events) share one WS fan-out instead of each
+    needing their own hook-registration mechanism."""
+    if _broadcast_hook is not None:
+        await _broadcast_hook(event)
+
+
 def _truncated_payload_json(payload: Dict[str, Any]) -> str:
     raw = json.dumps(payload, default=str)
     if len(raw.encode("utf-8")) > _MAX_PAYLOAD_BYTES:

@@ -19,6 +19,7 @@ from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from app.agents import background_runtime
 from app.agents.registry import register_all
 from app.api import agents, health, jobs, run
 from app.config.loader import ConfigLoader
@@ -36,11 +37,13 @@ async def lifespan(app: FastAPI):
     init_db()
     ConfigLoader.load()
     registered = register_all()
+    background_runtime.start_workers(n=2)
     logger.info(
         "Agent Atlas starting: %d models, %d agent configs, %d handlers registered",
         len(ConfigLoader.get_all_models()), len(ConfigLoader.get_all_agents()), registered,
     )
     yield
+    await background_runtime.stop_workers()
     logger.info("Agent Atlas shutting down")
 
 

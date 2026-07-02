@@ -1,19 +1,25 @@
 """
 registry.py  --  Explicit list of built-in agent classes to register on
 startup. No decorator/auto-discovery magic: add a class here and it's
-live. Empty for now -- control-layer agents (orchestrator, planner,
-evaluator, ...) are added in the next build phase.
+live.
 """
 
 import logging
 from typing import List, Type
 
 from app.agents.base import BaseAgent
+from app.agents.evaluator import EvaluatorAgent
+from app.agents.orchestrator import OrchestratorAgent
+from app.agents.planner import PlannerAgent
 from app.services import collaboration_bus as bus
 
 logger = logging.getLogger("agent_atlas.registry")
 
-AGENT_CLASSES: List[Type[BaseAgent]] = []
+AGENT_CLASSES: List[Type[BaseAgent]] = [
+    OrchestratorAgent,
+    PlannerAgent,
+    EvaluatorAgent,
+]
 
 
 def register_all() -> int:

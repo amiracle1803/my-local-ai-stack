@@ -79,16 +79,16 @@ class BaseAgent:
             logger.info("%s handled %s in %.0fms (success=%s)",
                         self.agent_id, message.type, duration_ms, success)
 
-    def get_model_client(self):
+    async def get_model_client(self):
         from app.services.model_router import get_best_client  # lazy: added in Phase 2
-        return get_best_client(preferred=self.definition.model_preference)
+        return await get_best_client(preferred=self.definition.model_preference)
 
     async def llm_call(self, user_prompt: str, system: Optional[str] = None, **kwargs) -> str:
         last_exc: Optional[Exception] = None
         for attempt in range(1, _LLM_RETRIES + 1):
             try:
                 async with _LLM_SEMAPHORE:
-                    client = self.get_model_client()
+                    client = await self.get_model_client()
                     messages = []
                     if system:
                         messages.append({"role": "system", "content": system})
