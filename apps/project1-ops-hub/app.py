@@ -252,7 +252,7 @@ def _integrations() -> list[dict]:
     out.append({
         "key": "agent_atlas", "label": "Agent Atlas", "color": "#8B5CF6", "up": atlas is not None,
         "detail": atlas_detail, "link": "/agents", "has_ui": True, "internal": True,
-        "role": "Multi-agent system: persistent memory, background jobs, email, agent factory.",
+        "role": "Multi-agent system: orchestration, background jobs, Obsidian search, agent factory.",
     })
 
     opencode_path = shutil.which("opencode")
