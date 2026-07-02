@@ -10,7 +10,7 @@ REM    2. Checks Ollama is reachable; starts it if it's installed but not
 REM       running.
 REM    3. Starts n8n (Docker) if Docker is available and not already running.
 REM       Skipped silently if Docker isn't installed -- it's optional.
-REM    4. Starts Agent Atlas (its FastAPI backend also serves its own UI,
+REM    4. Starts Loom (its FastAPI backend also serves its own UI,
 REM       embedded at /agents in the dashboard). Lightweight -- doesn't load
 REM       GPU models itself, just calls out to Ollama/LM Studio, so it's
 REM       safe to always auto-start.
@@ -80,19 +80,19 @@ if not errorlevel 1 (
     )
 )
 
-REM --- 4. Agent Atlas (lightweight -- always auto-start) --------------------
+REM --- 4. Loom (lightweight -- always auto-start) -----------------------------
 curl -s -m 2 http://127.0.0.1:8000/api/health >nul 2>nul
 if errorlevel 1 (
-    if exist "apps\agent-atlas\backend\.venv\Scripts\python.exe" (
-        echo [..] Starting Agent Atlas...
-        start "Agent Atlas" cmd /c "cd /d "%~dp0apps\agent-atlas\backend" && .venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000"
+    if exist "apps\loom\backend\.venv\Scripts\python.exe" (
+        echo [..] Starting Loom...
+        start "Loom" cmd /c "cd /d "%~dp0apps\loom\backend" && .venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000"
         timeout /t 3 /nobreak >nul
     ) else (
-        echo [!] Agent Atlas isn't set up yet -- see apps\agent-atlas\README.md.
+        echo [!] Loom isn't set up yet -- see apps\loom\README.md.
         echo     The dashboard's Agents tab and MCP-routed tasks won't work until it is.
     )
 ) else (
-    echo [ok] Agent Atlas is running.
+    echo [ok] Loom is running.
 )
 
 REM --- 5. Obsidian (lightweight -- always auto-start) ------------------------
@@ -137,14 +137,14 @@ if errorlevel 1 (
 )
 curl -s -m 2 http://127.0.0.1:8811/sse >nul 2>nul
 if errorlevel 1 (
-    echo     [ ] MCP Gateway     -- optional, only for Agent Atlas's brave/github/n8n
+    echo     [ ] MCP Gateway     -- optional, only for Loom's brave/github/n8n
     echo                            tools -- foundation\start-mcp-gateway.bat
 ) else (
     echo     [ok] MCP Gateway    -- http://127.0.0.1:8811
 )
 curl -s -m 2 http://127.0.0.1:3030/api/public/health >nul 2>nul
 if errorlevel 1 (
-    echo     [ ] Langfuse        -- optional, Agent Atlas call tracing --
+    echo     [ ] Langfuse        -- optional, Loom call tracing --
     echo                            foundation\start-langfuse.bat
 ) else (
     echo     [ok] Langfuse       -- http://127.0.0.1:3030

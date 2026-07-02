@@ -44,7 +44,9 @@ export default function Knowledge() {
     <>
       <div className="topbar">
         <span className="topbar-title">Knowledge</span>
-        <span className="topbar-sub">Semantic search over your Obsidian vault</span>
+        <span className="topbar-sub">
+          {notes ? `${notes.length} note${notes.length === 1 ? "" : "s"} indexed from your Obsidian vault` : "Semantic search over your Obsidian vault"}
+        </span>
         <div className="topbar-right">
           <button className="btn btn-ghost btn-sm" onClick={reindex} disabled={reindexing}>
             {reindexing ? "Indexing…" : "Reindex vault"}
@@ -71,7 +73,17 @@ export default function Knowledge() {
             </form>
             {results && (
               <div className="job-list">
-                {results.length === 0 && <div className="empty-box"><h3>No results</h3></div>}
+                {results.length === 0 && (
+                  <div className="empty-box">
+                    <h3>No results</h3>
+                    <p>Try different words, or reindex if you've added notes recently.</p>
+                  </div>
+                )}
+                {results.length > 0 && (
+                  <div style={{ fontSize: 12, color: "var(--text3)", marginBottom: 4 }}>
+                    {results.length} result{results.length === 1 ? "" : "s"}, best match first
+                  </div>
+                )}
                 {results.map((r) => (
                   <div key={r.id} className="job-row" style={{ cursor: "default", flexDirection: "column", alignItems: "flex-start", gap: 4 }}>
                     <div style={{ display: "flex", width: "100%", gap: 10, alignItems: "center" }}>

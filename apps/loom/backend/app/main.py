@@ -96,6 +96,6 @@ else:
         return {
             "status": "ok",
             "note": "frontend/dist not built yet -- run `npm run build` in "
-                    "apps/agent-atlas/frontend, or use /api/health to check "
+                    "apps/loom/frontend, or use /api/health to check "
                     "the backend directly.",
         }

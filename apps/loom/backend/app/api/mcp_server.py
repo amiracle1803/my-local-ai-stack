@@ -124,3 +124,18 @@ async def draft_n8n_workflow(goal: str) -> str:
         return json.dumps(result, default=str)
     except NoHandlerError:
         return "Error: automation_agent isn't available."
+
+
+@mcp.tool()
+async def write_code(task: str, repo_path: str = "") -> str:
+    """Ask code_agent to read whatever files it needs from a repo and write
+    or create files to accomplish a task -- directly, no approval step.
+    repo_path defaults to this Loom repo itself if not given."""
+    try:
+        result = await bus.send_message(
+            from_agent="mcp", to_agent="code_agent", msg_type="write",
+            payload={"goal": task, "repo_path": repo_path or None},
+        )
+        return json.dumps(result, default=str)
+    except NoHandlerError:
+        return "Error: code_agent isn't available."

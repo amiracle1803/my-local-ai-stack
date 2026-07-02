@@ -53,7 +53,7 @@ class ModelClient:
             "temperature": kwargs.get("temperature", self.config.temperature),
             "max_tokens": kwargs.get("max_tokens", self.config.max_tokens),
         }
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        async with httpx.AsyncClient(timeout=kwargs.get("timeout", 60.0)) as client:
             resp = await client.post(self.config.endpoint, json=body, headers=headers)
             resp.raise_for_status()
             data = resp.json()

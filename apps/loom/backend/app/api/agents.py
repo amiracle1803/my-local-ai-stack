@@ -7,6 +7,7 @@ from typing import Any, Dict, List
 import yaml
 from fastapi import APIRouter, HTTPException
 
+from app.agents.registry import BUILTIN_AGENT_IDS, register_generic_agents
 from app.config.loader import ConfigLoader
 from app.models.agent import AgentCreateRequest
 from app.models.message import AgentMessage
@@ -24,7 +25,7 @@ _PING_TIMEOUT = 30.0
 async def list_agents():
     agents = ConfigLoader.get_all_agents()
     return [
-        {**a, "deletable": not bus.has_handler(a["id"])}
+        {**a, "deletable": a["id"] not in BUILTIN_AGENT_IDS}
         for a in agents.values()
     ]
 
@@ -34,7 +35,7 @@ async def get_agent(agent_id: str):
     agent = ConfigLoader.get_agent(agent_id)
     if not agent:
         raise HTTPException(status_code=404, detail=f"Agent '{agent_id}' not found")
-    return {**agent, "deletable": not bus.has_handler(agent_id)}
+    return {**agent, "deletable": agent_id not in BUILTIN_AGENT_IDS}
 
 
 @router.post("/{agent_id}/ping")
@@ -116,20 +117,22 @@ async def create_agent(req: AgentCreateRequest):
         yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
 
     ConfigLoader.load()
+    register_generic_agents()  # so it's dispatchable (pingable, runnable) immediately
     return {"status": "created", "agent_id": req.id, "path": str(dest)}
 
 
 @router.delete("/{agent_id}")
 async def delete_agent(agent_id: str):
-    """Refuses to delete built-in agents (they have a registered handler on
-    the collaboration bus -- the rest of the system assumes they exist)."""
+    """Refuses to delete built-in agents (the rest of the system assumes
+    they exist). Factory-created agents are always deletable, even though
+    they now have a real (generic) handler too -- see registry.py."""
     agent = ConfigLoader.get_agent(agent_id)
     if not agent:
         raise HTTPException(status_code=404, detail=f"Agent '{agent_id}' not found")
-    if bus.has_handler(agent_id):
+    if agent_id in BUILTIN_AGENT_IDS:
         raise HTTPException(
             status_code=409,
-            detail=f"'{agent_id}' is a built-in agent with a registered handler -- it can't be deleted.",
+            detail=f"'{agent_id}' is a built-in agent -- it can't be deleted.",
         )
 
     dest = _validated_dest(agent_id)
@@ -138,4 +141,5 @@ async def delete_agent(agent_id: str):
 
     dest.unlink()
     ConfigLoader.load()
+    bus.unregister_handler(agent_id)
     return {"status": "deleted", "agent_id": agent_id}

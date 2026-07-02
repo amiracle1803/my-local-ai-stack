@@ -6,6 +6,20 @@ from app.services import collaboration_bus as bus
 
 logger = logging.getLogger("agent_atlas.agents.orchestrator")
 
+# Goals that are clearly "build me an n8n thing" go straight to
+# automation_agent instead of the generic LLM path -- it has a real n8n
+# API key and can create actual workflows; the generic path would just
+# describe one in prose with no way to act on it.
+_AUTOMATION_KEYWORDS = ("n8n",)
+_AUTOMATION_VERBS = ("build", "create", "make", "set up", "setup", "automate")
+
+
+def _looks_like_automation_request(goal: str) -> bool:
+    g = goal.lower()
+    if any(k in g for k in _AUTOMATION_KEYWORDS):
+        return True
+    return "workflow" in g and any(v in g for v in _AUTOMATION_VERBS)
+
 
 class OrchestratorAgent(BaseAgent):
     agent_id = "orchestrator"
@@ -16,6 +30,18 @@ class OrchestratorAgent(BaseAgent):
         model_override = message.payload.get("model")
         if not goal.strip():
             return "I need a goal to work with -- the request was empty."
+
+        if _looks_like_automation_request(goal) and bus.has_handler("automation_agent"):
+            try:
+                result = await bus.send_message(
+                    from_agent=self.agent_id, to_agent="automation_agent", msg_type="create_workflow",
+                    payload={"goal": goal}, conversation_id=message.conversation_id,
+                    job_id=message.job_id,
+                )
+                return self._format_automation_result(result)
+            except Exception:  # noqa: BLE001
+                logger.exception("automation_agent fast-path failed, falling back to a generic answer")
+                # fall through to the generic path below
 
         # Ask the planner for a quick complexity read. Non-fatal if it's
         # not available or errors -- the orchestrator can still answer
@@ -39,6 +65,17 @@ class OrchestratorAgent(BaseAgent):
         response = await self.llm_call(prompt, system=self.definition.system_prompt, model_override=model_override)
         response = await self._maybe_revise(goal, response, message, model_override)
         return response
+
+    @staticmethod
+    def _format_automation_result(result: object) -> str:
+        if not isinstance(result, dict):
+            return str(result)
+        if "error" in result:
+            return f"I tried to build that n8n workflow but hit a problem: {result['error']}"
+        return (
+            f"Created the n8n workflow \"{result.get('name')}\" (id {result.get('workflow_id')}). "
+            f"{result.get('note', '')}"
+        ).strip()
 
     async def _maybe_revise(self, goal: str, response: str, message: AgentMessage,
                              model_override: str | None = None) -> str:

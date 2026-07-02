@@ -86,7 +86,12 @@ class BaseAgent:
 
     async def llm_call(self, user_prompt: str, system: Optional[str] = None,
                         model_override: Optional[str] = None, **kwargs) -> str:
+        """kwargs' "timeout" (seconds) overrides the default per-attempt
+        budget -- reasoning models (e.g. ornith_local) can genuinely need
+        more than _LLM_TIMEOUT_S for a long chain-of-thought on a complex
+        prompt; that's not a hang, just slower than a plain chat reply."""
         last_exc: Optional[Exception] = None
+        call_timeout = kwargs.get("timeout", _LLM_TIMEOUT_S)
         for attempt in range(1, _LLM_RETRIES + 1):
             try:
                 async with _LLM_SEMAPHORE:
@@ -96,7 +101,7 @@ class BaseAgent:
                         messages.append({"role": "system", "content": system})
                     messages.append({"role": "user", "content": user_prompt})
                     response = await asyncio.wait_for(
-                        client.chat(messages, **kwargs), timeout=_LLM_TIMEOUT_S,
+                        client.chat(messages, **kwargs), timeout=call_timeout,
                     )
                 return response["content"] if isinstance(response, dict) else str(response)
             except Exception as exc:  # noqa: BLE001

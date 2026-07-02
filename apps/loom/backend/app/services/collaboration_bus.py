@@ -43,6 +43,10 @@ def register_handler(agent_id: str, handler: Handler) -> None:
     _handlers[agent_id] = handler
 
 
+def unregister_handler(agent_id: str) -> None:
+    _handlers.pop(agent_id, None)
+
+
 def has_handler(agent_id: str) -> bool:
     return agent_id in _handlers
 

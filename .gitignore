@@ -30,14 +30,18 @@ node_modules/
 **/audio_output/
 **/voices/*.wav
 **/models/
-!apps/agent-atlas/backend/app/models/
+!apps/loom/backend/app/models/
 **/checkpoints/
 voice-studio/_tmp/
 
-# agent-atlas local state (covers apps/agent-atlas and any archived/renamed
-# copy, e.g. _archive/agent-atlas-pre-rewrite-*)
+# Loom (formerly agent-atlas) local state -- covers the live apps/loom
+# folder plus any archived/renamed copy, e.g.
+# _archive/agent-atlas-pre-rewrite-*
 *.sqlite
 *.sqlite3
+**/loom*/data/
+**/loom*/backend/data/
+**/loom*/backend/chroma*/
 **/agent-atlas*/data/
 **/agent-atlas*/backend/data/
 **/agent-atlas*/backend/chroma*/
