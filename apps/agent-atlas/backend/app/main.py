@@ -21,6 +21,7 @@ from app.agents import background_runtime
 from app.agents.registry import register_all
 from app.api import agents, health, jobs, obsidian, run
 from app.api import ws as ws_api
+from app.api.mcp_server import mcp as mcp_server
 from app.config.loader import ConfigLoader
 from app.services import collaboration_bus as bus
 from app.services import ws_bus
@@ -66,6 +67,7 @@ api.include_router(jobs.router, prefix="/jobs", tags=["jobs"])
 api.include_router(obsidian.router, prefix="/obsidian", tags=["obsidian"])
 app.include_router(api)
 app.include_router(ws_api.router)
+app.mount("/mcp", mcp_server.sse_app())
 
 if FRONTEND_DIST.exists():
     app.mount("/", StaticFiles(directory=str(FRONTEND_DIST), html=True), name="frontend")
