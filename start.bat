@@ -14,12 +14,15 @@ REM    4. Starts Agent Atlas (its FastAPI backend also serves its own UI,
 REM       embedded at /agents in the dashboard). Lightweight -- doesn't load
 REM       GPU models itself, just calls out to Ollama/LM Studio, so it's
 REM       safe to always auto-start.
-REM    5. Checks (but does NOT auto-start) the GPU-heavy apps: Voice Studio,
+REM    5. Starts Obsidian (not GPU-heavy, but AnythingLLM's MCP vault access
+REM       depends on its Local REST API plugin, which only runs while the
+REM       app itself is open).
+REM    6. Checks (but does NOT auto-start) the GPU-heavy apps: Voice Studio,
 REM       ComfyUI, LM Studio, AnythingLLM. These load multi-GB models onto
 REM       an 8GB laptop GPU -- auto-launching all of them at once alongside
 REM       Ollama has actually driven this machine down to ~400MB free VRAM
 REM       before. Start them yourself, only when you need them.
-REM    6. Starts the unified dashboard and opens it in your browser.
+REM    7. Starts the unified dashboard and opens it in your browser.
 REM ==========================================================================
 setlocal EnableDelayedExpansion
 cd /d "%~dp0"
@@ -92,7 +95,20 @@ if errorlevel 1 (
     echo [ok] Agent Atlas is running.
 )
 
-REM --- 5. GPU-heavy apps: check status only, don't auto-start ---------------
+REM --- 5. Obsidian (lightweight -- always auto-start) ------------------------
+REM Not GPU-heavy (no AI models loaded), but AnythingLLM's MCP connection to
+REM the vault depends on Obsidian's Local REST API plugin, which only runs
+REM while the app itself is open -- so this needs to come up every time.
+curl -s -m 2 http://127.0.0.1:27123/ >nul 2>nul
+if errorlevel 1 (
+    echo [..] Starting Obsidian...
+    start "" "shell:AppsFolder\md.obsidian"
+    timeout /t 5 /nobreak >nul
+) else (
+    echo [ok] Obsidian is running.
+)
+
+REM --- 6. GPU-heavy apps: check status only, don't auto-start ---------------
 echo.
 echo [i] GPU-heavy apps ^(start manually when you need them -- see comment above^):
 curl -s -m 2 http://127.0.0.1:5050/api/health >nul 2>nul
@@ -120,7 +136,7 @@ if errorlevel 1 (
     echo     [ok] AnythingLLM    -- http://127.0.0.1:3001
 )
 
-REM --- 6. Dashboard ----------------------------------------------------------
+REM --- 7. Dashboard ----------------------------------------------------------
 echo.
 echo [ok] Starting the dashboard...
 echo      Open your browser at:  http://localhost:8750
