@@ -30,6 +30,7 @@ node_modules/
 **/audio_output/
 **/voices/*.wav
 **/models/
+!apps/agent-atlas/backend/app/models/
 **/checkpoints/
 voice-studio/_tmp/
 

@@ -1,0 +1,46 @@
+# Model routing config. Endpoints can be overridden per-model with an env
+# var: AGENT_ATLAS_<NAME_UPPERCASE>_ENDPOINT (e.g. AGENT_ATLAS_OLLAMA_LOCAL_ENDPOINT).
+
+models:
+  ollama_local:
+    provider: local
+    type: chat
+    endpoint: http://localhost:11434/v1/chat/completions
+    model: qwen2.5:7b
+    capabilities: [general, private, cheap]
+    max_tokens: 4096
+    temperature: 0.7
+
+  lmstudio_local:
+    provider: local
+    type: chat
+    endpoint: http://127.0.0.1:1234/v1/chat/completions
+    model: local-model
+    capabilities: [general, private, cheap]
+    max_tokens: 4096
+    temperature: 0.7
+
+  groq_powerful:
+    provider: groq
+    type: chat
+    api_key_env: GROQ_API_KEY
+    model: llama-3.3-70b-versatile
+    capabilities: [deep_reasoning, coding]
+    max_tokens: 8192
+    temperature: 0.4
+
+  groq_fast:
+    provider: groq
+    type: chat
+    api_key_env: GROQ_API_KEY
+    model: llama-3.1-8b-instant
+    capabilities: [general, fast]
+    max_tokens: 4096
+    temperature: 0.5
+
+routing:
+  discovery_order: [ollama_local, lmstudio_local, groq_powerful, groq_fast]
+  allow_remote_models: true
+  allow_remote_search: true
+  default_model: ollama_local
+  privacy_first: false
