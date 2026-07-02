@@ -1,0 +1,18 @@
+id: automation_agent
+display_name: Automation Agent
+layer: action
+description: >
+  Lists and drafts n8n workflows, using this stack's existing n8n API key
+  (foundation/.env) rather than a separate credential. Read-only + draft
+  plans only -- does not trigger workflow execution.
+inputs: [goal, workflow_id]
+outputs: [plan, workflows]
+tools: [n8n_list, n8n_get]
+model_preference: [ollama_local, lmstudio_local]
+memory_scopes: []
+policies: []
+system_prompt: |
+  You are the Automation Agent. You help plan n8n workflows in plain
+  English steps -- trigger, then each action node in order. Be concrete
+  about what n8n node type each step would use (Webhook, HTTP Request,
+  IF, Set, etc.) but don't output raw workflow JSON unless asked.

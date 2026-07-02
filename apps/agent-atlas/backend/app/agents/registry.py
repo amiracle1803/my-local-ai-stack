@@ -7,7 +7,9 @@ live.
 import logging
 from typing import List, Type
 
+from app.agents.automation_agent import AutomationAgent
 from app.agents.base import BaseAgent
+from app.agents.code_agent import CodeAgent
 from app.agents.evaluator import EvaluatorAgent
 from app.agents.knowledge_hub import KnowledgeHubAgent
 from app.agents.memory_agent import MemoryAgent
@@ -25,6 +27,8 @@ AGENT_CLASSES: List[Type[BaseAgent]] = [
     ObsidianBrainAgent,
     MemoryAgent,
     KnowledgeHubAgent,
+    CodeAgent,
+    AutomationAgent,
 ]
 
 
