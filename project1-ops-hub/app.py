@@ -10,6 +10,11 @@ Started via start.bat, serves http://localhost:8750 with five pages:
                                 (Ollama, LM Studio, n8n, AnythingLLM, ComfyUI, Agent Atlas)
 
 No database, no accounts, no cloud. Everything is your local Ollama model.
+
+Tasks route through Agent Atlas's multi-agent orchestrator (persistent
+memory, specialist agents, n8n authoring) whenever it's running, falling
+back to this app's own single-shot classify-and-generate pipeline when
+it's not. See _run_task_job() / _run_via_agent_atlas().
 """
 
 from __future__ import annotations
@@ -35,6 +40,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from process import process_task, save_result  # noqa: E402
 from shared.lib import llm  # noqa: E402
 from shared.lib.config import load_config  # noqa: E402
+from shared.lib import notes  # noqa: E402
 from shared.lib.notes import generated_dir  # noqa: E402
 
 CFG = load_config()
@@ -48,6 +54,8 @@ JOBS = {
     "repos": ("project3-automation/repo_digest.py", "Repo Digest", "Read-only git log + TODO scan for repos in config.json (Project 3)."),
 }
 JOB_COLORS = {"nightly": "#A78BFA", "research": "#7DD3FC", "repos": "#5EE2B5"}
+
+AGENT_ATLAS_URL = "http://127.0.0.1:8000"
 
 ALLOWED_TAGS = [
     "p", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "li", "strong", "em",
@@ -284,11 +292,54 @@ _TASK_JOBS: dict[str, dict] = {}
 _TASK_JOBS_LOCK = threading.Lock()
 
 
+def _run_via_agent_atlas(task: str, timeout: float = 150.0) -> dict:
+    """
+    Hand the task to Agent Atlas's orchestrator instead of the local
+    classify-and-generate pipeline. Atlas has persistent memory, can fan out
+    to specialist agents (code, research, n8n authoring, Obsidian, email),
+    and remembers past conversations -- the local pipeline is single-shot
+    with none of that. Only used when Atlas is actually reachable; falls
+    back to the local pipeline otherwise (see _run_task_job).
+    """
+    resp = requests.post(
+        f"{AGENT_ATLAS_URL}/api/run", timeout=10,
+        json={"goal": task, "run_mode": "background"},
+    )
+    resp.raise_for_status()
+    atlas_job_id = resp.json()["job_id"]
+
+    deadline = time.time() + timeout
+    status = "queued"
+    job: dict = {}
+    while time.time() < deadline:
+        time.sleep(1.5)
+        job = _get_json(f"{AGENT_ATLAS_URL}/api/jobs/{atlas_job_id}") or {}
+        status = job.get("status", "running")
+        if status in ("done", "failed"):
+            break
+
+    title = notes.slugify(task.splitlines()[0], max_len=40)
+    if status not in ("done", "failed"):
+        return {
+            "category": "atlas", "title": title,
+            "output": f"Agent Atlas is still working on this after {int(timeout)}s -- "
+                       f"check the **Agents** tab (job `{atlas_job_id}`) for the result.",
+        }
+    if status == "failed":
+        return {"category": "error", "title": title, "output": f"Agent Atlas failed: {job.get('error')}"}
+
+    output = (job.get("result") or {}).get("response", "") or "_(Agent Atlas returned no response)_"
+    return {"category": "atlas", "title": title, "output": output}
+
+
 def _run_task_job(job_id: str, task: str, passes: int) -> None:
     with _TASK_JOBS_LOCK:
         _TASK_JOBS[job_id]["status"] = "running"
     try:
-        result = process_task(task, passes=passes)
+        if _get_json(f"{AGENT_ATLAS_URL}/api/health") is not None:
+            result = _run_via_agent_atlas(task)
+        else:
+            result = process_task(task, passes=passes)
     except Exception as exc:  # noqa: BLE001 - keep the worker thread alive
         traceback.print_exc()
         result = {"category": "error", "title": "error", "output": f"Unexpected error: {exc}"}
@@ -455,9 +506,6 @@ def run_automation(job: str):
 # Agents (Agent Atlas, embedded so it lives under this dashboard's nav
 # instead of being a separate site you have to remember to open)
 # ---------------------------------------------------------------------------
-AGENT_ATLAS_URL = "http://127.0.0.1:8000"
-
-
 @app.route("/agents")
 def agents_page():
     atlas = _get_json(f"{AGENT_ATLAS_URL}/api/health")
