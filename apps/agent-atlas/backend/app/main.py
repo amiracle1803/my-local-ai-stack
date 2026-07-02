@@ -18,6 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.agents import background_runtime
+from app.agents.base import set_trace_hook
 from app.agents.registry import register_all
 from app.api import agents, health, jobs, obsidian, run
 from app.api import ws as ws_api
@@ -25,6 +26,7 @@ from app.api.mcp_server import mcp as mcp_server
 from app.config.loader import ConfigLoader
 from app.services import collaboration_bus as bus
 from app.services import ws_bus
+from app.services.langfuse_client import trace_agent_call
 from app.storage.database import init_db
 from app.utils.logging import setup_logging
 
@@ -40,6 +42,7 @@ async def lifespan(app: FastAPI):
     ConfigLoader.load()
     registered = register_all()
     bus.set_broadcast_hook(ws_bus.broadcast)
+    set_trace_hook(trace_agent_call)
     background_runtime.start_workers(n=2)
     logger.info(
         "Agent Atlas starting: %d models, %d agent configs, %d handlers registered",

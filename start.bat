@@ -142,6 +142,13 @@ if errorlevel 1 (
 ) else (
     echo     [ok] MCP Gateway    -- http://127.0.0.1:8811
 )
+curl -s -m 2 http://127.0.0.1:3030/api/public/health >nul 2>nul
+if errorlevel 1 (
+    echo     [ ] Langfuse        -- optional, Agent Atlas call tracing --
+    echo                            foundation\start-langfuse.bat
+) else (
+    echo     [ok] Langfuse       -- http://127.0.0.1:3030
+)
 
 REM --- 7. Dashboard ----------------------------------------------------------
 echo.
