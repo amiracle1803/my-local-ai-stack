@@ -21,7 +21,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.agents import background_runtime
 from app.agents.registry import register_all
-from app.api import agents, health, jobs, run
+from app.api import agents, health, jobs, obsidian, run
 from app.config.loader import ConfigLoader
 from app.storage.database import init_db
 from app.utils.logging import setup_logging
@@ -61,6 +61,7 @@ api.include_router(health.router)
 api.include_router(run.router)
 api.include_router(agents.router, prefix="/agents", tags=["agents"])
 api.include_router(jobs.router, prefix="/jobs", tags=["jobs"])
+api.include_router(obsidian.router, prefix="/obsidian", tags=["obsidian"])
 app.include_router(api)
 
 if FRONTEND_DIST.exists():

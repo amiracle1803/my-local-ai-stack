@@ -41,6 +41,8 @@ CREATE TABLE IF NOT EXISTS obsidian_notes (
     links TEXT NOT NULL DEFAULT '[]',
     frontmatter_json TEXT NOT NULL DEFAULT '{}',
     content_hash TEXT,
+    snippet TEXT NOT NULL DEFAULT '',
+    embedding_json TEXT,
     indexed_at TEXT NOT NULL
 );
 

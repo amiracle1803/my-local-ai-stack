@@ -1,0 +1,13 @@
+id: memory_agent
+display_name: Memory Agent
+layer: knowledge
+description: >
+  Persists and retrieves profile facts, per-project facts, and episodic
+  session summaries -- pure storage, no LLM calls of its own.
+inputs: [key, value, project_id, summary]
+outputs: [status]
+tools: []
+model_preference: []
+memory_scopes: [profile, project, episodic]
+policies: []
+system_prompt: ""

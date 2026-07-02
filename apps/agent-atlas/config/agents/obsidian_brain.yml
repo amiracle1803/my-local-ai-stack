@@ -1,0 +1,15 @@
+id: obsidian_brain
+display_name: Obsidian Brain
+layer: knowledge
+description: >
+  Owns the Obsidian vault: semantic search over notes (and PDFs) via
+  Ollama embeddings, incremental reindexing, and note summarisation.
+inputs: [query, note_ids]
+outputs: [results, summary]
+tools: [obsidian_search, obsidian_index]
+model_preference: [ollama_local, lmstudio_local]
+memory_scopes: [vault]
+policies: []
+system_prompt: |
+  You summarise Obsidian notes accurately and concisely. Never invent
+  content that isn't in the provided notes.
