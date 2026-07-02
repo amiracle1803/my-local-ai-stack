@@ -9,6 +9,7 @@ from typing import List, Type
 
 from app.agents.base import BaseAgent
 from app.agents.evaluator import EvaluatorAgent
+from app.agents.knowledge_hub import KnowledgeHubAgent
 from app.agents.memory_agent import MemoryAgent
 from app.agents.obsidian_brain import ObsidianBrainAgent
 from app.agents.orchestrator import OrchestratorAgent
@@ -23,6 +24,7 @@ AGENT_CLASSES: List[Type[BaseAgent]] = [
     EvaluatorAgent,
     ObsidianBrainAgent,
     MemoryAgent,
+    KnowledgeHubAgent,
 ]
 
 
