@@ -234,6 +234,17 @@ def _integrations() -> list[dict]:
         "role": "Local image/video generation (node graph).",
     })
 
+    voice = _get_json("http://127.0.0.1:5050/api/health")
+    voice_detail = "not running"
+    if voice:
+        engines = [n for n in ("chatterbox", "f5") if voice.get(n)]
+        voice_detail = f"{'+'.join(engines) or 'no engines'} loaded"
+    out.append({
+        "key": "voice_studio", "label": "Voice Studio", "color": "#F472B6", "up": voice is not None,
+        "detail": voice_detail, "link": "http://127.0.0.1:5050", "has_ui": True,
+        "role": "Local TTS: Chatterbox + F5-TTS (isolated worker), voice cloning library.",
+    })
+
     atlas = _get_json("http://127.0.0.1:8000/api/health")
     atlas_detail = "not running"
     if atlas:
