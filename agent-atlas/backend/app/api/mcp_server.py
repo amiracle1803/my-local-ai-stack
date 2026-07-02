@@ -593,6 +593,160 @@ async def read_emails(
 
 
 @mcp_server.tool()
+async def list_n8n_workflows() -> str:
+    """List all workflows in the local n8n instance (name, id, active state).
+
+    Use this before create_n8n_workflow to check whether something similar
+    already exists.
+    """
+    from app.services import n8n_client
+
+    try:
+        wfs = await n8n_client.list_workflows()
+        if not wfs:
+            return "No workflows in n8n yet."
+        lines = [f"{len(wfs)} workflow(s):\n"]
+        for w in wfs:
+            lines.append(f"  [{'ACTIVE' if w.get('active') else 'inactive'}] {w['name']}  (id: {w['id']})")
+        return "\n".join(lines)
+    except n8n_client.N8nError as exc:
+        return f"Error: {exc}"
+
+
+@mcp_server.tool()
+async def create_n8n_workflow(
+    name: str,
+    nodes_json: str,
+    connections_json: str,
+    activate: bool = True,
+) -> str:
+    """Create a new n8n workflow from raw node/connection JSON, ready to run.
+
+    n8n's REST API cannot execute a Manual Trigger workflow -- the only
+    trigger type that can be run over HTTP is a Webhook node. If this
+    workflow needs to be run/tested by an agent (not just by a human
+    clicking around the n8n UI), give it a Webhook trigger, not a Manual
+    Trigger. If it should run on a timer instead, use a Schedule Trigger
+    (n8n-nodes-base.scheduleTrigger) -- those fire on their own once active,
+    no manual run needed.
+
+    IMPORTANT: n8n runs inside Docker. Any HTTP Request node that calls
+    Ollama on this machine MUST use http://host.docker.internal:11434,
+    NOT http://localhost:11434 -- localhost inside the container is the
+    container itself.
+
+    Minimal working example (webhook -> ask local Ollama -> respond):
+        nodes_json:
+        [
+          {"parameters": {"path": "my-flow", "httpMethod": "POST", "responseMode": "lastNode"},
+           "type": "n8n-nodes-base.webhook", "typeVersion": 2, "position": [0,0], "name": "Webhook"},
+          {"parameters": {"method": "POST", "url": "http://host.docker.internal:11434/v1/chat/completions",
+           "sendBody": true, "specifyBody": "json",
+           "jsonBody": "{\\"model\\": \\"qwen2.5:7b\\", \\"messages\\": [{\\"role\\": \\"user\\", \\"content\\": \\"hello\\"}]}",
+           "options": {}}, "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.4,
+           "position": [220,0], "name": "Ask Ollama"}
+        ]
+        connections_json:
+        {"Webhook": {"main": [[{"node": "Ask Ollama", "type": "main", "index": 0}]]}}
+
+    Args:
+        name: Workflow name, shown in the n8n UI.
+        nodes_json: JSON array of n8n node objects (see example above).
+        connections_json: JSON object mapping node name -> its outgoing connections.
+        activate: Activate immediately so a Webhook/Schedule trigger can fire (default true).
+    """
+    from app.services import n8n_client
+
+    try:
+        nodes = json.loads(nodes_json)
+        connections = json.loads(connections_json)
+    except json.JSONDecodeError as exc:
+        return f"nodes_json/connections_json is not valid JSON: {exc}"
+
+    try:
+        wf = await n8n_client.create_workflow(name, nodes, connections, activate=activate)
+        webhook_path = n8n_client.find_webhook_path(wf)
+        lines = [
+            f"Created workflow '{name}' (id: {wf['id']}), active={wf.get('active', False)}.",
+        ]
+        if webhook_path:
+            lines.append(f"Run it with: run_n8n_workflow('{wf['id']}')")
+        else:
+            lines.append(
+                "No Webhook trigger found -- this workflow can only be run from the n8n UI "
+                "(or it self-triggers if it has a Schedule Trigger)."
+            )
+        return "\n".join(lines)
+    except n8n_client.N8nError as exc:
+        return f"Error creating workflow: {exc}"
+
+
+@mcp_server.tool()
+async def run_n8n_workflow(workflow_id: str, payload_json: Optional[str] = None) -> str:
+    """Run an n8n workflow that has a Webhook trigger, and return its output.
+
+    Ensures the workflow is active, POSTs to its webhook URL, and returns
+    the response. Follow up with check_n8n_workflow() if you want the full
+    execution log rather than just the webhook response.
+
+    Args:
+        workflow_id: The workflow's id (from create_n8n_workflow or list_n8n_workflows).
+        payload_json: Optional JSON object to POST as the webhook's input data.
+    """
+    from app.services import n8n_client
+
+    payload = None
+    if payload_json:
+        try:
+            payload = json.loads(payload_json)
+        except json.JSONDecodeError as exc:
+            return f"payload_json is not valid JSON: {exc}"
+
+    try:
+        wf = await n8n_client.get_workflow(workflow_id)
+        path = n8n_client.find_webhook_path(wf)
+        if not path:
+            return (
+                f"Workflow '{wf.get('name')}' has no Webhook trigger node, so it can't be run "
+                "over the API. Re-create it with a Webhook trigger, or run it manually from the n8n UI."
+            )
+        if not wf.get("active"):
+            await n8n_client.set_active(workflow_id, True)
+        result = await n8n_client.run_via_webhook(path, payload)
+        return f"Ran '{wf.get('name')}' -- HTTP {result['status_code']}\n\n{json.dumps(result['body'], indent=2)[:3000]}"
+    except n8n_client.N8nError as exc:
+        return f"Error running workflow: {exc}"
+
+
+@mcp_server.tool()
+async def check_n8n_workflow(workflow_id: str, execution_limit: int = 5) -> str:
+    """Check a workflow's active state and its most recent execution results.
+
+    Use this after run_n8n_workflow() (or after a Schedule Trigger should
+    have fired) to confirm the workflow actually succeeded, not just that
+    it was triggered.
+
+    Args:
+        workflow_id: The workflow's id.
+        execution_limit: How many recent executions to show (default 5).
+    """
+    from app.services import n8n_client
+
+    try:
+        wf = await n8n_client.get_workflow(workflow_id)
+        execs = await n8n_client.list_executions(workflow_id, limit=execution_limit)
+        lines = [f"Workflow '{wf.get('name')}' -- {'ACTIVE' if wf.get('active') else 'inactive'}\n"]
+        if not execs:
+            lines.append("No executions yet.")
+        for e in execs:
+            status = "error" if e.get("stoppedAt") and e.get("status") == "error" else e.get("status", "?")
+            lines.append(f"  [{status}] started {e.get('startedAt')}  (execution id: {e.get('id')})")
+        return "\n".join(lines)
+    except n8n_client.N8nError as exc:
+        return f"Error checking workflow: {exc}"
+
+
+@mcp_server.tool()
 async def list_agents() -> str:
     """List all agents currently registered in Agent Atlas.
 

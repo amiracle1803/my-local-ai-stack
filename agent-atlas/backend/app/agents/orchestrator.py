@@ -48,6 +48,22 @@ class OrchestratorAgent(BaseAgent):
         context = message.payload.get("context", {})
         logger.info("[orchestrator] goal: %s", goal[:100])
 
+        # n8n workflow authoring is a well-defined capability that lives
+        # entirely in automation_agent -- route straight there instead of
+        # letting the generic planner guess between code_agent/knowledge_hub
+        # (it has no way to know "n8n" maps to a specific tool).
+        if "n8n" in goal.lower():
+            result = await bus.send_message(
+                from_agent="orchestrator", to_agent="automation_agent",
+                msg_type="subtask", payload={"goal": goal, "context": context},
+                conversation_id=message.conversation_id,
+            )
+            text = result.get("status") if isinstance(result, dict) else None
+            response = json.dumps(result, indent=2, default=str) if not text else (
+                f"{text}\n\n{json.dumps(result, indent=2, default=str)}"
+            )
+            return {"response": response, "route": "n8n_direct"}
+
         if self._classify(goal) == "trivial":
             memory_ctx = await self._load_memory_context(goal)
             preamble = self._build_context_preamble({**context, "memory_context": memory_ctx} if memory_ctx else context)
