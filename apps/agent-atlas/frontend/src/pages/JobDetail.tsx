@@ -1,23 +1,39 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { api, type Job } from "../api/client";
+import { api, type Job, type JobStatus } from "../api/client";
 import { wsClient } from "../api/ws";
+import LiveFeed from "../components/LiveFeed";
 
-type Tab = "result" | "payload" | "notes";
+type Tab = "progress" | "result" | "payload" | "notes";
+
+const STATUS_LABEL: Record<JobStatus, string> = {
+  queued: "Waiting to start",
+  running: "In progress",
+  paused: "Paused",
+  done: "Done",
+  failed: "Failed",
+  stopped: "Stopped",
+};
 
 export default function JobDetail() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const [job, setJob] = useState<Job | null>(null);
-  const [tab, setTab] = useState<Tab>("result");
+  const [tab, setTab] = useState<Tab | null>(null);
   const [notes, setNotes] = useState("");
   const [busyAction, setBusyAction] = useState<string | null>(null);
 
   function refresh() {
-    api.jobs.get(id).then((j) => { setJob(j); setNotes(j.notes ?? ""); }).catch(() => {});
+    api.jobs.get(id).then((j) => {
+      setJob(j);
+      setNotes(j.notes ?? "");
+      // Land on Progress while it's live, Result once it's settled --
+      // but don't yank the user off a tab they've already picked.
+      setTab((prev) => prev ?? (j.status === "queued" || j.status === "running" ? "progress" : "result"));
+    }).catch(() => {});
   }
 
-  useEffect(() => { refresh(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [id]);
+  useEffect(() => { setTab(null); refresh(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [id]);
 
   useEffect(() => {
     const t = setInterval(refresh, 3000);
@@ -48,15 +64,17 @@ export default function JobDetail() {
     await api.jobs.saveNotes(id, notes);
   }
 
-  if (!job) return <div className="page"><div className="loading-row"><div className="spinner" />Loading…</div></div>;
+  if (!job || !tab) return <div className="page"><div className="loading-row"><div className="spinner" />Loading…</div></div>;
+
+  const isLive = job.status === "queued" || job.status === "running";
 
   return (
     <>
       <div className="topbar">
-        <button className="btn btn-ghost btn-sm" onClick={() => navigate("/jobs")}>← Jobs</button>
+        <button className="btn btn-ghost btn-sm" onClick={() => navigate("/jobs")}>← History</button>
         <span className="topbar-title">{job.title || job.id}</span>
         <span className={`sdot sdot-${job.status}`} />
-        <span className="topbar-sub">{job.status}</span>
+        <span className="topbar-sub">{STATUS_LABEL[job.status]}</span>
         <div className="topbar-right">
           {(job.status === "queued" || job.status === "running") && (
             <button className="btn btn-ghost btn-sm" disabled={!!busyAction} onClick={() => act("pause")}>Pause</button>
@@ -82,15 +100,31 @@ export default function JobDetail() {
         {job.error && <div className="alert alert-err">{job.error}</div>}
 
         <div className="tabs">
+          <button className={`tab${tab === "progress" ? " on" : ""}`} onClick={() => setTab("progress")}>
+            Progress{isLive && <span className="dot spin" style={{ marginLeft: 6, verticalAlign: "middle" }} />}
+          </button>
           <button className={`tab${tab === "result" ? " on" : ""}`} onClick={() => setTab("result")}>Result</button>
           <button className={`tab${tab === "payload" ? " on" : ""}`} onClick={() => setTab("payload")}>Payload</button>
           <button className={`tab${tab === "notes" ? " on" : ""}`} onClick={() => setTab("notes")}>Notes</button>
         </div>
 
-        {tab === "result" && (
-          <div className="codeblock">
-            {job.result?.response ?? (job.status === "done" ? "(empty result)" : "Waiting for the job to complete…")}
+        {tab === "progress" && (
+          <div className="card">
+            <LiveFeed jobId={id} active={isLive} />
           </div>
+        )}
+        {tab === "result" && (
+          job.status === "done" ? (
+            <div className="card" style={{ borderColor: "rgba(34,197,94,.3)" }}>
+              <div className="section-hd"><h2 style={{ color: "var(--green)" }}>✓ Result</h2></div>
+              <div className="codeblock" style={{ maxHeight: "none" }}>{job.result?.response ?? "(empty result)"}</div>
+            </div>
+          ) : (
+            <div className="empty-box">
+              <h3>Not done yet</h3>
+              <p>Check the Progress tab to watch it work, or come back once it finishes.</p>
+            </div>
+          )
         )}
         {tab === "payload" && (
           <div className="codeblock">{JSON.stringify(job.payload, null, 2)}</div>
