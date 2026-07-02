@@ -90,6 +90,7 @@
   .prose a{color:var(--cyan)}
   .prose blockquote{border-left:3px solid var(--border);margin:0;padding-left:1rem;color:var(--muted)}
   .backlink{color:var(--muted);text-decoration:none;font-size:.82rem;display:inline-block;margin-bottom:.8rem}
+  .embed-frame{width:100%;height:calc(100vh - var(--nav-h) - 9.5rem);min-height:480px;border:1px solid var(--border);border-radius:16px;background:#0d0d14;box-shadow:0 20px 48px rgba(0,0,0,.2)}
   .backlink:hover{color:var(--text)}
   form.inline{display:inline}
   /* agent-style / integration cards */
@@ -122,6 +123,7 @@
       <a class="navitem {{ 'active' if active=='dashboard' else '' }}" href="/">Dashboard</a>
       <a class="navitem {{ 'active' if active=='tasks' else '' }}" href="/tasks">Tasks</a>
       <a class="navitem {{ 'active' if active=='automation' else '' }}" href="/automation">Automation</a>
+      <a class="navitem {{ 'active' if active=='agents' else '' }}" href="/agents">Agents</a>
       <a class="navitem {{ 'active' if active=='reviews' else '' }}" href="/reviews">Knowledge</a>
       <a class="navitem {{ 'active' if active=='integrations' else '' }}" href="/integrations">Integrations</a>
     </div>

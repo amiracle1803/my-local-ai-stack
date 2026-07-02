@@ -16,7 +16,7 @@
       <div class="row" style="margin-top:0;justify-content:space-between">
         <span class="agent-when">{{ i.detail }}</span>
         {% if i.up and i.link and i.get('has_ui', True) %}
-        <a class="agent-link" href="{{ i.link }}" target="_blank" rel="noopener">Open →</a>
+        <a class="agent-link" href="{{ i.link }}" {{ 'target="_blank" rel="noopener"' if not i.get('internal') else '' }}>Open →</a>
         {% elif i.up and i.link %}
         <span class="agent-when" title="{{ i.link }} has no browser UI — it's an API other tools call into.">API only</span>
         {% elif i.up %}

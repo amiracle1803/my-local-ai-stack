@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Agents — Local AI Stack{% endblock %}
+{% block content %}
+  <div class="eyebrow">Agent Atlas</div>
+  <h1>Agents.</h1>
+  <p class="sub">Multi-agent system: persistent memory, background jobs, agent factory, email.
+    {% if atlas_up %}
+    <span class="pill ok">{{ atlas_detail }}</span>
+    <a class="agent-link" href="{{ atlas_url }}" target="_blank" rel="noopener" style="margin-left:.6rem">Open in new tab →</a>
+    {% else %}
+    <span class="pill bad">Agent Atlas offline</span>
+    {% endif %}
+  </p>
+
+  {% if atlas_up %}
+  <iframe src="{{ atlas_url }}" class="embed-frame" title="Agent Atlas"></iframe>
+  {% else %}
+  <div class="card">
+    <h2>Agent Atlas isn't running</h2>
+    <p class="empty">
+      Start its backend (which also serves its UI) from <code>agent-atlas/backend</code>:<br><br>
+      <code>.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000</code><br><br>
+      Then reload this page.
+    </p>
+  </div>
+  {% endif %}
+{% endblock %}

@@ -232,7 +232,7 @@ def _integrations() -> list[dict]:
         atlas_detail = f"{atlas.get('agents_loaded', '?')} agents · {atlas.get('models_loaded', '?')} models"
     out.append({
         "key": "agent_atlas", "label": "Agent Atlas", "color": "#8B5CF6", "up": atlas is not None,
-        "detail": atlas_detail, "link": "http://127.0.0.1:8000", "has_ui": True,
+        "detail": atlas_detail, "link": "/agents", "has_ui": True, "internal": True,
         "role": "Multi-agent system: persistent memory, background jobs, email, agent factory.",
     })
 
@@ -449,6 +449,24 @@ def run_automation(job: str):
     except Exception as exc:  # noqa: BLE001
         flash(f"{label} failed to start: {exc}", "error")
     return redirect(url_for("automation"))
+
+
+# ---------------------------------------------------------------------------
+# Agents (Agent Atlas, embedded so it lives under this dashboard's nav
+# instead of being a separate site you have to remember to open)
+# ---------------------------------------------------------------------------
+AGENT_ATLAS_URL = "http://127.0.0.1:8000"
+
+
+@app.route("/agents")
+def agents_page():
+    atlas = _get_json(f"{AGENT_ATLAS_URL}/api/health")
+    return render_template(
+        "agents.html", active="agents", atlas_up=atlas is not None,
+        atlas_url=AGENT_ATLAS_URL,
+        atlas_detail=(f"{atlas.get('agents_loaded', '?')} agents · {atlas.get('models_loaded', '?')} models"
+                      if atlas else None),
+    )
 
 
 # ---------------------------------------------------------------------------
