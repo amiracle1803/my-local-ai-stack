@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Reviews & Notes — Local AI Stack{% endblock %}
+{% block content %}
+  <div class="eyebrow">Second Brain</div>
+  <h1>Reviews &amp; notes.</h1>
+  <p class="sub">Everything the AI has written into your vault's <code>_generated/</code> folder.</p>
+
+  {% if not groups %}
+    <div class="card"><p class="empty">Nothing generated yet. Run a nightly review or a digest from the Automation tab.</p></div>
+  {% endif %}
+
+  {% for group, files in groups.items() %}
+  <div class="card">
+    <h2>{{ group }}</h2>
+    <div class="list">
+      {% for f in files %}
+      <a class="item" href="/reviews/view?rel={{ f.rel }}">
+        <span>{{ f.name }}</span>
+        <span class="meta">{{ f.when }}</span>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+{% endblock %}

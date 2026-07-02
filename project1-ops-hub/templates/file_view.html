@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} — Local AI Stack{% endblock %}
+{% block content %}
+  <a class="backlink" href="{{ back_url }}">&larr; back</a>
+  <h1>{{ title }}</h1>
+  <p class="sub">{{ subtitle }}</p>
+  <div class="card">
+    <div class="prose">{{ content_html | safe }}</div>
+  </div>
+{% endblock %}

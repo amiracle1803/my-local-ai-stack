@@ -1,0 +1,23 @@
+﻿id: deployment_agent
+display_name: Deployment Agent
+layer: platform
+description: Manages config versioning, reloads, and reports system deployment status.
+
+model_preference:
+  - hermes_local
+
+inputs:
+  - op
+
+outputs:
+  - status
+  - git_rev
+  - agents_loaded
+  - models_loaded
+
+tools: []
+memory_scopes: []
+policies: []
+
+system_prompt: |
+  You are the Deployment Agent. Report deployment status and manage configuration reloads.

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Tasks — Local AI Stack{% endblock %}
+{% block content %}
+  <div class="eyebrow">Ops Hub</div>
+  <h1>Tasks.</h1>
+  <p class="sub">Type a task in plain English.
+    <span class="pill {{ 'ok' if up else 'bad' }}">{{ 'Ollama online' if up else 'Ollama OFFLINE' }}</span>
+  </p>
+
+  <div class="two-col">
+    <div>
+      <div class="card">
+        <h2>New task</h2>
+        <form method="post" action="/tasks/run" onsubmit="document.getElementById('go').disabled=true; document.getElementById('go').textContent='Working…';">
+          <textarea name="task" placeholder="e.g. Plan next week's workouts around 3 gym days&#10;e.g. Draft a polite reply declining this meeting: [paste email]&#10;e.g. Summarise these links: https://... https://...">{{ task or '' }}</textarea>
+          <div class="row">
+            <button id="go" type="submit">Run</button>
+            <select name="passes" title="More passes = slower but more refined">
+              <option value="1" {{ 'selected' if passes==1 else '' }}>Fast (1 pass)</option>
+              <option value="3" {{ 'selected' if passes==3 or not passes else '' }}>Balanced (3 passes)</option>
+              <option value="4" {{ 'selected' if passes==4 else '' }}>Careful (4 passes)</option>
+            </select>
+          </div>
+        </form>
+      </div>
+
+      {% if result %}
+      <div class="card">
+        <span class="tag">{{ result.category }}</span>
+        <div class="result">{{ result.output }}</div>
+        {% if saved %}<p class="empty">Saved to: {{ saved }}</p>{% endif %}
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <h2>Recent tasks</h2>
+      {% if recent %}
+      <div class="list">
+        {% for r in recent %}
+        <a class="item" href="/outbox/view?name={{ r.name }}">
+          <span>{{ r.title }}</span>
+          <span class="meta">{{ r.category }} · {{ r.when }}</span>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="empty">No tasks run yet.</p>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

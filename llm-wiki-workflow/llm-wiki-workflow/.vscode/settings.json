@@ -1,0 +1,15 @@
+{
+  "files.eol": "\n",
+  "markdown.validate.enabled": true,
+  "[markdown]": {
+    "editor.wordWrap": "on",
+    "editor.quickSuggestions": { "comments": false, "strings": true, "other": true }
+  },
+  "yaml.schemas": {},
+  "search.exclude": {
+    "**/raw/**": false
+  },
+  "files.associations": {
+    "CLAUDE.md": "markdown"
+  }
+}

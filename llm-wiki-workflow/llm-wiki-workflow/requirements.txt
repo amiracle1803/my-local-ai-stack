@@ -1,0 +1,21 @@
+# LLM Wiki Workflow — Python dependencies
+#
+# The core wiki workflow (wiki.py, agent.py, watcher.py, obsidian_sync.py)
+# is zero-dependency and runs on Python 3.8+ with no installs needed.
+#
+# These packages unlock the optional tooling:
+#
+#   mcp         → tools/mcp_server.py   (Claude Code / Claude Desktop integration)
+#   fastapi     → tools/server.py       (web browser UI)
+#   uvicorn     → tools/server.py       (ASGI server for FastAPI)
+#
+# Install all at once:
+#   pip install -r requirements.txt
+#
+# Or install only what you need:
+#   pip install mcp               # MCP server only
+#   pip install fastapi uvicorn   # Web browser only
+
+mcp>=1.0.0
+fastapi>=0.110.0
+uvicorn>=0.27.0

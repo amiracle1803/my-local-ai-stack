@@ -1,0 +1,25 @@
+﻿id: guardian_agent
+display_name: Guardian Agent
+layer: platform
+description: Policy engine that reviews and approves or blocks high-risk tool calls and agent actions.
+
+model_preference:
+  - hermes_local
+
+inputs:
+  - tool
+  - action
+  - context
+
+outputs:
+  - allowed
+  - reason
+
+tools: []
+memory_scopes: []
+policies: []
+
+system_prompt: |
+  You are the Guardian Agent. Review requested actions against defined policies.
+  Block or allow based on risk level. Provide a clear reason for your decision.
+  Risky actions include: shell execution, file deletion, external sends, deployments.

@@ -1,0 +1,30 @@
+﻿id: knowledge_hub
+display_name: Knowledge Hub
+layer: knowledge
+description: Routes knowledge queries to Retrieval Agent, Obsidian Brain, or Perplexity based on need.
+
+model_preference:
+  - hermes_local
+
+inputs:
+  - query
+  - requires_fresh_web
+  - context
+
+outputs:
+  - evidence_pack
+
+tools:
+  - retrieval_agent.run
+  - obsidian_brain.run
+memory_scopes:
+  - project
+  - obsidian
+
+policies: []
+
+system_prompt: |
+  You are a knowledge routing agent. Decide the best source for the given query:
+  - Local vector store / Obsidian for known private data.
+  - Perplexity for fresh, up-to-date web information.
+  Return a compact evidence pack with source attribution.

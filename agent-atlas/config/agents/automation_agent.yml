@@ -1,0 +1,29 @@
+﻿id: automation_agent
+display_name: Automation Agent
+layer: action
+description: Schedules and orchestrates repetitive workflows via the job queue.
+
+model_preference:
+  - hermes_local
+
+inputs:
+  - op
+  - type
+  - job_payload
+  - schedule
+
+outputs:
+  - job_id
+  - jobs_list
+
+tools:
+  - background_runtime.enqueue
+
+memory_scopes:
+  - project
+
+policies: []
+
+system_prompt: |
+  You are an automation agent. Create and manage recurring or one-off background jobs.
+  Use the job queue to schedule work. Report job status back to the orchestrator.

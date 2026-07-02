@@ -1,0 +1,44 @@
+# ADVANCED / OPTIONAL extras. You do NOT need any of these for the three
+# projects — the defaults (LanceDB inside AnythingLLM, plain log files) cover
+# everything. Turn these on only when you specifically want them.
+#
+# Start just one, e.g.:
+#   docker compose -f docker-compose.optional.yml up -d qdrant
+#
+# See docs/GUIDE.md ("Next steps / advanced") for when each is worth it.
+
+services:
+  # Qdrant — a heavier-duty vector database (upgrade from LanceDB) if you have
+  # a very large vault or want advanced metadata filtering.
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: aistack-qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"   # REST/UI
+      - "6334:6334"   # gRPC
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  # Portainer — a friendly web dashboard to see/manage your containers instead
+  # of the command line.
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: aistack-portainer
+    restart: unless-stopped
+    ports:
+      - "9443:9443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+
+  # NOTE on Langfuse (LLM tracing/observability):
+  # It needs several extra containers (Postgres + ClickHouse + Redis + MinIO),
+  # which is a lot to run for one person. If you want it, use the official
+  # docker-compose from https://github.com/langfuse/langfuse rather than
+  # squeezing it in here, and point your Python at it by setting
+  # "langfuse_enabled": true in config.json plus the LANGFUSE_* env vars.
+
+volumes:
+  qdrant_data:
+  portainer_data:

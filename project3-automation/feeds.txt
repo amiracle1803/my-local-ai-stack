@@ -1,0 +1,10 @@
+# Research feeds — one RSS/Atom URL per line. Lines starting with # are ignored.
+
+# Generic
+https://hnrss.org/frontpage
+https://www.theverge.com/rss/index.xml
+
+# AI / local-LLM focused
+https://simonwillison.net/atom/everything/
+https://huggingface.co/blog/feed.xml
+https://www.latent.space/feed

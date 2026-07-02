@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Speech Filter</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="logo">
+      <span class="badge f5">F5</span>
+    </div>
+    <div class="header-text">
+      <h1>Speech Filter</h1>
+      <p class="subtitle">Upload audio &nbsp;·&nbsp; F5-TTS re-synthesizes it clean</p>
+    </div>
+    <div id="statusDot" class="status-dot" title="Checking..."></div>
+  </header>
+
+  <main>
+
+    <!-- Primary: audio to clean -->
+    <div class="card">
+      <label class="label">Audio to Clean</label>
+
+      <div class="drop-zone" id="dropZone">
+        <svg class="drop-icon" width="30" height="30" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        <div class="drop-text">
+          Drop your audio here or <span class="drop-link" id="browseBtn">browse</span>
+        </div>
+        <div class="drop-sub">WAV &nbsp;·&nbsp; MP3 &nbsp;·&nbsp; M4A &nbsp;&nbsp;|&nbsp;&nbsp; up to 500 MB &nbsp;·&nbsp; up to 60 seconds</div>
+        <input type="file" id="audioFile" accept="audio/*" style="display:none">
+      </div>
+
+      <div class="file-info" id="fileInfo" style="display:none">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+             style="flex-shrink:0;color:var(--green)">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+        <span class="file-name" id="fileName"></span>
+        <button class="clear-btn" id="clearBtn">Remove</button>
+      </div>
+    </div>
+
+    <!-- Secondary: transcript for context -->
+    <div class="card">
+      <label class="label" for="textInput">
+        Transcript
+        <span class="label-hint">&nbsp;·&nbsp; what is being said in the audio &nbsp;·&nbsp; optional</span>
+      </label>
+      <textarea id="textInput" rows="4"
+        placeholder="Type what the audio is saying… leave blank to auto-detect"></textarea>
+      <div class="char-row"><span id="charCount">0</span> characters</div>
+    </div>
+
+    <button class="gen-btn" id="genBtn" onclick="generate()">
+      <span id="genLabel">Clean Audio</span>
+    </button>
+
+    <div class="pipeline" id="pipeline">
+      <div class="pnode">
+        <span class="badge f5">F5</span>
+        <span class="pname">F5-TTS re-synthesis</span>
+        <span class="pstatus" id="psF5">—</span>
+      </div>
+    </div>
+
+    <div class="audio-card" id="audioCard" style="display:none">
+      <div class="audio-meta" id="audioMeta"></div>
+      <audio id="player" controls></audio>
+      <a id="dlLink" class="dl-btn" download="cleaned.wav">Download WAV</a>
+    </div>
+
+    <div class="err-box" id="errBox" style="display:none"></div>
+
+  </main>
+</div>
+<script src="/static/script.js"></script>
+</body>
+</html>

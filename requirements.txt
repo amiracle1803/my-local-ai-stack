@@ -1,0 +1,19 @@
+# Base requirements for all three projects.
+# Deliberately lean: everything here installs from prebuilt wheels on Windows
+# with no compiler and no giant ML downloads, so `pip install` rarely fails.
+#
+# Install with:  setup.bat   (creates .venv and installs this)
+
+openai>=1.40            # talks to Ollama's OpenAI-compatible API
+instructor>=1.5         # schema-first structured extraction (Project 2)
+pydantic>=2.7           # data models used by Instructor
+requests>=2.31          # health checks + simple HTTP
+flask>=3.0              # the Project 1 "drop a task" web form
+feedparser>=6.0         # reading RSS feeds (Project 3)
+trafilatura>=1.9        # clean article text/markdown from web pages (Project 3)
+chonkie>=0.4            # smart text chunking for long notes (Project 2)
+python-frontmatter>=1.1 # parse YAML frontmatter in notes
+rich>=13.7              # readable colored console output
+python-dateutil>=2.9    # date parsing helpers
+markdown>=3.6            # render generated notes as HTML in the dashboard
+bleach>=6.1              # sanitize that HTML before it hits the browser

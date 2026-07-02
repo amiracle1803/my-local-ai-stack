@@ -1,0 +1,13 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+numReplicas = 1
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+# Railway sets $PORT automatically — the Dockerfile CMD reads it
+# Set these env vars in the Railway dashboard:
+#   GROQ_API_KEY  = your key from console.groq.com (free)
+#   OBSIDIAN_VAULT_PATH = leave blank (vault is local to your PC, not cloud)

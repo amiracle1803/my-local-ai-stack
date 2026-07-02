@@ -1,0 +1,57 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Wiki: Lint",
+      "type": "shell",
+      "command": "python3 tools/wiki.py lint",
+      "windows": { "command": "python tools\\wiki.py lint" },
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true },
+      "group": { "kind": "test", "isDefault": true }
+    },
+    {
+      "label": "Wiki: Rebuild Index",
+      "type": "shell",
+      "command": "python3 tools/wiki.py index",
+      "windows": { "command": "python tools\\wiki.py index" },
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true }
+    },
+    {
+      "label": "Wiki: Index + Lint",
+      "dependsOrder": "sequence",
+      "dependsOn": ["Wiki: Rebuild Index", "Wiki: Lint"],
+      "problemMatcher": [],
+      "group": { "kind": "build", "isDefault": true }
+    },
+    {
+      "label": "Wiki: New Page",
+      "type": "shell",
+      "command": "python3 tools/wiki.py new ${input:pageKind} ${input:pageSlug} --title \"${input:pageTitle}\"",
+      "windows": { "command": "python tools\\wiki.py new ${input:pageKind} ${input:pageSlug} --title \"${input:pageTitle}\"" },
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true }
+    },
+    {
+      "label": "Wiki: Search",
+      "type": "shell",
+      "command": "python3 tools/wiki.py search \"${input:searchTerm}\"",
+      "windows": { "command": "python tools\\wiki.py search \"${input:searchTerm}\"" },
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true }
+    }
+  ],
+  "inputs": [
+    {
+      "id": "pageKind",
+      "type": "pickString",
+      "description": "Page type",
+      "options": ["concept", "entity", "source", "comparison"],
+      "default": "concept"
+    },
+    { "id": "pageSlug", "type": "promptString", "description": "Page slug (e.g. attention-mechanism)" },
+    { "id": "pageTitle", "type": "promptString", "description": "Human-readable title" },
+    { "id": "searchTerm", "type": "promptString", "description": "Search term" }
+  ]
+}

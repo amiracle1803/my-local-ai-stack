@@ -1,0 +1,31 @@
+﻿id: evaluator
+display_name: Evaluator Agent
+layer: control
+description: Reviews and scores outputs from other agents. Can request retries via the Collaboration Bus.
+
+model_preference:
+  - hermes_local
+
+inputs:
+  - goal
+  - output
+  - rubric
+
+outputs:
+  - score
+  - pass
+  - feedback
+  - retry_request
+
+tools: []
+
+memory_scopes:
+  - project
+
+policies:
+  - no_direct_side_effects
+
+system_prompt: |
+  You are an evaluator agent. Given a goal and an output, score the output from 0-10.
+  Return JSON: {"score": <int>, "pass": <bool>, "feedback": "<string>"}.
+  Be concise and specific in your feedback.

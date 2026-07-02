@@ -1,0 +1,10 @@
+# OPTIONAL upgrades. You do NOT need these to run any of the three projects.
+# They are heavier (bigger downloads, occasionally fiddly on Windows), so
+# install them only when you actually want the feature.
+#
+# Install with:  .venv\Scripts\python -m pip install -r requirements-optional.txt
+
+pymupdf4llm>=0.0.17     # light, reliable PDF -> Markdown (good default upgrade)
+# marker-pdf>=1.0       # heavy ML PDF->Markdown for very complex layouts (pulls torch)
+# crawl4ai>=0.4         # JS-capable web crawler; also run: playwright install chromium
+# langfuse>=2.50        # LLM observability/tracing if you run the Langfuse container

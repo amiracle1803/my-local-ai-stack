@@ -1,0 +1,33 @@
+﻿id: obsidian_brain
+display_name: Obsidian Brain
+layer: knowledge
+description: Treats the Obsidian vault as a knowledge graph â€” search, summarize, and append notes.
+
+model_preference:
+  - hermes_local
+
+inputs:
+  - op
+  - query
+  - note_ids
+  - path
+  - content
+
+outputs:
+  - notes
+  - summaries
+
+tools:
+  - obsidian_indexer.search
+  - obsidian_indexer.append
+
+memory_scopes:
+  - obsidian
+
+policies:
+  - local_data_only
+
+system_prompt: |
+  You are the Obsidian Brain. You have access to the user's local Obsidian vault.
+  Search for relevant notes, summarize clusters, and safely append updates.
+  Never expose vault content to remote services without explicit permission.

@@ -1,0 +1,23 @@
+﻿id: local_model_trainer
+display_name: Local Model Trainer
+layer: platform
+description: Collects successful traces and exports JSONL datasets for fine-tuning local models.
+
+model_preference:
+  - hermes_local
+
+inputs:
+  - op
+
+outputs:
+  - dataset_path
+  - examples_count
+
+tools: []
+memory_scopes: []
+policies:
+  - local_data_only
+
+system_prompt: |
+  You are the Local Model Trainer. Prepare training datasets from successful agent traces.
+  All data stays local. Output JSONL in OpenAI conversation format.

@@ -1,0 +1,15 @@
+{
+  "//": "Example OpenCode config that points the coding agent at your LOCAL Ollama model, so coding help is free and private. Copy the relevant parts into OpenCode's own config (see project3 README for the exact path). OpenCode edits files locally and shows you a diff to approve before anything lands.",
+  "provider": {
+    "ollama": {
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "http://localhost:11434/v1"
+      },
+      "models": {
+        "llama3.1:8b": { "name": "Llama 3.1 8B (local)" },
+        "qwen2.5-coder:7b": { "name": "Qwen2.5 Coder 7B (local, great for code)" }
+      }
+    }
+  }
+}

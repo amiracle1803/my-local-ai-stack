@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Local AI Stack{% endblock %}
+{% block content %}
+  <div class="eyebrow">Mission Control</div>
+  <h1>Everything, at a glance.</h1>
+  <p class="sub">{{ connected_count }} of {{ total_count }} connected apps online. <a class="agent-link" href="/integrations">View all integrations →</a></p>
+
+  <div class="grid c6">
+    {% for i in integrations %}
+    <div class="stat" style="--stat-color:{{ i.color if i.up else '#F26D6D' }}">
+      <div class="label">{{ i.label }}</div>
+      <div class="val" style="font-size:.82rem">{{ 'online' if i.up else 'offline' }} <span class="pill {{ 'ok' if i.up else 'bad' }}">{{ '●' if i.up else '○' }}</span></div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="two-col">
+    <div>
+      <div class="card">
+        <h2>Quick task</h2>
+        <form method="post" action="/tasks/run" onsubmit="document.getElementById('go').disabled=true; document.getElementById('go').textContent='Working…';">
+          <textarea name="task" placeholder="e.g. Plan next week's workouts around 3 gym days…" style="min-height:70px"></textarea>
+          <div class="row">
+            <button id="go" type="submit">Run</button>
+            <select name="passes"><option value="1">Fast</option><option value="3" selected>Balanced</option><option value="4">Careful</option></select>
+            <a class="agent-link" href="/tasks" style="margin-left:auto">Full task view →</a>
+          </div>
+        </form>
+      </div>
+
+      <div class="card">
+        <h2>Automation jobs</h2>
+        <div class="list">
+          {% for job in jobs %}
+          <div class="item">
+            <span><span class="dot {{ 'warn' if job.status=='warn' else ('bad' if job.status=='bad' else '') }}" style="margin-right:.5rem"></span>{{ job.label }}</span>
+            <span class="meta">{{ job.last_run }}</span>
+          </div>
+          {% endfor %}
+        </div>
+        <div class="row"><a class="agent-link" href="/automation">Manage automation →</a></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Activity feed</h2>
+      {% if feed %}
+      <div class="list" style="gap:0">
+        {% for e in feed %}
+        <div class="feed-row">
+          <span class="feed-badge">{{ e.badge }}</span>
+          <span class="feed-desc">{{ e.desc }}</span>
+          <span class="feed-time">{{ e.when }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="empty">No activity yet — run a task or a nightly review to see it here.</p>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

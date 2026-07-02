@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "llm-wiki": {
+      "command": "python",
+      "args": ["tools/mcp_server.py"],
+      "env": {}
+    }
+  }
+}

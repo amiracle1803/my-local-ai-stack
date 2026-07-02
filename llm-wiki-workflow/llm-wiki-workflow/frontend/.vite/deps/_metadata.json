@@ -1,0 +1,43 @@
+{
+  "hash": "5d205afa",
+  "configHash": "c8890ed6",
+  "lockfileHash": "30a814b9",
+  "browserHash": "395469cf",
+  "optimized": {
+    "react": {
+      "src": "../../node_modules/react/index.js",
+      "file": "react.js",
+      "fileHash": "fad020da",
+      "needsInterop": true
+    },
+    "react-dom/client": {
+      "src": "../../node_modules/react-dom/client.js",
+      "file": "react-dom_client.js",
+      "fileHash": "e10f2691",
+      "needsInterop": true
+    },
+    "react-router-dom": {
+      "src": "../../node_modules/react-router-dom/dist/index.js",
+      "file": "react-router-dom.js",
+      "fileHash": "1166edda",
+      "needsInterop": false
+    },
+    "marked": {
+      "src": "../../node_modules/marked/lib/marked.esm.js",
+      "file": "marked.js",
+      "fileHash": "c1068ca4",
+      "needsInterop": false
+    }
+  },
+  "chunks": {
+    "chunk-JOAZML3A": {
+      "file": "chunk-JOAZML3A.js"
+    },
+    "chunk-334AHB3K": {
+      "file": "chunk-334AHB3K.js"
+    },
+    "chunk-I2LLTMMF": {
+      "file": "chunk-I2LLTMMF.js"
+    }
+  }
+}

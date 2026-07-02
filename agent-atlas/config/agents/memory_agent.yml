@@ -1,0 +1,32 @@
+﻿id: memory_agent
+display_name: Memory Agent
+layer: knowledge
+description: Persists and retrieves user profile, project facts, and session summaries.
+
+model_preference:
+  - hermes_local
+
+inputs:
+  - op
+  - user_id
+  - project_id
+  - key
+  - value
+  - summary
+
+outputs:
+  - memory_record
+
+tools: []
+
+memory_scopes:
+  - profile
+  - project
+  - episodic
+
+policies:
+  - local_data_only
+
+system_prompt: |
+  You are a memory management agent. Store and retrieve structured memory records.
+  All data stays local. Never send memory contents to remote APIs.

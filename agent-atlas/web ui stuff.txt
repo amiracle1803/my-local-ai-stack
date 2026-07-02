@@ -1,0 +1,974 @@
+did you also think about all the feature of the webui and the redundance part of the system and also the confirmation mechanism wanting a task to be look over and review multiple time and from different angle and require reviews and imporvemnet constantly till human i loop have to check
+
+Not fully—the spec does cover parts of it, but it does not yet go far enough on three big areas: advanced web UI features, redundancy and failover, and a strict multi-pass review/confirmation loop before human approval.
+
+What is already covered
+The current design already includes a control-plane web UI, background runtime, an observability layer, a guardian/policy layer, agent collaboration, and an evaluator that can trigger retries, which gives a base for review and autonomy.
+
+It also already includes model routing across Hermes, Claude Pro, Perplexity Pro, and local fallback models, which is the start of redundancy, but not a full resilience design yet.
+
+What is missing
+The missing parts are mostly about how strict the system should be before it considers a task complete. Right now, the spec should be expanded so that every important task can require multi-angle review, repeated improvement loops, consensus or weighted approval, and a final human-in-the-loop checkpoint before execution or completion.
+
+The web UI also needs deeper product-level features like review queues, approval states, branch comparisons, retry history, live swarm view, audit trail, and emergency-stop scopes instead of only basic start/pause/stop controls.
+
+What should be added
+The spec should explicitly add these systems:
+
+Review mesh: one evaluator is not enough; use multiple reviewers, for example factual reviewer, code reviewer, safety reviewer, style reviewer, and cost reviewer.
+
+Consensus rules: tasks only pass when required reviewers approve, or when a threshold score is reached across multiple perspectives.
+
+Improvement loop: reviewer feedback must go back to the producing agent repeatedly until the task reaches pass conditions or escalation rules trigger.
+
+Human gate: high-risk, expensive, irreversible, or ambiguous tasks must stop in a human approval queue.
+
+Redundancy plan: duplicate critical services, cache important artifacts locally, checkpoint every major job step, and make every provider replaceable.
+
+UI review center: add diff views, compare-output panels, confidence scores, reviewer voting, and “approve / send back / stop / fork” controls.
+
+Best next update
+The best version of this system is not just “agents that can do everything,” but “agents that must prove quality from several angles before acting.”
+
+I should update the markdown spec with a full new section set for:
+
+Advanced Web UI requirements.
+
+Redundancy and failover architecture.
+
+Multi-review confirmation workflow.
+
+Human-in-the-loop escalation rules.
+
+Continuous improvement and re-review loops.
+
+Would you like me to write that as a new expanded markdown file section you can paste directly under the current spec?
+
+did you also think about all the feature of the webui and the redundance part of the system and also the confirmation mechanism wanting a task to be look over and review multiple time and from different angle and require reviews and imporvemnet constantly till human i loop have to check
+
+You described three extra dimensions: a richer web UI, real redundancy, and a strict multi‑pass review loop with human gating. Those were only partially covered; here’s how they should be baked into the design explicitly.
+
+Web UI: full feature set
+On top of the basic “tree + jobs + factory + logs”, the control plane should grow into a task‑centric cockpit where you can see and control every step of a job’s life.
+
+Key views and features:
+
+Task composer
+
+Form to create a task with:
+
+Goal, context, project, priority.
+
+Risk level (low/medium/high/critical).
+
+Review policy (see pipeline below: required reviewers, min scores, max iterations).
+
+Runtime mode: “blocking”, “background, auto‑continue”, or “background, wait for human gate”.
+
+Preview of which agents + models will be involved given that policy.
+
+Task detail view
+
+Live view per task:
+
+Current state (Draft → AI Review [k] → Await Human → Approved → Executing → Completed / Failed / Stopped).
+
+Agent graph: which agents have contributed so far, which are queued next.
+
+Iteration timeline with diffable outputs (“v1, v2, v3…”).
+
+Logs and traces of each iteration, including which model/provider was used.
+
+Review Center
+
+Queue of tasks in “AI Review” or “Await Human” states.
+
+For each task:
+
+Summary, risk level, review scores by dimension (factual, safety, code quality, style, cost).
+
+Buttons: Approve, Send back for improvement, Stop, Fork.
+
+When you “send back”, the orchestrator routes feedback back to the producing agent(s) for another improvement round.
+
+Swarm / collaboration view
+
+Real‑time table of which agents are active on which tasks.
+
+Simple “swimlane” diagram: task → agents → outputs, so you can see multi‑agent collaboration actually happening.
+
+History & diffs
+
+Per task: list of all versions with a diff panel (for text/code/doc outputs).
+
+Filter by “tasks where AI overrode its own output due to low scores” to find interesting corrections.
+
+Settings
+
+Configure:
+
+Model routing priorities and local‑only mode.
+
+Default review policies per task type (e.g., “code changes” vs “low‑risk knowledge query”).
+
+Obsidian vault path and what to index.
+
+Tool permissions and Guardian policies.
+
+Redundancy and resilience
+You also want the system to survive API loss, model changes, and random failures while keeping data safe and local.
+
+Redundancy should exist at three levels:
+
+1. Models and providers
+Routing tiers
+
+Tier 1: Hermes local (and other local models) as default for private and cheap tasks.
+
+Tier 2: Claude Pro and Perplexity Pro for deep reasoning and web research when allowed.
+
+Tier 3: Local specialist fallback models trained from traces.
+
+Fallback logic
+
+If a remote provider fails (rate limit / outage), the router:
+
+Falls back to an equivalent local or cheaper model.
+
+Logs the incident for Observability.
+
+If all remotes are disabled (LOCAL_ONLY=true), the system still runs on Hermes + local specialists only.
+
+2. Jobs and runtime
+Checkpointing
+
+Each multi‑step task writes checkpoints after major steps:
+
+planning_done, research_done, draft_v1, draft_v2, pre_approval, executing_step_n.
+
+On failure or restart, Background Runtime resumes from the latest checkpoint instead of re‑doing everything.
+
+Idempotent tools
+
+Tools in Action Hub and Automation Agent must be written to support an idempotency key so that retried jobs don’t send duplicate emails, payments, or edits.
+
+Health checks & watchdogs
+
+Observability Agent periodically pings:
+
+DB, vector store, Obsidian integration.
+
+Hermes endpoint and any remote providers.
+
+If something is down:
+
+Model Router and Action Hub automatically avoid routes that depend on it.
+
+UI surfaces clear warnings (e.g., “Perplexity offline, using Obsidian + local retrieval only”).
+
+3. Data and knowledge
+Local storage as source of truth
+
+All DB tables (jobs, messages, traces, metrics, memory) are in local SQLite/Postgres.
+
+Regular exports/backups from DB to:
+
+Flat JSON/CSV in data/exports/.
+
+Optionally, Obsidian notes for high‑level summaries.
+
+Obsidian as durable brain
+
+For important projects and outputs, agents:
+
+Write summarized decisions and final artifacts into Obsidian notes.
+
+Maintain indexable structures (frontmatter + tags) to make them easy to re‑use.
+
+Even if the entire agent stack is down, the vault retains your knowledge and workflow history.
+
+Multi‑pass review and confirmation pipeline
+This is the big missing piece: tasks should not just be “run once and returned.” They should go through a configurable, multi‑angle review pipeline and improvement loop, with human approval at the right points for your risk tolerance.
+
+1. Review policy per task
+Each task has a ReviewPolicy object set when it’s created:
+
+Required reviewers (by role):
+
+Factual Reviewer (Knowledge Hub + Retrieval).
+
+Safety Reviewer (Guardian).
+
+Code Reviewer (Evaluator + Code Agent for PR‑style diffs).
+
+Style/UX Reviewer (Creative Studio for docs/UI).
+
+Cost Reviewer (Observability / Router to keep token usage sane).
+
+Thresholds:
+
+min_score per dimension (e.g. factual ≥ 0.9, safety ≥ 0.99, style ≥ 0.8).
+
+min_rounds (e.g. at least 2 full review/improvement cycles for high‑risk tasks).
+
+max_rounds to avoid infinite loops.
+
+Human gating flags:
+
+requires_human_before_side_effects (true for anything that edits files, sends network requests, or touches money).
+
+requires_human_before_completion (for certain categories of tasks).
+
+2. Review flow state machine
+Each task moves through states like:
+
+DRAFT – first output produced by one or more agents.
+
+AI_REVIEW_IN_PROGRESS – one or more reviewer agents analyze the output.
+
+AI_NEEDS_IMPROVEMENT – reviewers send structured feedback:
+
+Problems, suggestions, required changes with severity.
+
+Orchestrator sends this feedback back to the producing agents.
+
+AI_REVISED – new version created based on feedback.
+
+Either:
+
+Loop back to AI_REVIEW_IN_PROGRESS until:
+
+Thresholds + min_rounds satisfied, or
+
+max_rounds exceeded → escalate to human.
+
+Or, if passes all thresholds and human gating is off:
+
+Move to APPROVED_FOR_EXECUTION.
+
+AWAITING_HUMAN – if human gate is required:
+
+Task appears in Review Center queue.
+
+Shows AI’s self‑evaluation, all reviewer scores, diffs between versions.
+
+You can Approve / Send Back / Stop / Fork.
+
+EXECUTING – Action Hub / Background Runtime performs side effects.
+
+COMPLETED / FAILED / STOPPED – terminal states with full logs and review history.
+
+3. Multi‑angle reviewers
+Instead of a single evaluator prompt, define specialized reviewer agents:
+
+Factual Reviewer
+
+Cross‑checks claims against the evidence pack from Knowledge Hub + Retrieval.
+
+Flags unsupported statements, missing citations, or outdated info.
+
+Safety Reviewer (Guardian)
+
+Applies content policies and permission checks.
+
+Specifically checks for:
+
+Leaking of secrets or private data to remote models.
+
+Dangerous actions (shell commands, network calls) that exceed policy.
+
+Code Reviewer
+
+For code tasks:
+
+Compares changes with repo map.
+
+Runs tests/lints.
+
+Flags complexity, non‑idiomatic patterns, or missing tests.
+
+Style/Structure Reviewer
+
+For docs/UI/text:
+
+Checks clarity, organization, and alignment with your personal style preferences.
+
+Cost/Performance Reviewer
+
+Inspects token usage, latency, and number of agents involved.
+
+Suggests simpler or cheaper routes for similar future tasks.
+
+Each reviewer returns a structured response:
+
+json
+{
+  "score": 0.92,
+  "dimension": "factual",
+  "verdict": "approve" | "revise" | "block",
+  "feedback": [
+    {"severity": "high", "message": "Claim X lacks a supporting citation."},
+    {"severity": "medium", "message": "Consider simplifying explanation of Y."}
+  ]
+}
+The orchestrator aggregates reviewer outputs; if any “block” appears or scores are under thresholds, it routes the feedback back into the improvement loop.
+
+4. Continuous improvement without human, final human gate by risk
+For low‑risk tasks (draft notes, personal idea brainstorming):
+
+You can configure a relaxed policy: maybe one AI review pass then auto‑accept.
+
+For medium‑risk tasks (local file refactors, small scripts, Obsidian note creation):
+
+Multiple AI review rounds until thresholds are met.
+
+Human approval optional depending on your tolerance.
+
+For high‑risk tasks (network actions, external accounts, anything destructive or costly):
+
+Multiple AI review rounds are mandatory.
+
+Human approval is always required before execution.
+
+In other words: the system is allowed to work constantly in the background on refinement, but it cannot “ship” or execute high‑risk changes until you explicitly approve them in the Review Center.
+
+If you want, I can now:
+
+Extend the markdown spec with a new section that exactly encodes this review pipeline (states, policies, APIs, and UI screens), so you can drop it into the existing agent-atlas-spec.md and then have Claude implement the review system and UI on top of what you already have.
+
+Prepared by Deep Research
+continue and keep going
+
+Here’s a continuation you can append to the bottom of agent-atlas-spec.md. It deepens the web UI, redundancy, and multi‑pass review/human‑gate parts you asked for.
+
+text
+---
+
+## 13. Advanced Web UI and Task UX
+
+This section extends the control plane from a basic dashboard into a **full task‑centric cockpit**. The UI exists so you can safely let agents run in the background while still understanding and controlling what they are doing.[memory:22]
+
+### 13.1 Core UX Principles
+
+- **Task‑first, not agent‑first**  
+  Agents are implementation detail; the UI is organized around tasks, jobs, and outcomes.
+- **Continuous visibility**  
+  At any time you should be able to see:  
+  - What each task is trying to do.  
+  - Which agents and models are working on it.  
+  - How many review cycles it has gone through.  
+- **Human‑in‑control**  
+  For risky actions, the system can plan and iterate autonomously, but **cannot execute** until you approve.
+
+### 13.2 Main UI Sections (Expanded)
+
+#### 13.2.1 Task Composer
+
+A dedicated screen for creating a new task:
+
+- Fields:
+  - `Goal` – free‑text description.
+  - `Project` – optional project id, linked to Obsidian and project memory.
+  - `Risk level` – `low | medium | high | critical`.
+  - `Task type` – `research`, `coding`, `refactor`, `automation`, `doc`, etc.
+  - `Review policy` – select a policy preset (see Section 15.1).
+  - `Runtime mode`:
+    - `Blocking` – user waits for result in UI.
+    - `Background (auto-continue)` – runs until done or error, following AI review policies.
+    - `Background (requires human gate)` – always stops in human review before execution.
+
+- Preview panel:
+  - Shows which agents will be involved (Planner, Knowledge Hub, Code Agent, Evaluator, etc.).
+  - Shows which models will likely be used based on routing and privacy flags.
+
+#### 13.2.2 Task Detail View
+
+For each task, provide a robust detail page:
+
+- Header:
+  - Task title, current state, risk level, progress bar.
+  - Quick actions: `Pause`, `Stop`, `Open in Review Center`.
+
+- Status section:
+  - Current state: `DRAFT`, `AI_REVIEW_IN_PROGRESS`, `AI_NEEDS_IMPROVEMENT`, `AI_REVISED`, `AWAITING_HUMAN`, `APPROVED_FOR_EXECUTION`, `EXECUTING`, `COMPLETED`, `FAILED`, `STOPPED`.
+  - Number of AI review rounds so far (e.g., `3/5` used).
+
+- Agent graph:
+  - Simple graph view:
+    - Nodes = agents.
+    - Edges = message/job flows.
+  - Highlights which agents have already contributed and which are queued next.
+
+- Version history:
+  - List of output versions (v1, v2, v3…).
+  - Clicking a version opens:
+    - Main content (text/code/doc).
+    - Reviewer scores and feedback for that version.
+    - A diff against the previous version.
+
+- Evidence panel:
+  - For knowledge tasks:
+    - Lists sources used (Perplexity/web, Obsidian notes, local docs).
+  - For code tasks:
+    - Links to files changed and tests run.
+
+#### 13.2.3 Review Center
+
+A dedicated view for tasks in `AI_REVIEW_IN_PROGRESS` and `AWAITING_HUMAN` states:
+
+- Queue:
+  - Table with columns: Task, Type, Risk, State, Rounds completed, Age.
+  - Filters: by risk, type, state, reviewer dimension (e.g. “pending safety review”).
+
+- Review workspace:
+  - Shows latest candidate output.
+  - Shows AI self‑evaluation and all reviewer scores:
+    - Factual, safety, code quality, style, cost.
+  - Shows review history: each round with verdicts and scores.
+
+- Human actions:
+  - `Approve` – move to `APPROVED_FOR_EXECUTION` or `COMPLETED` (if no side effects).
+  - `Send back for improvement` – attach human feedback; orchestrator routes it to relevant agents.
+  - `Stop` – halt task completely.
+  - `Fork` – create a new task from this version (e.g., branch off a different direction).
+
+#### 13.2.4 Swarm / Collaboration View
+
+A real‑time view of ongoing multi‑agent collaborations:
+
+- List of tasks currently in active AI review or execution.
+- For each task:
+  - Which agents are active now.
+  - Simple Gantt/split view: time vs. agent participation.
+- Helps debug “stuck” tasks or surprising agent behavior.
+
+#### 13.2.5 Logs & Observability
+
+- Metrics:
+  - Agent call counts, error rates.
+  - Model usage (Hermes vs Claude vs Perplexity vs local specialists).
+  - Average latency and token usage per agent/model.
+- Logs:
+  - Recent failures, model fallback events, policy blocks from Guardian.
+- UI:
+  - Focus on quickly answering “what went wrong?” and “why did it choose that route?”
+
+---
+
+## 14. Redundancy and Resilience Architecture
+
+This section expands the redundancy concept into a concrete resilience strategy for models, runtime, and data.[memory:21]
+
+### 14.1 Model and Provider Resilience
+
+- **Capability matrix**  
+  Maintain a matrix mapping each model to capabilities (e.g. `deep_reasoning`, `web_research`, `cheap`, `private`, `fallback`). Model Router uses this matrix plus config flags.
+
+- **Provider health checks**  
+  Observability Agent periodically tests:
+  - Hermes endpoint.
+  - Claude API.
+  - Perplexity API.
+  - Local fallback endpoints.
+
+  Results stored as `provider_status` with `healthy | degraded | down` and recent latency.
+
+- **Routing with health and privacy**  
+  Model Router, when picking a model, must consider:
+  - Desired capabilities.
+  - Privacy constraints (`LOCAL_ONLY`, task `privacy_level`).
+  - Health state; down providers are ignored.
+  - Cost budgets and past error rates.
+
+- **Graceful degradation**  
+  If Perplexity is down:
+  - Knowledge Hub automatically falls back to Obsidian + Retrieval Agent.
+  If Claude is down:
+  - Orchestrator uses Hermes/local specialists with extra planning steps and smaller context windows.
+
+### 14.2 Job and Runtime Resilience
+
+- **Checkpoint strategy**
+  - For multi‑step tasks, define explicit checkpoints, for example:
+    - `plan_created`, `evidence_collected`, `draft_v1`, `draft_v2`, `ai_approved`, `human_approved`, `execution_step_n`.
+  - Background Runtime updates the job record with the latest checkpoint and necessary context (e.g., which version index is current).
+
+- **Idempotent tool design**
+  - Each tool invocation in Action Hub includes an `idempotency_key` based on task id + step id.
+  - Tools must:
+    - Check for prior execution of the same key.
+    - Either return the stored result or no‑op if already executed.
+
+- **Timeouts and retries**
+  - Each job has a max execution time per step and total retry attempts.
+  - If a step times out:
+    - Retries are scheduled using exponential backoff.
+    - After max retries, the task goes to `FAILED` or `AWAITING_HUMAN` with error context.
+
+### 14.3 Data and Knowledge Resilience
+
+- **DB and file backups**
+  - Periodic export of critical tables:
+    - `jobs`, `memory_*`, `agent_traces`, `metrics`.
+  - Exports as JSONL or CSV into `data/exports/YYYY-MM-DD/`.
+
+- **Obsidian as long‑term memory**
+  - Automation Agent can:
+    - Write daily/weekly “Agent Atlas log” notes summarizing important tasks and decisions.
+    - Keep a high‑level changelog of major system configuration changes.
+  - This allows you to reconstruct decision history even if DB data is lost or migrated.
+
+---
+
+## 15. Multi‑Pass Review and Confirmation Pipeline
+
+This section formalizes the multi‑angle, multi‑round review process you wanted, with human‑in‑loop gating for high‑risk tasks.[memory:22]
+
+### 15.1 ReviewPolicy Definition
+
+Each task has a `ReviewPolicy` attached at creation:
+
+```ts
+type ReviewerRole =
+  | "factual"
+  | "safety"
+  | "code_quality"
+  | "style"
+  | "cost";
+
+interface ReviewPolicy {
+  requiredReviewers: ReviewerRole[];     // which dimensions must review
+  minScores: Partial<Record<ReviewerRole, number>>; // e.g. { factual: 0.9, safety: 0.99 }
+  minRounds: number;                     // minimum AI review/improvement cycles
+  maxRounds: number;                     // to prevent infinite loops
+  requiresHumanBeforeExecution: boolean; // for side-effecting tasks
+  requiresHumanBeforeCompletion: boolean;// for final acceptance
+}
+```
+
+Policy presets (configurable):
+
+- `low_risk_quick` – 1 round, factual + style reviewers, no human gate, no side effects.
+- `medium_risk` – 2–3 rounds, factual + safety reviewers, human gate optional.
+- `high_risk` – 3–5 rounds, all reviewers, human approval mandatory before execution.
+
+### 15.2 Reviewer Agents
+
+Define specialized reviewer agents using the Collaboration Bus:
+
+- **Factual Reviewer**
+  - Uses Knowledge Hub + Retrieval Agent.
+  - Checks that claims are supported by evidence.
+  - Penalizes hallucinations, missing citations, and outdated info.
+
+- **Safety Reviewer (Guardian)**
+  - Enforces content and action policies.
+  - Blocks tasks that:
+    - Leak secrets or sensitive data to remote providers against policy.
+    - Attempt high‑risk tools without required approvals.
+
+- **Code Quality Reviewer**
+  - Applies to tasks that produce or modify code.
+  - Uses Code Agent + tests/lints to evaluate:
+    - Correctness, maintainability, adherence to style guide.
+
+- **Style/Structure Reviewer**
+  - Applies to docs, responses, UI text.
+  - Checks clarity, structure, and optional user‑defined style rules.
+
+- **Cost/Performance Reviewer**
+  - Observes token usage, model choice, latency, and number of agents involved.
+  - Suggests simpler workflows for similar future tasks.
+
+Reviewer response schema:
+
+```json
+{
+  "role": "factual",
+  "score": 0.94,
+  "verdict": "approve",   // "approve" | "revise" | "block"
+  "feedback": [
+    {
+      "severity": "high",
+      "message": "Claim about X is not supported by any cited source."
+    },
+    {
+      "severity": "low",
+      "message": "Consider simplifying explanation of Y."
+    }
+  ]
+}
+```
+
+### 15.3 State Machine & Loops
+
+Task states (simplified):
+
+- `DRAFT` – initial output from one or more agents.
+- `AI_REVIEW_IN_PROGRESS` – reviewer agents evaluating output.
+- `AI_NEEDS_IMPROVEMENT` – review concluded that revision is required.
+- `AI_REVISED` – new version produced.
+- `AWAITING_HUMAN` – waiting for human decision.
+- `APPROVED_FOR_EXECUTION` – cleared for side effects.
+- `EXECUTING` – tools and runtime executing plan.
+- `COMPLETED` / `FAILED` / `STOPPED` – terminal states.
+
+Loop logic:
+
+1. Orchestrator gets first candidate output → `DRAFT`.
+2. Orchestrator submits candidate to Collaboration Bus → reviewer agents → `AI_REVIEW_IN_PROGRESS`.
+3. Once all required reviewers respond:
+   - Aggregate scores and verdicts.
+   - If any `block` or scores < thresholds:
+     - State → `AI_NEEDS_IMPROVEMENT`.
+   - Else if rounds < `minRounds`:
+     - Treat as `AI_NEEDS_IMPROVEMENT` to force another improvement pass.
+   - Else if no human gate required:
+     - State → `APPROVED_FOR_EXECUTION` or `COMPLETED`.
+   - Else:
+     - State → `AWAITING_HUMAN`.
+
+4. In `AI_NEEDS_IMPROVEMENT`:
+   - Orchestrator creates a feedback packet from all reviewer feedback.
+   - Sends it back via Collaboration Bus to the agent(s) that produced the candidate.
+   - They generate a new version → `AI_REVISED` → back to `AI_REVIEW_IN_PROGRESS`.
+
+5. If `maxRounds` exceeded:
+   - Task escalates directly to `AWAITING_HUMAN` with explanation:
+     - “AI could not satisfy review policy in N rounds. Here are the best and worst attempts.”
+
+6. In `AWAITING_HUMAN`:
+   - Human uses Review Center to:
+     - Approve → `APPROVED_FOR_EXECUTION` / `COMPLETED`.
+     - Send back with human feedback → orchestrator merges with AI feedback and loops again.
+     - Stop → `STOPPED`.
+     - Fork → new task with inherited context and outputs.
+
+### 15.4 Integration with Jobs and Background Runtime
+
+- Background Runtime must understand review states:
+  - It treats “review rounds” as **sub‑jobs** of the parent task.
+  - Progress bar can combine:
+    - % of planned steps completed.
+    - % of required review rounds completed.
+
+- For long tasks:
+  - Runtime can pause between review rounds to respect rate limits or schedules.
+  - Review rounds themselves can be run as background jobs to prevent blocking UI.
+
+---
+
+## 16. Example End‑to‑End Flows
+
+### 16.1 High‑Risk Code Change
+
+1. User submits “Refactor payment processing pipeline” with `high_risk` policy and `requiresHumanBeforeExecution=true`.
+2. Planner breaks the work into phases; Code Agent produces refactor patch.
+3. Factual Reviewer: checks comments and docs alignment with business rules.
+4. Code Quality Reviewer: runs tests, lints, static checks.
+5. Safety Reviewer: ensures no new network endpoints or keys are mishandled.
+6. If review fails: orchestrator loops through revision cycles until scores and rounds are sufficient or max rounds reached.
+7. When ready: task enters `AWAITING_HUMAN`.
+8. Human reviews diffs and reviewer feedback in Review Center, then either:
+   - Approves → `APPROVED_FOR_EXECUTION` → Background Runtime executes migration steps.
+   - Sends back → another AI iteration.
+   - Stops → no changes applied.
+
+### 16.2 Long‑Running Research & Content Pipeline
+
+1. User defines daily research task with `medium_risk` policy:
+   - Perplexity for web research (if allowed), Obsidian Brain for knowledge, Creative Studio for slides.
+2. Planner defines recurring tasks; Automation Agent schedules jobs via Background Runtime.
+3. Each day:
+   - Knowledge Hub collects evidence.
+   - Creative Studio drafts summary + slide deck.
+   - Factual + Style reviewers refine output across 1–2 rounds.
+   - If everything is okay: content auto‑written to Obsidian and file system.
+   - If not: task escalates to `AWAITING_HUMAN` for manual review.
+
+---
+
+_These extensions make Agent Atlas not just a system that can “do everything,” but one that **must prove quality, safety, and correctness from multiple angles before acting**, with a human always able to inspect, override, or stop the process._
+If you want, next I can generate a short “Phase 0/Phase 1” implementation prompt tuned for Claude that tells it: “Start from this spec, scaffold the repo, and implement the config + router + orchestrator in exactly these files.”
+
+
+Prompt to Claude (Phase 0 / Phase 1 – Scaffold + Config + Router + Orchestrator)
+
+You are my coding assistant. I have a detailed architecture spec for a project called Agent Atlas – a local‑first multi‑agent system that runs on my single machine, with optional APIs (Hermes local, Claude Pro, Perplexity Pro) and a strong review + human‑gate pipeline.
+
+I want you to start with Phase 0 & Phase 1 only:
+
+Set up the repository skeleton.
+
+Implement config loading for models and agents.
+
+Implement a model abstraction + router (Hermes only for now).
+
+Implement a minimal Orchestrator agent and a simple /tasks endpoint that calls it.
+
+Critical constraints
+Everything must be free and self‑hosted by default (no paid infrastructure). Remote LLM APIs (Claude/Perplexity) are optional add‑ons, not required for basic functionality.
+
+Design for Windows 11 + WSL2/Ubuntu, Python backend, Node frontend (but in Phase 0/1 we only need backend).
+
+All data is local: SQLite DBs, config files, embeddings, logs, Obsidian vault, etc.
+
+This phase should be runnable even if I only have a local Hermes endpoint.
+
+1. Repo and backend skeleton (Phase 0 / 1)
+Create the following structure (you can omit the frontend for now):
+
+text
+agent-atlas/
+  backend/
+    app/
+      __init__.py
+      main.py
+      api/
+        __init__.py
+        tasks.py
+        health.py
+      agents/
+        __init__.py
+        orchestrator.py
+      config/
+        __init__.py
+        models.py
+        agents.py
+      models/
+        __init__.py
+        base.py
+        tasks.py
+      services/
+        __init__.py
+        llm_router.py
+      storage/
+        __init__.py
+        db.py
+      utils/
+        __init__.py
+        ids.py
+  config/
+    models.yml
+    agents/
+      orchestrator.yml
+  data/
+    db/
+  .env.example
+  README.md
+Use FastAPI for the backend HTTP server.
+
+1.1. .env.example
+Create a minimal .env.example:
+
+text
+CLAUDE_API_KEY=
+PERPLEXITY_API_KEY=
+OBSIDIAN_VAULT_PATH=/home/USER/Obsidian/MainVault
+LOCAL_ONLY=false
+HERMES_ENDPOINT=http://localhost:11434/v1/chat/completions
+1.2. config/models.yml
+Add a minimal models config that only includes hermes_local for now:
+
+text
+models:
+  hermes_local:
+    provider: local
+    type: chat
+    endpoint: ${HERMES_ENDPOINT}
+    model: hermes-2
+    capabilities:
+      - general
+      - private
+      - cheap
+    max_tokens: 4096
+    temperature: 0.7
+
+routing:
+  allow_remote_models: false
+  allow_remote_search: false
+  default_model: hermes_local
+  privacy_first: true
+(We will add Claude/Perplexity entries later.)
+
+1.3. config/agents/orchestrator.yml
+Create a config for the Orchestrator agent:
+
+text
+id: orchestrator
+display_name: Executive Orchestrator
+layer: control
+role: root_router
+
+model_preference:
+  - hermes_local
+
+inputs:
+  - user_goal
+  - context_snapshot
+
+outputs:
+  - final_response
+
+tools: []
+
+memory_scopes:
+  - profile
+  - project
+
+policies:
+  - no_direct_side_effects
+
+system_prompt: |
+  You are the Executive Orchestrator of a local-first agent mesh on a single user's machine.
+  Your job in this initial phase is simple:
+  - Read the user's goal and any context.
+  - Decide whether this is a trivial question or a normal question.
+  - For now, call the primary local model (Hermes) directly to answer.
+  - Summarize your reasoning briefly and keep the answer focused.
+2. Config loading (models + agents)
+Implement a small config layer in backend/app/config:
+
+2.1. config/models.py
+Use pydantic models to represent:
+
+ModelConfig
+
+RoutingConfig
+
+ModelsConfig (top‑level).
+
+Load config/models.yml at startup:
+
+Resolve ${ENV_VAR} placeholders using environment variables.
+
+Expose a ModelRegistry object that:
+
+Can return a ModelConfig by id.
+
+Can tell you the default model and routing settings.
+
+2.2. config/agents.py
+Define AgentDefinition Pydantic model with:
+
+id, display_name, layer, description, inputs, outputs, tools, model_preference, memory_scopes, policies, system_prompt.
+
+Load config/agents/*.yml at startup into a registry keyed by id.
+
+Provide a function get_agent_definition(agent_id: str) -> AgentDefinition.
+
+3. Model abstraction + Hermes client + router (Hermes only)
+3.1. services/llm_router.py
+Implement:
+
+Message type: a dict with { "role": "system" | "user" | "assistant", "content": str }.
+
+ModelClient protocol with async def chat(self, messages: list[Message], **kwargs) -> dict.
+
+Implement HermesLocalClient:
+
+Reads endpoint and model from ModelConfig.
+
+Sends POST requests to the Hermes endpoint in OpenAI‑like format:
+
+{ "model": ..., "messages": [...], "max_tokens": ..., "temperature": ... }.
+
+Returns a normalized response { "content": str, "raw": any }.
+
+Implement ModelRouter:
+
+Takes a task_descriptor with:
+
+privacy_level (just a string for now).
+
+difficulty ("trivial" | "normal").
+
+For Phase 1:
+
+Always return the Hermes client (since remote providers are disabled).
+
+We will expand routing later when we add Claude/Perplexity.
+
+4. Orchestrator agent and /tasks endpoint
+4.1. models/tasks.py
+Define simple Pydantic models:
+
+python
+class TaskRequest(BaseModel):
+    goal: str
+    context: Optional[dict] = None
+
+class TaskResponse(BaseModel):
+    task_id: str
+    answer: str
+    raw_model_response: Optional[dict] = None
+4.2. agents/orchestrator.py
+Implement a run_orchestrator(request: TaskRequest) -> TaskResponse that:
+
+Loads the Orchestrator agent definition.
+
+Builds a simple message list for Hermes:
+
+System: orchestrator system prompt.
+
+User: JSON with goal and context.
+
+Uses ModelRouter to get HermesLocalClient.
+
+Calls Hermes and returns a TaskResponse:
+
+task_id: generate a UUID (use utils/ids.py).
+
+answer: main text from model.
+
+raw_model_response: full raw response for debugging.
+
+In this phase, the Orchestrator does no planning, no multi‑agent stuff yet; it just calls Hermes with a clean system prompt and returns the output.
+
+4.3. api/tasks.py
+Create a router /tasks with:
+
+POST /tasks → calls run_orchestrator with the request body.
+
+Returns TaskResponse JSON.
+
+4.4. api/health.py
+Simple GET /health that returns { "status": "ok" }.
+
+4.5. main.py
+Wire FastAPI:
+
+Include health and tasks routers.
+
+Load config on startup.
+
+Provide a uvicorn entrypoint in README, e.g.:
+
+bash
+uvicorn app.main:app --reload
+5. Behavior to verify in this phase
+Once you generate the code, I should be able to:
+
+Create a virtualenv and install dependencies (fastapi, uvicorn, pydantic, pyyaml, httpx).
+
+Fill in .env with HERMES_ENDPOINT.
+
+Run uvicorn app.main:app --reload from backend.
+
+POST /tasks with:
+
+json
+{
+  "goal": "Explain what this Agent Atlas system is supposed to do.",
+  "context": {}
+}
+See Hermes respond via the Orchestrator, using the Orchestrator’s system prompt.
+
+6. Style and notes
+Use type hints and Pydantic v2 style.
+
+Keep code readable and not over‑abstracted; this is Phase 1 scaffolding.
+
+Do not implement planning, review loops, Background Runtime, or Obsidian yet; those will come in later phases.
+
+Now, generate all the files and code for Phase 0/1 exactly as described above.

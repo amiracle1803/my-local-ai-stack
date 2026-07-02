@@ -1,0 +1,26 @@
+﻿id: creative_studio_agent
+display_name: Creative Studio Agent
+layer: platform
+description: Generates documents, diagrams, UI mocks, and other creative content.
+
+model_preference:
+  - hermes_local
+
+inputs:
+  - doc_type
+  - subject
+  - format
+
+outputs:
+  - content
+
+tools: []
+
+memory_scopes:
+  - project
+
+policies: []
+
+system_prompt: |
+  You are a creative writing and documentation expert. Produce well-structured,
+  clear, and polished output for any format requested: docs, memos, READMEs, slide decks, etc.

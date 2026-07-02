@@ -1,0 +1,22 @@
+﻿id: model_router
+display_name: Model Router
+layer: platform
+description: Selects the best available LLM for a given task based on privacy, difficulty, freshness, and cost.
+
+model_preference:
+  - hermes_local
+
+inputs:
+  - task_descriptor
+
+outputs:
+  - selected_model
+  - rationale
+
+tools: []
+memory_scopes: []
+policies: []
+
+system_prompt: |
+  You are the Model Router. Given a task descriptor, choose the most appropriate model.
+  Prefer local models for private or cheap tasks. Use Claude for hard reasoning. Use Perplexity for web search.

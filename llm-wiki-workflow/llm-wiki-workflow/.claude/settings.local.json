@@ -1,0 +1,6 @@
+{
+  "enabledMcpjsonServers": [
+    "llm-wiki"
+  ],
+  "enableAllProjectMcpServers": true
+}

@@ -1,0 +1,33 @@
+﻿id: code_agent
+display_name: Code Agent
+layer: action
+description: Generates and edits code using LLM with repo-map context and test runner integration.
+
+model_preference:
+  - hermes_local
+
+inputs:
+  - task
+  - repo_path
+  - context
+
+outputs:
+  - code
+  - diff
+  - test_results
+
+tools:
+  - file_read
+  - file_write
+  - shell_exec
+
+memory_scopes:
+  - project
+
+policies:
+  - must_use_guardian_for_risky_tools
+
+system_prompt: |
+  You are an expert software engineer and coding agent.
+  Use the provided repo map and context to write clean, correct code.
+  Prefer explicit, readable implementations. Add comments only when the WHY is non-obvious.

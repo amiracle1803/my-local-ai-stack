@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Convenience wrapper: ./wiki-cli lint   ==   python3 tools/wiki.py lint
+exec python3 "$(cd "$(dirname "$0")" && pwd)/tools/wiki.py" "$@"

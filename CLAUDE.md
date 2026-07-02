@@ -1,0 +1,251 @@
+# Project: Local Anime / Manga Recap Video Pipeline
+
+## Session startup rules
+
+On every new session:
+1. Read this `CLAUDE.md` first.
+2. Inspect the actual repo structure before making assumptions.
+3. Distinguish clearly between:
+   - what already exists,
+   - what is partially implemented,
+   - and what is still planned.
+4. Propose a short plan before editing files.
+5. Prefer minimal, targeted changes over broad rewrites.
+6. Do not replace working local tooling unless I ask.
+
+
+## Edit safety rules
+
+- Do not rewrite large files just to “clean them up.”
+- Preserve existing working behavior unless the task requires changing it.
+- When fixing bugs, prefer the smallest correct patch first.
+- Before introducing a new dependency, explain why it is needed.
+
+- If a local/free tool is good enough, prefer it over a paid or cloud tool.
+- Show me the plan before major edits.
+- For multi-file changes, explain which files will change and why.
+- Prefer modifying existing structure over inventing a new architecture unless necessary.
+
+
+
+## High-level goal
+
+Build a **fully local** pipeline that takes a long-form story script (light novel / webnovel style), analyzes it, and outputs an **anime / manga recap-style video**: structured scenes, consistent character designs, anime panels/clips, TTS narration, and ffmpeg assembly. This should run on my Windows 11 laptop via VS Code, with no cloud dependencies unless I explicitly request them.       
+
+The system should:
+- Read a pasted script, break it into scenes/shots, and build a **world bible** with characters, outfits, locations, and other assets.  
+- Generate consistent anime / manga character designs that can evolve over the story while staying on-model.  
+- Map each scene and shot to prompts for diffusion / video models and assemble everything into a recap video.  
+- Re-run over its own outputs to detect inconsistencies (wrong outfit, missing character, etc.) and propose improvements.       
+
+---
+
+## Environment & constraints
+
+- OS: Windows 11
+- Editor: VS Code with Claude Code extension
+- Hardware: Lenovo Legion with RTX 4070 Laptop GPU (8 GB VRAM), 32 GB RAM (assume mid-range GPU budget).    
+- Preference: **fully local** stack (local LLM via Ollama/LM Studio, ComfyUI, local TTS, local video models). Cloud APIs only if I explicitly say so.
+
+---
+
+## Current components (conceptual)
+
+These pieces either already exist or are planned per the executive summaries:
+
+- **Script parsing / NLP (Python)**  
+  - Reads `script.txt` / pasted text and outputs structured JSON:  
+    - `worldbible.json`: title, synopsis, characters, global info  
+    - `scenes.json`: per-scene summary with empty/partial `shots` arrays  
+  - Uses a local LLM (e.g., Gemma/Qwen/Phi via Ollama) plus rules/regex/NLP to segment scenes and extract characters/dialogue.       
+
+- **Anime image generation (local)**  
+  - Runs anime-focused diffusion models (Pony / Illustrious / other SDXL anime checkpoints) via **ComfyUI** to generate character sheets and per-shot panels.    
+
+- **Optional video generation**  
+  - Uses open-weight text/image-to-video models (e.g., **CogVideoX** or similar) to animate key shots, possibly via ComfyUI workflows.    
+
+- **TTS / audio**  
+  - Uses **Kokoro TTS** or similar local TTS for narration and character lines; later possibly lip-sync with models like Wav2Lip or LatentSync.       
+
+- **Composition**  
+  - Uses **ffmpeg** (and/or MoviePy) to stitch panels/clips, narration, SFX, and background music into a final MP4.       
+
+- **Frontend / control surface**  
+  - Eventually: a local web UI (React or plain JS) on `localhost` to paste scripts and monitor progress, backed by a Python/Node orchestrator.       
+
+---
+
+## Desired repo structure (target, not strict)
+
+Rough structure I’m aiming for (you can propose improvements):
+
+- `app/` or `anime_pipeline/`  
+  - `config.py` – paths/config/env  
+  - `sceneschema.py` – Pydantic models for world bible / scenes / shots  
+  - `llm_client.py` – wrapper to call the local LLM HTTP API  
+  - `script_parser.py` – script → ParsedScript JSON (world + scenes)  
+  - `image_pipeline.py` – calls ComfyUI / diffusion for character sheets & panels  
+  - `video_pipeline.py` – optional CogVideoX or similar for short clips  
+  - `audio_pipeline.py` – Kokoro TTS / other TTS and (later) lip-sync  
+  - `orchestrator.py` – high-level driver for the full pipeline
+
+- `scripts/`  
+  - `parse_script.py` – CLI to run just the parsing into JSON  
+  - `generate_panels.py` – CLI to generate images from scene JSON  
+  - `build_video.py` – CLI to assemble video with ffmpeg
+
+- `data/`  
+  - `inputscripts/` – raw `.txt` scripts  
+  - `parsed/` – `worldbible.json`, `scenes.json` etc.  
+  - `images/` – generated character sheets and panels  
+  - `video/` – intermediate clips and final renders  
+  - `stylerefs/` – LoRA datasets, example frames, style packs    
+
+- `README.md` – high-level usage  
+- `requirements.txt` – Python deps  
+- Optional: `package.json` if we add a Node/React frontend
+
+If the actual structure differs, **first help me normalize the repo** towards something like this, or at least maintain a clear mapping in this file.
+
+---
+
+## How to run things (initial expectations)
+
+These commands are **targets**; adjust to the real commands after you inspect the repo:
+
+- **Create/activate venv (Windows, PowerShell)**  
+  - `python -m venv .venv`  
+  - `.\.venv\Scripts\Activate.ps1`  
+  - `pip install -r requirements.txt`
+
+- **Script parsing (MVP):**  
+  - `python scripts/parse_script.py data/inputscripts/my_story.txt`  
+  - Expected outputs: `data/parsed/worldbible.json`, `data/parsed/scenes.json`
+
+- **Panel generation (future):**  
+  - `python scripts/generate_panels.py data/parsed/scenes.json`
+
+- **Video assembly (future):**  
+  - `python scripts/build_video.py data/parsed/scenes.json`
+
+- **ComfyUI startup (RTX 4070 Laptop, 8 GB VRAM):**  
+  - Required flags: `--lowvram --disable-cuda-malloc`
+  - **Disabled nodes** (rename-disabled, do not re-enable without testing):
+    - `E:\ComfyUI\comfy_api_nodes_disabled` — ComfyUI cloud API nodes (Anthropic/OpenAI); crashes pydantic on import
+    - `E:\ComfyUI\custom_nodes\ComfyUI-WanVideoWrapper_disabled` — re-enable only when doing video generation
+  - **Package pins** (do not upgrade without testing): `torch==2.6.0+cu124`, `pydantic==2.13.4`, `pydantic-core==2.46.4`
+  - Start command (`--novram` offloads aggressively to CPU — more stable for consecutive generations):
+    ```powershell
+    Start-Process -FilePath "E:\ComfyUI\.venv\Scripts\python.exe" `
+      -ArgumentList "main.py","--listen","127.0.0.1","--port","8188","--novram","--disable-cuda-malloc" `
+      -WorkingDirectory "E:\ComfyUI" `
+      -RedirectStandardOutput "E:\ComfyUI\comfyui_out.log" `
+      -RedirectStandardError "E:\ComfyUI\comfyui_err.log" `
+      -WindowStyle Normal
+    ```
+  - **VRAM note**: After ~5 consecutive SDXL generations the GPU accumulates fragmented VRAM that persists across process restarts on Windows. Use `scripts/generate_safe.py` which auto-restarts ComfyUI between characters, or reboot the PC to fully clear GPU state.
+
+- **Run pipeline scripts (PowerShell):**
+  ```powershell
+  cd C:\Users\amire\dev\anime-pipeline
+  $env:PYTHONPATH = "C:\Users\amire\dev\anime-pipeline"
+  .\.venv\Scripts\python.exe scripts/generate_character_sheets.py my_first_story
+  ```
+
+When you discover the actual entrypoints, please **update this file** (or propose a patch) so the commands stay accurate.
+
+---
+
+## Coding style & preferences
+
+- Languages: **Python first**, Node/TypeScript second if needed for web frontend.       
+- Style:  
+  - Small, composable functions; pure where possible.  
+  - Prefer explicit, typed data models (Pydantic) over loose dicts.  
+  - Clear, pragmatic docstrings; minimal comments where the code is self-explanatory.  
+  - No huge “god scripts” that do everything; I want modular steps (parse → generate → assemble).    
+- Testing:  
+  - Add at least minimal unit tests for core steps (e.g., parser, basic image pipeline wiring, ffmpeg command builder).
+
+---
+
+## How I want you (Claude Code) to help
+
+### General behavior
+
+- Read **this file first** before doing anything else.  
+- When I ask for help, **propose a short plan first** (1–5 steps), then implement.  
+- When editing, **show diffs** and ask before applying changes.  
+- Before big refactors, ask me to confirm and recommend creating a git commit or branch.
+
+### Priority tasks (short-term)
+
+1. **Script parsing & world/scene JSON**  
+   - Ensure we have a solid `ParsedScript` model (world bible + scenes + shots) and a working `script_parser.py` that can handle long scripts.  
+   - Add robust error handling if LLM output is malformed JSON.    
+
+2. **Tight integration with local LLM**  
+   - Create or refine `llm_client.py` for a local HTTP endpoint (Ollama/LM Studio/etc.).  
+   - Make prompts deterministic and easy to tweak (system message + user instructions in one place).    
+
+3. **Glue to ComfyUI / diffusion**  
+   - Define how `Shot.prompt_anime` + character states map into a concrete ComfyUI workflow (e.g., via HTTP API).  
+   - Implement a batch panel generator script that reads `scenes.json` and outputs images to `data/images/`.    
+
+4. **ffmpeg composition skeleton**  
+   - Even if image/video generation is stubbed, create a basic `build_video.py` that composes a folder of images + narration into an MP4 with simple transitions.       
+
+5. **Self-critique loop (later)**  
+   - Add a second-pass LLM step that compares script vs. generated panels and flags inconsistencies, then propose prompt tweaks or regeneration steps.    
+
+### Things you should NOT do unless I ask
+
+- Add cloud dependencies (OpenAI, Google, etc.) or send data off-machine.  
+- Replace my local tools (ComfyUI, Kokoro TTS, AnimateDiff, etc.) with cloud SaaS unless I explicitly request it.      
+- Massive repo-wide refactors without a clear plan and my approval.  
+- Introduce complex infra (Kubernetes, full microservices) for this local project.
+
+---
+## Cost and tool selection policy
+
+I want this project designed with a **free-first, local-first** mindset.
+
+Rules for tool choices:
+- Prefer **free, open-source, or locally runnable** tools by default.
+- Only recommend **paid APIs, SaaS tools, or subscriptions** if there is a clear reason they outperform the free option for my exact use case.
+- When suggesting a paid tool, always also list:
+  - the best free/local alternative,
+  - what I lose by staying free,
+  - and when upgrading would actually make sense.
+
+Decision priority:
+1. Free and local
+2. Low setup complexity
+3. Good enough quality
+4. Paid upgrade only if it gives a major improvement in speed, quality, reliability, or developer time
+
+For this project, assume I want to start with:
+- Local LLMs instead of paid model APIs
+- ComfyUI / local open models instead of paid image services
+- Local TTS if possible
+- ffmpeg / open-source video assembly tools
+- Minimal recurring cost unless I explicitly approve otherwise
+
+When giving recommendations, present them in this format:
+- Default free option
+- Better paid option (only if justified)
+- Why/when I should upgrade
+
+
+## How to talk to me
+
+Assume I’m a CS student comfortable with Python/Node, Docker, and VS Code. I want **production-grade, pragmatic code**, not toy examples, and I’m okay with reading non-trivial scripts as long as they’re well-structured.    
+
+When you respond:
+
+- Be concise but technical.  
+- Show complete functions/scripts when it reduces back-and-forth.  
+- Favor concrete file paths and commands I can paste into a VS Code terminal.
+
+If anything in this file conflicts with the actual repo structure, **tell me explicitly** and propose a corrected structure plus the minimal changes needed.

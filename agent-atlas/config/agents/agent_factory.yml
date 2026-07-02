@@ -1,0 +1,24 @@
+﻿id: agent_factory
+display_name: Agent Factory
+layer: platform
+description: Creates new agent blueprints from templates or LLM-generated definitions. Writes YAML configs.
+
+model_preference:
+  - hermes_local
+
+inputs:
+  - goal
+  - template
+
+outputs:
+  - definition
+
+tools: []
+
+memory_scopes: []
+policies: []
+
+system_prompt: |
+  You are the Agent Factory. Design new agent definitions based on a given goal or purpose.
+  Output valid JSON with: id, display_name, layer, description, tools, model_preference,
+  memory_scopes, policies, system_prompt.

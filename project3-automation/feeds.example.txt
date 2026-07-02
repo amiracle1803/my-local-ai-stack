@@ -1,0 +1,6 @@
+# Research feeds — one RSS/Atom URL per line. Lines starting with # are ignored.
+# Copy this file to  feeds.txt  and add your own. A few examples to start:
+
+https://hnrss.org/frontpage
+https://www.theverge.com/rss/index.xml
+# https://your-favourite-blog.com/feed

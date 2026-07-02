@@ -1,0 +1,227 @@
+AGENT SYSTEMS — KEY POINTS SUMMARY
+=====================================
+Source: file.txt (compiled research on Claude agents, loop engineering, second brains)
+
+
+## UNIFIED THESIS
+
+The real leverage in AI is not better prompts — it is better system design around the model.
+Three layers: durable external memory + the right agent pattern + a verified feedback loop.
+The model is becoming a commodity. The harness, memory, and loop are where the engineering lives.
+
+
+## SECOND BRAIN (Claude + Obsidian)
+
+Two tools, two jobs:
+- Obsidian = storage layer (plain markdown, wikilinks, local files you own)
+- Claude = reasoning/filing layer (reads, writes, links, summarizes)
+
+Vault structure (Karpathy LLM Wiki pattern):
+- raw/       → immutable source material (articles, transcripts, PDFs) — Claude reads, never edits
+- wiki/       → Claude-generated synthesis pages, summaries, cross-references
+- CLAUDE.md  → your persistent identity: who you are, goals, preferences, current projects, communication style
+
+Wiring Claude in:
+- Obsidian plugin: Local REST API → copy the API key (drop the word "Bearer")
+- MCP command: claude mcp add-json obsidian-vault '{"type":"stdio","command":"uvx","args":["mcp-obsidian"],"env":{"OBSIDIAN_API_KEY":"YOUR-KEY","OBSIDIAN_HOST":"127.0.0.1","OBSIDIAN_PORT":"27124"}}'
+- Test: "list every file in my vault"
+
+Obsidian dialect: use kepano/obsidian-skills repo (.claude folder at vault root) so Claude outputs valid wikilinks, Canvas, Bases, and CLI commands — not just plain markdown.
+
+Automation: schedule daily 7am tasks to ingest raw/, update wiki/, flag stale notes, write 3-line change summary.
+
+Security rule: control access with scoped keys, not prompts. "Do not delete X" in a prompt is cosmetic. A read-only key is a setting.
+
+Pre-built repos if you want a head start:
+- AgriciDaniel/claude-obsidian (15 skills, PARA/Zettelkasten presets)
+- eugeniughelbur/obsidian-second-brain (43 slash commands)
+- coleam00/second-brain-starter (interview → scaffolds the whole thing)
+
+
+## 15 AGENT PATTERNS (when to use each)
+
+Only use an agent pattern when a single model call is not enough:
+task needs planning, tool choice, iteration, or validation. Otherwise use a direct call.
+
+--- SINGLE-AGENT ---
+1. Single Agent       → one model, small tool set, well-defined job; breaks when system prompt exceeds one page
+2. Loop               → repeat until exit condition; needs a checkable stopping criterion or it runs forever
+3. ReAct              → alternates reasoning and tool calls; next step depends on what previous step found
+
+--- MULTI-AGENT ORCHESTRATION ---
+4. Sequential         → fixed pipeline of specialists (extract → analyze → summarize); breaks if order needs to vary
+5. Parallel           → independent agents run concurrently, results merged; breaks if tasks depend on each other
+6. Coordinator        → routing agent sends requests to the right specialist; breaks if categories are ambiguous
+7. Hierarchical       → root agent decomposes goal, delegates to workers, synthesizes; breaks if subgoals aren't independent
+8. Swarm              → specialists debate, facilitator synthesizes; good for decisions with no single correct answer; slow
+
+--- FEEDBACK & QUALITY ---
+9. Review & Critique  → separate judge reviews output; breaks if judge shares same blind spots as generator
+10. Iterative Refine  → generator loops until quality score crosses threshold; breaks if scoring is gameable
+11. Reflexion         → agent logs its failures and carries lessons into next attempt; breaks if failures are random
+12. Human-in-the-Loop → human approves risky/ambiguous decisions; needs durable state, timeouts, escalation paths
+13. Plan-and-Execute  → planner writes reviewable plan upfront, executor follows; breaks if environment changes mid-run
+14. Custom Logic      → deterministic code handles rules (eligibility, money, permissions); model handles judgment only
+15. Event-Driven      → agent reacts to event stream rather than user requests; breaks if trigger conditions are vague
+
+Pattern selection rule: match the pattern to the dominant uncertainty:
+- Tool choice → Single Agent or ReAct
+- Routing → Coordinator
+- Quality → Review & Critique or Iterative Refine
+- Execution path → Plan-and-Execute or ReAct
+- Self-correction → Reflexion or Loop
+- Business risk → Human-in-the-Loop or Custom Logic
+- Problem structure → Hierarchical or Swarm
+- Timing → Event-Driven
+
+
+## LOOP ENGINEERING
+
+Core insight: Agent = Model + Harness. The harness now matters more than the model.
+Changing only the harness (not the model) has moved teams from mid-benchmark to top-five.
+
+The canonical loop (these six lines are solved; differentiation lives around them):
+  while model has tool calls:
+      result = run_tools(tool_calls)
+      context += result
+  → repeat until model stops asking for tools
+
+Hard problems that break loops:
+
+1. KNOWING WHEN TO STOP
+   - "Turn ended" ≠ "Task is done"
+   - Add: max iterations cap, token/time budget, no-progress detection, real completion check (tests pass, not vibes)
+
+2. CONTEXT ROT
+   - Long loops pollute context → worse decisions → worse context (doom loop)
+   - Fix: compact (summarize history), offload (push big outputs to files), sub-agents (isolate messy subtasks)
+
+3. TOOL DESIGN
+   - Too many tools → agent loses track; keep sets small and non-overlapping
+   - Writes must be idempotent (safe to retry without creating duplicates)
+   - Error messages should tell the agent what to do next, not just what went wrong
+
+4. CRITIC IN THE LOOP
+   - Autonomous agents tend to agree with themselves
+   - Separate maker from checker: one model does the work, a test/judge/type-check grades it
+   - "Done" must be proven, not claimed
+
+Engineer's job shift:
+  Old: "What should I tell the agent to do?"
+  New: "What system would do this without me?"
+  Design three things: (1) success criteria the agent can check, (2) a bounded loop with sane brakes, (3) a verifier that proves completion
+
+
+## SELF-IMPROVING AGENTS (loop evolution, not model retraining)
+
+A self-improving agent is one whose loop evolves: each pass uses signals from prior attempts to make better decisions.
+
+Five building blocks:
+
+1. CLEAR SUCCESS CRITERIA
+   - Format, correctness threshold, passing tests, human approval, task-specific score
+   - Without this the loop has nothing stable to optimize around
+
+2. EVALUATION LAYER
+   - Rule checks, schema validation, unit tests, LLM-as-judge, business logic, human review
+   - Difference between "it produced an answer" and "it produced a useful answer"
+
+3. FEEDBACK MEMORY
+   - Store: last failure reason, previous tool error, best-known path, known-bad strategy, user corrections, compressed summaries
+   - Do not store: raw transcript, everything "just in case" — only what affects the next decision
+
+4. STRATEGY REVISION
+   - After evaluation, what changes: different tool, narrower task, more retrieval, clarifying question, escalation
+   - This is what makes the agent adaptive, not just persistent
+
+5. BOUNDARIES AND STOP CONDITIONS
+   - Retry limit, cost cap, latency limit, destructive-action guards, escalation thresholds
+   - A bounded loop is more valuable than an unbounded one
+
+Operational loop pattern:
+  Attempt → Evaluate → Diagnose (classify failure) → Adapt (change next move) → Store signal → Repeat
+
+Improvement signal sources (use at least two):
+  - Deterministic: tests pass/fail, schema validation, API status, required fields present
+  - Workflow: retry count, latency, which step failed, confidence threshold
+  - Human: corrections, approvals/rejections, override patterns, reviewer notes
+  - Comparative: A/B output quality, retrieval variant comparison, scores across attempts
+
+Build sequence (recommended order):
+  1. Define success clearly
+  2. Define failure categories
+  3. Build the evaluator first
+  4. Design memory rules
+  5. Define retry strategy (how does attempt 2 differ from attempt 1?)
+  6. Add escalation logic
+  7. Log everything (action traces, evaluations, decisions)
+  8. Optimize only after the loop is stable
+
+Checklist — an agent is truly self-improving only if:
+  [ ] Knows what success looks like
+  [ ] Evaluates each attempt
+  [ ] Stores useful lessons from failure
+  [ ] Changes strategy based on feedback
+  [ ] Avoids repeating failed paths
+  [ ] Knows when to stop
+  [ ] Knows when to escalate
+  [ ] You can measure whether it is actually getting better
+
+
+## CONTENT MACHINE (4-agent pipeline)
+
+Four agents with defined roles + one shared PIPELINE.md file:
+
+PIPELINE.md structure:
+  ## NEXT UP      ← you drop a topic here
+  ## BRIEF        ← Researcher writes here
+  ## DRAFT        ← Writer writes here
+  ## EDITS        ← Editor writes here
+  ## READY        ← Publisher writes here
+  ## STATUS       ← BRIEFED / DRAFTED / EDITED / APPROVED / PUBLISHED
+
+Agent roles:
+  Researcher  → reads PIPELINE.md, finds sharp angle, 3 supporting points, 2 sources, 1 audience question
+  Writer      → turns brief into draft using VOICE.md as the style standard
+  Editor      → returns surgical flags (not rewrites): long paragraphs, filler, sections where reader stops learning; APPROVE or REVISE
+  Publisher   → formats approved draft for target platform, returns titles, preview description, hashtags
+
+VOICE.md: a separate file with 5 examples of your best content. All agents read it. Update it when voice drifts.
+
+Operation schedule (once agents are reliable):
+  7am → Researcher runs, drops brief
+  9am → You review and approve
+  10am → Writer runs, returns draft by noon
+  1pm → Editor runs, you apply edits
+  3pm → Publisher runs, you paste and publish
+
+Your role becomes: editor-in-chief at the approval gates, not production.
+Update agent system prompts directly when output misses the mark — corrections in your head die at the next session.
+
+
+## 10 PRODUCTION RULES
+
+1. Start with the simplest pattern that works. Single agent with clean tool contracts beats multi-agent with weak ones.
+2. Write tool descriptions like contracts. The model only knows what a tool does from its description.
+3. Cap iterations, tool calls, and spend per request. An agent without budget limits is a liability.
+4. Log the full action trace: tool calls, arguments, outputs, final decisions.
+5. Keep irreversible actions behind deterministic checks or human approval. Never let the model be the only gate before money movement or production changes.
+6. Evaluate with real failure cases, not just happy paths.
+7. Separate prompts by responsibility. "But don't do X when Y" in your prompt means the agent is doing two jobs.
+8. Treat multi-agent systems as distributed systems: partial failure, timeouts, retries, and observability are not optional.
+9. Model review improves quality. Tests and permission checks enforce correctness. Never substitute one for the other.
+10. Prefer the simpler pattern — save the complexity budget for better tools, prompts, and evaluation.
+
+
+## PASTE-READY CLAUDE BRIEF
+
+Drop this into CLAUDE.md or any new session:
+
+I am building AI agent systems using loop engineering.
+Memory lives in Obsidian: raw/ for immutable sources, wiki/ for generated synthesis, CLAUDE.md for my identity, goals, preferences, and active projects.
+Agents are chosen by pattern based on the dominant uncertainty (tool choice, routing, quality, path, self-correction, risk, structure, or timing) — not hype.
+Every agent runs inside an explicit loop: Goal → Plan → Act → Observe → Evaluate → Store signal → Retry / revise / escalate / finalize.
+Every loop has: (1) clear success criteria the system can check, (2) an evaluation layer that classifies pass/fail, (3) compact feedback memory of what failed/worked/to-avoid/to-try-next, (4) strategy revision so each attempt can change tools, prompts, retrieval, or escalation, (5) hard limits on retries, cost, latency, and destructive actions.
+Tools must be few, focused, idempotent on writes, and described like contracts.
+Access is controlled by scoped keys, not prompts.
+An agent is self-improving only if it: knows success, evaluates each attempt, stores useful lessons, changes strategy on feedback, avoids repeating failed paths, knows when to stop and when to escalate, and shows measurable improvement over time.

@@ -1,0 +1,33 @@
+# n8n — the optional automation service (used by Project 3's email triage).
+# You only need this if you want email triage or want to build visual workflows.
+# Everything else in this repo runs without Docker.
+#
+# Start:  start-n8n.bat   Stop:  stop-n8n.bat   UI:  http://localhost:5678
+
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    container_name: aistack-n8n
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - GENERIC_TIMEZONE=${TZ:-America/New_York}
+      - TZ=${TZ:-America/New_York}
+      # Basic auth so the UI isn't wide open on your machine:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_USER:-admin}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD:-changeme}
+      # Allow http on localhost (no TLS) without cookie warnings:
+      - N8N_SECURE_COOKIE=false
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+    volumes:
+      - n8n_data:/home/node/.n8n
+    extra_hosts:
+      # lets the container reach services on the Windows host (e.g. Ollama).
+      # On Docker Desktop this is automatic, but stating it aids portability.
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  n8n_data:

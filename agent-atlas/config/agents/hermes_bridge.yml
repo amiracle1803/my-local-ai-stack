@@ -1,0 +1,27 @@
+id: hermes_bridge
+display_name: Hermes Bridge (Secondary)
+layer: platform
+description: >
+  Optional secondary agent that delegates tasks to the Hermes agent on D: drive
+  when available. Falls back gracefully when Hermes is offline or uninstalled.
+  Agent Atlas always works without it.
+
+inputs:
+  - goal
+  - context
+
+outputs:
+  - response
+  - available
+  - delegated
+
+tools: []
+
+model_preference: []
+
+memory_scopes: []
+
+policies:
+  - no_direct_side_effects
+
+system_prompt: ""

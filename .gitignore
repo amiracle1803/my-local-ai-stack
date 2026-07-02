@@ -1,0 +1,44 @@
+.venv/
+venv/
+**/.venv/
+**/venv/
+config.json
+__pycache__/
+**/__pycache__/
+*.pyc
+*.log
+vault/_generated/
+project1-ops-hub/task-outbox/*
+project1-ops-hub/done/*
+!**/.gitkeep
+foundation/.env
+**/.env
+!**/.env.example
+
+# node / frontend builds
+node_modules/
+**/node_modules/
+**/dist/
+**/build/
+
+# model weights, checkpoints, generated media (huge, not source)
+*.safetensors
+*.ckpt
+*.pt
+*.pth
+*.bin
+**/audio_output/
+**/voices/*.wav
+**/models/
+**/checkpoints/
+
+# agent-atlas local state
+*.sqlite
+*.sqlite3
+agent-atlas/data/
+agent-atlas/backend/data/
+agent-atlas/backend/chroma*/
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
