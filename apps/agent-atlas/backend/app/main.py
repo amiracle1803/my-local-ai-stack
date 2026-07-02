@@ -4,11 +4,9 @@ main.py  --  FastAPI entrypoint.
 Route layout mirrors the previous version so nothing outside this app
 (the dashboard, start.bat, llm-wiki-workflow's bridge tools) needs to
 change: everything lives under /api, health/run have no extra prefix,
-agents/jobs are prefixed with their own name.
-
-/ws (WebSocket bus) and /mcp/sse (MCP server) are added in a later build
-phase -- not mounted yet, so there's no half-built route sitting here in
-the meantime.
+agents/jobs are prefixed with their own name. /ws stays at root (not
+under /api) for a simpler client URL. /mcp/sse (MCP server) is added in
+a later build phase.
 """
 
 import logging
@@ -22,7 +20,10 @@ from fastapi.staticfiles import StaticFiles
 from app.agents import background_runtime
 from app.agents.registry import register_all
 from app.api import agents, health, jobs, obsidian, run
+from app.api import ws as ws_api
 from app.config.loader import ConfigLoader
+from app.services import collaboration_bus as bus
+from app.services import ws_bus
 from app.storage.database import init_db
 from app.utils.logging import setup_logging
 
@@ -37,6 +38,7 @@ async def lifespan(app: FastAPI):
     init_db()
     ConfigLoader.load()
     registered = register_all()
+    bus.set_broadcast_hook(ws_bus.broadcast)
     background_runtime.start_workers(n=2)
     logger.info(
         "Agent Atlas starting: %d models, %d agent configs, %d handlers registered",
@@ -63,6 +65,7 @@ api.include_router(agents.router, prefix="/agents", tags=["agents"])
 api.include_router(jobs.router, prefix="/jobs", tags=["jobs"])
 api.include_router(obsidian.router, prefix="/obsidian", tags=["obsidian"])
 app.include_router(api)
+app.include_router(ws_api.router)
 
 if FRONTEND_DIST.exists():
     app.mount("/", StaticFiles(directory=str(FRONTEND_DIST), html=True), name="frontend")
