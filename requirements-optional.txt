@@ -4,7 +4,13 @@
 #
 # Install with:  .venv\Scripts\python -m pip install -r requirements-optional.txt
 
-pymupdf4llm>=0.0.17     # light, reliable PDF -> Markdown (good default upgrade)
+pymupdf4llm>=0.0.17     # PDF -> Markdown. Installed. Used by shared/lib/pdf.py.
+crawl4ai>=0.9           # JS-capable web crawler. Installed -- also run once:
+                        #   .venv\Scripts\python -m playwright install chromium
+                        # Used by shared/lib/webfetch.py's prefer_crawl4ai path;
+                        # opt in per-run via config.json's "prefer_crawl4ai" key
+                        # (defaults to false -- trafilatura stays the default).
+                        # Note: pins lxml~=5.3 but this repo runs lxml>=6.1.1
+                        # for trafilatura; verified compatible at runtime.
 # marker-pdf>=1.0       # heavy ML PDF->Markdown for very complex layouts (pulls torch)
-# crawl4ai>=0.4         # JS-capable web crawler; also run: playwright install chromium
 # langfuse>=2.50        # LLM observability/tracing if you run the Langfuse container

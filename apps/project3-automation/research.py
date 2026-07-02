@@ -107,11 +107,12 @@ def run() -> int:
     llm.require_ollama()
     print(f"Summarising {len(new_items)} new article(s)...")
 
+    prefer_crawl4ai = bool(CFG.get("prefer_crawl4ai", False))
     blocks = []
     for it in new_items:
         text = ""
         if it["link"]:
-            fr = fetch_clean(it["link"])
+            fr = fetch_clean(it["link"], prefer_crawl4ai=prefer_crawl4ai)
             text = fr.text if fr.ok else ""
         summary = _summarise(it["title"], text)
         blocks.append(f"### {it['title']}\n{it['link']}\n\n{summary}\n")
