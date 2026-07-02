@@ -65,12 +65,24 @@ def run() -> int:
         print(f"[research] feedparser missing ({exc}). Run setup.bat.")
         return 1
 
+    import requests
+
     state = load_state(NAMESPACE)
     seen = set(state.get("seen_ids", []))
 
     new_items = []
     for feed_url in feeds:
-        parsed = feedparser.parse(feed_url)
+        # feedparser.parse(url) has NO timeout when given a URL -- a single
+        # slow/unresponsive feed hangs the whole job (and the Flask request
+        # handling it) forever. Fetch the raw bytes ourselves with a real
+        # timeout and hand feedparser the content instead of the URL.
+        try:
+            resp = requests.get(feed_url, timeout=15)
+            resp.raise_for_status()
+        except requests.RequestException as exc:
+            print(f"  [skip] {feed_url} -- {exc}")
+            continue
+        parsed = feedparser.parse(resp.content)
         for entry in parsed.entries:
             eid = getattr(entry, "id", None) or getattr(entry, "link", None)
             if not eid or eid in seen:

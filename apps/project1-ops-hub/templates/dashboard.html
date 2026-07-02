@@ -18,14 +18,16 @@
     <div>
       <div class="card">
         <h2>Quick task</h2>
-        <form method="post" action="/tasks/run" onsubmit="document.getElementById('go').disabled=true; document.getElementById('go').textContent='Working…';">
-          <textarea name="task" placeholder="e.g. Plan next week's workouts around 3 gym days…" style="min-height:70px"></textarea>
+        <form id="quick-task-form">
+          <textarea id="quick-task-input" name="task" placeholder="e.g. Plan next week's workouts around 3 gym days…" style="min-height:70px"></textarea>
           <div class="row">
-            <button id="go" type="submit">Run</button>
-            <select name="passes"><option value="1">Fast</option><option value="3" selected>Balanced</option><option value="4">Careful</option></select>
+            <button id="quick-go" type="submit">Run</button>
+            <select id="quick-passes-input" name="passes"><option value="1">Fast</option><option value="3" selected>Balanced</option><option value="4">Careful</option></select>
+            <span id="quick-task-status" class="meta"></span>
             <a class="agent-link" href="/tasks" style="margin-left:auto">Full task view →</a>
           </div>
         </form>
+        <div id="quick-task-result"></div>
       </div>
 
       <div class="card">
@@ -59,4 +61,75 @@
       {% endif %}
     </div>
   </div>
+
+  <script>
+  (function () {
+    const form = document.getElementById('quick-task-form');
+    const goBtn = document.getElementById('quick-go');
+    const statusEl = document.getElementById('quick-task-status');
+    const resultEl = document.getElementById('quick-task-result');
+
+    function escapeHtml(s) {
+      return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    function poll(jobId, startedAt) {
+      fetch('/tasks/status/' + jobId).then(r => r.json()).then(data => {
+        if (data.status === 'done') {
+          goBtn.disabled = false;
+          goBtn.textContent = 'Run';
+          statusEl.textContent = '';
+
+          let html = `<div class="card"><span class="tag">${escapeHtml(data.result.category)}</span>` +
+            `<div class="result prose">${data.result_html}</div>`;
+          if (data.saved) {
+            html += `<p class="empty">Saved to: ${escapeHtml(data.saved)}</p>`;
+          } else if (data.save_error) {
+            html += `<p class="empty" style="color:var(--red)">Ran, but couldn't save (${escapeHtml(data.save_error)}).</p>`;
+          }
+          html += '</div>';
+          resultEl.innerHTML = html;
+        } else {
+          const elapsed = Math.round((Date.now() - startedAt) / 1000);
+          statusEl.textContent = (data.status === 'queued' ? 'Queued… ' : 'Thinking… ') + elapsed + 's';
+          setTimeout(() => poll(jobId, startedAt), 1500);
+        }
+      }).catch(() => {
+        statusEl.textContent = 'Lost connection — is the dashboard still running?';
+        setTimeout(() => poll(jobId, startedAt), 3000);
+      });
+    }
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      const task = document.getElementById('quick-task-input').value;
+      if (!task.trim()) return;
+      goBtn.disabled = true;
+      goBtn.textContent = 'Working…';
+      statusEl.textContent = 'Queued…';
+      resultEl.innerHTML = '';
+
+      const body = new URLSearchParams();
+      body.set('task', task);
+      body.set('passes', document.getElementById('quick-passes-input').value);
+
+      fetch('/tasks/run', { method: 'POST', body: body })
+        .then(r => r.json())
+        .then(data => {
+          if (data.error) {
+            goBtn.disabled = false;
+            goBtn.textContent = 'Run';
+            statusEl.textContent = data.error;
+            return;
+          }
+          poll(data.job_id, Date.now());
+        })
+        .catch(() => {
+          goBtn.disabled = false;
+          goBtn.textContent = 'Run';
+          statusEl.textContent = 'Could not reach the dashboard server.';
+        });
+    });
+  })();
+  </script>
 {% endblock %}
