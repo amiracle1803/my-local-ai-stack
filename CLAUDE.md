@@ -170,6 +170,22 @@ When you discover the actual entrypoints, please **update this file** (or propos
 
 ---
 
+## Obsidian vault skills
+
+The real Obsidian vault (`C:\Users\amire\Documents\Obsidian Vault`) is the shared second brain for this whole stack — the dashboard's `_generated/` output, Agent Atlas's memory/indexer, and AnythingLLM's MCP connection to the Obsidian Local REST API plugin all read/write it (see `reference_local_services.md` / `project_dual_stack.md` memory for the full wiring).
+
+The **`obsidian@obsidian-skills`** plugin (from `github.com/kepano/obsidian-skills`, 39k+ stars, maintained by Obsidian's own creator) is installed for the standalone Claude Code CLI (`claude plugin list` to confirm) and cloned for OpenCode at `~/.opencode/skills/obsidian-skills/`. It is **not** auto-loaded in the VS Code extension session, but the skill files are real and on disk at `~/.claude/plugins/cache/obsidian-skills/obsidian/<version>/skills/` — read them directly with the Read tool when working with vault content instead of guessing at Obsidian's syntax:
+
+- **`obsidian-cli`** — drive a *running* Obsidian instance via the `obsidian` CLI (read/create/search notes, daily notes, properties, tags, backlinks; also plugin/theme dev workflow).
+- **`obsidian-markdown`** — Obsidian-flavored Markdown: wikilinks, embeds, callouts, frontmatter properties, tags, comments, highlights, Mermaid, footnotes. Use this instead of writing plain generic Markdown into vault notes.
+- **`obsidian-bases`** — `.base` file schema (filters, formulas, views, summaries) for anyone building database-style views over notes.
+- **`json-canvas`** — `.canvas` file schema (nodes/edges/groups) for mind maps, flowcharts, project boards.
+- **`defuddle`** — CLI (`defuddle parse <url> --md`) that extracts clean markdown from web pages; prefer it over WebFetch for normal articles/docs to save tokens.
+
+When a task involves creating or editing files in the vault, check the relevant `SKILL.md` first rather than writing ad-hoc Markdown/JSON.
+
+---
+
 ## How I want you (Claude Code) to help
 
 ### General behavior
