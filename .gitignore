@@ -49,3 +49,8 @@ voice-studio/_tmp/
 # OS / editor cruft
 .DS_Store
 Thumbs.db
+
+talos/data/
+
+olympus/data/
+olympus/engines/pipeline/mangapipeline try/
