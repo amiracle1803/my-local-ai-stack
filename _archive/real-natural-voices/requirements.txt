@@ -1,7 +1,0 @@
-flask>=3.0.0
-numba==0.60.0
-llvmlite==0.43.0
-chatterbox-tts
-kokoro
-soundfile
-TTS

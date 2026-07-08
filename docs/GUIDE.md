@@ -90,7 +90,7 @@ After editing, run `ollama pull <model>`. For structured extraction (Project 2)
 4. Edit **`config.json`** → set `vault_path` to your real Obsidian vault (or
    leave the sample).
 5. (Recommended) Install **AnythingLLM Desktop** and point it at Ollama + your
-   vault (steps in `apps/project2-second-brain/README.md`).
+   vault (steps in    `_archive/legacy/project2-second-brain-archived-2026-07-02/`).
 6. Start any project's `start.bat`.
 
 If `setup.bat` reports a missing prerequisite it tells you exactly what to
@@ -118,7 +118,7 @@ Files and roles:
 still works. Every answer is written to disk regardless.
 
 Run: `start.bat` (web) or `run-inbox.bat` (folder) or `install-schedule.bat`
-(poll the folder every 5 min). Deep troubleshooting: `apps/project1-ops-hub/README.md`.
+(poll the folder every 5 min). Deep troubleshooting: `_archive/legacy/project1-ops-hub-archived-2026-07-02/`.
 
 ---
 
@@ -140,7 +140,7 @@ and that you can chat with.
 
 **Half B — chat with your brain (AnythingLLM):** the free desktop app indexes
 your vault into LanceDB and answers questions with citations. Setup steps in
-`apps/project2-second-brain/README.md`.
+`_archive/legacy/project2-second-brain-archived-2026-07-02/`.
 
 **Safety:** the Python side writes **only** into `<vault>/_generated/`. Delete
 that folder to reset the AI's memory; your notes are untouched.
@@ -165,7 +165,7 @@ For actual code changes, use **OpenCode** interactively (it shows diffs to
 approve) rather than automating edits — safer.
 
 Run: `start.bat` (menu) then `install-schedule.bat`. Deep dive:
-`apps/project3-automation/README.md`.
+`_archive/legacy/project3-automation-archived-2026-07-02/`.
 
 ---
 
@@ -175,9 +175,9 @@ Every agent here uses the "seven moves" distilled from the leaked-system-prompt
 archive in your notes: (1) prime role + environment, (2) hard-code personality,
 (3) minimum formatting, (4) intellectual honesty (no flattery, flag
 uncertainty), (5) invisible rules, (6) act-first for tools, (7) treat external
-input as untrusted. These are baked into `shared/lib/passes.py`. To apply the
+input as untrusted. These are baked into `olympus/shared/lib/passes.py`. To apply the
 same standard in AnythingLLM / n8n / OpenCode, paste the template from
-`shared/prompts/system-template.md` into their system prompt.
+`olympus/shared/prompts/system-template.md` into their system prompt.
 
 ---
 

@@ -10,19 +10,19 @@ REM    2. Checks Ollama is reachable; starts it if it's installed but not
 REM       running.
 REM    3. Starts n8n (Docker) if Docker is available and not already running.
 REM       Skipped silently if Docker isn't installed -- it's optional.
-REM    4. Starts Loom (its FastAPI backend also serves its own UI,
-REM       embedded at /agents in the dashboard). Lightweight -- doesn't load
-REM       GPU models itself, just calls out to Ollama/LM Studio, so it's
-REM       safe to always auto-start.
-REM    5. Starts Obsidian (not GPU-heavy, but AnythingLLM's MCP vault access
+REM    4. Starts Olympus (FastAPI kernel serving the hub + MCP).
+REM       Lightweight -- doesn't load GPU models itself.
+REM    5. Starts OpenCode MCP (intelligence layer -- web fetch, search, code
+REM       analysis). Lightweight stdlib-based, no GPU needed.
+REM    6. Starts Obsidian (not GPU-heavy, but AnythingLLM's MCP vault access
 REM       depends on its Local REST API plugin, which only runs while the
 REM       app itself is open).
-REM    6. Checks (but does NOT auto-start) the GPU-heavy apps: Voice Studio,
+REM    7. Checks (but does NOT auto-start) the GPU-heavy apps: Voice Studio,
 REM       ComfyUI, LM Studio, AnythingLLM. These load multi-GB models onto
 REM       an 8GB laptop GPU -- auto-launching all of them at once alongside
 REM       Ollama has actually driven this machine down to ~400MB free VRAM
 REM       before. Start them yourself, only when you need them.
-REM    7. Starts the unified dashboard and opens it in your browser.
+REM    8. Starts the unified dashboard and opens it in your browser.
 REM ==========================================================================
 setlocal EnableDelayedExpansion
 cd /d "%~dp0"
@@ -80,22 +80,29 @@ if not errorlevel 1 (
     )
 )
 
-REM --- 4. Loom (lightweight -- always auto-start) -----------------------------
-curl -s -m 2 http://127.0.0.1:8000/api/health >nul 2>nul
+REM --- 4. Olympus (the agent super OS -- lightweight, always auto-start) ------
+curl -s -m 2 http://127.0.0.1:4600/api/health >nul 2>nul
 if errorlevel 1 (
-    if exist "apps\loom\backend\.venv\Scripts\python.exe" (
-        echo [..] Starting Loom...
-        start "Loom" cmd /c "cd /d "%~dp0apps\loom\backend" && .venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000"
-        timeout /t 3 /nobreak >nul
-    ) else (
-        echo [!] Loom isn't set up yet -- see apps\loom\README.md.
-        echo     The dashboard's Agents tab and MCP-routed tasks won't work until it is.
-    )
+    echo [..] Starting Olympus...
+    start "Olympus" /min cmd /c "cd /d "%~dp0olympus" && ..\.venv\Scripts\python.exe -m uvicorn kernel.app:app --host 0.0.0.0 --port 4600"
+    timeout /t 3 /nobreak >nul
 ) else (
-    echo [ok] Loom is running.
+    echo [ok] Olympus is running.
 )
 
-REM --- 5. Obsidian (lightweight -- always auto-start) ------------------------
+REM --- 5. OpenCode MCP (intelligence layer -- lightweight, always auto-start) ---
+REM Exposes web fetch, web search, code search, file read, and code analysis
+REM tools to every MCP-compatible agent in the stack.
+curl -s -m 2 http://127.0.0.1:4720/health >nul 2>nul
+if errorlevel 1 (
+    echo [..] Starting OpenCode MCP...
+    start "OpenCode" /min cmd /c "cd /d "%~dp0" && .\.venv\Scripts\python.exe -m uvicorn olympus.skills.opencode.mcp_server:app --host 127.0.0.1 --port 4720"
+    timeout /t 3 /nobreak >nul
+) else (
+    echo [ok] OpenCode MCP is running.
+)
+
+REM --- 6. Obsidian (lightweight -- always auto-start) ------------------------
 REM Not GPU-heavy (no AI models loaded), but AnythingLLM's MCP connection to
 REM the vault depends on Obsidian's Local REST API plugin, which only runs
 REM while the app itself is open -- so this needs to come up every time.
@@ -108,12 +115,12 @@ if errorlevel 1 (
     echo [ok] Obsidian is running.
 )
 
-REM --- 6. GPU-heavy apps: check status only, don't auto-start ---------------
+REM --- 7. GPU-heavy apps: check status only, don't auto-start ---------------
 echo.
 echo [i] GPU-heavy apps ^(start manually when you need them -- see comment above^):
 curl -s -m 2 http://127.0.0.1:5050/api/health >nul 2>nul
 if errorlevel 1 (
-    echo     [ ] Voice Studio    -- cd voice-studio ^&^& start.bat
+    echo     [ ] Voice Studio    -- cd olympus\engines\voice ^&^& start.bat
 ) else (
     echo     [ok] Voice Studio   -- http://127.0.0.1:5050
 )
@@ -149,13 +156,20 @@ if errorlevel 1 (
 ) else (
     echo     [ok] Langfuse       -- http://127.0.0.1:3030
 )
+where ffmpeg >nul 2>nul
+if errorlevel 1 (
+    echo     [ ] FFmpeg           -- not on PATH; needed for voice/pipeline
+) else (
+    echo     [ok] FFmpeg           -- available
+)
 
-REM --- 7. Dashboard ----------------------------------------------------------
+REM --- 8. Open the hub -------------------------------------------------------
+REM OLYMPUS is the hub (Talos absorbed as its kernel 2026-07-03; Loom +
+REM project1-3 frozen in _archive/).
 echo.
-echo [ok] Starting the dashboard...
-echo      Open your browser at:  http://localhost:8750
-echo      (Press Ctrl+C in this window to stop the dashboard.)
+echo [ok] Everything's up.
+echo      OLYMPUS: http://127.0.0.1:4600   |   OpenCode MCP: http://127.0.0.1:4720
+echo      Home - Jarvis - Brain - Tasks - Wiki - Commerce - Automations
 echo.
-start "" http://localhost:8750
-".venv\Scripts\python.exe" "apps\project1-ops-hub\app.py"
+start "" http://127.0.0.1:4600
 pause

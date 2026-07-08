@@ -1,8 +1,0 @@
-flask>=3.0.0
-kokoro
-soundfile
-f5-tts
-cached-path
-matplotlib
-pydub
-vocos

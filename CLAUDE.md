@@ -76,37 +76,50 @@ These pieces either already exist or are planned per the executive summaries:
 
 ---
 
-## Desired repo structure (target, not strict)
+## Repo structure (current — olympus-centric)
 
-Rough structure I’m aiming for (you can propose improvements):
-
-- `app/` or `anime_pipeline/`  
-  - `config.py` – paths/config/env  
-  - `sceneschema.py` – Pydantic models for world bible / scenes / shots  
-  - `llm_client.py` – wrapper to call the local LLM HTTP API  
-  - `script_parser.py` – script → ParsedScript JSON (world + scenes)  
-  - `image_pipeline.py` – calls ComfyUI / diffusion for character sheets & panels  
-  - `video_pipeline.py` – optional CogVideoX or similar for short clips  
-  - `audio_pipeline.py` – Kokoro TTS / other TTS and (later) lip-sync  
-  - `orchestrator.py` – high-level driver for the full pipeline
-
-- `scripts/`  
-  - `parse_script.py` – CLI to run just the parsing into JSON  
-  - `generate_panels.py` – CLI to generate images from scene JSON  
-  - `build_video.py` – CLI to assemble video with ffmpeg
-
-- `data/`  
-  - `inputscripts/` – raw `.txt` scripts  
-  - `parsed/` – `worldbible.json`, `scenes.json` etc.  
-  - `images/` – generated character sheets and panels  
-  - `video/` – intermediate clips and final renders  
-  - `stylerefs/` – LoRA datasets, example frames, style packs    
-
-- `README.md` – high-level usage  
-- `requirements.txt` – Python deps  
-- Optional: `package.json` if we add a Node/React frontend
-
-If the actual structure differs, **first help me normalize the repo** towards something like this, or at least maintain a clear mapping in this file.
+```
+my-local-ai-stack/
+├── olympus/                    ← the system
+│   ├── kernel/                 FastAPI core (app.py, config, agents, voice, etc.)
+│   ├── agents/                 agent .md definitions (aether, iris, athena...)
+│   ├── data/                   runtime DB, logs, voice/shared artifacts
+│   ├── web/                    dashboard UI (index.html, css, js)
+│   ├── engines/                pipeline components
+│   │   ├── voice/              TTS engine (Kokoro/F5 — standalone Flask app)
+│   │   ├── pipeline/           story → anime pipeline (mangapipeline)
+│   │   └── vault-sample/       sample Obsidian vault stand-in
+│   ├── shared/                 shared Python libs + prompts
+│   ├── skills/                 opencode config + MCP server
+│   ├── olympus.toml            config (models, paths, keys)
+│   ├── run.bat                 start Olympus directly
+│   └── watchdog.ps1            auto-restart on crash
+├── foundation/                 Docker/infra layer (n8n, Langfuse, MCP gateway)
+│   ├── docker-compose.yml
+│   └── *.bat                   per-service start/stop scripts
+├── docs/                       documentation
+│   ├── planning/               plans + research (PIPELINE_PLAN, amir_life_os…)
+│   │   ├── agent-design-notes/ agent system deep-dives
+│   │   └── references/         workflow references (amplifier-superpowers)
+│   ├── GUIDE.md                full walkthrough
+│   └── TROUBLESHOOTING.md      symptom → fix table
+├── llm-wiki-workflow/          wiki engine (referenced by olympus.toml wiki_root)
+├── _archive/                   everything not actively needed but preserved
+│   ├── legacy/                 prior-session frozen archives (pre-2026-07-05)
+│   ├── projects/               archived side projects (LifeOS, Personal-Coding-AI…)
+│   ├── reference-pdfs/         10 research PDFs
+│   └── reference-html/         3 saved web pages
+├── .venv/                      Python virtual environment
+├── config.json                 user config (vault_path, models, ports)
+├── config.example.json         template for config.json
+├── start.bat                   ONE-button startup (Ollama → Olympus → OpenCode → ...)
+├── setup.bat                   one-time installer
+├── requirements.txt            Python dependencies
+├── requirements-optional.txt   optional extras
+├── .mcp.json                   MCP server config
+├── CLAUDE.md                   this file
+└── README.md      
+```
 
 ---
 
@@ -146,14 +159,18 @@ These commands are **targets**; adjust to the real commands after you inspect th
     ```
   - **VRAM note**: After ~5 consecutive SDXL generations the GPU accumulates fragmented VRAM that persists across process restarts on Windows. Use `scripts/generate_safe.py` which auto-restarts ComfyUI between characters, or reboot the PC to fully clear GPU state.
 
+- **Voice Studio:**  
+  ```powershell
+  cd olympus\engines\voice
+  start.bat
+  ```
+
 - **Run pipeline scripts (PowerShell):**
   ```powershell
-  cd C:\Users\amire\dev\anime-pipeline
+  cd olympus\engines\pipeline
   $env:PYTHONPATH = "C:\Users\amire\dev\anime-pipeline"
   .\.venv\Scripts\python.exe scripts/generate_character_sheets.py my_first_story
   ```
-
-When you discover the actual entrypoints, please **update this file** (or propose a patch) so the commands stay accurate.
 
 ---
 
@@ -172,7 +189,7 @@ When you discover the actual entrypoints, please **update this file** (or propos
 
 ## Obsidian vault skills
 
-The real Obsidian vault (`C:\Users\amire\Documents\Obsidian Vault`) is the shared second brain for this whole stack — the dashboard's `_generated/` output, Agent Atlas's memory/indexer, and AnythingLLM's MCP connection to the Obsidian Local REST API plugin all read/write it (see `reference_local_services.md` / `project_dual_stack.md` memory for the full wiring).
+The real Obsidian vault (`C:\Users\amire\Documents\Obsidian Vault`) is the shared second brain for this whole stack — the dashboard's `_generated/` output, Agent Atlas's memory/indexer, and AnythingLLM's MCP connection to the Obsidian Local REST API plugin all read/write it. A sample stand-in vault lives at `olympus/engines/vault-sample/` for testing without touching your real vault.
 
 The **`obsidian@obsidian-skills`** plugin (from `github.com/kepano/obsidian-skills`, 39k+ stars, maintained by Obsidian's own creator) is installed for the standalone Claude Code CLI (`claude plugin list` to confirm) and cloned for OpenCode at `~/.opencode/skills/obsidian-skills/`. It is **not** auto-loaded in the VS Code extension session, but the skill files are real and on disk at `~/.claude/plugins/cache/obsidian-skills/obsidian/<version>/skills/` — read them directly with the Read tool when working with vault content instead of guessing at Obsidian's syntax:
 

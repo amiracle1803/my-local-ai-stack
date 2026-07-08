@@ -17,3 +17,7 @@ rich>=13.7              # readable colored console output
 python-dateutil>=2.9    # date parsing helpers
 markdown>=3.6            # render generated notes as HTML in the dashboard
 bleach>=6.1              # sanitize that HTML before it hits the browser
+mcp>=1.0                 # FastMCP -- builds MCP servers (OpenCode)
+uvicorn>=0.30            # ASGI server for OpenCode MCP
+
+

@@ -23,7 +23,7 @@ The consolidated fix-list for the whole stack. Find your symptom; apply the fix.
 | "The model '…' is not downloaded" | `ollama pull <model>` (the message tells you which). |
 | Port 11434 in use | Another Ollama instance is running — that's fine, use it. To change, set `OLLAMA_HOST` and update `config.json`. |
 
-## Project 1 — Ops Hub
+## ~~Project 1 � Ops Hub~~ (archived)
 
 | Symptom | Fix |
 |---|---|
@@ -32,7 +32,7 @@ The consolidated fix-list for the whole stack. Find your symptom; apply the fix.
 | Research: "could not read page" | Site blocks bots or is JS-only. Try another source or install the optional Crawl4AI upgrade. |
 | Inbox file not processed | Must be `.txt`/`.md`; run `run-inbox.bat`; check `inbox.log`. |
 
-## Project 2 — Second Brain
+## ~~Project 2 � Second Brain~~ (archived)
 
 | Symptom | Fix |
 |---|---|
@@ -42,7 +42,7 @@ The consolidated fix-list for the whole stack. Find your symptom; apply the fix.
 | Nightly task didn't run overnight | Task Scheduler → the task → tick "Run whether user is logged on or not" and "Wake the computer to run this task". |
 | AnythingLLM can't reach Ollama | In AnythingLLM set Base URL `http://localhost:11434` and pick your model. |
 
-## Project 3 — Automation
+## ~~Project 3 � Automation~~ (archived)
 
 | Symptom | Fix |
 |---|---|
@@ -63,6 +63,15 @@ The consolidated fix-list for the whole stack. Find your symptom; apply the fix.
 | IMAP login fails | Use an **app password** (enable 2FA first), not your real password. |
 | Port 5678 in use | Change the `ports` mapping in `foundation/docker-compose.yml`. |
 
+
+## Olympus (agent hub)
+
+| Symptom | Fix |
+|---|---|
+| Dashboard won't load at `http://127.0.0.1:4600` | Olympus may not have started. Check the terminal window titled "Olympus". Run `start.bat` again. |
+| "Agent not found" in a task | The agent's `.md` file is missing from `olympus/agents/`. Create one with the correct `id` and `domain` frontmatter. |
+| Health check fails | `curl http://127.0.0.1:4600/api/health` should return JSON. If not, check `olympus/data/olympus.log`. |
+| Voice endpoint returns 500 | Verify `engine_python` in `olympus.toml` points to the correct voice-studio venv, and Kokoro/F5-TTS is installed there. |
 ## Port reference
 
 | Port | Service |
@@ -70,6 +79,8 @@ The consolidated fix-list for the whole stack. Find your symptom; apply the fix.
 | 11434 | Ollama |
 | 8750 | Project 1 web app |
 | 5678 | n8n |
+| 4720 | OpenCode MCP |
+| 4600 | Olympus (agent hub) |
 | 6333 | Qdrant (optional) |
 | 9443 | Portainer (optional) |
 
@@ -80,3 +91,5 @@ The consolidated fix-list for the whole stack. Find your symptom; apply the fix.
 - **Rebuild the environment:** delete `.venv/` and run `setup.bat` again.
 - **Reset n8n:** `docker compose down -v` in `foundation/` (deletes workflows —
   export them first).
+
+

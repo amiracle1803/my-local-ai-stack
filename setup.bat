@@ -65,12 +65,19 @@ if errorlevel 1 (
     exit /b 1
 )
 echo [ok] Python packages installed.
+echo [..] Installing MCP server dependencies...
+".venv\Scripts\python.exe" -m pip install "mcp>=1.0" "uvicorn>=0.30"
+if errorlevel 1 (
+    echo [X] MCP install failed. OpenCode MCP server may not work.
+) else (
+    echo [ok] MCP dependencies installed.
+)
 
 REM --- 4. Models -----------------------------------------------------------
 echo.
 echo [..] Pulling models. First time downloads a few GB - grab a coffee.
 echo      (Skips instantly if you already have them.)
-for /f "usebackq tokens=* delims=" %%M in (`".venv\Scripts\python.exe" -c "from shared.lib.config import load_config as c;x=c();print(x['chat_model']);print(x['embed_model'])"`) do (
+for /f "usebackq tokens=* delims=" %%M in (`".venv\Scripts\python.exe" -c "from olympus.shared.lib.config import load_config as c;x=c();print(x['chat_model']);print(x['embed_model'])"`) do (
     echo     pulling %%M ...
     ollama pull %%M
 )
@@ -89,14 +96,11 @@ echo   Setup complete.
 echo ============================================================
 echo   Next:
 echo     - Edit config.json and set "vault_path" to your Obsidian vault
-echo       (or leave it to use the sample vault in .\vault).
+echo       (or leave it to use the sample vault in olympus\engines\vault-sample).
 echo     - Or just run start.bat -- it brings up the whole stack, including
 echo       the unified dashboard, in one go.
-echo     - Individual projects also still have their own start.bat if you
-echo       want to run just one:
-echo         apps\project1-ops-hub\start.bat        (task dropbox)
-echo         apps\project2-second-brain\start.bat   (nightly brain review)
-echo         apps\project3-automation\start.bat     (research + automation)
 echo     - Read docs\GUIDE.md for the full walkthrough.
 echo.
 pause
+
+
