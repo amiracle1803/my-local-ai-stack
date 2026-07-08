@@ -1,0 +1,89 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://angelic-harness.local/schemas/handoff.schema.json",
+  "title": "Handoff",
+  "description": "Manager -> subagent handoff payload (handoff.md §3).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "handoff_id", "task_id", "step", "state", "from", "to",
+    "objective", "acceptance_criteria", "inputs", "constraints",
+    "budget", "route", "return_schema"
+  ],
+  "properties": {
+    "handoff_id": {"type": "string", "pattern": "^H-[0-9]{8}-[0-9a-f]{4}-[0-9]{2}$"},
+    "task_id": {"type": "string"},
+    "step": {"type": "integer", "minimum": 0},
+    "state": {
+      "type": "string",
+      "enum": ["INTAKE", "PLANNING", "EXECUTION", "VERIFICATION", "DELIVERY", "FAILED"]
+    },
+    "from": {"type": "string"},
+    "to": {"type": "string"},
+    "objective": {"type": "string", "minLength": 1, "description": "One imperative sentence"},
+    "acceptance_criteria": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["error_memory"],
+      "properties": {
+        "plan_ref": {"type": ["string", "null"]},
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["path", "sha256"],
+            "properties": {
+              "path": {"type": "string"},
+              "sha256": {"type": "string"},
+              "why": {"type": "string"}
+            }
+          }
+        },
+        "evidence_bundle": {"type": ["string", "null"]},
+        "error_memory": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["side_effects", "offline_ok"],
+      "properties": {
+        "side_effects": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["read", "write-scoped", "write-shared", "external", "irreversible"]
+          }
+        },
+        "offline_ok": {"type": "boolean"},
+        "language": {"type": "string"}
+      }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_tokens", "max_wall_minutes", "max_tool_calls"],
+      "properties": {
+        "max_tokens": {"type": "integer", "minimum": 1},
+        "max_wall_minutes": {"type": "integer", "minimum": 1},
+        "max_tool_calls": {"type": "integer", "minimum": 1}
+      }
+    },
+    "route": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tier", "model"],
+      "properties": {
+        "tier": {"type": "string", "enum": ["T0", "T1", "T2", "T3", "F"]},
+        "model": {"type": "string"}
+      }
+    },
+    "return_schema": {"type": "string"}
+  }
+}

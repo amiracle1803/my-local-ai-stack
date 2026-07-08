@@ -1,0 +1,10 @@
+id: G2
+name: coding-slugify
+goal: >-
+  Write a python function slugify(text) that lowercases text and converts spaces and
+  punctuation to single hyphens, with 3 doctest examples, save as slugify.py
+checks:
+  - kind: artifact_exists
+    name: slugify.py
+  - kind: doctest
+    name: slugify.py

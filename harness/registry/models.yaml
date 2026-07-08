@@ -1,0 +1,68 @@
+# models.yaml — one entry per concrete model (routing.md §7).
+# Naming: family-size[-quant]@runtime. The runtime's own tag lives only in `model:`.
+# Code references ROLES/TIERS; this file maps them. Model swap = edit here, zero code.
+# Seeded from `ollama list` on this machine (2026-07-07).
+
+models:
+  qwen2.5-3b@ollama:
+    runtime: ollama
+    endpoint: http://127.0.0.1:11434
+    model: "qwen2.5:3b"
+    tier: T0
+    capabilities: {tools: true, json_mode: true, thinking: false, ctx_max: 32768}
+    defaults: {temperature: 0.2, num_ctx: 8192, kv_quant: q8_0, keep_alive: 10m}
+    qualified: true
+    offline_asset: null
+
+  qwen2.5-7b@ollama:
+    runtime: ollama
+    endpoint: http://127.0.0.1:11434
+    model: "qwen2.5:7b"
+    tier: T1
+    capabilities: {tools: true, json_mode: true, thinking: false, ctx_max: 32768}
+    defaults: {temperature: 0.3, num_ctx: 8192, kv_quant: q8_0, keep_alive: 10m}
+    qualified: true
+    offline_asset: null
+
+  ornith-9b@ollama:
+    runtime: ollama
+    endpoint: http://127.0.0.1:11434
+    model: "ornith:9b"
+    tier: T1
+    capabilities: {tools: true, json_mode: true, thinking: false, ctx_max: 8192}
+    defaults: {temperature: 0.3, num_ctx: 8192, kv_quant: q8_0, keep_alive: 10m}
+    qualified: true
+    offline_asset: null
+
+  qwen3-8b@ollama:
+    runtime: ollama
+    endpoint: http://127.0.0.1:11434
+    model: "qwen3:8b"
+    tier: T2
+    capabilities: {tools: true, json_mode: true, thinking: true, ctx_max: 32768}
+    defaults: {temperature: 0.6, num_ctx: 16384, kv_quant: q8_0, keep_alive: 10m}
+    qualified: true
+    offline_asset: null
+
+  nomic-embed-text@ollama:
+    runtime: ollama
+    endpoint: http://127.0.0.1:11434
+    model: "nomic-embed-text:latest"
+    tier: T0
+    role: embeddings
+    capabilities: {tools: false, json_mode: false, thinking: false, ctx_max: 8192}
+    defaults: {keep_alive: 10m}
+    qualified: true
+    offline_asset: null
+
+# Tier -> ordered candidate models (first = preferred). The ModelPort resolves
+# role/tier through this table; same-tier siblings are the ladder rung-2 pool.
+tiers:
+  T0: [qwen2.5-3b@ollama]
+  T1: [qwen2.5-7b@ollama, ornith-9b@ollama]
+  T2: [qwen3-8b@ollama]
+  T3: []          # Claude API — disabled by default, never offline (claude.md §1)
+  F:  []          # hermes OpenAI-compat :8642 — not installed on this box yet
+
+roles:
+  embeddings: nomic-embed-text@ollama

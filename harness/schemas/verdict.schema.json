@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://angelic-harness.local/schemas/verdict.schema.json",
+  "title": "Verdict",
+  "description": "Verifier binary verdict at scores/verdict-<step>.json (handoff.md §7.5).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["handoff_id", "verifier", "passed", "checks", "reasons", "created"],
+  "properties": {
+    "handoff_id": {"type": "string"},
+    "verifier": {"type": "string"},
+    "passed": {"type": "boolean"},
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "kind", "passed"],
+        "properties": {
+          "name": {"type": "string"},
+          "kind": {"type": "string", "enum": ["test", "schema", "lint", "probe", "model-judgment"]},
+          "passed": {"type": "boolean"},
+          "detail": {"type": "string"}
+        }
+      }
+    },
+    "reasons": {"type": "array", "items": {"type": "string"}},
+    "created": {"type": "string", "format": "date-time"}
+  }
+}

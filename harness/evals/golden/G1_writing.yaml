@@ -1,0 +1,12 @@
+id: G1
+name: writing-haiku-summary
+goal: >-
+  Write a 5-line haiku-style summary of what a fallback ladder is, save as artifact
+  summary.md
+# Programmatic checks the golden runner runs against runs/<id>/artifacts/ after run_task.
+checks:
+  - kind: artifact_exists
+    name: summary.md
+  - kind: min_lines
+    name: summary.md
+    lines: 3

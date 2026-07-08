@@ -1,0 +1,57 @@
+# agents.yaml — role configs (agent.md §4). One YAML entry + one prompt file each.
+# Phase 0 skeletons: planner, executor, critic, scorer, verifier.
+# "Agent" = a role configuration, not a process. Prompts (agents/*.prompt.md) land in Phase 1.
+
+agents:
+  planner:
+    version: 1
+    prompt: agents/planner.prompt.md
+    plane: control
+    tier_default: T2
+    min_tier: T2
+    tools: [read_run_files, read_memory, read_plan]
+    side_effects: [read, write-scoped]      # plan/ only (enforced by runstate.check_side_effect)
+    context_budget_tokens: 8000
+    outputs: {plan: "plan/plan.md", todos: "plan/todos.md", schema: null}
+
+  executor:
+    version: 1
+    prompt: agents/executor.prompt.md
+    plane: execution
+    tier_default: T1
+    tools: [read_run_files, read_memory, read_plan, write_artifact, shell]
+    side_effects: [read, write-scoped]
+    context_budget_tokens: 4000
+    outputs: {artifact: "artifacts/{step}-{name}.{ext}", schema: schemas/report.schema.json}
+
+  critic:
+    version: 1
+    prompt: agents/critic.prompt.md
+    plane: control
+    tier_default: T1
+    prefer_model_diversity: true            # avoid scoring own model's output
+    tools: [read_run_files, read_memory]
+    side_effects: [read]
+    context_budget_tokens: 6000
+    outputs: {report: "reports/critique-{step}.md", schema: null}
+
+  scorer:
+    version: 2
+    prompt: agents/scorer.prompt.md
+    plane: control
+    tier_default: T1   # 3B produced degenerate all-zero scorecards; rubric work needs T1
+    tools: [read_run_files]
+    side_effects: [read, write-scoped]
+    context_budget_tokens: 4000
+    io: {consumes_best: [markdown, json], produces: [json]}
+    outputs: {scorecard: "scores/scorecard-{step}.json", schema: schemas/scorecard.schema.json}
+
+  verifier:
+    version: 1
+    prompt: agents/verifier.prompt.md
+    plane: control
+    tier_default: T1
+    tools: [read_run_files, shell, run_tests]
+    side_effects: [read, write-scoped]
+    context_budget_tokens: 6000
+    outputs: {verdict: "scores/verdict-{step}.json", schema: schemas/verdict.schema.json}

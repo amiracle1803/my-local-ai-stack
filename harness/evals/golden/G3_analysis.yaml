@@ -1,0 +1,11 @@
+id: G3
+name: analysis-tier-table
+goal: >-
+  Read harness/registry/routing.yaml and produce a markdown table of the tier defaults
+  (one row per difficulty level), save as tiers.md
+checks:
+  - kind: artifact_exists
+    name: tiers.md
+  - kind: contains_all
+    name: tiers.md
+    needles: [trivial, easy, standard, hard, frontier]

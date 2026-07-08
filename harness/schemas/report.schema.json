@@ -1,0 +1,77 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://angelic-harness.local/schemas/report.schema.json",
+  "title": "Report",
+  "description": "Subagent -> Manager compact report (handoff.md §5).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["handoff_id", "status", "summary", "artifacts", "evidence", "acceptance_self_check", "confidence", "usage"],
+  "properties": {
+    "handoff_id": {"type": "string"},
+    "status": {"type": "string", "enum": ["done", "partial", "blocked", "failed"]},
+    "summary": {"type": "string", "minLength": 1, "description": "<=10 lines plain language"},
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "sha256", "kind"],
+        "properties": {
+          "path": {"type": "string"},
+          "sha256": {"type": "string"},
+          "kind": {"type": "string"}
+        }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["claim", "ref", "kind"],
+        "properties": {
+          "claim": {"type": "string"},
+          "ref": {"type": "string"},
+          "kind": {"type": "string"}
+        }
+      }
+    },
+    "acceptance_self_check": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["criterion", "met"],
+        "properties": {
+          "criterion": {"type": "integer", "minimum": 0},
+          "met": {"type": "boolean"},
+          "evidence_idx": {"type": "integer", "minimum": 0}
+        }
+      }
+    },
+    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+    "concerns": {"type": "array", "items": {"type": "string"}},
+    "suggested_memory": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "note"],
+        "properties": {
+          "type": {"type": "string", "enum": ["episodic", "semantic", "procedural", "error"]},
+          "note": {"type": "string"}
+        }
+      }
+    },
+    "usage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tokens", "tool_calls", "wall_seconds"],
+      "properties": {
+        "tokens": {"type": "integer", "minimum": 0},
+        "tool_calls": {"type": "integer", "minimum": 0},
+        "wall_seconds": {"type": "number", "minimum": 0}
+      }
+    }
+  }
+}

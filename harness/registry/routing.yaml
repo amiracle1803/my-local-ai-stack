@@ -1,0 +1,25 @@
+# routing.yaml — task classification -> tier policy (routing.md §3).
+# Code references tiers; this table maps (class, agent) -> tier.
+
+defaults: {trivial: T0, easy: T1, standard: T1, hard: T2, frontier: T2}
+
+overrides:
+  - {domain: workflow, difficulty: standard, tier: T2}   # n8n JSON demands structure
+  - {domain: memory, tier: T0}
+  - {agent: planner, min_tier: T2}                       # planning never below T2
+  - {agent: critic, rule: prefer_model_diversity}        # judge != author model when possible
+
+escalation:
+  frontier_to_T3: {enabled: false, requires: human_flag, only_domains: [coding, analysis]}
+
+offline_mode:
+  T3: forbidden
+  T2: allowed   # llamacpp pinned GGUF must exist on disk — offline-ops verifies
+
+# Score gates (routing.md §9). Consumed by scorer/verifier in Phase 1.
+gates:
+  step_acceptance: 0.80
+  hard_floor: 0.50
+  task_delivery: 0.80
+  self_consistency_agreement: 0.66   # >= 2/3 votes
+  memory_write_confidence: 0.70

@@ -1,0 +1,79 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://angelic-harness.local/schemas/task.schema.json",
+  "title": "Task",
+  "description": "Task record persisted at runs/<id>/task.json (00-overview.md §7).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "goal", "state", "class", "route", "budget", "verification", "created"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^T-[0-9]{8}-[a-z0-9-]+-[0-9a-f]{4}$",
+      "description": "T-YYYYMMDD-<slug>-<4hex>"
+    },
+    "goal": {"type": "string", "minLength": 1, "description": "User goal verbatim"},
+    "state": {
+      "type": "string",
+      "enum": ["INTAKE", "PLANNING", "EXECUTION", "VERIFICATION", "DELIVERY", "FAILED"]
+    },
+    "class": {"$ref": "#/definitions/classification"},
+    "route": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tier", "model", "fallbacks"],
+      "properties": {
+        "tier": {"type": "string", "enum": ["T0", "T1", "T2", "T3", "F"]},
+        "model": {"type": "string"},
+        "fallbacks": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_loops", "max_tokens", "max_wall_minutes"],
+      "properties": {
+        "max_loops": {"type": "integer", "minimum": 1},
+        "max_tokens": {"type": "integer", "minimum": 1},
+        "max_wall_minutes": {"type": "integer", "minimum": 1}
+      }
+    },
+    "plan_ref": {"type": ["string", "null"]},
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required_score", "verifier", "status"],
+      "properties": {
+        "required_score": {"type": "number", "minimum": 0, "maximum": 1},
+        "verifier": {"type": "string"},
+        "status": {"type": "string", "enum": ["pending", "pass", "fail"]}
+      }
+    },
+    "replans": {"type": "integer", "minimum": 0, "description": "Count of EXECUTION->PLANNING replans (bounded <=2)"},
+    "parent": {"type": ["string", "null"]},
+    "children": {"type": "array", "items": {"type": "string"}},
+    "created": {"type": "string", "format": "date-time"},
+    "updated": {"type": ["string", "null"], "format": "date-time"}
+  },
+  "definitions": {
+    "classification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["domain", "difficulty", "risk", "offline_ok"],
+      "properties": {
+        "domain": {
+          "type": "string",
+          "enum": ["coding", "research", "writing", "analysis", "media", "ops", "workflow", "memory"]
+        },
+        "difficulty": {
+          "type": "string",
+          "enum": ["trivial", "easy", "standard", "hard", "frontier"]
+        },
+        "risk": {"type": "string", "enum": ["low", "medium", "high"]},
+        "offline_ok": {"type": "boolean"},
+        "structure": {"type": "string", "enum": ["freeform", "schema"]},
+        "context_need": {"type": "string", "enum": ["small", "medium", "large"]}
+      }
+    }
+  }
+}

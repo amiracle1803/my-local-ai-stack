@@ -1,0 +1,10 @@
+# Runtime state and system memory are local-only (agent.md §7, memory.md §1).
+# Keep the directories, ignore their contents.
+runs/*
+!runs/.gitkeep
+memory/*
+!memory/.gitkeep
+
+__pycache__/
+*.pyc
+.pytest_cache/
