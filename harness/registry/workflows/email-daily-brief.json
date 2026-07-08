@@ -1,0 +1,88 @@
+{
+  "name": "Olympus · Email Daily Brief",
+  "settings": { "executionOrder": "v1" },
+  "nodes": [
+    {
+      "id": "sched-0715",
+      "name": "Daily 07:15",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0],
+      "parameters": {
+        "rule": { "interval": [{ "triggerAtHour": 7, "triggerAtMinute": 15 }] }
+      }
+    },
+    {
+      "id": "gmail-fetch",
+      "name": "EXT-Gmail fetch last 24h",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [220, 0],
+      "parameters": {
+        "operation": "getAll",
+        "limit": 25,
+        "simple": true,
+        "filters": { "q": "newer_than:1d -category:promotions -category:social" }
+      }
+    },
+    {
+      "id": "compact",
+      "name": "Compact emails",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 0],
+      "parameters": {
+        "jsCode": "const items = $input.all();\nif (items.length === 0) {\n  return [{ json: { prompt: '', count: 0, empty: true } }];\n}\nconst lines = items.map((it, i) => {\n  const j = it.json;\n  const from = (j.from && j.from.value && j.from.value[0] && j.from.value[0].address) || j.From || j.from || 'unknown';\n  const subj = j.subject || j.Subject || '(no subject)';\n  const snip = String(j.snippet || j.textPlain || '').replace(/\\s+/g, ' ').slice(0, 220);\n  return `${i + 1}. FROM: ${from} | SUBJECT: ${subj}\\n   ${snip}`;\n});\nconst prompt = `You are an email triage assistant. Below are emails from the last 24 hours.\\n\\nEMAILS:\\n${lines.join('\\n')}\\n\\nWrite a concise markdown brief with exactly these sections:\\n## Action needed\\n- one bullet per email that needs a reply, decision, or task (say what, from whom, and any deadline)\\n## Waiting / FYI\\n- bullets for things to know but not act on\\n## Suggested top 3 todos today\\n- numbered, most important first\\n\\nRules: use ONLY information from the emails; if a section is empty write 'none'; no preamble, start directly with the first heading.`;\nreturn [{ json: { prompt, count: items.length, empty: false } }];"
+      }
+    },
+    {
+      "id": "ollama",
+      "name": "Ollama summarize",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, 0],
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'qwen2.5:7b', stream: false, options: { temperature: 0.3, num_ctx: 8192 }, prompt: $json.empty ? 'Write exactly: ## Action needed\\nnone\\n## Waiting / FYI\\nnone (no new email in the last 24h)\\n## Suggested top 3 todos today\\nnone' : $json.prompt }) }}",
+        "options": { "timeout": 300000 }
+      }
+    },
+    {
+      "id": "format",
+      "name": "Format digest note",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 0],
+      "parameters": {
+        "jsCode": "const resp = ($json.response || '(model returned nothing)').trim();\nconst count = $('Compact emails').first().json.count;\nconst date = new Date().toISOString().slice(0, 10);\nconst md = `---\\ntype: digest\\nai: true\\nsource: n8n email-daily-brief\\ncreated: ${date}\\ntags: [email, brief]\\n---\\n\\n# 📧 Email brief — ${date}\\n\\n_${count} email(s) scanned in the last 24h._ 🤖\\n\\n${resp}\\n`;\nreturn [{ json: { md, filename: `email-brief-${date}.md` } }];"
+      }
+    },
+    {
+      "id": "obsidian-write",
+      "name": "Write brief to Obsidian",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1100, 0],
+      "parameters": {
+        "method": "PUT",
+        "url": "=http://host.docker.internal:27123/vault/_generated/{{ $json.filename }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "text/markdown",
+        "body": "={{ $json.md }}"
+      }
+    }
+  ],
+  "connections": {
+    "Daily 07:15": { "main": [[{ "node": "EXT-Gmail fetch last 24h", "type": "main", "index": 0 }]] },
+    "EXT-Gmail fetch last 24h": { "main": [[{ "node": "Compact emails", "type": "main", "index": 0 }]] },
+    "Compact emails": { "main": [[{ "node": "Ollama summarize", "type": "main", "index": 0 }]] },
+    "Ollama summarize": { "main": [[{ "node": "Format digest note", "type": "main", "index": 0 }]] },
+    "Format digest note": { "main": [[{ "node": "Write brief to Obsidian", "type": "main", "index": 0 }]] }
+  }
+}
