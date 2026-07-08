@@ -379,11 +379,11 @@ def run_executor(payload: dict, role: str, port, task: Task, runs_dir: Path,
     tokens = 0
     tool_calls = 0
     started = time.monotonic()
-    repaired = False
 
     for _turn in range(MAX_TOOL_CALLS):
         res = port.generate(role, msgs, schema=ACTION_SCHEMA,
-                            task_id=task.id, agent="executor")
+                            task_id=task.id, agent="executor",
+                            think=False)  # executor is tool work; thinking costs 100s+ on T2
         tokens += res.usage.get("tokens_in", 0) + res.usage.get("tokens_out", 0)
         action = res.data or {}
         msgs.append({"role": "assistant", "content": res.text})
@@ -417,13 +417,28 @@ def run_executor(payload: dict, role: str, port, task: Task, runs_dir: Path,
             usage = {"tokens": tokens, "tool_calls": tool_calls,
                      "wall_seconds": round(time.monotonic() - started, 2)}
             report, errs = _finalize_report(action.get("report"), payload, written, usage)
-            if errs and not repaired:
-                repaired = True
-                msgs.append({"role": "user", "content":
-                             f"Your report failed schema validation: {errs}. "
-                             "Re-emit a finish action with a valid report. JSON only."})
-                emit("    executor report invalid -> one repair")
-                continue
+            if errs:
+                # regenerate ONLY the report, decoder-constrained by the report schema
+                # (the action envelope's nested report is loosely typed; this isn't)
+                emit("    executor report invalid -> constrained report regeneration")
+                try:
+                    fix = port.generate(
+                        role,
+                        [{"role": "system", "content":
+                          "Emit ONLY a JSON report object matching the enforced shape. "
+                          "No action envelope, no prose."},
+                         {"role": "user", "content":
+                          f"Objective: {payload.get('objective', '')}\n"
+                          f"Acceptance criteria: {json.dumps(payload.get('acceptance_criteria', []))}\n"
+                          f"Artifacts written: {json.dumps(written)}\n"
+                          f"Last artifact content (excerpt): {_cap(last_content, 500)}\n"
+                          f"Previous report's validation errors: {errs}\n"
+                          "Emit the corrected report JSON."}],
+                        schema=load_schema("report.schema.json"),
+                        task_id=task.id, agent="executor", think=False)
+                    report, errs = _finalize_report(fix.data, payload, written, usage)
+                except ModelPortError:
+                    pass
             if errs:
                 report = _synthesize_report(payload, written, usage, errs)
                 emit("    executor report still invalid -> synthesized minimal report")

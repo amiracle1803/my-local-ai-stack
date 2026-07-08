@@ -117,13 +117,14 @@ class ModelPort:
         *,
         task_id: str = "T-unassigned",
         agent: Optional[str] = None,
+        think: Optional[bool] = None,
     ) -> Result:
         tier, primary = self.resolve(role)
         agent_name = agent or (role if role not in TIER_ORDER else "unknown")
         validator = Draft7Validator(schema) if schema else None
 
         for rung, model, msgs, is_repair in self._ladder(tier, primary, messages, schema):
-            outcome, text, usage, err, ms = self._attempt(model, msgs, schema, validator)
+            outcome, text, usage, err, ms = self._attempt(model, msgs, schema, validator, think)
             self._log(task_id, agent_name, model, msgs, usage, outcome, rung, latency_ms=ms)
             if outcome == "ok":
                 data = json.loads(text) if schema else None
@@ -132,7 +133,7 @@ class ModelPort:
             if outcome == "schema-invalid" and not is_repair and rung == 0:
                 repair_msgs = _repair_messages(messages, text, err)
                 r_out, r_text, r_usage, _, r_ms = self._attempt(
-                    model, repair_msgs, schema, validator)
+                    model, repair_msgs, schema, validator, think)
                 self._log(task_id, agent_name, model, repair_msgs, r_usage, r_out, 1,
                           latency_ms=r_ms)
                 if r_out == "ok":
@@ -157,12 +158,12 @@ class ModelPort:
 
     # --- one HTTP attempt ------------------------------------------------
 
-    def _attempt(self, model, messages, schema, validator):
+    def _attempt(self, model, messages, schema, validator, think=None):
         """Return (outcome, text, usage, error_detail, latency_ms). Model failures the
         ladder should absorb become an outcome string, not an exception."""
         start = time.monotonic()
         try:
-            text, usage = self._call_ollama(model, messages, schema)
+            text, usage = self._call_ollama(model, messages, schema, think)
         except ModelTimeout:
             return "timeout", "", {}, "timeout", _ms(start)
         except ModelConnectionError:
@@ -181,7 +182,7 @@ class ModelPort:
                 return "schema-invalid", text, usage, "; ".join(e.message for e in errors[:3]), ms
         return "ok", text, usage, "", ms
 
-    def _call_ollama(self, model: ModelEntry, messages, schema) -> tuple[str, dict]:
+    def _call_ollama(self, model: ModelEntry, messages, schema, think=None) -> tuple[str, dict]:
         payload: dict[str, Any] = {
             "model": model.model,
             "messages": messages,
@@ -189,7 +190,10 @@ class ModelPort:
             "options": _options(model.defaults),
         }
         if schema is not None:
-            payload["format"] = "json"
+            # decoder-level constraint: Ollama structured outputs take the schema itself
+            payload["format"] = {k: v for k, v in schema.items() if not k.startswith("$")}
+        if think is not None and model.capabilities.get("thinking"):
+            payload["think"] = think
         url = model.endpoint.rstrip("/") + "/api/chat"
         try:
             resp = self._http().post(url, json=payload)

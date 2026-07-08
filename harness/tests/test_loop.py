@@ -37,7 +37,7 @@ class FakePort:
         self._last: dict = {}
         self.calls: list[tuple] = []   # (agent, role)
 
-    def generate(self, role, messages, schema=None, budget=None, *, task_id, agent=None):
+    def generate(self, role, messages, schema=None, budget=None, *, task_id, agent=None, think=None):
         key = agent or role
         self.calls.append((key, role))
         queue = self.scripts.get(key, [])
