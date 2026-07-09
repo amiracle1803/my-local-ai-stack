@@ -1,0 +1,98 @@
+{
+  "_readme": "ComfyUI workflow templates (API format), grounded against the live /object_info of ComfyUI 0.24.0 on 2026-07-09. ComfyClient patches nodes by _meta.title using the 'patchable' maps below (title -> node_id.input_field). Every template must pass `model_lab test-workflows` after any node-pack change. Checkpoint names default to PATCH placeholders because image_primary (krea2) is not on disk yet and the MODEL BAN LIST forbids the local SDXL anime checkpoints.",
+  "resolution_default": [1216, 704],
+  "templates": {
+    "scene_plate.json": {
+      "purpose": "One location master plate per scene (no characters) - the background consistency anchor",
+      "status": "ready",
+      "patchable": {
+        "CKPT": "1.ckpt_name", "LORA_SPEED": "2.lora_name", "LORA_STYLE": "3.lora_name",
+        "PROMPT_POS": "11.text", "PROMPT_NEG": "12.text",
+        "WIDTH": "13.width", "HEIGHT": "13.height", "SEED": "14.seed", "SAVE_PREFIX": "16.filename_prefix"
+      }
+    },
+    "panel_txt2img.json": {
+      "purpose": "Per-shot panel: base + speed LoRA + style LoRA + <=2 character LoRAs + dual IPAdapter (char ref, scene plate)",
+      "status": "ready",
+      "notes": "Disable an unused char LoRA by patching its strengths to 0. Disable plate conditioning by patching IPA_PLATE_WEIGHT to 0.",
+      "patchable": {
+        "CKPT": "1.ckpt_name", "LORA_SPEED": "2.lora_name", "LORA_STYLE": "3.lora_name",
+        "LORA_CHAR_1": "4.lora_name", "LORA_CHAR_1_STR": "4.strength_model",
+        "LORA_CHAR_2": "5.lora_name", "LORA_CHAR_2_STR": "5.strength_model",
+        "IPA_CHAR_IMG": "7.image", "IPA_CHAR_WEIGHT": "8.weight",
+        "IPA_PLATE_IMG": "9.image", "IPA_PLATE_WEIGHT": "10.weight",
+        "PROMPT_POS": "11.text", "PROMPT_NEG": "12.text",
+        "WIDTH": "13.width", "HEIGHT": "13.height", "SEED": "14.seed", "SAVE_PREFIX": "16.filename_prefix"
+      }
+    },
+    "panel_img2img_lastframe.json": {
+      "purpose": "Block-opening shot conditioned on previous block's last frame (composition continuity)",
+      "status": "ready",
+      "patchable": {
+        "CKPT": "1.ckpt_name", "LORA_SPEED": "2.lora_name", "LORA_STYLE": "3.lora_name",
+        "LORA_CHAR_1": "4.lora_name", "LORA_CHAR_1_STR": "4.strength_model",
+        "LORA_CHAR_2": "5.lora_name", "LORA_CHAR_2_STR": "5.strength_model",
+        "IPA_CHAR_IMG": "7.image", "IPA_PLATE_IMG": "9.image",
+        "PROMPT_POS": "11.text", "PROMPT_NEG": "12.text",
+        "INIT_IMAGE": "17.image", "DENOISE": "14.denoise",
+        "SEED": "14.seed", "SAVE_PREFIX": "16.filename_prefix"
+      }
+    },
+    "character_sheet.json": {
+      "purpose": "360-degree turnaround / expression / pose reference frames (Stage 1R). VIEW instruction goes inside PROMPT_POS.",
+      "status": "ready",
+      "notes": "Uses il_anime_model_turn LoRA (SDXL-family). If krea2 is a different architecture, M4 must retrain/replace this LoRA - see design 5.3b.",
+      "patchable": {
+        "CKPT": "1.ckpt_name", "LORA_SPEED": "2.lora_name", "LORA_TURNAROUND": "3.lora_name",
+        "LORA_CHAR": "4.lora_name", "LORA_CHAR_STR": "4.strength_model",
+        "PROMPT_POS": "11.text", "PROMPT_NEG": "12.text",
+        "WIDTH": "13.width", "HEIGHT": "13.height", "SEED": "14.seed", "SAVE_PREFIX": "16.filename_prefix"
+      }
+    },
+    "mouth_sheet.json": {
+      "purpose": "Inpaint the mouth region of a character's front ref into one viseme shape (run 9x per character)",
+      "status": "ready",
+      "notes": "Pipeline pre-renders the mask PNG (white mouth bbox on black) and uploads both images.",
+      "patchable": {
+        "CKPT": "1.ckpt_name", "LORA_CHAR": "2.lora_name",
+        "REF_IMAGE": "3.image", "MASK_IMAGE": "4.image",
+        "VISEME_PROMPT": "11.text", "PROMPT_NEG": "12.text",
+        "SEED": "14.seed", "SAVE_PREFIX": "16.filename_prefix"
+      }
+    },
+    "ltx_ambient.json": {
+      "purpose": "Tier-1 ambient motion: image-to-video from the shot panel, core ComfyUI LTX nodes",
+      "status": "ready",
+      "notes": "FPS patched into both LTXVConditioning.frame_rate and SaveAnimatedWEBP.fps; RIFE conforms to project fps afterwards.",
+      "patchable": {
+        "CKPT_LTX": "1.ckpt_name", "MOTION_PROMPT": "2.text", "PROMPT_NEG": "3.text",
+        "FPS": "4.frame_rate", "START_FRAME": "5.image",
+        "WIDTH": "6.width", "HEIGHT": "6.height", "FRAMES": "6.length",
+        "STEPS": "7.steps", "SEED": "9.noise_seed", "CFG": "9.cfg",
+        "SAVE_PREFIX": "11.filename_prefix", "SAVE_FPS": "11.fps"
+      }
+    },
+    "ltx_director.json": {
+      "purpose": "Tier-2 action motion with first+last frame conditioning (LTXVAddGuide at frame_idx -1)",
+      "status": "ready",
+      "patchable": {
+        "CKPT_LTX": "1.ckpt_name", "MOTION_PROMPT": "2.text", "PROMPT_NEG": "3.text",
+        "FPS": "4.frame_rate", "START_FRAME": "5.image", "END_FRAME": "12.image",
+        "END_STRENGTH": "13.strength",
+        "WIDTH": "6.width", "HEIGHT": "6.height", "FRAMES": "6.length",
+        "STEPS": "7.steps", "SEED": "9.noise_seed", "CFG": "9.cfg",
+        "SAVE_PREFIX": "11.filename_prefix", "SAVE_FPS": "11.fps"
+      }
+    },
+    "wan_ti2v.json": {
+      "purpose": "Tier-2 alternate: Wan2.2-TI2V-5B fp8, 20 steps unipc, block-swap 20, cfg 5.0, 81f@16fps",
+      "status": "stub_export_required",
+      "notes": "WanVideoWrapper node signatures change across kijai releases - build this by exporting a working graph from the UI at M4, keeping the titles: WAN_MODEL, WAN_VAE, START_FRAME, MOTION_PROMPT, SEED, BLOCK_SWAP, SAVE_PREFIX."
+    },
+    "lora_dataset_prep.json": {
+      "purpose": "WD14 captioning over a ref folder for LoRA datasets",
+      "status": "blocked_node_missing",
+      "notes": "Requires comfyui-wd14-tagger install (design 5.3b item 2). Outfit-token injection happens in pipeline code after captioning."
+    }
+  }
+}

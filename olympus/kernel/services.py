@@ -147,11 +147,14 @@ def start(name: str) -> dict:
     exe = Path(svc.start_args[0])
     if exe.is_absolute() and not exe.exists():
         raise FileNotFoundError(f"{exe} does not exist")
+    log_dir = Path(__file__).resolve().parent.parent / "data"
+    log_dir.mkdir(exist_ok=True)
+    log = open(log_dir / f"svc_{svc.name.replace(' ', '_')}.log", "ab")
     subprocess.Popen(
         svc.start_args,
         cwd=svc.cwd,
-        creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS,
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW,
+        stdout=log, stderr=subprocess.STDOUT,
     )
     return {"name": name, "running": False, "started": True,
             "note": "launch requested; poll /api/services until running"}
