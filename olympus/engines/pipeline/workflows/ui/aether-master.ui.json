@@ -1,6 +1,6 @@
 {
- "last_node_id": 166,
- "last_link_id": 193,
+ "last_node_id": 198,
+ "last_link_id": 224,
  "nodes": [
   {
    "id": 1,
@@ -4051,6 +4051,553 @@
     90,
     "default"
    ]
+  },
+  {
+   "id": 177,
+   "type": "WanVideoBlockSwap",
+   "pos": [
+    60,
+    6902
+   ],
+   "size": [
+    340,
+    312
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "BLOCK_SWAP",
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "block_swap_args",
+     "type": "BLOCKSWAPARGS",
+     "links": [
+      204
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "WanVideoBlockSwap"
+   },
+   "widgets_values": [
+    20,
+    false,
+    false,
+    false,
+    0,
+    0,
+    false
+   ]
+  },
+  {
+   "id": 179,
+   "type": "LoadWanVideoT5TextEncoder",
+   "pos": [
+    60,
+    7274
+   ],
+   "size": [
+    340,
+    228
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "WAN_T5",
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "wan_t5_model",
+     "type": "WANTEXTENCODER",
+     "links": [
+      205
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "LoadWanVideoT5TextEncoder"
+   },
+   "widgets_values": [
+    "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+    "bf16",
+    "offload_device",
+    "disabled"
+   ]
+  },
+  {
+   "id": 181,
+   "type": "WanVideoVAELoader",
+   "pos": [
+    60,
+    7562
+   ],
+   "size": [
+    340,
+    256
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "WAN_VAE",
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "vae",
+     "type": "WANVAE",
+     "links": [
+      206,
+      211
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "WanVideoVAELoader"
+   },
+   "widgets_values": [
+    "Wan2_2_VAE_bf16.safetensors",
+    "bf16",
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": 182,
+   "type": "LoadImage",
+   "pos": [
+    60,
+    7878
+   ],
+   "size": [
+    340,
+    170
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "START_FRAME",
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      207
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "MASK",
+     "type": "MASK",
+     "links": null,
+     "slot_index": 1
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "LoadImage"
+   },
+   "widgets_values": [
+    "PATCH_START_FRAME.png"
+   ]
+  },
+  {
+   "id": 178,
+   "type": "WanVideoModelLoader",
+   "pos": [
+    480,
+    6902
+   ],
+   "size": [
+    340,
+    508
+   ],
+   "flags": {},
+   "order": 1,
+   "mode": 0,
+   "title": "WAN_MODEL",
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "model",
+     "type": "WANVIDEOMODEL",
+     "links": [
+      208
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "WanVideoModelLoader"
+   },
+   "widgets_values": [
+    "Wan2_2-TI2V-5B_fp8_e4m3fn_scaled_KJ.safetensors",
+    "bf16",
+    "fp8_e4m3fn_scaled",
+    "offload_device",
+    "sdpa",
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": 180,
+   "type": "WanVideoTextEncode",
+   "pos": [
+    480,
+    7470
+   ],
+   "size": [
+    340,
+    312
+   ],
+   "flags": {},
+   "order": 1,
+   "mode": 0,
+   "title": "MOTION_PROMPT",
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "text_embeds",
+     "type": "WANVIDEOTEXTEMBEDS",
+     "links": [
+      210
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "WanVideoTextEncode"
+   },
+   "widgets_values": [
+    "PATCH: [camera: slow push-in] [motion: ...] anime scene, cinematic",
+    "morphing, warping, flicker, jitter, text, watermark, low quality, deformed",
+    0,
+    true,
+    0,
+    false,
+    "gpu"
+   ]
+  },
+  {
+   "id": 183,
+   "type": "WanVideoImageToVideoEncode",
+   "pos": [
+    480,
+    7842
+   ],
+   "size": [
+    340,
+    638
+   ],
+   "flags": {},
+   "order": 1,
+   "mode": 0,
+   "title": "FRAMES",
+   "inputs": [
+    {
+     "name": "start_image",
+     "type": "IMAGE",
+     "link": 207
+    },
+    {
+     "name": "end_image",
+     "type": "IMAGE",
+     "link": null
+    },
+    {
+     "name": "temporal_mask",
+     "type": "MASK",
+     "link": null
+    },
+    {
+     "name": "extra_latents",
+     "type": "LATENT",
+     "link": null
+    },
+    {
+     "name": "empty_frame_pad_image",
+     "type": "IMAGE",
+     "link": null
+    }
+   ],
+   "outputs": [
+    {
+     "name": "image_embeds",
+     "type": "WANVIDIMAGE_EMBEDS",
+     "links": [
+      209
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "WanVideoImageToVideoEncode"
+   },
+   "widgets_values": [
+    1216,
+    704,
+    81,
+    0.0,
+    1.0,
+    1.0,
+    true,
+    0,
+    0,
+    0,
+    false,
+    false,
+    0,
+    0
+   ]
+  },
+  {
+   "id": 184,
+   "type": "WanVideoSampler",
+   "pos": [
+    900,
+    6902
+   ],
+   "size": [
+    340,
+    978
+   ],
+   "flags": {},
+   "order": 2,
+   "mode": 0,
+   "title": "SEED",
+   "inputs": [
+    {
+     "name": "samples",
+     "type": "LATENT",
+     "link": null
+    },
+    {
+     "name": "sigmas",
+     "type": "SIGMAS",
+     "link": null
+    }
+   ],
+   "outputs": [
+    {
+     "name": "samples",
+     "type": "LATENT",
+     "links": [
+      212
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "denoised_samples",
+     "type": "LATENT",
+     "links": null,
+     "slot_index": 1
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "WanVideoSampler"
+   },
+   "widgets_values": [
+    0,
+    0,
+    20,
+    5.0,
+    5.0,
+    0,
+    "fixed",
+    true,
+    "unipc",
+    0,
+    0,
+    1.0,
+    0,
+    0,
+    0,
+    0,
+    false,
+    0,
+    "comfy",
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    -1,
+    false
+   ]
+  },
+  {
+   "id": 185,
+   "type": "WanVideoDecode",
+   "pos": [
+    1320,
+    6902
+   ],
+   "size": [
+    340,
+    338
+   ],
+   "flags": {},
+   "order": 3,
+   "mode": 0,
+   "title": "WAN_DECODE",
+   "inputs": [
+    {
+     "name": "samples",
+     "type": "LATENT",
+     "link": 212
+    }
+   ],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": [
+      213
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "WanVideoDecode"
+   },
+   "widgets_values": [
+    0,
+    true,
+    272,
+    272,
+    144,
+    128,
+    "default"
+   ]
+  },
+  {
+   "id": 186,
+   "type": "SaveAnimatedWEBP",
+   "pos": [
+    1740,
+    6902
+   ],
+   "size": [
+    340,
+    256
+   ],
+   "flags": {},
+   "order": 4,
+   "mode": 0,
+   "title": "SAVE_PREFIX",
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 213
+    }
+   ],
+   "outputs": [],
+   "properties": {
+    "Node name for S&R": "SaveAnimatedWEBP"
+   },
+   "widgets_values": [
+    "wan_clip",
+    16.0,
+    false,
+    90,
+    "default"
+   ]
+  },
+  {
+   "id": 197,
+   "type": "LoadImage",
+   "pos": [
+    60,
+    8760
+   ],
+   "size": [
+    340,
+    170
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "INPUT_IMAGE",
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      224
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "MASK",
+     "type": "MASK",
+     "links": null,
+     "slot_index": 1
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "LoadImage"
+   },
+   "widgets_values": [
+    "PATCH_INPUT_IMAGE.png"
+   ]
+  },
+  {
+   "id": 198,
+   "type": "WD14Tagger|pysssss",
+   "pos": [
+    480,
+    8760
+   ],
+   "size": [
+    340,
+    310
+   ],
+   "flags": {},
+   "order": 1,
+   "mode": 0,
+   "title": "TAGGER",
+   "inputs": [
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "link": 224
+    }
+   ],
+   "outputs": [
+    {
+     "name": "STRING",
+     "type": "STRING",
+     "links": null,
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "WD14Tagger|pysssss"
+   },
+   "widgets_values": [
+    "wd-v1-4-moat-tagger-v2",
+    0.35,
+    0.85,
+    true,
+    false,
+    ""
+   ]
   }
  ],
  "links": [
@@ -5117,6 +5664,94 @@
    164,
    0,
    "IMAGE"
+  ],
+  [
+   204,
+   177,
+   0,
+   178,
+   null,
+   "BLOCKSWAPARGS"
+  ],
+  [
+   205,
+   179,
+   0,
+   180,
+   null,
+   "WANTEXTENCODER"
+  ],
+  [
+   206,
+   181,
+   0,
+   183,
+   null,
+   "WANVAE"
+  ],
+  [
+   207,
+   182,
+   0,
+   183,
+   0,
+   "IMAGE"
+  ],
+  [
+   208,
+   178,
+   0,
+   184,
+   null,
+   "WANVIDEOMODEL"
+  ],
+  [
+   209,
+   183,
+   0,
+   184,
+   null,
+   "WANVIDIMAGE_EMBEDS"
+  ],
+  [
+   210,
+   180,
+   0,
+   184,
+   null,
+   "WANVIDEOTEXTEMBEDS"
+  ],
+  [
+   211,
+   181,
+   0,
+   185,
+   null,
+   "WANVAE"
+  ],
+  [
+   212,
+   184,
+   0,
+   185,
+   0,
+   "LATENT"
+  ],
+  [
+   213,
+   185,
+   0,
+   186,
+   0,
+   "IMAGE"
+  ],
+  [
+   224,
+   197,
+   0,
+   198,
+   0,
+   "IMAGE"
   ]
  ],
  "groups": [
@@ -5199,6 +5834,30 @@
     5682,
     3900,
     1060
+   ],
+   "color": "#2a363b",
+   "font_size": 24,
+   "flags": {}
+  },
+  {
+   "title": "AETHER \u00b7 WAN_TI2V",
+   "bounding": [
+    20,
+    6822,
+    2220,
+    1778
+   ],
+   "color": "#2a363b",
+   "font_size": 24,
+   "flags": {}
+  },
+  {
+   "title": "AETHER \u00b7 LORA_DATASET_PREP",
+   "bounding": [
+    20,
+    8680,
+    960,
+    510
    ],
    "color": "#2a363b",
    "font_size": 24,

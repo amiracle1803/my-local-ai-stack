@@ -85,14 +85,27 @@
       }
     },
     "wan_ti2v.json": {
-      "purpose": "Tier-2 alternate: Wan2.2-TI2V-5B fp8, 20 steps unipc, block-swap 20, cfg 5.0, 81f@16fps",
-      "status": "stub_export_required",
-      "notes": "WanVideoWrapper node signatures change across kijai releases - build this by exporting a working graph from the UI at M4, keeping the titles: WAN_MODEL, WAN_VAE, START_FRAME, MOTION_PROMPT, SEED, BLOCK_SWAP, SAVE_PREFIX."
+      "purpose": "Tier-2 alternate: Wan2.2-TI2V-5B fp8, 20 steps unipc, block-swap 20, cfg 5.0, 81f@16fps, image-to-video from START_FRAME",
+      "status": "ready",
+      "notes": "Built 2026-07-09 against the live WanVideoWrapper (kijai) install. Uses on-disk weights: WanVideoModelLoader model 'Wan2_2-TI2V-5B_fp8_e4m3fn_scaled_KJ.safetensors' (fp8_e4m3fn_scaled), umt5_xxl_fp8 T5, Wan2_2_VAE_bf16. Block-swap 20 via WanVideoBlockSwap -> loader.block_swap_args. Sampler: 20 steps, unipc, cfg 5.0, shift 5.0. FRAMES=num_frames on WanVideoImageToVideoEncode (81); output fps 16 lives on the SaveAnimatedWEBP node (Wan wrapper has no frame-rate conditioning). PROMPT_NEG shares the MOTION_PROMPT node (WanVideoTextEncode carries positive+negative on one node) so it is patched by node-id, not by a distinct title. fun_or_fl2v_model=false assumed for native TI2V-5B (unverified by a real run - flip if motion is wrong). WIDTH/HEIGHT default 1216x704 to match panel inputs.",
+      "patchable": {
+        "BLOCK_SWAP": "1.blocks_to_swap", "WAN_MODEL": "2.model", "WAN_T5": "3.model_name",
+        "MOTION_PROMPT": "4.positive_prompt", "PROMPT_NEG": "4.negative_prompt",
+        "WAN_VAE": "5.model_name", "START_FRAME": "6.image",
+        "WIDTH": "7.width", "HEIGHT": "7.height", "FRAMES": "7.num_frames",
+        "SEED": "8.seed", "STEPS": "8.steps", "CFG": "8.cfg", "SCHEDULER": "8.scheduler",
+        "SAVE_PREFIX": "10.filename_prefix", "SAVE_FPS": "10.fps"
+      }
     },
     "lora_dataset_prep.json": {
-      "purpose": "WD14 captioning over a ref folder for LoRA datasets",
-      "status": "blocked_node_missing",
-      "notes": "Requires comfyui-wd14-tagger install (design 5.3b item 2). Outfit-token injection happens in pipeline code after captioning."
+      "purpose": "WD14 captioning of one ref image for LoRA datasets (pipeline loops it over a ref folder)",
+      "status": "ready",
+      "notes": "Built 2026-07-09 against the installed WD14Tagger|pysssss node. Graph: LoadImage (INPUT_IMAGE) -> WD14Tagger (TAGGER; model wd-v1-4-moat-tagger-v2, threshold 0.35). WD14Tagger is an OUTPUT node: after queueing, the pipeline polls GET /history/<prompt_id> and reads outputs['2']['tags'] (the comma-joined tag string) - there is no SaveText node. Per-image (not folder) by design; design 5.3b's 'INPUT_DIR' title is superseded - the pipeline patches INPUT_IMAGE per file and injects the outfit token into the caption txt after tagging. TAGGER_MODEL/TAGGER_THRESHOLD share the TAGGER node so they patch by node-id.",
+      "patchable": {
+        "INPUT_IMAGE": "1.image",
+        "TAGGER_MODEL": "2.model", "TAGGER_THRESHOLD": "2.threshold",
+        "TAGGER_CHAR_THRESHOLD": "2.character_threshold"
+      }
     }
   }
 }
