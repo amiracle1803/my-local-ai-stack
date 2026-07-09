@@ -83,8 +83,11 @@ olympus/engines/pipeline/
 │   ├── stage2_screenplay.py
 │   ├── stage3_storyboard.py
 │   ├── stage3b_images.py
-│   ├── stage4_audio.py
+│   ├── stage3c_animation.py     # motion tiers + LTX/Wan (runs after stage 4)
+│   ├── stage4_audio.py          # voice system (VoiceSpec registry, delivery)
 │   ├── stage5_assembly.py
+│   ├── align.py                 # whisperX forced alignment → viseme timeline
+│   ├── lipsync.py               # LipSyncEngine: flipbook | wav2lip | latentsync
 │   ├── comfy_client.py          # ComfyUI HTTP/WS client + workflow templates
 │   ├── voice_client.py          # Voice Studio (:5050) client
 │   ├── model_lab.py             # model/LoRA testing + training harness
@@ -257,6 +260,25 @@ blueprint — the script was swapped mid-project. Every artifact embeds
 }
 ```
 
+## 3.9 The script quality ladder (why each stage exists)
+
+Each stage takes the story up one rung, and each rung has a **proof metric**
+in the scorecard — a stage that can't prove its improvement didn't happen:
+
+| Rung | Transformation | Proof metric |
+|---|---|---|
+| Stage 0 | idea/source/panels → **structured story** (act structure committed before prose; scenes hit word targets; every scene opens on action/dialogue) | structure_completeness = all blueprint fields non-empty; scene checks passed % |
+| Stage 1 | prose → **canonical knowledge** (every character/location has one true appearance anchor; contradictions resolved; world logic explicit) | bible_coverage = 100% of scanned names present; open contradictions = 0 |
+| Stage 1R | knowledge → **visual + vocal identity** (refs, style LoRA, voice per character) | refs/character ≥ 10; voice distinctness violations = 0 |
+| Stage 2 | knowledge → **filmable screenplay** (every shot: locked 120-word prompt, technique-rotated narration that survived the banned-pattern filter, voice-validated dialogue) | narration avg score; banned-pattern hits after rewrite = 0; style violations |
+| Stage 3 | screenplay → **continuity plan** (blocks ordered first→ending→infill; motion tier + motion prompt per shot) | block balance; motion budget within cap |
+| Stage 3B | plan → **consistent stills** | prompt adherence avg; character consistency avg |
+| Stage 4 | text → **performed voice** (per-character voices, emotional delivery, phoneme timeline) | alignment coverage % ; loudness within ±1 LUFS |
+| Stage 3C | stills + voice → **living motion with lips in sync** (runs AFTER Stage 4 — clip length and mouth timing derive from real audio) | mouth/voiced-segment overlap ≥ 85%; face consistency ≥ threshold |
+| Stage 5 | pieces → **watchable episode** | A/V sync error < 50 ms; prediction within 10% |
+
+**Execution order is therefore: 0 → 1 → 1R → 2 → 3 → 3B → 4 → 3C → 5.**
+
 ## 4. Stage designs
 
 ### Stage 0 — Script (`stage0_intake.py`) — THREE MODES per original spec
@@ -424,16 +446,169 @@ trims — all auto-applied through the filter).
 5. VRAM discipline as Stage 1R. Progress persisted every panel (resume-safe).
 6. Scorecard: panels generated, retry rate, adherence avg, consistency avg.
 
-### Stage 4 — Audio (`stage4_audio.py`) [CPU]
-1. Narration per shot → Voice Studio `/api/tts` (narrator voice from
-   blueprint). Dialogue per line → character's assigned voice, speed from
-   voice config.
-2. Insert `pause_before_ms` as leading silence in the line's WAV (ffmpeg
-   `adelay`), so assembly stays dumb.
-3. Loudness-normalize all speech to −16 LUFS (`ffmpeg loudnorm`).
-4. Write real durations back into `screenplay.json` shots → re-balance
-   blocks if needed (Stage 3 re-partition hook).
-5. Scorecard: lines rendered, total speech seconds, failures.
+### Stage 4 — Voice system (`stage4_audio.py`, `pipeline/align.py`) [CPU/light GPU]
+
+**Design goal: every character owns a unique, deterministic voice for the
+life of the series, with emotional delivery and a phoneme timeline that
+Stage 3C's lip sync consumes.**
+
+#### 4.4.1 Voice identity registry
+Every character's voice is a **VoiceSpec**, stored in the world bible and in
+`projects/<slug>/voices.json`:
+```jsonc
+{
+  "char-rin": {
+    "base": "af_heart",                 // Kokoro voice id (original spec table)
+    "blend": {"with": "af_sky", "ratio": 0.65},   // null if pure base voice
+    "speed": 1.04,                      // 0.85–1.15, per character
+    "pitch_semitones": +1.0,            // post-process, −3..+3, per character
+    "assigned_by": "auto|user",
+    "audition": "worldbible/refs/char-rin/voice_audition.wav"
+  },
+  "_narrator": {"base": "af_bella", "blend": null, "speed": 1.0, "pitch_semitones": 0}
+}
+```
+- **Assignment algorithm** (runs at end of Stage 1, deterministic):
+  1. Rank characters by dialogue line count (protagonist first — they get
+     the best-fitting pure voices).
+  2. Walk the original spec's rule table (gender/age/personality →
+     candidate list); take the first **unused** candidate.
+  3. Candidates exhausted → synthesize a **blend**: nearest-personality base
+     + second base, ratio derived from `hash(char_id) % 30 / 100 + 0.55`
+     (deterministic, reproducible across re-runs). Kokoro supports voice
+     embedding mixing — this yields unlimited distinct voices.
+  4. **Distinctness gate**: no two characters who share ≥1 scene may have
+     (same base+blend AND |Δspeed| < 0.05 AND |Δpitch| < 1.0). Auto-adjust
+     speed/pitch until the gate passes; violations = scorecard metric.
+  5. `_narrator` is reserved — never assigned to a character. Chosen at
+     intake (default `af_bella`, the original spec's narrator-style pick).
+- **Audition sheet**: Stage 1R renders a 5-second audition per character
+  (their most characteristic script line). Studio UI shows a play button +
+  voice dropdown + "re-audition" per character; user overrides set
+  `assigned_by: user` and are never auto-changed again.
+- **Series persistence**: next-episode carryover copies `voices.json`;
+  a recurring character's VoiceSpec is immutable across episodes unless the
+  user overrides.
+
+#### 4.4.2 Emotional delivery (Kokoro has no emotion knob — synthesize one)
+Per-line rendering pipeline: text → Kokoro (base/blend voice, character
+speed) → post chain driven by `delivery_note` + `emotion`:
+| delivery | transform |
+|---|---|
+| whispered | speed ×0.92, gain −6 dB, lowpass 6 kHz |
+| shouted | speed ×1.05, gain +3 dB, mild compression |
+| trailing off | 400 ms fade-out on final word |
+| cutting in | trim leading silence; timeline overlaps previous line by 150 ms |
+| inner thought (audio_thought) | reverb small-room 12% wet, gain −3 dB |
+- Long lines split at sentence punctuation with 120–250 ms micro-pauses for
+  natural rhythm (prevents Kokoro run-on flatness).
+- **Pause model** (feeds both audio and LTX director): interruption 0 ms ·
+  casual reply 200–400 · considered 600–900 · complex decision 1200–2000 ·
+  dramatic reveal 2000–2800 · **reaction beat**: +400 ms before the reply to
+  a shocking line (Stage 2 marks these).
+- Pitch shift applied last (librosa or ffmpeg `rubberband`), preserving
+  formants where the tool allows.
+
+#### 4.4.3 Rendering + QC
+1. Narration per shot → narrator VoiceSpec. Dialogue per line → character
+   VoiceSpec. All via Voice Studio API (extended to accept VoiceSpec fields:
+   blend, pitch — small additions to `olympus/engines/voice/app.py`).
+2. `pause_before_ms` baked as leading silence (`adelay`) so Stage 5 stays dumb.
+3. Loudness: speech normalized to −16 LUFS (`loudnorm`), music bed later at
+   −26 with −6 dB sidechain duck under speech.
+4. **Per-line QC** (automated): duration sanity (≈ words × 350 ms ± 50%),
+   no internal silence > 1.5 s, no clipping, loudness within ±1 LUFS.
+   Failures re-render once, then flag.
+5. Real durations written back into `screenplay.json` → Stage 3 re-partition
+   hook if a block overflows 20%.
+
+#### 4.4.4 Forced alignment → phoneme timeline (lip-sync fuel)
+For every dialogue/narration WAV:
+- Run **whisperX** (faster-whisper small + alignment head, local, light)
+  against the *known transcript* → word- and phoneme-level timestamps →
+  `audio/dialogue/<shot>_<line>.align.json`.
+- Map phonemes → **viseme classes** (Preston Blair 9, reduced for anime):
+  `A` (open: a/ah), `E` (e/eh), `I` (ee), `O` (oh), `U` (oo/w),
+  `M` (m/b/p closed), `F` (f/v), `L` (l/th/d/t), `REST` (silence).
+- Anime mouth-swap schedule derives from this at 8–12 mouth-fps (limited
+  animation style — intentionally NOT per-frame realistic).
+- Scorecard: alignment coverage % (lines successfully aligned), avg
+  confidence; < 90% coverage flags the stage.
+
+### Stage 3C — Animation & lip sync (`stage3c_animation.py`, `pipeline/lipsync.py`) [GPU, runs AFTER Stage 4]
+
+**Design goal: panels come alive — motion where it earns its GPU cost, and
+every speaking close-up has lips synced to the actual audio.** Runs after
+Stage 4 because clip duration = real audio span and lip sync consumes the
+alignment timeline.
+
+#### 3C.1 Motion tiers (budget-driven — not every shot animates)
+| Tier | What | Engine | Cost | Default for |
+|---|---|---|---|---|
+| 0 | Static panel + Ken Burns (slow zoompan/parallax) | ffmpeg only | free | wide/establishing/detail shots |
+| 1 | Ambient loop 3–4 s (hair drift, cloth, particles, rain) | LTX i2v short | ~1–3 min/shot | mood/emotional shots |
+| 2 | Action motion, start-frame = panel, optional **end-frame = next panel** (LTX first+last-frame conditioning → seamless shot-to-shot flow) | LTX Director / Wan2.2-TI2V-5B | ~4–8 min/shot | shot_type=action |
+| 3 | Dialogue close-up with **full lip sync** | Tier 0/1/2 base + mouth compositing (below) | + seconds/shot | close_up with dialogue, lipsync=true |
+- Auto-assignment from shot_type + dialogue presence; per-shot override
+  (`motion_tier`, `motion_prompt`) in storyboard; **motion budget**:
+  `[animation] max_animated_seconds_per_block` caps Tier 1–2 spend, predictor
+  shows estimated GPU-hours before the stage runs.
+- Models per original spec: Wan2.2-TI2V-5B fp8 KJ (20 steps, unipc,
+  block-swap 20, cfg 5.0, 81 frames @ 16 fps — these exact params fit 8 GB).
+  LTX checkpoint already on disk: `E:\AI\Models\ltx23AllInOneSFWNSFWLTXDirectorID_v40`.
+  Requires re-enabling `ComfyUI-WanVideoWrapper_disabled` (CLAUDE.md) only
+  while this stage runs.
+
+#### 3C.2 Motion prompts (LTX "director" grammar)
+Stage 3 emits a `motion_prompt` per Tier 1–2 shot (LLM call, temp 0.3)
+constrained to a documented vocabulary the Director checkpoint understands:
+`[camera: static|slow push-in|slow pull-back|pan-left|pan-right|handheld-subtle]
+[motion: <2-3 physical elements that move>] [character: <one clear action>]`
+Speech timing feeds `[character: speaks]` segments from the Stage 4 pause
+model, so gestures land between lines, not over them.
+
+#### 3C.3 FPS reconciliation
+Video models generate at native rates (Wan 16 fps, LTX 24/25). Project fps
+is 24–60 (blueprint). Chain: native → **RIFE interpolation** (rife-ncnn-
+vulkan, free, fast, tiny VRAM) ×2/×3 → exact project fps conform via ffmpeg
+(`minterpolate` only as fallback). Ken Burns (Tier 0) renders directly at
+project fps. The chain used is recorded in the clip sidecar.
+
+#### 3C.4 Full lip sync — anime-native design
+**Key decision: the default engine is a viseme flipbook, not a photoreal
+lip-sync net.** Photoreal engines (Wav2Lip/LatentSync) degrade on anime
+faces; anime itself uses limited mouth animation (3–5 shapes at 8–12 fps) —
+so we do what the medium does, deterministically:
+1. **Mouth-shape sheets (one-time, Stage 1R add-on)**: for every character,
+   inpaint the mouth region of their front reference into the 9 viseme
+   shapes (A E I O U M F L REST) → 9 PNGs + mouth-region bbox stored in
+   `worldbible/refs/<char>/mouths/`. Generated once, reused all episodes.
+2. **Compositing pass (per Tier-3 shot)**: face + mouth bbox located on the
+   shot panel (anime-face-detector; manual bbox override in Studio UI);
+   the Stage 4 viseme schedule (8–12 mouth-fps) drives frame-by-frame mouth
+   swaps composited over the base clip/still — includes idle REST during
+   pauses and other characters' lines.
+   - On moving bases (Tier 1/2 clips): mouth anchor tracked across frames
+     via optical flow of the face crop; tracking-confidence drop → fall back
+     to still base for that shot (flagged).
+3. **Optional photoreal engines** behind the same interface
+   (`LipSyncEngine`: flipbook | wav2lip | latentsync in pipeline.toml),
+   gated by `model_lab` exactly like krea2 — if a net beats the flipbook on
+   the QC metrics for this art style, it can be promoted per-project.
+4. **QC per shot**: mouth-open frames overlap voiced segments ≥ 85%
+   (schedule vs alignment JSON); zero mouth motion during silence > 300 ms;
+   face-crop CLIP similarity vs character reference ≥ threshold (identity
+   held). Failures → auto-retry with still base → flag for panel lock/manual.
+
+#### 3C.5 Artifacts & continuity
+- `video/shots/<shot-id>.mp4` + sidecar: tier, engine, seed, motion_prompt,
+  fps chain, lipsync engine + QC scores.
+- Block chaining now includes clips: last *frame of the final clip* of block
+  N (extracted via ffmpeg) becomes block N+1's seed_frame.
+- VRAM sequencing: Ollama unloaded; ComfyUI restarted every N clips
+  (generate-safe pattern); Wan and LTX never co-loaded.
+- Scorecard: shots per tier, avg lip-sync overlap, retries, GPU-minutes
+  actual vs predicted.
 
 ### Stage 5 — Assembly (`stage5_assembly.py`)
 1. **Per-block render**: panel (or clip) + its audio → segment via ffmpeg:
@@ -521,8 +696,9 @@ trims — all auto-applied through the filter).
 | M3 | Stage 2 screenplay (original Steps 1–5) | 120-word SD prompt budget enforced (unit tests); banned-pattern filter catches seeded bad narrations; audit improves 3 weakest (scores prove it); speech-style + dedup flags work |
 | M4 | ComfyClient + model_lab + Stage 1R refs | **krea2 lab report (test/stress/speed) decides primary model**; 10+ turnaround refs for 2 characters; VRAM-safe across 30 gens unattended; fallback chain triggers after 5 seeded failures |
 | M5 | Stage 3 + 3B | Blocks ordered first/ending/infill; panels for a 3-scene story; locks respected on re-run; seed-frame continuity visible |
-| M6 | Stage 4 audio | All lines voiced with correct per-character voices + pauses; durations written back |
-| M7 | Stage 5 assembly | Watchable MP4 with narration+dialogue+quiet music; prediction within 10% of actual; subtitle track generated |
+| M6 | Stage 4 voice system | Every character has a distinct VoiceSpec (distinctness gate passes); blends render; delivery transforms audible; whisperX alignment ≥ 90% coverage; durations written back |
+| M6.5 | Stage 3C animation + lip sync | Mouth sheets generated for 2 characters; a Tier-3 dialogue shot plays with ≥85% viseme/voice overlap; a Tier-2 LTX shot uses start+end frame conditioning; RIFE conforms to project fps |
+| M7 | Stage 5 assembly | Watchable MP4 with narration+dialogue+quiet music; clips replace panels where they exist; A/V sync < 50 ms; prediction within 10%; subtitle track generated |
 | M8 | Stage 0A Transform + 0I Import + Studio UI endpoints | Legal score gates work (<50 blocks even in auto); 42-panel import → screenplay with identity resolution; Studio page shows live stage ledger |
 
 Original spec priority order (respect within milestones): SD prompt assembly
@@ -547,11 +723,20 @@ world-bible portrait button → subtitles → comfyui path from config.
 
 ## 8. Open questions for Amir (refinement backlog)
 
-1. Narrator voice: fixed (e.g. `am_michael`) or per-project choice at intake?
+1. ~~Narrator voice~~ → RESOLVED: per-project choice at intake, default
+   `af_bella` (§4.4.1).
 2. Default resolution: 1280×720 (fits VRAM comfortably) or 1080p (slower)?
 3. Music: acceptable to start with "bring your own wav" until a local
    musicgen is added?
-4. Video clips (LTX/CogVideoX): v2.0 ships panels-only with clip slots, or
-   block on video generation from day one? (Recommend panels first.)
+4. ~~Video from day one?~~ → RESOLVED: Stage 3C designed in full with motion
+   tiers; Tier 0 (Ken Burns) means an episode is watchable before any video
+   model runs — animation upgrades shots incrementally.
 5. Which SDXL checkpoint is the current z-anime default in your ComfyUI?
+   (The original spec says `z-anime-distill-4step-fp8` — confirm the file
+   exists in `E:\AI\ComfyUI\models\checkpoints\`.)
 6. Sample script to use as the golden test story?
+7. Voice: any characters whose voice you already know you want pinned
+   (e.g. protagonist = specific Kokoro id)? Pins go in voices.json as
+   `assigned_by: user` before the auto-assigner runs.
+8. Models to re-pull for this pipeline (~10 GB): `qwen3:8b`,
+   `qwen2.5vl:7b` — confirm before M2 begins.
