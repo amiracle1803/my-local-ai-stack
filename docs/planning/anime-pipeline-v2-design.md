@@ -21,9 +21,8 @@
 |---|---|---|---|
 | All script/screenplay LLM work | qwen3:8b | think:false, keep_alive=300, ctx 16384 | pull required (`ollama pull qwen3:8b`) |
 | Panel vision analysis | qwen2.5vl:7b | think:false, keep_alive=0, ctx 4096 | pull required |
-| **Image generation (primary)** | **krea2** (checkpoint slot `image_primary` in pipeline.toml) | steps/sampler per model card; 832×1216 | **v2 change** — see risk note below |
-| Image gen (fallback 1) | z-anime-distill-4step-fp8 | 4 steps, euler, fp8 | auto-switch after 5 consecutive primary failures (original spec pattern) |
-| Image gen (fallback 2) | flux1-schnell-Q4_K_S.gguf | disabled by default | last resort |
+| **Image generation (primary)** | **krea2** (checkpoint slot `image_primary` in pipeline.toml) | steps/sampler per model card; 1216×704 | **v2 change** — see risk note below; must pass model_lab gate before any image stage runs |
+| Image gen (fallback) | flux1-schnell-Q4_K_S.gguf | auto-switch after 5 consecutive primary failures | only permitted fallback — see **MODEL BAN LIST** §5.3b (z-anime-distill, wai-illustrious, NoobAI-XL banned per Amir) |
 | Animation | Wan2.2-TI2V-5B fp8 KJ build | 20 steps, unipc, block-swap=20, cfg 5.0, 81 frames @16fps | clip slots in Stage 5 |
 | TTS | Kokoro in-process | CUDA/CPU, loaded once, reused all shots | already running as Voice Studio :5050 |
 
@@ -806,11 +805,21 @@ so we do what the medium does, deterministically:
 | LoRA: `Hyper-SDXL-8steps-CFG` | speed distillation — this is how "4–8 step" generation is achieved on any SDXL base |
 | LoRA: `il_anime_model_turn` | **character turnaround LoRA — the engine of the 360° reference sheets** (likely no ControlNet needed) |
 
-**Checkpoint reality mapping:** `image_primary` currently resolves to
-`wai-illustrious-v110 + Hyper-SDXL-8steps` (8 steps, cfg ~1.5–2) with
-`NoobAI-XL` as the style alternate — until the krea2 lab verdict. The
-original spec's "z-anime-distill-4step-fp8" is treated as this combo's
-predecessor.
+**MODEL BAN LIST (Amir, 2026-07-09 — enforced in pipeline.toml
+`[models.banned]`):** the following may NOT be selected as image generation
+models:
+- `z-anime-distill-4step-fp8` (does not exist on disk — referencing it is a
+  build error)
+- `wai-illustrious-v110`
+- `NoobAI-XL-v1.1`
+
+`image_primary` is **krea2** (mandated). Fallback chain is now
+`flux1-schnell-Q4_K_S.gguf` only. Consequence the builder must honor: krea2
+must pass the model_lab gate **before Stage 1R/3B can run at all** — if
+krea2 fails the lab (no runnable quant, VRAM, or style adherence), the
+pipeline HARD-STOPS with a report and waits for Amir's decision; it never
+silently substitutes a banned model. `ComfyClient` refuses to queue any
+workflow whose checkpoint resolves to a banned name.
 
 **To install (pinned commits, one at a time, import-test after each — the
 comfy_api_nodes pydantic crash in CLAUDE.md is the cautionary tale; pip deps
@@ -922,10 +931,11 @@ world-bible portrait button → subtitles → comfyui path from config.
    tiers; **Tier 1 LTX ambient motion is the floor for every shot** (Ken
    Burns rejected by Amir — Tier 0 is a clean static hold used only as the
    degradation path).
-5. ~~Which checkpoint?~~ → RESOLVED by inventory (§5.3b): z-anime-distill is
-   NOT on disk; actual bases are `wai-illustrious-v110` (primary) and
-   `NoobAI-XL-v1.1`, made fast via the `Hyper-SDXL-8steps` LoRA. krea2
-   still pending its lab verdict as a possible replacement.
+5. ~~Which checkpoint?~~ → RESOLVED then superseded: Amir added
+   z-anime-distill, wai-illustrious-v110, and NoobAI-XL-v1.1 to the MODEL
+   BAN LIST (§5.3b). krea2 is the mandated primary; obtaining a runnable
+   krea2 build for 8 GB VRAM is now a **blocking prerequisite** for all
+   image stages (builder: source the weights + quant, lab-test, report).
 6. Sample script to use as the golden test story?
 7. Voice: any characters whose voice you already know you want pinned
    (e.g. protagonist = specific Kokoro id)? Pins go in voices.json as
