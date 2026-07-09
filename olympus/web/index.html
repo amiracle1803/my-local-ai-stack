@@ -286,23 +286,29 @@
 
 <!-- ================= STUDIO ================= -->
 <div class="page" id="page-studio">
-  <h1 class="pg">STUDIO · ANIME / MANGA PIPELINE</h1>
-  <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+  <h1 class="pg">STUDIO · ANIME / MANGA PIPELINE v2</h1>
+  <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:.4rem">
     <span id="studio-status"></span>
     <button class="primary" id="comfy-embed-btn">OPEN COMFYUI HERE ▼</button>
     <a href="http://127.0.0.1:8188" target="_blank" style="color:var(--cyan);font-size:.82rem">open in new tab ↗</a>
-    <span class="mono" style="font-size:.7rem;color:var(--dim)">runs with --novram --disable-cuda-malloc on the RTX 4070</span>
+    <span class="mono" style="font-size:.7rem;color:var(--dim)">--novram --disable-cuda-malloc · RTX 4070 8GB</span>
   </div>
-  <div class="stages">
-    <div class="stage hud"><div class="sic">📜</div><div class="snm">SCRIPT PARSE</div><div class="sst">story → scenes + shots</div></div>
-    <div class="stage hud"><div class="sic">🌍</div><div class="snm">WORLD BIBLE</div><div class="sst">characters · outfits · locations</div></div>
-    <div class="stage hud"><div class="sic">👤</div><div class="snm">CHARACTER SHEETS</div><div class="sst">consistent designs (SDXL)</div></div>
-    <div class="stage hud"><div class="sic">🎨</div><div class="snm">PANELS</div><div class="sst">per-shot generation</div></div>
-    <div class="stage hud"><div class="sic">🎙</div><div class="snm">NARRATION</div><div class="sst">Kokoro TTS</div></div>
-    <div class="stage hud"><div class="sic">🎬</div><div class="snm">ASSEMBLY</div><div class="sst">ffmpeg → recap MP4</div></div>
-  </div>
-  <p class="mono" style="font-size:.72rem;color:var(--dim);margin-bottom:.8rem">pipeline code: E:\Projects\anime-pipeline-updated · engine: olympus\engines\pipeline (rebuild pending)</p>
   <iframe id="comfy-frame" title="ComfyUI"></iframe>
+  <div class="stages">
+    <div class="stage hud"><div class="sic">📥</div><div class="snm">STAGE 0 · INTAKE</div><div class="sst">script.txt → project blueprint · FPS 24–60 · story-pollution guard</div></div>
+    <div class="stage hud"><div class="sic">🌍</div><div class="snm">STAGE 1 · WORLD BIBLE</div><div class="sst">chunked full-script character extraction · era/tech inference · relationship web · outfit specs · contradiction detection · creative expansion · sd_prompt anchors</div></div>
+    <div class="stage hud"><div class="sic">👤</div><div class="snm">STAGE 1R · REFERENCES</div><div class="sst">10+ refs per character (360° full body) · locations + assets · style pick → consistency LoRA · voice ID per character</div></div>
+    <div class="stage hud"><div class="sic">📝</div><div class="snm">STAGE 2 · SCREENPLAY</div><div class="sst">prompt assembly (char + location + composition) · narration craft · dialogue voice-validation · pacing pauses · quality audit (fix 3 weakest)</div></div>
+    <div class="stage hud"><div class="sic">🎞</div><div class="snm">STAGE 3 · STORYBOARD</div><div class="sst">scene blocks: first part → ending → in-betweens · last frame seeds next block · panel lock + regenerate</div></div>
+    <div class="stage hud"><div class="sic">🎨</div><div class="snm">STAGE 3B · IMAGES</div><div class="sst">one z-anime image per shot · same anchors every time = consistent characters</div></div>
+    <div class="stage hud"><div class="sic">🎙</div><div class="snm">STAGE 4 · AUDIO</div><div class="sst">Kokoro TTS · narration + per-character dialogue voices · thinking pauses</div></div>
+    <div class="stage hud"><div class="sic">🎬</div><div class="snm">STAGE 5 · ASSEMBLY</div><div class="sst">audio→frame timing · clip chunking · subtle transitions · quiet generated music · copyright check · next-episode carryover · length/GB prediction</div></div>
+  </div>
+  <div style="display:flex;gap:1.5rem;flex-wrap:wrap">
+    <p class="mono" style="font-size:.72rem;color:var(--dim)">v1 code: E:\Projects\anime-pipeline-updated\anime-pipeline\anime-pipeline</p>
+    <p class="mono" style="font-size:.72rem;color:var(--dim)">master plan: docs\planning\anime-pipeline-v2-plan.md</p>
+    <p class="mono" style="font-size:.72rem;color:var(--dim)">cross-cutting: per-stage persistent scores · skipped-step reporting · prompt enhancer · model/LoRA test + train flow</p>
+  </div>
 </div>
 
 <!-- ================= SYSTEM ================= -->
