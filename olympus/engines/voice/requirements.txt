@@ -1,0 +1,6 @@
+# Voice Studio deps. torch is installed separately as CPU-only by start.bat
+# (keeps the download small and the GPU free for ComfyUI).
+flask>=3.0
+kokoro>=0.9
+soundfile>=0.12
+numpy

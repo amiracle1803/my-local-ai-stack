@@ -1,5 +1,37 @@
 # Project: Local Anime / Manga Recap Video Pipeline
 
+> **⚠ State note (2026-07-09, post Windows reinstall):** The original `olympus/`
+> was **lost** (lived only on the old C: drive, never pushed to GitHub). It was
+> **rebuilt the same day** from the spec recovered in
+> `E:\AI\Models\hermes\skills\local-agent-hub-ops\` — same API contract
+> (kernel :4600, opencode MCP :4720), same agent-as-markdown registry, 7 agents
+> (scribe, conductor, calliope, plutus, forge, archivist, anna). All model roles
+> currently map to `llama3.1:8b` (originals were qwen2.5:3b/7b + qwen3:8b — see
+> `olympus/olympus.toml` to restore). The voice engine and pipeline engine are
+> NOT yet rebuilt. Surviving pieces:
+> ComfyUI (`E:\AI\ComfyUI`), Obsidian vault (copied to
+> `C:\Users\amire\Documents\Obsidian Vault`, original kept at
+> `E:\Obsidian Vault`), `E:\LifeOS`, and `anime-pipeline-updated` in
+> `E:\Projects`. The E: drive was reorganized 2026-07-09 (AI models under
+> `E:\AI\Models`, projects under `E:\Projects`). ComfyUI's venv base
+> (Python 3.11.9) and the stack venv (Store Python 3.12) were reinstalled
+> the same day.
+
+## Code backup protocol (MANDATORY — established after the olympus loss)
+
+**Every time a piece of code is completed, immediately run:**
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\backup-code.ps1
+```
+
+It (1) commits + pushes to GitHub, (2) zips the tracked source into
+`C:\Users\amire\Documents\Obsidian Vault\Projects\Code Backups\`, and
+(3) copies the zip to `E:\Backups\code-snapshots\` (skipped gracefully when
+the E: drive is offline — it drops sometimes). Claude: run this yourself at
+the end of any session that produced code; never leave new code existing only
+on one disk.
+
 ## Session startup rules
 
 On every new session:
@@ -145,16 +177,16 @@ These commands are **targets**; adjust to the real commands after you inspect th
 - **ComfyUI startup (RTX 4070 Laptop, 8 GB VRAM):**  
   - Required flags: `--lowvram --disable-cuda-malloc`
   - **Disabled nodes** (rename-disabled, do not re-enable without testing):
-    - `E:\ComfyUI\comfy_api_nodes_disabled` — ComfyUI cloud API nodes (Anthropic/OpenAI); crashes pydantic on import
-    - `E:\ComfyUI\custom_nodes\ComfyUI-WanVideoWrapper_disabled` — re-enable only when doing video generation
+    - `E:\AI\ComfyUI\comfy_api_nodes_disabled` — ComfyUI cloud API nodes (Anthropic/OpenAI); crashes pydantic on import
+    - `E:\AI\ComfyUI\custom_nodes\ComfyUI-WanVideoWrapper_disabled` — re-enable only when doing video generation
   - **Package pins** (do not upgrade without testing): `torch==2.6.0+cu124`, `pydantic==2.13.4`, `pydantic-core==2.46.4`
   - Start command (`--novram` offloads aggressively to CPU — more stable for consecutive generations):
     ```powershell
-    Start-Process -FilePath "E:\ComfyUI\.venv\Scripts\python.exe" `
+    Start-Process -FilePath "E:\AI\ComfyUI\.venv\Scripts\python.exe" `
       -ArgumentList "main.py","--listen","127.0.0.1","--port","8188","--novram","--disable-cuda-malloc" `
-      -WorkingDirectory "E:\ComfyUI" `
-      -RedirectStandardOutput "E:\ComfyUI\comfyui_out.log" `
-      -RedirectStandardError "E:\ComfyUI\comfyui_err.log" `
+      -WorkingDirectory "E:\AI\ComfyUI" `
+      -RedirectStandardOutput "E:\AI\ComfyUI\comfyui_out.log" `
+      -RedirectStandardError "E:\AI\ComfyUI\comfyui_err.log" `
       -WindowStyle Normal
     ```
   - **VRAM note**: After ~5 consecutive SDXL generations the GPU accumulates fragmented VRAM that persists across process restarts on Windows. Use `scripts/generate_safe.py` which auto-restarts ComfyUI between characters, or reboot the PC to fully clear GPU state.

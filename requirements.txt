@@ -19,5 +19,6 @@ markdown>=3.6            # render generated notes as HTML in the dashboard
 bleach>=6.1              # sanitize that HTML before it hits the browser
 mcp>=1.0                 # FastMCP -- builds MCP servers (OpenCode)
 uvicorn>=0.30            # ASGI server for OpenCode MCP
+fastapi>=0.115           # Olympus kernel (rebuilt 2026-07-09)
 
 

@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Olympus</title>
+<style>
+  :root {
+    --bg:#04060c; --panel:rgba(10,16,28,.85); --line:#123347; --line2:#1d4d66;
+    --cyan:#57c7e3; --cyan-dim:#2a7d99; --text:#dfe9f2; --dim:#5f7d93;
+    --purple:#8f7bff; --pink:#ff5ca8; --green:#3ddc84; --gold:#e8b84b; --red:#ef6b73;
+    color-scheme: dark;
+  }
+  * { box-sizing:border-box; margin:0; }
+  body { background:var(--bg); color:var(--text); font:14px/1.5 "Segoe UI",system-ui,sans-serif; height:100vh; display:flex; flex-direction:column; overflow:hidden; }
+  .mono { font-family:Consolas,"Cascadia Mono",monospace; }
+
+  /* ---- top nav ---- */
+  header { display:flex; align-items:center; gap:2rem; padding:.65rem 1.5rem; border-bottom:1px solid var(--line); background:rgba(6,10,18,.9); z-index:5; }
+  .logo { display:flex; align-items:center; gap:.5rem; font-family:Consolas,monospace; font-weight:700; letter-spacing:.35em; font-size:1rem; }
+  .logo .orb { width:14px; height:14px; border-radius:50%; background:radial-gradient(circle at 35% 35%, #9ec9ff, #2b6bff 60%, #0a1e4a); box-shadow:0 0 8px #2b6bff88; }
+  header nav { display:flex; gap:1.4rem; }
+  header nav a { font-family:Consolas,monospace; font-size:.75rem; letter-spacing:.22em; color:var(--cyan-dim); text-decoration:none; cursor:pointer; padding:.25rem 0; border-bottom:2px solid transparent; }
+  header nav a:hover { color:var(--cyan); }
+  header nav a.active { color:#fff; border-bottom-color:var(--cyan); }
+  #hdr-right { margin-left:auto; font-family:Consolas,monospace; font-size:.72rem; letter-spacing:.15em; color:var(--dim); }
+  #hdr-right .ok { color:var(--green); }
+
+  main { flex:1; position:relative; overflow:hidden; }
+  .page { display:none; height:100%; overflow-y:auto; padding:1.25rem 1.5rem; }
+  .page.active { display:block; }
+  #page-home { display:none; padding:0; overflow:hidden; }
+  #page-home.active { display:block; }
+
+  /* ---- HUD panels ---- */
+  .hud { background:var(--panel); border:1px solid var(--line); position:relative; backdrop-filter:blur(3px); }
+  .hud::before, .hud::after { content:""; position:absolute; width:10px; height:10px; border:1px solid var(--cyan-dim); }
+  .hud::before { top:-1px; left:-1px; border-right:none; border-bottom:none; }
+  .hud::after  { bottom:-1px; right:-1px; border-left:none; border-top:none; }
+  .hud-title { font-family:Consolas,monospace; font-size:.72rem; letter-spacing:.25em; color:var(--cyan); padding:.55rem .9rem; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:.5rem; }
+  .hud-title::before { content:"◤"; font-size:.6rem; color:var(--cyan-dim); }
+
+  /* ---- home layout ---- */
+  #cortex { position:absolute; inset:0; }
+  #search-wrap { position:absolute; top:1.1rem; left:50%; transform:translateX(-50%); width:340px; z-index:4; }
+  #cortex-search { width:100%; background:rgba(8,14,24,.85); border:1px solid var(--line2); color:var(--text); font-family:Consolas,monospace; font-size:.72rem; letter-spacing:.25em; text-align:center; padding:.55rem; outline:none; }
+  #cortex-search::placeholder { color:var(--cyan-dim); }
+  #search-results { margin-top:.35rem; max-height:300px; overflow-y:auto; display:none; }
+  #search-results div { padding:.4rem .8rem; font-size:.82rem; color:var(--dim); cursor:pointer; border-bottom:1px solid var(--line); }
+  #search-results div:hover { color:#fff; background:rgba(87,199,227,.08); }
+
+  #jarvis-panel { position:absolute; top:1.1rem; left:1.25rem; width:360px; bottom:3.4rem; z-index:4; display:flex; flex-direction:column; }
+  #jarvis-log { flex:1; overflow-y:auto; padding:.75rem .9rem; display:flex; flex-direction:column; gap:.7rem; }
+  .jmsg { border-left:2px solid var(--line2); padding:.15rem 0 .15rem .7rem; font-size:.86rem; }
+  .jmsg .who { font-family:Consolas,monospace; font-size:.68rem; letter-spacing:.15em; margin-right:.45rem; }
+  .jmsg.you .who { color:var(--cyan); } .jmsg.you { border-left-color:var(--cyan-dim); }
+  .jmsg.bot .who { color:var(--purple); } .jmsg.bot { border-left-color:var(--purple); }
+  .jmsg .tlink { display:block; font-family:Consolas,monospace; font-size:.7rem; color:var(--cyan); margin-top:.2rem; }
+  #jarvis-form { display:flex; gap:.45rem; padding:.7rem .9rem .4rem; }
+  #jarvis-in { flex:1; background:rgba(8,14,24,.9); border:1px solid var(--line2); color:var(--text); padding:.5rem .7rem; font-size:.82rem; outline:none; }
+  .sq { width:38px; background:linear-gradient(135deg,#274a66,#123; ); border:1px solid var(--line2); color:var(--cyan); cursor:pointer; font-size:.9rem; }
+  .sq.send { background:linear-gradient(135deg,#3a6fd8,#7c5cff); color:#fff; border:none; }
+  #jarvis-opts { padding:.2rem .9rem .7rem; font-family:Consolas,monospace; font-size:.66rem; letter-spacing:.18em; color:var(--cyan-dim); }
+  #jstatus.online { color:var(--green); } #jstatus.processing { color:var(--gold); }
+  #jstatus { margin-left:auto; }
+
+  #rail { position:absolute; top:1.1rem; right:1.25rem; width:300px; bottom:3.4rem; z-index:4; display:flex; flex-direction:column; gap:.9rem; overflow-y:auto; }
+  .rail-body { padding:.6rem .8rem; font-size:.8rem; }
+  #briefing-body { font-family:Consolas,monospace; font-size:.72rem; color:var(--dim); white-space:pre-wrap; max-height:150px; overflow-y:auto; }
+  #briefing-body b { color:var(--text); }
+  #capture-row { display:flex; gap:.4rem; }
+  #capture-in { flex:1; background:rgba(8,14,24,.9); border:1px solid var(--line); color:var(--text); padding:.4rem .6rem; font-size:.8rem; outline:none; }
+  .act-row { display:flex; align-items:baseline; gap:.5rem; padding:.22rem 0; font-size:.78rem; border-bottom:1px dotted rgba(18,51,71,.6); }
+  .act-row .txt { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text); }
+  .act-row .agent { font-family:Consolas,monospace; font-size:.68rem; color:var(--green); }
+  .dot { display:inline-block; width:7px; height:7px; border-radius:50%; flex:none; }
+  .sys-row { display:flex; align-items:center; gap:.55rem; padding:.26rem 0; font-family:Consolas,monospace; font-size:.72rem; letter-spacing:.12em; }
+  .sys-row .nm { color:var(--text); flex:1; text-transform:uppercase; }
+  .sys-row .st { font-size:.66rem; }
+  .sys-row .st.up { color:var(--green); } .sys-row .st.down { color:var(--dim); }
+  .sys-row button { font-family:inherit; font-size:.62rem; background:none; border:1px solid var(--line2); color:var(--cyan); padding:.1rem .5rem; cursor:pointer; }
+
+  #home-foot { position:absolute; left:0; right:0; bottom:0; padding:.55rem 1.5rem; display:flex; justify-content:space-between; font-family:Consolas,monospace; font-size:.68rem; letter-spacing:.2em; color:var(--cyan-dim); border-top:1px solid var(--line); background:rgba(6,10,18,.85); z-index:4; }
+  #firing { color:var(--purple); }
+
+  /* ---- inner pages ---- */
+  h1.pg { font-family:Consolas,monospace; font-size:.85rem; letter-spacing:.3em; color:var(--cyan); margin-bottom:1rem; }
+  table { width:100%; border-collapse:collapse; font-size:.85rem; }
+  th,td { text-align:left; padding:.5rem .7rem; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { font-family:Consolas,monospace; font-size:.68rem; letter-spacing:.2em; color:var(--cyan-dim); }
+  td.result { white-space:pre-wrap; max-width:480px; }
+  .ok{color:var(--green)} .bad{color:var(--red)} .warn{color:var(--gold)}
+  button.primary { background:linear-gradient(135deg,#3a6fd8,#7c5cff); border:none; color:#fff; padding:.5rem 1.1rem; cursor:pointer; font:inherit; }
+  textarea,select,input.txt { background:rgba(8,14,24,.9); border:1px solid var(--line2); color:var(--text); padding:.5rem .7rem; font:inherit; outline:none; }
+  form.task { display:flex; flex-direction:column; gap:.6rem; max-width:760px; margin-bottom:1.5rem; }
+  .browser { display:grid; grid-template-columns:290px 1fr; gap:1rem; height:calc(100% - 3rem); }
+  .filelist { overflow-y:auto; font-size:.85rem; padding:.5rem; }
+  .filelist div { padding:.3rem .5rem; cursor:pointer; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .filelist div:hover { color:#fff; background:rgba(87,199,227,.08); }
+  .notepane { overflow-y:auto; padding:1.1rem 1.4rem; }
+  .notepane pre { background:#060a12; padding:.7rem; overflow-x:auto; border:1px solid var(--line); }
+  .notepane a { color:var(--cyan); }
+  .chip { display:inline-flex; align-items:center; gap:.5rem; border:1px solid var(--line); padding:.3rem .8rem; margin:0 .4rem .45rem 0; font-size:.82rem; background:var(--panel); }
+  .cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:.9rem; margin-bottom:1.4rem; }
+  .card { padding:.9rem 1.1rem; }
+  .card .big { font-size:1.35rem; font-weight:600; font-family:Consolas,monospace; }
+  .card .lbl { color:var(--dim); font-size:.74rem; font-family:Consolas,monospace; letter-spacing:.15em; text-transform:uppercase; }
+  .link-row a { color:var(--cyan); margin-right:1.4rem; line-height:2.1; font-size:.85rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><span class="orb"></span>OLYMPUS</div>
+  <nav>
+    <a data-page="home" class="active">HOME</a>
+    <a data-page="tasks">TASKS</a>
+    <a data-page="wiki">WIKI</a>
+    <a data-page="commerce">COMMERCE</a>
+    <a data-page="automations">AUTOMATIONS</a>
+    <a data-page="voice">VOICE</a>
+    <a data-page="studio">STUDIO</a>
+    <a data-page="system">SYSTEM</a>
+  </nav>
+  <div id="hdr-right">● <span id="hdr-agents">…</span> AGENTS · OLLAMA <span id="hdr-ollama">…</span></div>
+</header>
+
+<main>
+
+<!-- ================= HOME ================= -->
+<div class="page active" id="page-home">
+  <canvas id="cortex"></canvas>
+
+  <div id="search-wrap">
+    <input id="cortex-search" class="mono" placeholder="✦ SEARCH THE CORTEX" autocomplete="off">
+    <div id="search-results" class="hud"></div>
+  </div>
+
+  <div id="jarvis-panel" class="hud">
+    <div class="hud-title">● JARVIS <span id="jstatus" class="online mono">ONLINE</span></div>
+    <div id="jarvis-log">
+      <div class="jmsg bot"><span class="who">JARVIS ~</span>At your service, Amir. Questions answered, work routed.</div>
+    </div>
+    <form id="jarvis-form">
+      <input id="jarvis-in" placeholder="speak or type — questions answered, work routed · ctrl+enter" autocomplete="off">
+      <button type="button" class="sq" id="mic-btn" title="voice input">🎙</button>
+      <button type="submit" class="sq send" title="send">▶</button>
+    </form>
+    <div id="jarvis-opts"><label><input type="checkbox" id="speak-replies" checked> JARVIS SPEAKS REPLIES</label></div>
+  </div>
+
+  <div id="rail">
+    <div class="hud"><div class="hud-title">BRIEFING</div><div class="rail-body" id="briefing-body">no briefings yet</div></div>
+    <div class="hud"><div class="hud-title">CAPTURE</div><div class="rail-body"><div id="capture-row">
+      <input id="capture-in" placeholder="idea, task, link…"><button class="sq send" id="capture-btn">▶</button></div></div></div>
+    <div class="hud"><div class="hud-title">ACTIVITY</div><div class="rail-body" id="activity-body"></div></div>
+    <div class="hud"><div class="hud-title">SYSTEMS</div><div class="rail-body" id="systems-body"></div></div>
+  </div>
+
+  <div id="home-foot">
+    <span id="cortex-stats">CORTEX · … </span>
+    <span id="firing">● ROUTING FIRING</span>
+    <span id="gpu-stat">GPU · …</span>
+  </div>
+</div>
+
+<!-- ================= TASKS ================= -->
+<div class="page" id="page-tasks">
+  <h1 class="pg">TASKS</h1>
+  <form class="task" id="task-form">
+    <textarea id="task-text" rows="3" placeholder="Describe the task… auto-routes by keywords unless you pick an agent"></textarea>
+    <div><select id="task-agent"><option value="">auto route</option></select> <button class="primary">RUN</button></div>
+  </form>
+  <div class="hud"><table><thead><tr><th>#</th><th>AGENT</th><th>STATUS</th><th>TASK</th><th>RESULT</th></tr></thead>
+  <tbody id="task-rows"></tbody></table></div>
+</div>
+
+<!-- ================= WIKI ================= -->
+<div class="page" id="page-wiki">
+  <h1 class="pg">WIKI · VAULT</h1>
+  <div class="browser">
+    <div class="filelist hud" id="wiki-files"></div>
+    <div class="notepane hud" id="wiki-note">Select a note.</div>
+  </div>
+</div>
+
+<!-- ================= COMMERCE ================= -->
+<div class="page" id="page-commerce">
+  <h1 class="pg">COMMERCE · PLUTUS</h1>
+  <form class="task" id="plutus-form">
+    <textarea id="plutus-text" rows="3" placeholder="Ask Plutus — listings, invoices, pricing, budgets…"></textarea>
+    <div><button class="primary">SEND TO PLUTUS</button></div>
+  </form>
+  <div class="hud"><table><thead><tr><th>#</th><th>STATUS</th><th>TASK</th><th>RESULT</th></tr></thead>
+  <tbody id="plutus-rows"></tbody></table></div>
+</div>
+
+<!-- ================= AUTOMATIONS ================= -->
+<div class="page" id="page-automations">
+  <h1 class="pg">AUTOMATIONS</h1>
+  <div id="auto-services" style="margin-bottom:1.2rem"></div>
+  <div class="link-row">
+    <a href="http://localhost:5678" target="_blank">n8n workflows :5678</a>
+    <a href="http://127.0.0.1:3030" target="_blank">Langfuse :3030</a>
+    <a href="https://127.0.0.1:9443" target="_blank">Portainer :9443</a>
+    <a href="http://127.0.0.1:6333/dashboard" target="_blank">Qdrant :6333</a>
+  </div>
+</div>
+
+<!-- ================= VOICE ================= -->
+<div class="page" id="page-voice">
+  <h1 class="pg">VOICE STUDIO</h1>
+  <div id="voice-status" style="margin-bottom:1rem"></div>
+  <form class="task" id="voice-form">
+    <textarea id="voice-text" rows="3" placeholder="Text to speak…">The Olympus cortex is live.</textarea>
+    <div><select id="voice-voice"></select> <button class="primary">SPEAK</button> <a href="http://127.0.0.1:5050" target="_blank" style="color:var(--cyan);margin-left:1rem">open studio :5050</a></div>
+  </form>
+  <audio id="voice-audio" controls style="width:100%;max-width:760px"></audio>
+</div>
+
+<!-- ================= STUDIO ================= -->
+<div class="page" id="page-studio">
+  <h1 class="pg">STUDIO · COMFYUI</h1>
+  <div id="studio-status" style="margin-bottom:1rem"></div>
+  <p style="color:var(--dim);max-width:640px;margin-bottom:1rem">ComfyUI runs on the RTX 4070 with <span class="mono">--novram --disable-cuda-malloc</span>. Start it only when generating — it competes with Ollama for the 8 GB of VRAM.</p>
+  <div class="link-row"><a href="http://127.0.0.1:8188" target="_blank">open ComfyUI :8188</a></div>
+</div>
+
+<!-- ================= SYSTEM ================= -->
+<div class="page" id="page-system">
+  <h1 class="pg">SYSTEM</h1>
+  <div class="cards" id="sys-cards"></div>
+  <h1 class="pg" style="margin-top:.5rem">SERVICES</h1>
+  <div id="sys-services" style="margin-bottom:1.2rem"></div>
+  <h1 class="pg">AGENTS</h1>
+  <div id="sys-agents"></div>
+  <p style="margin-top:1.2rem"><button class="primary" onclick="fetch('/api/agents/reload',{method:'POST'}).then(refreshAll)">RELOAD AGENT REGISTRY</button></p>
+</div>
+
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+async function j(url, opts) { const r = await fetch(url, opts); if (!r.ok) throw new Error(await r.text()); return r.json(); }
+function esc(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
+
+/* ============ nav ============ */
+document.querySelectorAll('header nav a').forEach(a => a.addEventListener('click', () => {
+  document.querySelectorAll('header nav a').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
+  a.classList.add('active'); $('page-' + a.dataset.page).classList.add('active');
+}));
+function goPage(name) { document.querySelector(`header nav a[data-page="${name}"]`).click(); }
+
+/* ============ CORTEX (3D neuron sphere) ============ */
+const AGENT_COLORS = ['#8f7bff','#c05cff','#ff5ca8','#ff9f45','#e8b84b','#4ade80','#37c9a2','#5cb8ff','#7bd4ff','#b08fff'];
+let cortex = { nodes:[], edges:[], nuclei:[], rotY:0, rotX:0.25, vel:0.0018, firing:-1, fireT:0 };
+
+function buildCortex(agents) {
+  const N = 150, R = 1;
+  const nodes = [];
+  // nuclei = agents, placed on a smaller inner sphere
+  agents.forEach((a, i) => {
+    const phi = Math.acos(1 - 2 * (i + .5) / agents.length), th = Math.PI * (1 + Math.sqrt(5)) * i;
+    nodes.push({ x: .55*R*Math.sin(phi)*Math.cos(th), y: .55*R*Math.cos(phi), z: .55*R*Math.sin(phi)*Math.sin(th),
+                 r: 5.5, color: AGENT_COLORS[i % AGENT_COLORS.length], nucleus: true, name: a.name });
+  });
+  const nNuc = nodes.length;
+  for (let i = 0; i < N; i++) {
+    const phi = Math.acos(1 - 2 * (i + .5) / N), th = Math.PI * (1 + Math.sqrt(5)) * i;
+    const jx = (Math.random()-.5)*.25, jy = (Math.random()-.5)*.25, jz = (Math.random()-.5)*.25;
+    const x = R*Math.sin(phi)*Math.cos(th)+jx, y = R*Math.cos(phi)+jy, z = R*Math.sin(phi)*Math.sin(th)+jz;
+    // nearest nucleus decides tint
+    let best = 0, bd = 9;
+    for (let k = 0; k < nNuc; k++) { const d = (x-nodes[k].x)**2 + (y-nodes[k].y)**2 + (z-nodes[k].z)**2; if (d < bd) { bd = d; best = k; } }
+    const tinted = bd < .55 && Math.random() < .55;
+    nodes.push({ x, y, z, r: 1.6 + Math.random()*2.2,
+                 color: tinted ? nodes[best].color : '#a8d4f2', nucleus:false, cluster: best });
+  }
+  // edges: satellites -> nearest neighbor + sometimes nearest nucleus
+  const edges = [];
+  for (let i = nNuc; i < nodes.length; i++) {
+    let bi = -1, bd = 9;
+    for (let k = nNuc; k < nodes.length; k++) { if (k === i) continue;
+      const d = (nodes[i].x-nodes[k].x)**2 + (nodes[i].y-nodes[k].y)**2 + (nodes[i].z-nodes[k].z)**2;
+      if (d < bd) { bd = d; bi = k; } }
+    if (bi >= 0 && bd < .5) edges.push([i, bi]);
+    if (Math.random() < .35) edges.push([i, nodes[i].cluster]);
+  }
+  cortex.nodes = nodes; cortex.edges = edges; cortex.nuclei = nodes.slice(0, nNuc);
+  $('cortex-stats').textContent = `CORTEX · ${nodes.length} NODES · ${edges.length} NERVES · ${nNuc} NUCLEI · LIVE`;
+}
+
+function drawCortex() {
+  const cv = $('cortex'), ctx = cv.getContext('2d');
+  const dpr = devicePixelRatio || 1;
+  const W = cv.clientWidth, H = cv.clientHeight;
+  if (cv.width !== W*dpr) { cv.width = W*dpr; cv.height = H*dpr; }
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,W,H);
+  const cx = W/2, cy = H/2, scale = Math.min(W,H)*.34;
+  cortex.rotY += cortex.vel;
+  const sy = Math.sin(cortex.rotY), cyr = Math.cos(cortex.rotY);
+  const sx = Math.sin(cortex.rotX), cxr = Math.cos(cortex.rotX);
+  const proj = cortex.nodes.map(n => {
+    let x = n.x*cyr + n.z*sy, z = -n.x*sy + n.z*cyr, y = n.y;
+    let y2 = y*cxr - z*sx, z2 = y*sx + z*cxr;
+    const p = 1.6 / (1.6 + z2);
+    return { X: cx + x*scale*p, Y: cy + y2*scale*p, d: p, n };
+  });
+  const now = performance.now();
+  const firingCluster = cortex.firing;
+  // edges
+  for (const [a,b] of cortex.edges) {
+    const A = proj[a], B = proj[b];
+    let alpha = .10 * Math.min(A.d, B.d);
+    let color = '150,190,220';
+    if (firingCluster >= 0 && (cortex.nodes[a].cluster === firingCluster || a === firingCluster || b === firingCluster)) {
+      const pulse = Math.max(0, 1 - (now - cortex.fireT)/900);
+      alpha += .35 * pulse; color = '190,160,255';
+    }
+    ctx.strokeStyle = `rgba(${color},${alpha})`;
+    ctx.beginPath(); ctx.moveTo(A.X, A.Y); ctx.lineTo(B.X, B.Y); ctx.stroke();
+  }
+  // nodes (back to front)
+  [...proj].sort((p,q) => p.d - q.d).forEach(p => {
+    const r = p.n.r * p.d * 1.15;
+    ctx.beginPath(); ctx.arc(p.X, p.Y, r, 0, 7);
+    ctx.fillStyle = p.n.color;
+    ctx.globalAlpha = .35 + .65 * (p.d - .55) / .9;
+    if (p.n.nucleus) { ctx.shadowColor = p.n.color; ctx.shadowBlur = 14; }
+    ctx.fill(); ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+  });
+  requestAnimationFrame(drawCortex);
+}
+
+setInterval(() => {
+  if (!cortex.nuclei.length) return;
+  cortex.firing = Math.floor(Math.random() * cortex.nuclei.length);
+  cortex.fireT = performance.now();
+  const nuc = cortex.nuclei[cortex.firing];
+  $('firing').textContent = `● ${nuc.name.toUpperCase()} FIRING`;
+  $('firing').style.color = nuc.color;
+}, 1700);
+
+// drag to spin
+(() => { let drag = false, lx = 0;
+  const cv = $('cortex');
+  cv.addEventListener('mousedown', e => { drag = true; lx = e.clientX; });
+  addEventListener('mouseup', () => drag = false);
+  addEventListener('mousemove', e => { if (drag) { cortex.rotY += (e.clientX - lx) * .005; lx = e.clientX; } });
+})();
+
+/* ============ header / systems / activity ============ */
+async function refreshHealth() {
+  try {
+    const h = await j('/api/health');
+    $('hdr-agents').textContent = h.agents;
+    $('hdr-ollama').innerHTML = h.ollama ? '<span class="ok">UP</span>' : '<span class="bad">DOWN</span>';
+    const g = h.gpu;
+    $('gpu-stat').textContent = g.available ? `GPU · ${(g.vram_used_mb/1024).toFixed(1)}/${(g.vram_total_mb/1024).toFixed(0)} GB` : 'GPU · FREE';
+    window._health = h;
+    $('sys-cards').innerHTML = `
+      <div class="card hud"><div class="big ${h.status==='ok'?'ok':'bad'}">${h.status.toUpperCase()}</div><div class="lbl">kernel :4600</div></div>
+      <div class="card hud"><div class="big">${h.agents}</div><div class="lbl">agents</div></div>
+      <div class="card hud"><div class="big ${h.ollama?'ok':'bad'}">${h.ollama?'UP':'DOWN'}</div><div class="lbl">ollama :11434</div></div>
+      <div class="card hud"><div class="big">${g.available ? g.vram_used_mb+' MB' : 'n/a'}</div><div class="lbl">vram used</div></div>`;
+  } catch { $('hdr-ollama').innerHTML = '<span class="bad">?</span>'; }
+}
+
+async function refreshSystems() {
+  const svcs = await j('/api/services');
+  const ollamaUp = window._health ? window._health.ollama : false;
+  const rows = [{name:'ollama', running: ollamaUp, noStart:true}, ...svcs];
+  $('systems-body').innerHTML = rows.map(s => `<div class="sys-row">
+      <span class="dot" style="background:${s.running ? 'var(--green)' : '#2a3a4a'}"></span>
+      <span class="nm">${esc(s.name)}</span>
+      ${s.running ? '<span class="st up">UP</span>'
+                  : `<span class="st down">DOWN</span>${s.noStart ? '' : `<button onclick="startSvc('${s.name}')">start</button>`}`}
+    </div>`).join('');
+  const chips = svcs.map(s => `<span class="chip"><span class="${s.running?'ok':'bad'}">●</span> ${esc(s.name)}
+      ${s.running ? '' : `<button class="primary" style="padding:.1rem .6rem;font-size:.72rem" onclick="startSvc('${s.name}')">start</button>`}</span>`).join('');
+  $('auto-services').innerHTML = chips; $('sys-services').innerHTML = chips;
+  const comfy = svcs.find(s => s.name === 'comfyui');
+  $('studio-status').innerHTML = `<span class="chip"><span class="${comfy.running?'ok':'bad'}">●</span> ComfyUI ${comfy.running?'UP':'DOWN'}
+     ${comfy.running ? '' : '<button class="primary" style="padding:.1rem .6rem;font-size:.72rem" onclick="startSvc(\'comfyui\')">start</button>'}</span>`;
+  const voice = svcs.find(s => s.name === 'voice');
+  $('voice-status').innerHTML = `<span class="chip"><span class="${voice.running?'ok':'bad'}">●</span> Voice Studio ${voice.running?'UP':'DOWN'}
+     ${voice.running ? '' : '<button class="primary" style="padding:.1rem .6rem;font-size:.72rem" onclick="startSvc(\'voice\')">start</button>'}</span>`;
+  if (voice.running && !$('voice-voice').options.length) {
+    try { const vs = await j('/api/voice/voices');
+      $('voice-voice').innerHTML = vs.map(v => `<option>${v}</option>`).join(''); } catch {}
+  }
+}
+async function startSvc(name) { await j(`/api/services/${encodeURIComponent(name)}/start`, {method:'POST'}); setTimeout(refreshSystems, 4000); }
+
+const STATUS_DOT = { done:'var(--green)', failed:'var(--pink)', running:'var(--cyan)', queued:'var(--gold)' };
+async function refreshTasks() {
+  const tasks = await j('/api/tasks');
+  $('activity-body').innerHTML = tasks.slice(0, 9).map(t => `<div class="act-row">
+      <span class="dot" style="background:${STATUS_DOT[t.status]}"></span>
+      <span class="txt">${esc(t.text)}</span><span class="agent">${esc(t.agent)}</span></div>`).join('') || '<span style="color:var(--dim)">no activity yet</span>';
+  $('task-rows').innerHTML = tasks.map(t => `<tr><td>${t.id}</td><td class="mono">${esc(t.agent)}</td>
+      <td class="${t.status==='done'?'ok':t.status==='failed'?'bad':'warn'}">${t.status}</td>
+      <td>${esc(t.text).slice(0,110)}</td><td class="result">${esc(t.result || t.error || '')}</td></tr>`).join('');
+  $('plutus-rows').innerHTML = tasks.filter(t => t.agent === 'plutus').map(t => `<tr><td>${t.id}</td>
+      <td class="${t.status==='done'?'ok':t.status==='failed'?'bad':'warn'}">${t.status}</td>
+      <td>${esc(t.text).slice(0,110)}</td><td class="result">${esc(t.result || t.error || '')}</td></tr>`).join('');
+  const brief = tasks.find(t => t.status === 'done' && /brief|wrap|summary/i.test(t.text)) || tasks.find(t => t.status === 'done');
+  if (brief) $('briefing-body').innerHTML =
+    `<b># ${esc(brief.text.slice(0,80))}</b>\n&gt; 🤖 ${esc(brief.agent)} · Olympus · ${esc(brief.updated)}\n\n${esc((brief.result||'').slice(0,300))}`;
+}
+
+async function refreshAgents() {
+  const agents = await j('/api/agents');
+  buildCortex(agents);
+  $('task-agent').innerHTML = '<option value="">auto route</option>' + agents.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+  $('sys-agents').innerHTML = agents.map((a,i) => `<span class="chip" title="${esc(a.description)}">
+      <span style="color:${AGENT_COLORS[i % AGENT_COLORS.length]}">●</span> ${esc(a.name)}
+      <span style="color:var(--dim);font-size:.72rem">${esc(a.domain)} · ${esc(a.model)}</span></span>`).join('');
+}
+
+/* ============ jarvis ============ */
+async function pollTask(id, onDone) {
+  for (let i = 0; i < 120; i++) {
+    const t = await j('/api/tasks/' + id);
+    if (t.status === 'done' || t.status === 'failed') return onDone(t);
+    await new Promise(r => setTimeout(r, 2000));
+  }
+  onDone({ status:'failed', error:'timed out' });
+}
+async function speak(text) {
+  if (!$('speak-replies').checked) return;
+  try {
+    const r = await fetch('/api/voice/tts', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ text: text.slice(0, 400) }) });
+    if (r.ok) { new Audio(URL.createObjectURL(await r.blob())).play(); return; }
+  } catch {}
+  try { speechSynthesis.speak(new SpeechSynthesisUtterance(text.slice(0, 400))); } catch {}
+}
+$('jarvis-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const text = $('jarvis-in').value.trim(); if (!text) return;
+  $('jarvis-in').value = '';
+  const log = $('jarvis-log');
+  log.insertAdjacentHTML('beforeend', `<div class="jmsg you"><span class="who">YOU ›</span>${esc(text)}</div>`);
+  const el = document.createElement('div');
+  el.className = 'jmsg bot'; el.innerHTML = '<span class="who">JARVIS ~</span><em style="color:var(--dim)">thinking…</em>';
+  log.appendChild(el); log.scrollTop = log.scrollHeight;
+  $('jstatus').textContent = 'PROCESSING'; $('jstatus').className = 'processing mono';
+  const t = await j('/api/tasks', { method:'POST', headers:{'Content-Type':'application/json'},
+                                    body: JSON.stringify({ text, agent:'jarvis' }) });
+  pollTask(t.id, done => {
+    const reply = done.result || ('⚠ ' + (done.error || 'failed'));
+    el.innerHTML = `<span class="who">JARVIS ~</span>${esc(reply)}<span class="tlink">→ task ${done.id ?? t.id}</span>`;
+    log.scrollTop = log.scrollHeight;
+    $('jstatus').textContent = 'ONLINE'; $('jstatus').className = 'online mono';
+    speak(reply); refreshTasks();
+  });
+});
+// mic input (webkit speech, if available)
+$('mic-btn').addEventListener('click', () => {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { $('jarvis-in').placeholder = 'voice input not supported in this browser'; return; }
+  const rec = new SR(); rec.lang = 'en-US';
+  rec.onresult = e => { $('jarvis-in').value = e.results[0][0].transcript; };
+  rec.start();
+});
+
+/* ============ capture ============ */
+$('capture-btn').addEventListener('click', async () => {
+  const v = $('capture-in').value.trim(); if (!v) return;
+  $('capture-in').value = '';
+  await j('/api/tasks', { method:'POST', headers:{'Content-Type':'application/json'},
+                          body: JSON.stringify({ text: 'Capture this note for the inbox: ' + v, agent:'archivist' }) });
+  refreshTasks();
+});
+
+/* ============ cortex search ============ */
+let noteIndex = null;
+async function buildNoteIndex() {
+  if (noteIndex) return noteIndex;
+  noteIndex = [];
+  async function walk(folder, depth) {
+    let items; try { items = await j('/api/brain/notes?folder=' + encodeURIComponent(folder)); } catch { return; }
+    for (const it of items) {
+      const p = folder ? folder + '/' + it.name : it.name;
+      if (it.type === 'note') noteIndex.push(p);
+      else if (depth < 2) await walk(p, depth + 1);
+    }
+  }
+  await walk('', 0);
+  return noteIndex;
+}
+$('cortex-search').addEventListener('input', async e => {
+  const q = e.target.value.trim().toLowerCase();
+  const box = $('search-results');
+  if (!q) { box.style.display = 'none'; return; }
+  const idx = await buildNoteIndex();
+  const hits = idx.filter(p => p.toLowerCase().includes(q)).slice(0, 12);
+  box.innerHTML = hits.map(p => `<div data-p="${esc(p)}">📄 ${esc(p)}</div>`).join('') || '<div>no matches — press Enter to ask Archivist</div>';
+  box.style.display = 'block';
+  box.querySelectorAll('[data-p]').forEach(el => el.addEventListener('click', async () => {
+    box.style.display = 'none'; goPage('wiki');
+    const n = await j('/api/brain/note?path=' + encodeURIComponent(el.dataset.p));
+    $('wiki-note').innerHTML = n.html || '<em>empty note</em>';
+  }));
+});
+$('cortex-search').addEventListener('keydown', async e => {
+  if (e.key !== 'Enter') return;
+  const q = e.target.value.trim(); if (!q) return;
+  e.target.value = ''; $('search-results').style.display = 'none';
+  await j('/api/tasks', { method:'POST', headers:{'Content-Type':'application/json'},
+                          body: JSON.stringify({ text: 'Search the vault/wiki for: ' + q, agent:'archivist' }) });
+  refreshTasks();
+});
+
+/* ============ wiki browser ============ */
+function makeBrowser(listId, paneId, baseFolder) {
+  let folder = baseFolder;
+  async function load() {
+    let items; try { items = await j('/api/brain/notes?folder=' + encodeURIComponent(folder)); }
+    catch { $(listId).innerHTML = '<div>⚠ folder not found</div>'; return; }
+    const up = folder ? `<div data-dir="${esc(folder.split('/').slice(0,-1).join('/'))}">⬆ ..</div>` : '';
+    $(listId).innerHTML = up + items.map(it => it.type === 'dir'
+      ? `<div data-dir="${esc(folder ? folder + '/' + it.name : it.name)}">📁 ${esc(it.name)}</div>`
+      : `<div data-note="${esc(folder ? folder + '/' + it.name : it.name)}">📄 ${esc(it.name)}</div>`).join('');
+    $(listId).querySelectorAll('[data-dir]').forEach(el => el.addEventListener('click', () => { folder = el.dataset.dir; load(); }));
+    $(listId).querySelectorAll('[data-note]').forEach(el => el.addEventListener('click', async () => {
+      const n = await j('/api/brain/note?path=' + encodeURIComponent(el.dataset.note));
+      $(paneId).innerHTML = n.html || '<em>empty note</em>';
+    }));
+  }
+  load();
+}
+
+/* ============ tasks / commerce forms ============ */
+$('task-form').addEventListener('submit', async e => { e.preventDefault();
+  const text = $('task-text').value.trim(); if (!text) return;
+  await j('/api/tasks', { method:'POST', headers:{'Content-Type':'application/json'},
+                          body: JSON.stringify({ text, agent: $('task-agent').value || null }) });
+  $('task-text').value = ''; refreshTasks(); });
+$('plutus-form').addEventListener('submit', async e => { e.preventDefault();
+  const text = $('plutus-text').value.trim(); if (!text) return;
+  await j('/api/tasks', { method:'POST', headers:{'Content-Type':'application/json'},
+                          body: JSON.stringify({ text, agent:'plutus' }) });
+  $('plutus-text').value = ''; refreshTasks(); });
+$('voice-form').addEventListener('submit', async e => { e.preventDefault();
+  const r = await fetch('/api/voice/tts', { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ text: $('voice-text').value, voice: $('voice-voice').value || 'af_heart' }) });
+  if (r.ok) { const a = $('voice-audio'); a.src = URL.createObjectURL(await r.blob()); a.play(); } });
+
+/* ============ boot ============ */
+async function refreshAll() { await refreshHealth(); await Promise.all([refreshAgents(), refreshSystems(), refreshTasks()]); }
+refreshAll(); drawCortex(); makeBrowser('wiki-files', 'wiki-note', '');
+setInterval(refreshHealth, 10000); setInterval(refreshSystems, 15000); setInterval(refreshTasks, 5000);
+</script>
+</body>
+</html>
