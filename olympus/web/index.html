@@ -39,7 +39,14 @@
   .hud-title::before { content:"◤"; font-size:.6rem; color:var(--cyan-dim); }
 
   /* home */
-  #cortex { position:absolute; inset:0; cursor:grab; }
+  #cortex { position:absolute; inset:0; width:100%; height:100%; cursor:grab; }
+  #note-float { position:absolute; top:4.6rem; left:50%; transform:translateX(-50%); width:520px; max-height:62vh; z-index:6; display:none; flex-direction:column; }
+  #note-float.open { display:flex; }
+  #note-float .nf-body { overflow-y:auto; padding:1rem 1.2rem; font-size:.86rem; }
+  #note-float .nf-body pre { background:#060a12; padding:.7rem; overflow-x:auto; border:1px solid var(--line); }
+  #note-float .nf-body a { color:var(--cyan); }
+  #nf-close { margin-left:auto; cursor:pointer; color:var(--dim); }
+  #nf-close:hover { color:#fff; }
   #search-wrap { position:absolute; top:1.1rem; left:50%; transform:translateX(-50%); width:340px; z-index:4; }
   #cortex-search { width:100%; background:rgba(8,14,24,.85); border:1px solid var(--line2); color:var(--text); font-family:Consolas,monospace; font-size:.72rem; letter-spacing:.25em; text-align:center; padding:.55rem; outline:none; }
   #cortex-search::placeholder { color:var(--cyan-dim); }
@@ -194,6 +201,11 @@
     <div class="hud"><div class="hud-title">ACTIVITY</div><div class="rail-body" id="activity-body"></div></div>
     <div class="hud"><div class="hud-title">SYSTEMS</div><div class="rail-body" id="systems-body"></div></div>
   </div>
+  <div id="note-float" class="hud">
+    <div class="hud-title"><span id="nf-title">NOTE</span><span id="nf-close" title="close">✕</span></div>
+    <div class="nf-body" id="nf-body"></div>
+  </div>
+
   <div id="home-foot">
     <span id="cortex-stats">CORTEX · …</span>
     <span id="firing">● ROUTING FIRING</span>
@@ -334,16 +346,22 @@ function goPage(name) { document.querySelector(`header nav a[data-page="${name}"
 /* ============ CORTEX ============ */
 const AGENT_COLORS = ['#8f7bff','#c05cff','#ff5ca8','#ff9f45','#e8b84b','#4ade80','#37c9a2','#5cb8ff','#7bd4ff','#b08fff'];
 const HOME_ROT_X = 0.25, HOME_VEL = 0.0018;
-let cortex = { nodes:[], edges:[], nuclei:[], rotY:0, rotX:HOME_ROT_X, vel:HOME_VEL, firing:-1, fireT:0, lastDrag:0 };
+let cortex = { nodes:[], edges:[], nuclei:[], rotY:0, rotX:HOME_ROT_X, vel:HOME_VEL,
+               firing:-1, fireT:0, lastDrag:0,
+               zoom:1, zoomT:1, offX:0, offY:0, focus:-1, hover:-1, proj:[] };
 
-function buildCortex(agents) {
-  const N = 150, R = 1, nodes = [];
+function buildCortex(agents, notePaths) {
+  const R = 1, nodes = [];
   agents.forEach((a, i) => {
     const phi = Math.acos(1 - 2 * (i + .5) / agents.length), th = Math.PI * (1 + Math.sqrt(5)) * i;
     nodes.push({ x:.55*R*Math.sin(phi)*Math.cos(th), y:.55*R*Math.cos(phi), z:.55*R*Math.sin(phi)*Math.sin(th),
-                 r:5.5, color:AGENT_COLORS[i % AGENT_COLORS.length], nucleus:true, name:a.name });
+                 r:5.5, color:AGENT_COLORS[i % AGENT_COLORS.length], nucleus:true,
+                 name:a.name, label:a.name.toUpperCase(), desc:a.description });
   });
   const nNuc = nodes.length;
+  // satellites: one node per real vault/wiki note (fill with plain neurons if the vault is small)
+  const paths = (notePaths || []).slice(0, 240);
+  const N = Math.max(paths.length, 120);
   for (let i = 0; i < N; i++) {
     const phi = Math.acos(1 - 2 * (i + .5) / N), th = Math.PI * (1 + Math.sqrt(5)) * i;
     const x = R*Math.sin(phi)*Math.cos(th)+(Math.random()-.5)*.25,
@@ -351,7 +369,11 @@ function buildCortex(agents) {
           z = R*Math.sin(phi)*Math.sin(th)+(Math.random()-.5)*.25;
     let best = 0, bd = 9;
     for (let k = 0; k < nNuc; k++) { const d = (x-nodes[k].x)**2+(y-nodes[k].y)**2+(z-nodes[k].z)**2; if (d < bd) { bd = d; best = k; } }
-    nodes.push({ x, y, z, r:1.6+Math.random()*2.2, color:(bd<.55 && Math.random()<.55) ? nodes[best].color : '#a8d4f2', nucleus:false, cluster:best });
+    const path = paths[i] || null;
+    nodes.push({ x, y, z, r: path ? 2.4+Math.random()*1.6 : 1.6+Math.random()*1.4,
+                 color:(bd<.55 && Math.random()<.55) ? nodes[best].color : '#a8d4f2',
+                 nucleus:false, cluster:best, path,
+                 label: path ? path.split('/').pop().replace(/\.md$/,'') : null });
   }
   const edges = [];
   for (let i = nNuc; i < nodes.length; i++) {
@@ -363,31 +385,53 @@ function buildCortex(agents) {
     if (Math.random() < .35) edges.push([i, nodes[i].cluster]);
   }
   cortex.nodes = nodes; cortex.edges = edges; cortex.nuclei = nodes.slice(0, nNuc);
-  $('cortex-stats').textContent = `CORTEX · ${nodes.length} NODES · ${edges.length} NERVES · ${nNuc} NUCLEI · LIVE`;
+  const named = nodes.filter(n => n.path).length;
+  $('cortex-stats').textContent = `CORTEX · ${nodes.length} NODES (${named} NOTES) · ${edges.length} NERVES · ${nNuc} NUCLEI · LIVE`;
 }
 
 function drawCortex() {
   const cv = $('cortex'), ctx = cv.getContext('2d');
   const dpr = devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
-  if (cv.width !== W*dpr) { cv.width = W*dpr; cv.height = H*dpr; }
+  if (cv.width !== W*dpr || cv.height !== H*dpr) { cv.width = W*dpr; cv.height = H*dpr; }
   ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,W,H);
-  // sphere dead-center of the home page, spinning like a planet
-  const cx = W / 2, cy = H / 2, scale = Math.min(W * .62, H) * .42;
-  // auto reset: after 3s without dragging, ease tilt + spin speed back to defaults
+  // sphere dead-center of the entire page
+  const cx = W / 2, cy = H / 2;
   const now = performance.now();
-  if (now - cortex.lastDrag > 3000) {
-    cortex.rotX += (HOME_ROT_X - cortex.rotX) * .03;
-    cortex.vel += (HOME_VEL - cortex.vel) * .03;
+  const focused = cortex.focus >= 0;
+  if (focused) {
+    // reading a node: stop the spin, zoom in
+    cortex.vel += (0 - cortex.vel) * .08;
+    cortex.zoomT = 1.85;
+  } else {
+    cortex.zoomT = 1;
+    // auto reset: ease tilt + spin back to defaults after 3s without dragging
+    if (now - cortex.lastDrag > 3000) {
+      cortex.rotX += (HOME_ROT_X - cortex.rotX) * .03;
+      cortex.vel += (HOME_VEL - cortex.vel) * .03;
+    }
   }
+  cortex.zoom += (cortex.zoomT - cortex.zoom) * .07;
   cortex.rotY += cortex.vel;
+  const scale = Math.min(W * .62, H) * .42 * cortex.zoom;
   const sy = Math.sin(cortex.rotY), cyr = Math.cos(cortex.rotY);
   const sx = Math.sin(cortex.rotX), cxr = Math.cos(cortex.rotX);
-  const proj = cortex.nodes.map(n => {
+  const raw = cortex.nodes.map(n => {
     let x = n.x*cyr + n.z*sy, z = -n.x*sy + n.z*cyr, y = n.y;
     let y2 = y*cxr - z*sx, z2 = y*sx + z*cxr;
     const p = 1.6 / (1.6 + z2);
     return { X: cx + x*scale*p, Y: cy + y2*scale*p, d: p, n };
   });
+  // pan so the focused node eases to just below the note reader; otherwise ease back to center
+  if (focused) {
+    const f = raw[cortex.focus];
+    cortex.offX += ((cx - f.X) - cortex.offX) * .07;
+    cortex.offY += ((cy + H*.18 - f.Y) - cortex.offY) * .07;
+  } else {
+    cortex.offX += (0 - cortex.offX) * .07;
+    cortex.offY += (0 - cortex.offY) * .07;
+  }
+  const proj = raw.map(p => ({ X: p.X + cortex.offX, Y: p.Y + cortex.offY, d: p.d, n: p.n }));
+  cortex.proj = proj;
   for (const [a,b] of cortex.edges) {
     const A = proj[a], B = proj[b];
     let alpha = .10 * Math.min(A.d, B.d), color = '150,190,220';
@@ -397,31 +441,100 @@ function drawCortex() {
     ctx.strokeStyle = `rgba(${color},${alpha})`;
     ctx.beginPath(); ctx.moveTo(A.X, A.Y); ctx.lineTo(B.X, B.Y); ctx.stroke();
   }
-  [...proj].sort((p,q) => p.d - q.d).forEach(p => {
-    const r = p.n.r * p.d * 1.15;
+  const order = proj.map((p,i) => i).sort((a,b) => proj[a].d - proj[b].d);
+  for (const i of order) {
+    const p = proj[i];
+    const hot = i === cortex.hover || i === cortex.focus;
+    const r = p.n.r * p.d * 1.15 * (hot ? 1.6 : 1);
     ctx.beginPath(); ctx.arc(p.X, p.Y, r, 0, 7);
     ctx.fillStyle = p.n.color;
     ctx.globalAlpha = .35 + .65 * (p.d - .55) / .9;
-    if (p.n.nucleus) { ctx.shadowColor = p.n.color; ctx.shadowBlur = 14; }
+    if (p.n.nucleus || hot) { ctx.shadowColor = p.n.color; ctx.shadowBlur = hot ? 20 : 14; }
     ctx.fill(); ctx.shadowBlur = 0; ctx.globalAlpha = 1;
-  });
+  }
+  // hover / focus label
+  const lbl = cortex.hover >= 0 ? cortex.hover : cortex.focus;
+  if (lbl >= 0 && cortex.nodes[lbl].label) {
+    const p = proj[lbl], text = cortex.nodes[lbl].label;
+    ctx.font = '11px Consolas, monospace';
+    const w = ctx.measureText(text).width;
+    ctx.fillStyle = 'rgba(6,10,18,.9)';
+    ctx.fillRect(p.X + 10, p.Y - 18, w + 12, 18);
+    ctx.strokeStyle = 'rgba(87,199,227,.4)';
+    ctx.strokeRect(p.X + 10, p.Y - 18, w + 12, 18);
+    ctx.fillStyle = '#9fe3f7';
+    ctx.fillText(text, p.X + 16, p.Y - 5);
+  }
   requestAnimationFrame(drawCortex);
 }
+
 setInterval(() => {
-  if (!cortex.nuclei.length) return;
+  if (!cortex.nuclei.length || cortex.focus >= 0) return;
   cortex.firing = Math.floor(Math.random() * cortex.nuclei.length);
   cortex.fireT = performance.now();
   const nuc = cortex.nuclei[cortex.firing];
   $('firing').textContent = `● ${nuc.name.toUpperCase()} FIRING`;
   $('firing').style.color = nuc.color;
 }, 1700);
-(() => { let drag = false, lx = 0, ly = 0;
+
+/* cortex interaction: drag to spin, hover to identify, click a note-node to read it */
+function cortexHit(x, y) {
+  let best = -1, bd = 14 * 14;
+  for (let i = 0; i < cortex.proj.length; i++) {
+    const p = cortex.proj[i];
+    const d = (p.X - x) ** 2 + (p.Y - y) ** 2;
+    if (d < bd && (cortex.nodes[i].path || cortex.nodes[i].nucleus)) { bd = d; best = i; }
+  }
+  return best;
+}
+async function focusCortexNode(i) {
+  const n = cortex.nodes[i];
+  cortex.focus = i;
+  $('note-float').classList.add('open');
+  if (n.nucleus) {
+    $('nf-title').textContent = 'AGENT · ' + n.label;
+    $('nf-body').innerHTML = `<p>${esc(n.desc || '')}</p><p class="mono" style="color:var(--dim);font-size:.74rem;margin-top:.6rem">click ✕ to release the cortex</p>`;
+    return;
+  }
+  $('nf-title').textContent = n.label;
+  $('nf-body').innerHTML = '<em style="color:var(--dim)">reading…</em>';
+  try {
+    const note = await j('/api/brain/note?path=' + encodeURIComponent(n.path));
+    $('nf-body').innerHTML = note.html || '<em>empty note</em>';
+  } catch { $('nf-body').innerHTML = '<em>could not load this note</em>'; }
+}
+function releaseCortex() {
+  cortex.focus = -1;                    // pan/zoom ease back to center automatically
+  cortex.lastDrag = 0;                  // resume default rotation immediately
+  $('note-float').classList.remove('open');
+}
+$('nf-close').addEventListener('click', releaseCortex);
+addEventListener('keydown', e => { if (e.key === 'Escape') releaseCortex(); });
+
+(() => { let drag = false, moved = 0, lx = 0, ly = 0;
   const cv = $('cortex');
-  cv.addEventListener('mousedown', e => { drag = true; lx = e.clientX; ly = e.clientY; cv.style.cursor='grabbing'; });
-  addEventListener('mouseup', () => { drag = false; cv.style.cursor='grab'; });
-  addEventListener('mousemove', e => { if (drag) {
-    cortex.rotY += (e.clientX - lx) * .005; cortex.rotX += (e.clientY - ly) * .003;
-    cortex.lastDrag = performance.now(); lx = e.clientX; ly = e.clientY; } });
+  cv.addEventListener('mousedown', e => { drag = true; moved = 0; lx = e.clientX; ly = e.clientY; cv.style.cursor='grabbing'; });
+  addEventListener('mouseup', e => {
+    if (drag && moved < 5 && e.target === cv) {
+      const rect = cv.getBoundingClientRect();
+      const hit = cortexHit(e.clientX - rect.left, e.clientY - rect.top);
+      if (hit >= 0) focusCortexNode(hit);
+      else if (cortex.focus >= 0) releaseCortex();
+    }
+    drag = false; cv.style.cursor='grab';
+  });
+  addEventListener('mousemove', e => {
+    if (drag) {
+      moved += Math.abs(e.clientX - lx) + Math.abs(e.clientY - ly);
+      cortex.rotY += (e.clientX - lx) * .005; cortex.rotX += (e.clientY - ly) * .003;
+      cortex.lastDrag = performance.now();
+    } else if (e.target === cv) {
+      const rect = cv.getBoundingClientRect();
+      cortex.hover = cortexHit(e.clientX - rect.left, e.clientY - rect.top);
+      cv.style.cursor = cortex.hover >= 0 ? 'pointer' : 'grab';
+    }
+    lx = e.clientX; ly = e.clientY;
+  });
 })();
 
 /* ============ health / systems / activity ============ */
@@ -493,8 +606,10 @@ async function refreshTasks() {
 }
 
 async function refreshAgents() {
-  const agents = await j('/api/agents');
-  buildCortex(agents);
+  window._agents = await j('/api/agents');
+  buildCortex(window._agents, noteIndex || []);
+  // once the vault index is loaded, rebuild so every neuron is a real note
+  buildNoteIndex().then(idx => buildCortex(window._agents, idx));
 }
 
 async function refreshSystemPage() {
