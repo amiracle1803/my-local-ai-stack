@@ -47,7 +47,10 @@
   #search-results div { padding:.4rem .8rem; font-size:.82rem; color:var(--dim); cursor:pointer; border-bottom:1px solid var(--line); }
   #search-results div:hover { color:#fff; background:rgba(87,199,227,.08); }
 
-  #jarvis-panel { position:absolute; top:1.1rem; left:1.25rem; width:360px; bottom:3.4rem; z-index:4; display:flex; flex-direction:column; }
+  #jarvis-panel { position:absolute; top:1.1rem; left:1.25rem; width:360px; bottom:3.4rem; z-index:4; display:flex; flex-direction:column; transition:width .25s; }
+  #jarvis-panel.collapsed { bottom:auto; width:220px; }
+  #jarvis-panel.collapsed #jarvis-log, #jarvis-panel.collapsed #jarvis-form, #jarvis-panel.collapsed #jarvis-opts { display:none; }
+  #jarvis-panel.collapsed .hud-title { border-bottom:none; }
   #jarvis-log { flex:1; overflow-y:auto; padding:.75rem .9rem; display:flex; flex-direction:column; gap:.7rem; }
   .jmsg { border-left:2px solid var(--line2); padding:.15rem 0 .15rem .7rem; font-size:.86rem; }
   .jmsg .who { font-family:Consolas,monospace; font-size:.68rem; letter-spacing:.15em; margin-right:.45rem; }
@@ -171,7 +174,9 @@
     <div id="search-results" class="hud"></div>
   </div>
   <div id="jarvis-panel" class="hud">
-    <div class="hud-title">● JARVIS <span id="jstatus" class="online mono">ONLINE</span></div>
+    <div class="hud-title" id="jarvis-title" style="cursor:pointer" title="click to collapse/expand">● JARVIS
+      <span id="jstatus" class="online mono">ONLINE</span>
+      <span id="jarvis-caret" style="color:var(--cyan-dim);margin-left:.6rem">▾</span></div>
     <div id="jarvis-log">
       <div class="jmsg bot"><span class="who">JARVIS ~</span>At your service, Amir. Questions answered, work routed.</div>
     </div>
@@ -366,14 +371,13 @@ function drawCortex() {
   const dpr = devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
   if (cv.width !== W*dpr) { cv.width = W*dpr; cv.height = H*dpr; }
   ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,W,H);
-  // center the sphere in the space between the two panels
-  const leftEdge = 400, rightEdge = W - 335;
-  const cx = (leftEdge + rightEdge) / 2, cy = H/2 + 10, scale = Math.min(rightEdge-leftEdge, H) * .40;
-  // auto reset: after 3s without dragging, ease tilt and spin back to defaults
+  // sphere dead-center of the home page, spinning like a planet
+  const cx = W / 2, cy = H / 2, scale = Math.min(W * .62, H) * .42;
+  // auto reset: after 3s without dragging, ease tilt + spin speed back to defaults
   const now = performance.now();
   if (now - cortex.lastDrag > 3000) {
-    cortex.rotX += (HOME_ROT_X - cortex.rotX) * .02;
-    cortex.vel += (HOME_VEL - cortex.vel) * .02;
+    cortex.rotX += (HOME_ROT_X - cortex.rotX) * .03;
+    cortex.vel += (HOME_VEL - cortex.vel) * .03;
   }
   cortex.rotY += cortex.vel;
   const sy = Math.sin(cortex.rotY), cyr = Math.cos(cortex.rotY);
@@ -553,6 +557,12 @@ $('jarvis-form').addEventListener('submit', async e => {
     $('jstatus').textContent = 'ONLINE'; $('jstatus').className = 'online mono';
     speak(reply); refreshTasks();
   });
+});
+$('jarvis-title').addEventListener('click', e => {
+  if (e.target.tagName === 'INPUT') return;
+  const p = $('jarvis-panel');
+  p.classList.toggle('collapsed');
+  $('jarvis-caret').textContent = p.classList.contains('collapsed') ? '▸' : '▾';
 });
 $('mic-btn').addEventListener('click', () => {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
