@@ -1,14 +1,19 @@
 # Code backup protocol (established 2026-07-09 after olympus/ was lost in a
-# Windows reinstall — it had never been pushed anywhere).
+# Windows reinstall - it had never been pushed anywhere).
+#
+# NOTE: keep this file pure ASCII. PowerShell 5.1 reads BOM-less files as
+# ANSI, and UTF-8 punctuation (em-dashes etc.) decodes into curly quotes
+# that silently corrupt string parsing.
 #
 # Does three things:
 #   1. Commits everything and pushes to GitHub
-#   2. Zips the tracked source (git archive — respects .gitignore) into the
+#   2. Zips the tracked source (git archive - respects .gitignore) into the
 #      Obsidian vault on C:
-#   3. Copies that zip to the E: backup folder (skipped if E: is missing —
+#   3. Copies that zip to the E: backup folder (skipped if E: is missing -
 #      that drive drops offline sometimes)
 #
-# Run after completing any piece of code:  powershell -ExecutionPolicy Bypass -File scripts\backup-code.ps1
+# Run after completing any piece of code:
+#   powershell -ExecutionPolicy Bypass -File scripts\backup-code.ps1
 
 $repo = Split-Path $PSScriptRoot -Parent
 Set-Location $repo
@@ -25,7 +30,7 @@ if ($LASTEXITCODE -ne 0) {
     git commit -m "Snapshot $stamp (backup-code protocol)"
 }
 git push origin master
-if ($LASTEXITCODE -ne 0) { Write-Warning "git push failed — check network/credentials. Snapshots still proceed." }
+if ($LASTEXITCODE -ne 0) { Write-Warning "git push failed - check network/credentials. Snapshots still proceed." }
 
 # 2. zip tracked source into the vault on C:
 New-Item -ItemType Directory -Force $vaultDir | Out-Null
@@ -40,7 +45,7 @@ if ((Test-Path 'E:\') -and (Test-Path $zip)) {
     Copy-Item $zip $eDir
     Write-Host "[ok] E: snapshot:    $eDir\$name"
 } else {
-    Write-Warning "E: drive not present — E: snapshot skipped. Re-run when it's back."
+    Write-Warning "E: snapshot skipped (drive offline or zip missing). Re-run when it's back."
 }
 
 # keep only the 10 newest snapshots in each location
