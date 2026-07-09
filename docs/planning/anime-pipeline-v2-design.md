@@ -2,9 +2,59 @@
 
 > **Status: PLANNING — do not execute yet.**
 > This document is the build contract. It is written so that any capable
-> model/developer can implement it without asking questions. Companion
-> overview: `anime-pipeline-v2-plan.md`. Hardware target: RTX 4070 Laptop
+> model/developer can implement it without asking questions. Companion docs:
+> `anime-pipeline-v2-plan.md` (overview) and
+> **`aether-studio-original-spec-stages0-2.md` (RECOVERED ORIGINAL spec —
+> normative for Stages 0–2: exact schemas, prompts, temperatures, banned
+> patterns, human touchpoints. Where this doc says "per original spec",
+> implement exactly what that file says.)** Hardware target: RTX 4070 Laptop
 > 8 GB VRAM, 32 GB RAM, Windows 11, fully local.
+>
+> **v2 changes vs the original spec (Amir, 2026-07-09):**
+> 1. **Primary image model → krea2** (see section 0 model table + risk note).
+> 2. **Automation-first**: every stage auto-advances by default; the
+>    original's human touchpoints become optional pause-gates (section 0.2).
+
+## 0. Models & temperatures
+
+| Task | Model | Parameters | Notes |
+|---|---|---|---|
+| All script/screenplay LLM work | qwen3:8b | think:false, keep_alive=300, ctx 16384 | pull required (`ollama pull qwen3:8b`) |
+| Panel vision analysis | qwen2.5vl:7b | think:false, keep_alive=0, ctx 4096 | pull required |
+| **Image generation (primary)** | **krea2** (checkpoint slot `image_primary` in pipeline.toml) | steps/sampler per model card; 832×1216 | **v2 change** — see risk note below |
+| Image gen (fallback 1) | z-anime-distill-4step-fp8 | 4 steps, euler, fp8 | auto-switch after 5 consecutive primary failures (original spec pattern) |
+| Image gen (fallback 2) | flux1-schnell-Q4_K_S.gguf | disabled by default | last resort |
+| Animation | Wan2.2-TI2V-5B fp8 KJ build | 20 steps, unipc, block-swap=20, cfg 5.0, 81 frames @16fps | clip slots in Stage 5 |
+| TTS | Kokoro in-process | CUDA/CPU, loaded once, reused all shots | already running as Voice Studio :5050 |
+
+Temperature guide (all LLM calls — from original spec): 0.1 extraction ·
+0.2 conservative synthesis · 0.3 structured creative · 0.4 dialogue ·
+0.5 creative expansion · 0.6 narration rewrites.
+
+**krea2 risk note (builder must handle):** the model slot is config, not
+code. Before making krea2 the default, run it through `model_lab` (section
+5.4): verify open weights exist in a quant that fits 8 GB VRAM (GGUF/fp8),
+measure sec/image, and test anime-style adherence — Krea models are tuned
+for photorealistic aesthetics, so the z-anime style tail + style LoRA must
+be validated against it. If krea2 fails the lab gates, keep z-anime-distill
+as primary and file the lab report; the fallback chain already covers this.
+
+### 0.2 Automation-first policy (v2 change)
+
+- `pipeline.toml` gets an `[automation]` table:
+  `auto_approve_blueprint / auto_approve_transform_map /
+  auto_approve_identity / auto_resolve_contradictions / auto_advance_stages`
+  (all default **true**; the original's human touchpoints only pause the run
+  when their flag is false, or when a **hard gate** trips: legal score < 50,
+  blocking appearance contradiction, or >20% panel vision failures).
+- Auto-resolution defaults: contradictions → majority-evidence tie-break
+  (logged in `contradictions.json` with `auto_resolved: true`); uncertain
+  character groupings → treat-as-same (original's provisional rule);
+  blueprint/transform map → accepted as generated.
+- Everything a touchpoint would show is still written to disk + scorecard,
+  so the user can review after the fact and re-run a single unit.
+- `run.py all` runs Stage 0→5 unattended; the kernel Tasks API and n8n can
+  schedule it (nightly episode builds) once M8 lands.
 >
 > **Builder handoff rules (read first):**
 > 1. Implement milestone by milestone (M0→M8, bottom of doc). Never skip a gate.
@@ -209,20 +259,50 @@ blueprint — the script was swapped mid-project. Every artifact embeds
 
 ## 4. Stage designs
 
-### Stage 0 — Intake (`stage0_intake.py`)
-1. CLI/UI accepts script text + choices: `fps` (24–60), style preset,
-   resolution. Validate fps against ComfyUI/LTX constraints (integer, and
-   video models are trained at fixed rates — snap to nearest of 24/30/60
-   with a warning).
-2. Create project dir, write `blueprint.json`, copy `script.txt`.
-3. Chunk sanity pass: run chonkie `SentenceChunker` (target 1200 tokens,
-   overlap 120) and store chunk count/offsets in blueprint for reproducible
-   chunking downstream. **No truncation ever** — if a chunk API fails, split
-   recursively.
-4. Scorecard: script length, chunk count, encoding issues found.
+### Stage 0 — Script (`stage0_intake.py`) — THREE MODES per original spec
+All modes end with `script.txt` + blueprint + scorecard. Common intake
+settings: `fps` (24–60, snapped to 24/30/60 with warning for video-model
+compatibility), style preset, resolution.
+
+- **0B GENERATE** (original from brief): 3-pass — Story Blueprint (temp 0.3,
+  full JSON schema in original spec) → Scene-by-Scene Prose (one call per
+  scene, temp 0.5, word-target enforcement ±30%, automated per-scene quality
+  checks) → Integration (no LLM; scene markers + name/location/word-count
+  validation). Blueprint Review touchpoint = pause-gate (auto-approve by
+  default per §0.2).
+- **0A TRANSFORM** (source → original): 4-pass — Mechanics Extraction (temp
+  0.1, first 4000 chars, mechanics-only) → Originality Design (temp 0.5,
+  transformation map) + **legal proximity score** (scoring table in original
+  spec; <75 warn, **<50 hard gate always pauses**, even in full-auto) →
+  Blueprint → Prose (as 0B).
+- **0I IMPORT** (existing panels → story): 4-pass — Panel Inventory (no LLM;
+  natural sort, blank/splash detection, **60-panel cap** with
+  first/last/range choice) → Per-Panel Vision (qwen2.5vl:7b, sequential,
+  3-tier failure handling) → **Character Identity Resolution** (fingerprint
+  clustering, uncertain groupings; auto=treat-as-same) → Screenplay Synthesis
+  (every panel = exactly one shot; coverage check; banned-pattern filter;
+  fair-use score).
+- Chunking (all modes): chonkie, 8000-char chunks / 400-char overlap (the
+  original's numbers), offsets stored in blueprint for reproducibility.
+  **No truncation ever.**
+- Scorecard: mode, script length, chunk count, validation results, legal /
+  fair-use score where applicable.
 
 ### Stage 1 — World bible (`stage1_worldbible.py`)
-Order of operations (all via `PipelineLLM`, model role `worker`):
+**Implement per original spec Steps 1–5** (full-script character scan with
+8000/400 chunking · per-character profile extraction from assembled mention
+context · world/lore extraction · contradiction detection + dedup with exact
+merge rules · creative expansion), using qwen3:8b at the original's
+temperatures, with these **v2 deltas** layered on:
+- era/tech inference with evidence heuristics (below, item 4)
+- relationship web with evolution points (below, item 5)
+- outfit materials derived from world details + class; outfit changes over
+  time each get their own sd_prompt + pre-created references
+- contradiction auto-resolution default per §0.2 (majority evidence), hard
+  gate on blocking appearance conflicts
+- voice assignment uses the original's full Kokoro voice table + rules
+
+Order of operations (all via `PipelineLLM`):
 1. **Character discovery**: map over ALL chunks → per-chunk character
    mentions (name, aliases, evidence quote). Reduce: merge by
    fuzzy-name match (rapidfuzz ratio ≥ 88 → same character; log merges).
@@ -272,6 +352,20 @@ Order of operations (all via `PipelineLLM`, model role `worker`):
 6. Scorecard: refs per character (target ≥10), failed generations, LoRA loss.
 
 ### Stage 2 — Screenplay (`stage2_screenplay.py`)
+**Implement per original spec Steps 1–5**: shot plan (temp 0.15 + automated
+shot-count rules: no two consecutive same shot_type, climax scene has most
+shots, warn <20 or >60 total) · **SD prompt assembly with the 120-word
+budget** (char anchors ~50 / location ~30 / composition ~30 / style ~10;
+style tail "anime 2d illustration, manga panel style, high quality linework,
+cel shading"; trim composition → location, never anchors; max 2 characters;
+no names, no camera words) · narration craft (6-technique rotation +
+exception rules + **banned-pattern regex filter** + rewrite queue at 0.6,
+silence over bad narration) · dialogue craft (speech-style validation:
+clipped >20 words flagged, verbose <6 flagged; first-60-chars dedup) ·
+quality audit (3 weakest improved, technique conflicts fixed, >2-sentence
+trims — all auto-applied through the filter).
+
+**v2 deltas** on top of the original steps:
 1. **Scene segmentation**: reuse v1 `script_parser.py` logic (port from
    E:\Projects\anime-pipeline-updated) upgraded to chunked full coverage.
    Scene = location/time/cast change.
@@ -421,15 +515,21 @@ Order of operations (all via `PipelineLLM`, model role `worker`):
 
 | M | Deliverable | Gate (must demo) |
 |---|---|---|
-| M0 | Package skeleton, config, blueprint, scores, run.py, tests scaffold | `run.py new-project` creates valid blueprint; pollution guard trips on swapped script |
-| M1 | Stage 0 + chunking | 50k-word script chunks with zero loss (reassembly test) |
-| M2 | Stage 1 world bible | On sample script: all named characters found; world era inferred with evidence; relationship web non-empty; contradictions file written; every character has valid sd_prompt |
-| M3 | Stage 2 screenplay | Every shot has sd_prompt/narration/dialogue; audit improves 3 weakest (scores prove it); dedup test passes |
-| M4 | ComfyClient + Stage 1R refs | 10+ turnaround refs for 2 characters, VRAM-safe across 30 gens unattended |
+| M0 | Package skeleton, config (incl. `[automation]` + model slots), blueprint, scores, run.py, tests scaffold | `run.py new-project` creates valid blueprint; pollution guard trips on swapped script; `run.py all` sequences stages unattended |
+| M1 | Stage 0B Generate (3-pass) + chunking | 50k-word script chunks with zero loss; blueprint→prose→integration passes validations on a sample brief |
+| M2 | Stage 1 world bible (original Steps 1–5 + v2 deltas) | On sample script: all named characters found (incl. late-script); era inferred with evidence; relationship web non-empty; contradiction auto-resolution logged; every character has valid 40-60-word sd_prompt + voice id |
+| M3 | Stage 2 screenplay (original Steps 1–5) | 120-word SD prompt budget enforced (unit tests); banned-pattern filter catches seeded bad narrations; audit improves 3 weakest (scores prove it); speech-style + dedup flags work |
+| M4 | ComfyClient + model_lab + Stage 1R refs | **krea2 lab report (test/stress/speed) decides primary model**; 10+ turnaround refs for 2 characters; VRAM-safe across 30 gens unattended; fallback chain triggers after 5 seeded failures |
 | M5 | Stage 3 + 3B | Blocks ordered first/ending/infill; panels for a 3-scene story; locks respected on re-run; seed-frame continuity visible |
 | M6 | Stage 4 audio | All lines voiced with correct per-character voices + pauses; durations written back |
-| M7 | Stage 5 assembly | Watchable MP4 with narration+dialogue+quiet music; prediction within 10% of actual |
-| M8 | model_lab + Studio UI endpoints | lab compare table on 2 checkpoints; Studio page shows live stage ledger |
+| M7 | Stage 5 assembly | Watchable MP4 with narration+dialogue+quiet music; prediction within 10% of actual; subtitle track generated |
+| M8 | Stage 0A Transform + 0I Import + Studio UI endpoints | Legal score gates work (<50 blocks even in auto); 42-panel import → screenplay with identity resolution; Studio page shows live stage ledger |
+
+Original spec priority order (respect within milestones): SD prompt assembly
+first (biggest visual gain) → narration rewrite-not-drop → audit pass →
+full-script scan → per-character extraction → contradiction/dedup → import
+identity resolution → 0B restructure → 0A legal score → motion-effect UI →
+world-bible portrait button → subtitles → comfyui path from config.
 
 ## 7. Risks & contingencies
 
