@@ -30,7 +30,7 @@ from pydantic import BaseModel, Field
 
 from . import services
 from .agents import AgentRegistry
-from .config import WEB_DIR, load_config
+from .config import WEB_DIR, load_config, resolve_model
 from .tasks import TaskManager
 
 app = FastAPI(title="Olympus", version="2.0.0-rebuild")
@@ -192,6 +192,32 @@ def brain_note(path: str) -> dict:
         "td", "hr", "br", "img",
     ], attributes={"a": ["href"], "img": ["src", "alt"]})
     return {"path": path, "html": safe}
+
+
+class GoalIn(BaseModel):
+    goal: str = Field(min_length=1)
+
+
+@app.post("/api/orchestrate", status_code=201)
+def orchestrate(body: GoalIn) -> dict:
+    """Conductor plans the goal, then queues each step for agents to pick up."""
+    return tasks.orchestrate(body.goal)
+
+
+@app.get("/api/system")
+def system_info() -> dict:
+    from collections import Counter
+    cfg = load_config()
+    counts = Counter(t["status"] for t in tasks.list(500))
+    return {
+        "kernel": {"version": app.version, "port": cfg["kernel"]["port"],
+                   "core_agents": cfg["kernel"]["core_agents"]},
+        "models": cfg["models"],
+        "paths": cfg["paths"],
+        "tasks": dict(counts),
+        "agents": [{**a.to_public(), "resolved_model": resolve_model(a.model)}
+                   for a in registry.all()],
+    }
 
 
 class TTSIn(BaseModel):

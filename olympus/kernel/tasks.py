@@ -109,6 +109,43 @@ class TaskManager:
         assert refreshed is not None
         return refreshed
 
+    def orchestrate(self, goal: str) -> dict:
+        """Conductor breaks a goal into steps; each step is queued as its own
+        task and auto-routed so the right agent picks it up."""
+        agent = self.registry.get("conductor") or self.registry.route(goal)
+        tid = self._insert(f"[PLAN] {goal}", agent)
+        threading.Thread(target=self._orchestrate, args=(tid, goal), daemon=True).start()
+        task = self.get(tid)
+        assert task is not None
+        return task
+
+    def _orchestrate(self, tid: int, goal: str) -> None:
+        import re
+        task = self.get(tid)
+        if task is None:
+            return
+        agent = self.registry.get(task["agent"])
+        system = agent.system_prompt if agent else "You are a planning agent."
+        self._update(tid, status="running")
+        prompt = (
+            "Break the following goal into 3 to 6 concrete, independently "
+            "executable steps. Output ONLY the numbered steps, one per line, "
+            "formatted exactly like '1. <step>'. No preamble, no closing "
+            f"remarks.\n\nGoal: {goal}"
+        )
+        try:
+            plan = _ollama_chat(task["model"], system, prompt)
+            self._update(tid, status="done", result=plan)
+        except Exception as exc:
+            self._update(tid, status="failed", error=f"{type(exc).__name__}: {exc}")
+            return
+        steps = re.findall(r"^\s*\d+[.)]\s+(.+)$", plan, re.M)[:6]
+        for step in steps:
+            try:
+                self.submit(step.strip())
+            except Exception:
+                continue
+
     def _run(self, tid: int) -> None:
         task = self.get(tid)
         if task is None:
