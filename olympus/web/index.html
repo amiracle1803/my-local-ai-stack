@@ -402,9 +402,13 @@ function drawCortex() {
     // reading a node: stop the spin, zoom in
     cortex.vel += (0 - cortex.vel) * .08;
     cortex.zoomT = 1.85;
+  } else if (cortex.dragging || cortex.hover >= 0) {
+    // any interaction (grabbing, or hovering a node to click it) halts the spin
+    cortex.vel += (0 - cortex.vel) * .25;
+    cortex.zoomT = 1;
   } else {
     cortex.zoomT = 1;
-    // auto reset: ease tilt + spin back to defaults after 3s without dragging
+    // idle again: ease tilt + spin back to defaults after 3s
     if (now - cortex.lastDrag > 3000) {
       cortex.rotX += (HOME_ROT_X - cortex.rotX) * .03;
       cortex.vel += (HOME_VEL - cortex.vel) * .03;
@@ -518,12 +522,13 @@ addEventListener('keydown', e => { if (e.key === 'Escape') releaseCortex(); });
   cv.addEventListener('wheel', e => {
     e.preventDefault();
     cortex.userZoomT = Math.min(3, Math.max(0.25, cortex.userZoomT * (e.deltaY > 0 ? 0.88 : 1.14)));
+    cortex.lastDrag = performance.now();   // zooming counts as interaction: pause the spin
   }, { passive: false });
   cv.addEventListener('dblclick', e => {
     const rect = cv.getBoundingClientRect();
     if (cortexHit(e.clientX - rect.left, e.clientY - rect.top) < 0) cortex.userZoomT = 1;
   });
-  cv.addEventListener('mousedown', e => { drag = true; moved = 0; lx = e.clientX; ly = e.clientY; cv.style.cursor='grabbing'; });
+  cv.addEventListener('mousedown', e => { drag = true; cortex.dragging = true; moved = 0; lx = e.clientX; ly = e.clientY; cv.style.cursor='grabbing'; });
   addEventListener('mouseup', e => {
     if (drag && moved < 5 && e.target === cv) {
       const rect = cv.getBoundingClientRect();
@@ -531,7 +536,7 @@ addEventListener('keydown', e => { if (e.key === 'Escape') releaseCortex(); });
       if (hit >= 0) focusCortexNode(hit);
       else if (cortex.focus >= 0) releaseCortex();
     }
-    drag = false; cv.style.cursor='grab';
+    drag = false; cortex.dragging = false; cortex.lastDrag = performance.now(); cv.style.cursor='grab';
   });
   addEventListener('mousemove', e => {
     if (drag) {
@@ -540,9 +545,11 @@ addEventListener('keydown', e => { if (e.key === 'Escape') releaseCortex(); });
       cortex.lastDrag = performance.now();
     } else if (e.target === cv) {
       const rect = cv.getBoundingClientRect();
+      const prev = cortex.hover;
       cortex.hover = cortexHit(e.clientX - rect.left, e.clientY - rect.top);
+      if (prev >= 0 && cortex.hover < 0) cortex.lastDrag = performance.now(); // left a node: idle timer restarts
       cv.style.cursor = cortex.hover >= 0 ? 'pointer' : 'grab';
-    }
+    } else if (cortex.hover >= 0) { cortex.hover = -1; cortex.lastDrag = performance.now(); }
     lx = e.clientX; ly = e.clientY;
   });
 })();
