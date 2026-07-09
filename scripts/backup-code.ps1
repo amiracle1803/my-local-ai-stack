@@ -18,6 +18,13 @@
 $repo = Split-Path $PSScriptRoot -Parent
 Set-Location $repo
 
+# Resolve git explicitly - PowerShell's PATH may not have it (scheduled tasks).
+if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+    $gitExe = 'C:\Program Files\Git\cmd\git.exe'
+    if (-not (Test-Path $gitExe)) { Write-Error "git not found"; exit 1 }
+    Set-Alias -Name git -Value $gitExe -Scope Script
+}
+
 $stamp = Get-Date -Format 'yyyy-MM-dd_HHmm'
 $name = "my-local-ai-stack-$stamp.zip"
 $vaultDir = 'C:\Users\amire\Documents\Obsidian Vault\Projects\Code Backups'

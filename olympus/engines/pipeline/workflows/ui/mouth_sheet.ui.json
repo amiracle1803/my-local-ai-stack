@@ -1,0 +1,561 @@
+{
+ "last_node_id": 16,
+ "last_link_id": 14,
+ "nodes": [
+  {
+   "id": 1,
+   "type": "CheckpointLoaderSimple",
+   "pos": [
+    0,
+    0
+   ],
+   "size": [
+    340,
+    196
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "CKPT",
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      1
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "CLIP",
+     "type": "CLIP",
+     "links": [
+      2
+     ],
+     "slot_index": 1
+    },
+    {
+     "name": "VAE",
+     "type": "VAE",
+     "links": [
+      4,
+      13
+     ],
+     "slot_index": 2
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CheckpointLoaderSimple"
+   },
+   "widgets_values": [
+    "PATCH_IMAGE_PRIMARY.safetensors"
+   ]
+  },
+  {
+   "id": 3,
+   "type": "LoadImage",
+   "pos": [
+    0,
+    256
+   ],
+   "size": [
+    340,
+    170
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "REF_IMAGE",
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      3
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "MASK",
+     "type": "MASK",
+     "links": null,
+     "slot_index": 1
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "LoadImage"
+   },
+   "widgets_values": [
+    "PATCH_FRONT_REF.png"
+   ]
+  },
+  {
+   "id": 4,
+   "type": "LoadImageMask",
+   "pos": [
+    0,
+    486
+   ],
+   "size": [
+    340,
+    172
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "MASK_IMAGE",
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "MASK",
+     "type": "MASK",
+     "links": [
+      5
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "LoadImageMask"
+   },
+   "widgets_values": [
+    "PATCH_MOUTH_MASK.png",
+    "red"
+   ]
+  },
+  {
+   "id": 2,
+   "type": "LoraLoader",
+   "pos": [
+    420,
+    0
+   ],
+   "size": [
+    340,
+    278
+   ],
+   "flags": {},
+   "order": 1,
+   "mode": 0,
+   "title": "LORA_CHAR",
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 1
+    },
+    {
+     "name": "clip",
+     "type": "CLIP",
+     "link": 2
+    }
+   ],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      8
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "CLIP",
+     "type": "CLIP",
+     "links": [
+      6,
+      7
+     ],
+     "slot_index": 1
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "LoraLoader"
+   },
+   "widgets_values": [
+    "PATCH_CHAR_LORA.safetensors",
+    0.9,
+    0.9
+   ]
+  },
+  {
+   "id": 5,
+   "type": "VAEEncodeForInpaint",
+   "pos": [
+    420,
+    338
+   ],
+   "size": [
+    340,
+    222
+   ],
+   "flags": {},
+   "order": 1,
+   "mode": 0,
+   "title": "INPAINT_ENCODE",
+   "inputs": [
+    {
+     "name": "pixels",
+     "type": "IMAGE",
+     "link": 3
+    },
+    {
+     "name": "vae",
+     "type": "VAE",
+     "link": 4
+    },
+    {
+     "name": "mask",
+     "type": "MASK",
+     "link": 5
+    }
+   ],
+   "outputs": [
+    {
+     "name": "LATENT",
+     "type": "LATENT",
+     "links": [
+      11
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "VAEEncodeForInpaint"
+   },
+   "widgets_values": [
+    8
+   ]
+  },
+  {
+   "id": 11,
+   "type": "CLIPTextEncode",
+   "pos": [
+    840,
+    0
+   ],
+   "size": [
+    340,
+    170
+   ],
+   "flags": {},
+   "order": 2,
+   "mode": 0,
+   "title": "VISEME_PROMPT",
+   "inputs": [
+    {
+     "name": "clip",
+     "type": "CLIP",
+     "link": 6
+    }
+   ],
+   "outputs": [
+    {
+     "name": "CONDITIONING",
+     "type": "CONDITIONING",
+     "links": [
+      9
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CLIPTextEncode"
+   },
+   "widgets_values": [
+    "PATCH: same character, mouth shape only - e.g. 'mouth wide open, saying ah'"
+   ]
+  },
+  {
+   "id": 12,
+   "type": "CLIPTextEncode",
+   "pos": [
+    840,
+    230
+   ],
+   "size": [
+    340,
+    170
+   ],
+   "flags": {},
+   "order": 2,
+   "mode": 0,
+   "title": "PROMPT_NEG",
+   "inputs": [
+    {
+     "name": "clip",
+     "type": "CLIP",
+     "link": 7
+    }
+   ],
+   "outputs": [
+    {
+     "name": "CONDITIONING",
+     "type": "CONDITIONING",
+     "links": [
+      10
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CLIPTextEncode"
+   },
+   "widgets_values": [
+    "different face, changed eyes, changed hair, extra features, lowres"
+   ]
+  },
+  {
+   "id": 14,
+   "type": "KSampler",
+   "pos": [
+    1260,
+    0
+   ],
+   "size": [
+    340,
+    388
+   ],
+   "flags": {},
+   "order": 3,
+   "mode": 0,
+   "title": "SAMPLER",
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 8
+    },
+    {
+     "name": "positive",
+     "type": "CONDITIONING",
+     "link": 9
+    },
+    {
+     "name": "negative",
+     "type": "CONDITIONING",
+     "link": 10
+    },
+    {
+     "name": "latent_image",
+     "type": "LATENT",
+     "link": 11
+    }
+   ],
+   "outputs": [
+    {
+     "name": "LATENT",
+     "type": "LATENT",
+     "links": [
+      12
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "KSampler"
+   },
+   "widgets_values": [
+    0,
+    "fixed",
+    12,
+    3.0,
+    "euler",
+    "normal",
+    1.0
+   ]
+  },
+  {
+   "id": 15,
+   "type": "VAEDecode",
+   "pos": [
+    1680,
+    0
+   ],
+   "size": [
+    340,
+    168
+   ],
+   "flags": {},
+   "order": 4,
+   "mode": 0,
+   "title": "DECODE",
+   "inputs": [
+    {
+     "name": "samples",
+     "type": "LATENT",
+     "link": 12
+    },
+    {
+     "name": "vae",
+     "type": "VAE",
+     "link": 13
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      14
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "VAEDecode"
+   },
+   "widgets_values": []
+  },
+  {
+   "id": 16,
+   "type": "SaveImage",
+   "pos": [
+    2100,
+    0
+   ],
+   "size": [
+    340,
+    144
+   ],
+   "flags": {},
+   "order": 5,
+   "mode": 0,
+   "title": "SAVE",
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 14
+    }
+   ],
+   "outputs": [],
+   "properties": {
+    "Node name for S&R": "SaveImage"
+   },
+   "widgets_values": [
+    "mouth"
+   ]
+  }
+ ],
+ "links": [
+  [
+   1,
+   1,
+   0,
+   2,
+   0,
+   "MODEL"
+  ],
+  [
+   2,
+   1,
+   1,
+   2,
+   1,
+   "CLIP"
+  ],
+  [
+   3,
+   3,
+   0,
+   5,
+   0,
+   "IMAGE"
+  ],
+  [
+   4,
+   1,
+   2,
+   5,
+   1,
+   "VAE"
+  ],
+  [
+   5,
+   4,
+   0,
+   5,
+   2,
+   "MASK"
+  ],
+  [
+   6,
+   2,
+   1,
+   11,
+   0,
+   "CLIP"
+  ],
+  [
+   7,
+   2,
+   1,
+   12,
+   0,
+   "CLIP"
+  ],
+  [
+   8,
+   2,
+   0,
+   14,
+   0,
+   "MODEL"
+  ],
+  [
+   9,
+   11,
+   0,
+   14,
+   1,
+   "CONDITIONING"
+  ],
+  [
+   10,
+   12,
+   0,
+   14,
+   2,
+   "CONDITIONING"
+  ],
+  [
+   11,
+   5,
+   0,
+   14,
+   3,
+   "LATENT"
+  ],
+  [
+   12,
+   14,
+   0,
+   15,
+   0,
+   "LATENT"
+  ],
+  [
+   13,
+   1,
+   2,
+   15,
+   1,
+   "VAE"
+  ],
+  [
+   14,
+   15,
+   0,
+   16,
+   0,
+   "IMAGE"
+  ]
+ ],
+ "groups": [],
+ "config": {},
+ "extra": {},
+ "version": 0.4
+}

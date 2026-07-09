@@ -50,12 +50,14 @@ SERVICES: dict[str, Service] = {s.name: s for s in [
         description="ComfyUI on :8188 (GPU-heavy; --novram for the 8GB 4070)",
         health_url="http://127.0.0.1:8188/system_stats",
         process_name=None,
+        # C: is the primary install; E:\AI\ComfyUI is the weekly-synced mirror
+        # (scripts/sync-comfyui.ps1).
         start_args=[
-            r"E:\AI\ComfyUI\.venv\Scripts\python.exe", "main.py",
+            r"C:\AI\ComfyUI\.venv\Scripts\python.exe", "main.py",
             "--listen", "127.0.0.1", "--port", "8188",
             "--novram", "--disable-cuda-malloc",
         ],
-        cwd=r"E:\AI\ComfyUI",
+        cwd=r"C:\AI\ComfyUI",
     ),
     Service(
         name="voice",
