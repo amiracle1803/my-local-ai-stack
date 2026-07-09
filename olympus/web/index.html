@@ -348,7 +348,7 @@ const AGENT_COLORS = ['#8f7bff','#c05cff','#ff5ca8','#ff9f45','#e8b84b','#4ade80
 const HOME_ROT_X = 0.25, HOME_VEL = 0.0018;
 let cortex = { nodes:[], edges:[], nuclei:[], rotY:0, rotX:HOME_ROT_X, vel:HOME_VEL,
                firing:-1, fireT:0, lastDrag:0,
-               zoom:1, zoomT:1, offX:0, offY:0, focus:-1, hover:-1, proj:[] };
+               zoom:1, zoomT:1, userZoom:1, userZoomT:1, offX:0, offY:0, focus:-1, hover:-1, proj:[] };
 
 function buildCortex(agents, notePaths) {
   const R = 1, nodes = [];
@@ -411,8 +411,9 @@ function drawCortex() {
     }
   }
   cortex.zoom += (cortex.zoomT - cortex.zoom) * .07;
+  cortex.userZoom += (cortex.userZoomT - cortex.userZoom) * .12;
   cortex.rotY += cortex.vel;
-  const scale = Math.min(W * .62, H) * .42 * cortex.zoom;
+  const scale = Math.min(W * .62, H) * .42 * cortex.zoom * cortex.userZoom;
   const sy = Math.sin(cortex.rotY), cyr = Math.cos(cortex.rotY);
   const sx = Math.sin(cortex.rotX), cxr = Math.cos(cortex.rotX);
   const raw = cortex.nodes.map(n => {
@@ -513,6 +514,15 @@ addEventListener('keydown', e => { if (e.key === 'Escape') releaseCortex(); });
 
 (() => { let drag = false, moved = 0, lx = 0, ly = 0;
   const cv = $('cortex');
+  // scroll to zoom out (way out) or in; double-click empty space to snap back to default
+  cv.addEventListener('wheel', e => {
+    e.preventDefault();
+    cortex.userZoomT = Math.min(3, Math.max(0.25, cortex.userZoomT * (e.deltaY > 0 ? 0.88 : 1.14)));
+  }, { passive: false });
+  cv.addEventListener('dblclick', e => {
+    const rect = cv.getBoundingClientRect();
+    if (cortexHit(e.clientX - rect.left, e.clientY - rect.top) < 0) cortex.userZoomT = 1;
+  });
   cv.addEventListener('mousedown', e => { drag = true; moved = 0; lx = e.clientX; ly = e.clientY; cv.style.cursor='grabbing'; });
   addEventListener('mouseup', e => {
     if (drag && moved < 5 && e.target === cv) {
