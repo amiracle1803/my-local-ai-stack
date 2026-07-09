@@ -793,6 +793,63 @@ so we do what the medium does, deterministically:
 - Failure contingency: 3 consecutive failures → stop stage, write scorecard
   `contingency_stop`, report which model/checkpoint failed.
 
+### 5.3b ComfyUI node & workflow plan (grounded against the real install, 2026-07-09)
+
+**Already installed at `E:\AI\ComfyUI` (verified):**
+| Piece | Role in pipeline |
+|---|---|
+| ComfyUI_IPAdapter_plus + `ip-adapter-plus_sdxl_vit-h` + CLIP-ViT-H | character reference conditioning + scene plate conditioning (dual IPAdapter) |
+| ComfyUI-WanVideoWrapper + ComfyUI-KJNodes | Wan2.2-TI2V Tier-2 motion |
+| ComfyUI-GGUF | flux1-schnell fallback, GGUF quants generally |
+| RES4LYF / rgthree / Easy-Use / ControlAltAI / Manager | samplers + QoL, no hard dependency |
+| Checkpoints: `NoobAI-XL-v1.1`, `wai-illustrious-v110` | the real anime bases on disk (**z-anime-distill from the original spec is NOT present** — see mapping below) |
+| LoRA: `Hyper-SDXL-8steps-CFG` | speed distillation — this is how "4–8 step" generation is achieved on any SDXL base |
+| LoRA: `il_anime_model_turn` | **character turnaround LoRA — the engine of the 360° reference sheets** (likely no ControlNet needed) |
+
+**Checkpoint reality mapping:** `image_primary` currently resolves to
+`wai-illustrious-v110 + Hyper-SDXL-8steps` (8 steps, cfg ~1.5–2) with
+`NoobAI-XL` as the style alternate — until the krea2 lab verdict. The
+original spec's "z-anime-distill-4step-fp8" is treated as this combo's
+predecessor.
+
+**To install (pinned commits, one at a time, import-test after each — the
+comfy_api_nodes pydantic crash in CLAUDE.md is the cautionary tale; pip deps
+go into ComfyUI's venv WITHOUT touching torch==2.6.0+cu124 / pydantic pins):**
+1. `ComfyUI-LTXVideo` (Lightricks official) — LTX Director checkpoint
+   support incl. first+last-frame conditioning. Checkpoint already on disk
+   at `E:\AI\Models\ltx23AllInOneSFWNSFWLTXDirectorID_v40` → symlink/copy
+   into `models/checkpoints`.
+2. `comfyui-wd14-tagger` — auto-captioning for LoRA datasets (Stage 1R).
+3. ControlNet `xinsir/controlnet-union-sdxl` (~2.5 GB) — **deferred**: only
+   if turnaround quality via `il_anime_model_turn` proves insufficient
+   (M4 decides; pose template PNGs ship in `workflows/poses/` either way).
+4. RealESRGAN-anime model file — final upscale (runs as external
+   ncnn-vulkan CLI, NOT a Comfy node, to keep VRAM free; same for RIFE).
+
+**Workflow templates** (`workflows/*.json`, exported in API format; every
+patchable node carries a stable title — the manifest lists them and
+`ComfyClient` validates on load, failing fast if a title is missing):
+| Template | Graph essentials | Patched titles |
+|---|---|---|
+| `character_sheet.json` | ckpt → Hyper-8step LoRA → `il_anime_model_turn` LoRA → (char LoRA on outfit re-runs) → KSampler fixed seed | `CKPT`, `PROMPT_POS/NEG`, `SEED`, `VIEW_TAG`, `LORA_CHAR` |
+| `mouth_sheet.json` | load front ref → mask from mouth bbox → inpaint (viseme prompt) ×9 | `REF_IMAGE`, `MASK_BBOX`, `VISEME_PROMPT` |
+| `scene_plate.json` | location prompt only, style LoRA, no char LoRAs | `PROMPT_POS`, `SEED_SCENE` |
+| `panel_txt2img.json` | ckpt → Hyper LoRA → style LoRA → **char LoRA ×≤2 (chained)** → IPAdapter#1 (char ref, w≈0.5) → IPAdapter#2 (scene plate, w≈0.45) → KSampler 1216×704 | `LORA_CHAR_1/2`, `IPA_CHAR_IMG`, `IPA_PLATE_IMG`, `PROMPT_POS/NEG`, `SEED` |
+| `panel_img2img_lastframe.json` | same + seed_frame latent @ denoise 0.55 | + `INIT_IMAGE`, `DENOISE` |
+| `ltx_ambient.json` / `ltx_director.json` | LTX i2v; director variant adds motion-grammar prompt + first+last frame inputs | `START_FRAME`, `END_FRAME`, `MOTION_PROMPT`, `FRAMES`, `FPS` |
+| `wan_ti2v.json` | Wan2.2-TI2V-5B fp8, 20 steps unipc, block-swap 20, cfg 5.0, 81f@16fps (original spec params) | `START_FRAME`, `MOTION_PROMPT`, `SEED` |
+| `lora_dataset_prep.json` | WD14 tagger over ref folder → caption txt sidecars (+ outfit token injection done by pipeline code) | `INPUT_DIR` |
+
+**VRAM budget per workflow (8 GB, --novram):** panel_txt2img with 2 char
+LoRAs + dual IPAdapter ≈ 6.8 GB peak → fits; OOM fallback ladder: drop
+IPAdapter#2 → 896×512 → single char LoRA (logged). Wan fp8 block-swap and
+LTX (~5 GB) fit per spec; **never co-loaded**, ComfyUI restarted between
+model families (generate-safe pattern).
+
+**Smoke suite:** `model_lab test-workflows` queues every template once with
+tiny params after any node install/update — a broken node pack is caught in
+minutes, not mid-episode.
+
 ### 5.4 `model_lab.py` — model & LoRA testing/training flow
 - `lab test-model <ckpt>`: fixed 12-prompt suite → grid, CLIP adherence
   scores, seconds/image → `lab_results.sqlite`.
@@ -865,9 +922,10 @@ world-bible portrait button → subtitles → comfyui path from config.
    tiers; **Tier 1 LTX ambient motion is the floor for every shot** (Ken
    Burns rejected by Amir — Tier 0 is a clean static hold used only as the
    degradation path).
-5. Which SDXL checkpoint is the current z-anime default in your ComfyUI?
-   (The original spec says `z-anime-distill-4step-fp8` — confirm the file
-   exists in `E:\AI\ComfyUI\models\checkpoints\`.)
+5. ~~Which checkpoint?~~ → RESOLVED by inventory (§5.3b): z-anime-distill is
+   NOT on disk; actual bases are `wai-illustrious-v110` (primary) and
+   `NoobAI-XL-v1.1`, made fast via the `Hyper-SDXL-8steps` LoRA. krea2
+   still pending its lab verdict as a possible replacement.
 6. Sample script to use as the golden test story?
 7. Voice: any characters whose voice you already know you want pinned
    (e.g. protagonist = specific Kokoro id)? Pins go in voices.json as
