@@ -545,14 +545,19 @@ alignment timeline.
 #### 3C.1 Motion tiers (budget-driven — not every shot animates)
 | Tier | What | Engine | Cost | Default for |
 |---|---|---|---|---|
-| 0 | Static panel + Ken Burns (slow zoompan/parallax) | ffmpeg only | free | wide/establishing/detail shots |
-| 1 | Ambient loop 3–4 s (hair drift, cloth, particles, rain) | LTX i2v short | ~1–3 min/shot | mood/emotional shots |
+| 0 | Clean static hold (NO fake zoom/pan — Ken Burns explicitly banned per Amir) | ffmpeg still | free | only budget-exhausted or user-locked shots |
+| 1 | Ambient motion 3–4 s (hair drift, cloth, particles, rain, breathing idle) | LTX i2v short | ~1–3 min/shot | **the default floor for ALL shots** — wide, detail, mood |
 | 2 | Action motion, start-frame = panel, optional **end-frame = next panel** (LTX first+last-frame conditioning → seamless shot-to-shot flow) | LTX Director / Wan2.2-TI2V-5B | ~4–8 min/shot | shot_type=action |
-| 3 | Dialogue close-up with **full lip sync** | Tier 0/1/2 base + mouth compositing (below) | + seconds/shot | close_up with dialogue, lipsync=true |
+| 3 | Dialogue close-up with **full lip sync** | Tier 1/2 base + mouth compositing (below) | + seconds/shot | close_up with dialogue, lipsync=true |
+- **Every shot gets real generated motion by default** (Tier 1 floor).
+  Tier 0 exists only as the degradation path: motion budget exhausted, LTX
+  contingency-stopped, or a user lock — and it is a clean hold, never a
+  synthetic zoompan.
 - Auto-assignment from shot_type + dialogue presence; per-shot override
   (`motion_tier`, `motion_prompt`) in storyboard; **motion budget**:
   `[animation] max_animated_seconds_per_block` caps Tier 1–2 spend, predictor
-  shows estimated GPU-hours before the stage runs.
+  shows estimated GPU-hours before the stage runs (Tier-1-everything on a
+  20-min episode ≈ 200 shots ≈ 5–10 GPU-hours — surfaced up front).
 - Models per original spec: Wan2.2-TI2V-5B fp8 KJ (20 steps, unipc,
   block-swap 20, cfg 5.0, 81 frames @ 16 fps — these exact params fit 8 GB).
   LTX checkpoint already on disk: `E:\AI\Models\ltx23AllInOneSFWNSFWLTXDirectorID_v40`.
@@ -571,7 +576,7 @@ model, so gestures land between lines, not over them.
 Video models generate at native rates (Wan 16 fps, LTX 24/25). Project fps
 is 24–60 (blueprint). Chain: native → **RIFE interpolation** (rife-ncnn-
 vulkan, free, fast, tiny VRAM) ×2/×3 → exact project fps conform via ffmpeg
-(`minterpolate` only as fallback). Ken Burns (Tier 0) renders directly at
+(`minterpolate` only as fallback). Static holds (Tier 0) render directly at
 project fps. The chain used is recorded in the clip sidecar.
 
 #### 3C.4 Full lip sync — anime-native design
@@ -729,8 +734,9 @@ world-bible portrait button → subtitles → comfyui path from config.
 3. Music: acceptable to start with "bring your own wav" until a local
    musicgen is added?
 4. ~~Video from day one?~~ → RESOLVED: Stage 3C designed in full with motion
-   tiers; Tier 0 (Ken Burns) means an episode is watchable before any video
-   model runs — animation upgrades shots incrementally.
+   tiers; **Tier 1 LTX ambient motion is the floor for every shot** (Ken
+   Burns rejected by Amir — Tier 0 is a clean static hold used only as the
+   degradation path).
 5. Which SDXL checkpoint is the current z-anime default in your ComfyUI?
    (The original spec says `z-anime-distill-4step-fp8` — confirm the file
    exists in `E:\AI\ComfyUI\models\checkpoints\`.)
