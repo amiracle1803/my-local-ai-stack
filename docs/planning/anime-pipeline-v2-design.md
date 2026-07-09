@@ -291,19 +291,25 @@ compatibility), style preset, resolution.
   scene, temp 0.5, word-target enforcement ±30%, automated per-scene quality
   checks) → Integration (no LLM; scene markers + name/location/word-count
   validation). Blueprint Review touchpoint = pause-gate (auto-approve by
-  default per §0.2).
+  default per §0.2). **v2 prose-quality loop (improvement #5)**: each scene
+  runs draft → self-critique (temp 0.2: "list the 3 weakest sentences and
+  why") → targeted revise (temp 0.5) — two extra cheap calls per scene; the
+  prose prompt carries 1–2 short style exemplar passages (per-project,
+  editable) to anchor tone.
 - **0A TRANSFORM** (source → original): 4-pass — Mechanics Extraction (temp
   0.1, first 4000 chars, mechanics-only) → Originality Design (temp 0.5,
   transformation map) + **legal proximity score** (scoring table in original
   spec; <75 warn, **<50 hard gate always pauses**, even in full-auto) →
   Blueprint → Prose (as 0B).
 - **0I IMPORT** (existing panels → story): 4-pass — Panel Inventory (no LLM;
-  natural sort, blank/splash detection, **60-panel cap** with
-  first/last/range choice) → Per-Panel Vision (qwen2.5vl:7b, sequential,
-  3-tier failure handling) → **Character Identity Resolution** (fingerprint
-  clustering, uncertain groupings; auto=treat-as-same) → Screenplay Synthesis
-  (every panel = exactly one shot; coverage check; banned-pattern filter;
-  fair-use score).
+  natural sort, blank/splash detection) → Per-Panel Vision (qwen2.5vl:7b,
+  sequential, 3-tier failure handling) → **Character Identity Resolution**
+  (fingerprint clustering, uncertain groupings; auto=treat-as-same) →
+  Screenplay Synthesis. **v2 (improvement #7): the 60-panel cap is removed**
+  via hierarchical synthesis — panels are grouped into scenes first (setting
+  similarity), synthesis runs per scene (≤10 panels per call), scene
+  screenplays merged; no single call ever nears context limits. Coverage
+  check, banned-pattern filter, and fair-use score unchanged.
 - Chunking (all modes): chonkie, 8000-char chunks / 400-char overlap (the
   original's numbers), offsets stored in blueprint for reproducibility.
   **No truncation ever.**
@@ -323,6 +329,13 @@ temperatures, with these **v2 deltas** layered on:
 - contradiction auto-resolution default per §0.2 (majority evidence), hard
   gate on blocking appearance conflicts
 - voice assignment uses the original's full Kokoro voice table + rules
+- **fact provenance (improvement #9)**: every extracted fact/claim carries
+  `{episode, chunk_index}` provenance; contradiction reports cite both
+  sources ("ep1 ch.3 says X, ep3 ch.11 says Y")
+- **pronunciation lexicon (improvement #6)**: one call generates phoneme
+  spellings for every character/location/term name → `lexicon.json`;
+  applied at every TTS call (misaki phoneme overrides) so invented names are
+  pronounced consistently; user-editable in the world bible UI
 
 Order of operations (all via `PipelineLLM`):
 1. **Character discovery**: map over ALL chunks → per-chunk character
@@ -388,6 +401,14 @@ quality audit (3 weakest improved, technique conflicts fixed, >2-sentence
 trims — all auto-applied through the filter).
 
 **v2 deltas** on top of the original steps:
+0a. **Per-scene dialogue calls (improvement #4)** replace the original's
+   single all-episode dialogue call: one call per scene with compact "speech
+   style cards" for present characters only — prevents voice bleed on the 8B
+   model at long context. Global first-60-chars dedup still runs across the
+   whole episode afterward.
+0b. **Evolving banned-pattern list**: audit findings append new clichés to a
+   per-project (and opt-in global) banned list that the regex filter loads —
+   the filter gets stricter every episode.
 1. **Scene segmentation**: reuse v1 `script_parser.py` logic (port from
    E:\Projects\anime-pipeline-updated) upgraded to chunked full coverage.
    Scene = location/time/cast change.
@@ -424,6 +445,12 @@ trims — all auto-applied through the filter).
    (once generated) for img2img continuity in 3B.
 4. Storyboard detail per shot: facial change notes, posture, character
    audio-thoughts (rendered as inner-voice narration), movement.
+4b. **SFX tagging (improvement #8)**: shot descriptions are scanned for
+   foley-worthy events against a keyword→sound map (door, blade clash,
+   explosion, rain, footsteps, glass…); matches above a confidence threshold
+   become `timeline.sfx` entries pointing into a local CC0 sound library
+   (`assets/sfx/`, manifest with license flags). Conservative by design —
+   silence beats wrong foley.
 5. **Panel state machine**: pending → generated → (flagged → regenerating →
    generated) → reviewed → locked. Locked panels are never touched by
    automation. Missing panels (file lost/corrupt) auto-detected → regenerated.
@@ -431,20 +458,54 @@ trims — all auto-applied through the filter).
    (validates the 11-hour ceiling: blocks × block_seconds; warn > 11 h).
 
 ### Stage 3B — Images (`stage3b_images.py`) [GPU]
-1. Per shot (skip locked): txt2img via `panel_txt2img.json`, or
-   img2img via `panel_img2img_lastframe.json` when the shot opens a block
-   with a `seed_frame` (denoise 0.55 — keeps composition continuity without
-   copying content).
-2. Inputs: assembled sd_prompt + style LoRA + fixed per-character seeds
-   blended by hashing shot id (reproducible; stored in the sidecar json).
-3. **Prompt adherence check**: CLIP-score panel vs prompt (comfy node or
-   local open_clip); score < threshold → one auto-retry with enhanced prompt
-   (prompt-enhancer call), else flag in storyboard.
-4. Consistency check: character embedding similarity vs reference sheet
-   (insightface/ArcFace on anime faces is weak — use CLIP image-image
-   similarity vs the character's front reference; < threshold → flag).
-5. VRAM discipline as Stage 1R. Progress persisted every panel (resume-safe).
-6. Scorecard: panels generated, retry rate, adherence avg, consistency avg.
+
+**Aspect ratio (v2 fix)**: the original spec's 832×1216 is portrait manga —
+wrong for video. Default generation is **landscape 1216×704** (SDXL-native),
+letter-perfect into a 1280×720 timeline; optional 1344×768; portrait kept
+only for a future "manga mode". Final 1080p delivery via free upscaler
+(RealESRGAN-anime) at assembly if requested.
+
+**Scene environment lock (v2 addition — background consistency):**
+- Per scene, before any shot renders: generate ONE **location master plate**
+  (the scene's location sd_prompt + scene lighting/time-of-day, no
+  characters). Stored `panels/<block>/_plates/<scene-id>.png`.
+- Every shot in the scene conditions on that plate: IPAdapter (image prompt,
+  weight ~0.45) + the scene's fixed **environment token block** (lighting,
+  palette, time of day — composed once per scene, appended verbatim to every
+  shot prompt in that scene).
+- Scene-level base seed: `hash(scene_id)` — shot seeds derive from it, so
+  the whole scene samples from a nearby latent neighborhood.
+
+Per-shot generation:
+1. Per shot (skip locked): txt2img via `panel_txt2img.json`, or img2img via
+   `panel_img2img_lastframe.json` when the shot opens a block with a
+   `seed_frame` (denoise 0.55).
+2. Inputs: assembled sd_prompt + style LoRA + **per-character LoRA when
+   trained (v2 improvement #1)** + **IPAdapter character reference** (front
+   ref sheet as image prompt, weight ~0.5) + scene plate conditioning +
+   per-character seeds blended with the scene base seed (all reproducible,
+   stored in the sidecar json).
+3. **Vision-judge QC (v2 improvement — replaces CLIP-only checks):**
+   qwen2.5vl:7b receives the rendered panel + a structured checklist:
+   - "Which characters are visible?" → must equal the shot's
+     `characters_in_frame` (**right characters in frame — hard check**;
+     wrong cast → auto-retry, twice → flag)
+   - outfit correct per world bible? · background matches the scene plate
+     description? · character count correct? · composition roughly as
+     described?
+   Each answer scored; CLIP image-image similarity vs character refs and vs
+   the scene plate kept as cheap secondary signals.
+4. Retry ladder: enhanced prompt (enhancer call, anchors immutable) →
+   re-seed → flag in storyboard for lock/manual.
+5. **Per-character LoRA training (improvement #1)**: once Stage 1R refs
+   exist, `model_lab train-lora --character <id>` trains a lightweight
+   character LoRA (rank 8, ~800 steps) from the 10+ refs; promoted into
+   generation when it beats IPAdapter-only on the vision-judge consistency
+   score (A/B over 12 fixed prompts).
+6. VRAM discipline as Stage 1R. Progress persisted every panel (resume-safe).
+7. Scorecard: panels generated, retry rate, vision-judge pass %, wrong-cast
+   incidents (must trend to 0), background-consistency avg, character
+   consistency avg.
 
 ### Stage 4 — Voice system (`stage4_audio.py`, `pipeline/align.py`) [CPU/light GPU]
 
@@ -545,7 +606,7 @@ alignment timeline.
 #### 3C.1 Motion tiers (budget-driven — not every shot animates)
 | Tier | What | Engine | Cost | Default for |
 |---|---|---|---|---|
-| 0 | Clean static hold (NO fake zoom/pan — Ken Burns explicitly banned per Amir) | ffmpeg still | free | only budget-exhausted or user-locked shots |
+| 0 | **Oscillating drift** (per Amir): the still slowly translates 0→350 px in one direction over the shot; the NEXT still drifts the opposite direction — alternating oscillation across consecutive stills. Linear translate only, constant speed, no zoom (Ken Burns stays banned). Axis vertical by default, `[animation] drift_axis` configurable; 350 px scaled proportionally at other resolutions (render on an oversized canvas, crop-translate via ffmpeg) | ffmpeg | free | budget-exhausted or user-locked shots |
 | 1 | Ambient motion 3–4 s (hair drift, cloth, particles, rain, breathing idle) | LTX i2v short | ~1–3 min/shot | **the default floor for ALL shots** — wide, detail, mood |
 | 2 | Action motion, start-frame = panel, optional **end-frame = next panel** (LTX first+last-frame conditioning → seamless shot-to-shot flow) | LTX Director / Wan2.2-TI2V-5B | ~4–8 min/shot | shot_type=action |
 | 3 | Dialogue close-up with **full lip sync** | Tier 1/2 base + mouth compositing (below) | + seconds/shot | close_up with dialogue, lipsync=true |
@@ -636,7 +697,13 @@ so we do what the medium does, deterministically:
 8. **Next-episode carryover**: button writes `next_episode` in timeline +
    copies world bible + character refs + style LoRA pointer into a new
    project pre-seeded (new story_id, guarded lineage link `parent_story_id`).
-9. Scorecard: render time, segments, final duration/size vs prediction.
+9. **Chapter markers**: scene boundaries become MP4 chapter marks (ffmpeg
+   metadata) — free navigation for long videos.
+10. **Farm mode (improvement #10)**: `run.py render --farm` processes blocks
+   strictly in story order and publishes rolling partials
+   (`video/partial_0001-0040.mp4`) — on multi-hour projects you watch act
+   one while act three still renders; n8n can drive this nightly.
+11. Scorecard: render time, segments, final duration/size vs prediction.
 
 ## 5. Cross-cutting systems
 
@@ -730,7 +797,9 @@ world-bible portrait button → subtitles → comfyui path from config.
 
 1. ~~Narrator voice~~ → RESOLVED: per-project choice at intake, default
    `af_bella` (§4.4.1).
-2. Default resolution: 1280×720 (fits VRAM comfortably) or 1080p (slower)?
+2. ~~Default resolution~~ → RESOLVED: generation at landscape 1216×704
+   (SDXL-native) into a 1280×720 timeline; optional 1080p final upscale via
+   RealESRGAN-anime at assembly (§Stage 3B).
 3. Music: acceptable to start with "bring your own wav" until a local
    musicgen is added?
 4. ~~Video from day one?~~ → RESOLVED: Stage 3C designed in full with motion
