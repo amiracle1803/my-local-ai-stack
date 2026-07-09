@@ -14,3 +14,7 @@ crawl4ai>=0.9           # JS-capable web crawler. Installed -- also run once:
                         # for trafilatura; verified compatible at runtime.
 # marker-pdf>=1.0       # heavy ML PDF->Markdown for very complex layouts (pulls torch)
 # langfuse>=2.50        # LLM observability/tracing if you run the Langfuse container
+
+# --- dev / test tooling ---
+pytest>=8.0             # test runner for the anime pipeline v2 suite
+                        # (olympus/engines/pipeline/tests). Installed 2026-07-09.
