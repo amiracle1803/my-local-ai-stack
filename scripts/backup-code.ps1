@@ -29,14 +29,16 @@ if ($LASTEXITCODE -ne 0) { Write-Warning "git push failed — check network/cred
 
 # 2. zip tracked source into the vault on C:
 New-Item -ItemType Directory -Force $vaultDir | Out-Null
-git archive --format=zip -o (Join-Path $vaultDir $name) HEAD
-Write-Output "[ok] vault snapshot: $vaultDir\$name"
+$zip = Join-Path $vaultDir $name
+git archive --format=zip -o "$zip" HEAD
+if (Test-Path $zip) { Write-Host "[ok] vault snapshot: $zip" }
+else { Write-Warning "vault snapshot FAILED: $zip was not created" }
 
 # 3. copy to E: backup (best effort)
-if (Test-Path 'E:\') {
+if ((Test-Path 'E:\') -and (Test-Path $zip)) {
     New-Item -ItemType Directory -Force $eDir | Out-Null
-    Copy-Item (Join-Path $vaultDir $name) $eDir
-    Write-Output "[ok] E: snapshot:    $eDir\$name"
+    Copy-Item $zip $eDir
+    Write-Host "[ok] E: snapshot:    $eDir\$name"
 } else {
     Write-Warning "E: drive not present — E: snapshot skipped. Re-run when it's back."
 }
