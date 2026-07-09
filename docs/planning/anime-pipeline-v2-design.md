@@ -369,11 +369,27 @@ Order of operations (all via `PipelineLLM`):
     avg confidence.
 
 ### Stage 1R — References (`stage1r_references.py`) [GPU]
-1. For each character×outfit: generate **10+ reference images** via
-   `workflows/character_sheet.json` — 8-view 360° turnaround grid (front,
-   3/4L, side L, back-3/4L, back, back-3/4R, side R, 3/4R) + 2 expression
-   sheets. Fixed seed per character (stored) for reproducibility.
+1. **Role-scaled reference sets (HARD REQUIREMENT per Amir)**:
+   - Every character: **minimum 10 frames**, full-body 360° turnaround
+     (8 views: front, 3/4L, side L, back-3/4L, back, back-3/4R, side R,
+     3/4R) + 2 expression sheets — via `workflows/character_sheet.json`,
+     fixed per-character seed.
+   - **Main characters (role = protagonist/antagonist/major-recurring):
+     30–40 frames** — the 360° set plus expression range (joy, anger, fear,
+     grief, resolve, smirk), 3 poses (standing, action, seated), and one
+     set per owned outfit. Counts enforced by the stage gate; a main
+     character with <30 frames fails the scorecard.
 2. Same for each recurring location + asset (4+ angles).
+2b. **Per-character LoRA — MANDATORY for every character (v2 hard
+   requirement)**: after refs pass QC, `model_lab train-lora --character`
+   runs for each character. Dataset = that character's full ref set,
+   captioned with outfit tokens (so identity and clothing stay separable).
+   Config: rank 8, ~800 steps for 10-frame minors, rank 16, ~1500 steps for
+   30-40-frame mains. Checkpoints:
+   `E:\AI\Models\loras\<slug>\char-<id>.safetensors`. Stage 3B will not run
+   until every character appearing in the screenplay has a trained LoRA
+   (structural gate); IPAdapter remains as *additional* conditioning, not a
+   substitute.
 3. **Style lock**: generate 10+ style reference images from style preset;
    prepare LoRA dataset (`lora_dataset_prep.json` — captions via WD14 tagger
    node); train style LoRA with kohya_ss CLI (checkpoint in
@@ -497,11 +513,11 @@ Per-shot generation:
    the scene plate kept as cheap secondary signals.
 4. Retry ladder: enhanced prompt (enhancer call, anchors immutable) →
    re-seed → flag in storyboard for lock/manual.
-5. **Per-character LoRA training (improvement #1)**: once Stage 1R refs
-   exist, `model_lab train-lora --character <id>` trains a lightweight
-   character LoRA (rank 8, ~800 steps) from the 10+ refs; promoted into
-   generation when it beats IPAdapter-only on the vision-judge consistency
-   score (A/B over 12 fixed prompts).
+5. **Per-character LoRAs are mandatory** (trained in Stage 1R §2b — Stage 3B
+   refuses to start without them). Generation stacks: character LoRA(s) for
+   the shot's cast (max 2, matching the 2-character prompt rule) + style
+   LoRA + IPAdapter reference as extra glue. A/B against the vision-judge
+   consistency score is still logged per episode to catch LoRA regressions.
 6. VRAM discipline as Stage 1R. Progress persisted every panel (resume-safe).
 7. Scorecard: panels generated, retry rate, vision-judge pass %, wrong-cast
    incidents (must trend to 0), background-consistency avg, character
@@ -512,6 +528,49 @@ Per-shot generation:
 **Design goal: every character owns a unique, deterministic voice for the
 life of the series, with emotional delivery and a phoneme timeline that
 Stage 3C's lip sync consumes.**
+
+#### 4.3.9 Wardrobe & asset registry (v2 hard requirement — clothing consistency)
+
+**Storage** (per project, carried across episodes via next-episode
+carryover):
+```
+worldbible/
+├── wardrobe/<char-id>/<outfit-id>/
+│   ├── manifest.json      # outfit sd_prompt, material (from world/class),
+│   │                      # first_scene, evidence quote, implied: true|false
+│   └── ref_*.png          # ≥6 refs of the character IN this outfit
+│                          # (front/back/side + detail crops of distinctive
+│                          # elements: emblem, trim, armor plates)
+└── assets/<asset-id>/
+    ├── manifest.json      # sd_prompt, category (weapon/prop/vehicle/emblem),
+    │                      # owner char (optional), recurring: bool
+    └── ref_*.png          # 4+ angles; hero props (protagonist's weapon
+                           # etc.) get 10+ and their own asset LoRA
+```
+- Outfit refs are part of the character's LoRA dataset, captioned with a
+  unique outfit token (`outfit_rin_academy`, `outfit_rin_battle`) — the LoRA
+  learns identity and clothing separably, so prompting the outfit token
+  reproduces exact clothing.
+
+**Outfit switching — story-driven (per Amir: switch when the story states it
+or heavily implies it):**
+1. Stage 1 extracts **outfit-change events** while profiling:
+   - *explicit*: "changed into", "put on", "wearing her ceremonial robes"
+   - *heavily implied* (each with an evidence quote, flagged
+     `implied: true`): time skip/new day, bathing/waking scenes, battle
+     damage, weather shift (rain/snow → cloak), formal event, disguise,
+     captivity, promotion/class change
+2. The screenplay carries a resolved **`outfit_map`** per scene:
+   `{char_id: outfit_id}` — computed by walking scenes in order and applying
+   change events; every entry stores its evidence + provenance.
+3. Stage 2 prompt assembly reads the scene's outfit_map and uses **that
+   outfit's sd_prompt + LoRA token** — never `clothing_primary` blindly.
+4. Vision-judge QC checks the *scene's mapped outfit*, not the default one;
+   wrong-outfit panels are treated like wrong-cast (retry → flag).
+5. Implied switches surface in the Studio wardrobe UI (evidence quote +
+   accept/override); in full-auto they apply but stay marked for later
+   review. New outfits discovered mid-story trigger an incremental Stage 1R
+   run (refs + LoRA dataset update) before their scenes render.
 
 #### 4.4.1 Voice identity registry
 Every character's voice is a **VoiceSpec**, stored in the world bible and in
@@ -766,7 +825,7 @@ so we do what the medium does, deterministically:
 | M1 | Stage 0B Generate (3-pass) + chunking | 50k-word script chunks with zero loss; blueprint→prose→integration passes validations on a sample brief |
 | M2 | Stage 1 world bible (original Steps 1–5 + v2 deltas) | On sample script: all named characters found (incl. late-script); era inferred with evidence; relationship web non-empty; contradiction auto-resolution logged; every character has valid 40-60-word sd_prompt + voice id |
 | M3 | Stage 2 screenplay (original Steps 1–5) | 120-word SD prompt budget enforced (unit tests); banned-pattern filter catches seeded bad narrations; audit improves 3 weakest (scores prove it); speech-style + dedup flags work |
-| M4 | ComfyClient + model_lab + Stage 1R refs | **krea2 lab report (test/stress/speed) decides primary model**; 10+ turnaround refs for 2 characters; VRAM-safe across 30 gens unattended; fallback chain triggers after 5 seeded failures |
+| M4 | ComfyClient + model_lab + Stage 1R refs + wardrobe | **krea2 lab report (test/stress/speed) decides primary model**; 10+ turnaround refs for a minor + 30-40 for a main character; **character LoRAs trained for both (mandatory gate)**; an outfit-change event produces a second outfit with its own refs + token; VRAM-safe across 30 gens unattended; fallback chain triggers after 5 seeded failures |
 | M5 | Stage 3 + 3B | Blocks ordered first/ending/infill; panels for a 3-scene story; locks respected on re-run; seed-frame continuity visible |
 | M6 | Stage 4 voice system | Every character has a distinct VoiceSpec (distinctness gate passes); blends render; delivery transforms audible; whisperX alignment ≥ 90% coverage; durations written back |
 | M6.5 | Stage 3C animation + lip sync | Mouth sheets generated for 2 characters; a Tier-3 dialogue shot plays with ≥85% viseme/voice overlap; a Tier-2 LTX shot uses start+end frame conditioning; RIFE conforms to project fps |
