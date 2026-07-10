@@ -174,6 +174,9 @@ class PipelineLLM:
             "messages": messages,
             "stream": False,
             "keep_alive": KEEP_ALIVE_S,
+            "think": False,  # original spec: all stage 0-2 qwen3:8b calls run think:false;
+            # harmless no-op for non-thinking models (llama3.1:8b) -- verified against
+            # a live Ollama instance rather than assumed.
             "options": {"temperature": temperature},
         }
         if format_json:

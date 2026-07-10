@@ -60,12 +60,15 @@ def test_run_stage_gate_blocks_before_notimplemented(tmp_path):
         run.run_stage("demo", "stage1", projects_dir=projects)
 
 
-def test_run_stage0_reaches_stub(tmp_path):
+def test_run_stage0_requires_brief(tmp_path):
     script = _make_script(tmp_path)
     projects = tmp_path / "projects"
     run.new_project("demo", script, fps=24, projects_dir=projects)
-    # stage0 has no predecessor -> passes gate -> hits the M1+ stub.
-    with pytest.raises(NotImplementedError):
+    # stage0 has no predecessor -> passes gate -> stage0 (M1: real, mode 0B)
+    # refuses to run without a creative brief.
+    from pipeline.stage0_intake import Stage0Error
+
+    with pytest.raises(Stage0Error):
         run.run_stage("demo", "stage0", projects_dir=projects)
 
 

@@ -24,6 +24,7 @@ _ENGINE_ROOT = Path(__file__).resolve().parent
 if str(_ENGINE_ROOT) not in sys.path:
     sys.path.insert(0, str(_ENGINE_ROOT))
 
+from pipeline import stage0_intake  # noqa: E402
 from pipeline.blueprint import (  # noqa: E402
     STAGE_ORDER,
     Blueprint,
@@ -33,12 +34,14 @@ from pipeline.blueprint import (  # noqa: E402
 from pipeline.blueprint import StoryPollutionError  # noqa: E402
 from pipeline.config import BannedModelError, PipelineConfig  # noqa: E402
 from pipeline.scores import Scores, SkippedStageError  # noqa: E402
+from pipeline.stage0_intake import Stage0Error  # noqa: E402
 
 # Known pipeline failures reported cleanly (no traceback) with exit code 2.
 _CLEAN_ERRORS = (
     StoryPollutionError,
     SkippedStageError,
     BannedModelError,
+    Stage0Error,
     FileExistsError,
     FileNotFoundError,
     NotImplementedError,
@@ -96,8 +99,12 @@ def run_stage(
     stage: str,
     *,
     projects_dir: str | Path | None = None,
-) -> None:
-    """Run one stage. M0: pollution guard -> gate -> NotImplementedError."""
+    brief_path: str | Path | None = None,
+    config: PipelineConfig | None = None,
+) -> dict | None:
+    """Run one stage. M1: stage0 (mode 0B, generate-from-brief) is real; all
+    other stages remain pollution-guard -> gate -> ``NotImplementedError``
+    stubs until their milestone lands."""
     if stage not in STAGE_ORDER:
         raise ValueError(f"unknown stage {stage!r}; valid: {STAGE_ORDER}")
     project_dir = _projects_root(projects_dir) / slug
@@ -108,15 +115,20 @@ def run_stage(
     #    caught regardless of ledger state.
     verify_story_guard(project_dir)
 
-    # 2. Structural stage gate.
+    # 2. Structural stage gate, then (for implemented stages) the real work --
+    #    both share one Scores handle so the stage can record metrics.
     scores = Scores(project_dir / "scores.sqlite")
     try:
         scores.require_stage(stage)
+
+        if stage == "stage0":
+            cfg = config or PipelineConfig.load()
+            return stage0_intake.run(project_dir, cfg, scores, brief_path=brief_path)
+
+        # 3. No stage implemented yet.
+        raise NotImplementedError(f"{stage} built in M1+")
     finally:
         scores.close()
-
-    # 3. No stage implemented yet.
-    raise NotImplementedError(f"{stage} built in M1+")
 
 
 # --------------------------------------------------------------------------
@@ -164,7 +176,9 @@ def _cmd_report(args: argparse.Namespace) -> int:
 
 
 def _cmd_run(args: argparse.Namespace) -> int:
-    run_stage(args.slug, args.stage)
+    result = run_stage(args.slug, args.stage, brief_path=args.brief)
+    if result is not None:
+        print(json.dumps(result, indent=2))
     return 0
 
 
@@ -182,9 +196,18 @@ def build_parser() -> argparse.ArgumentParser:
     p_rep.add_argument("slug")
     p_rep.set_defaults(func=_cmd_report)
 
-    p_run = sub.add_parser("run", help="run a stage (M0: gate + stub)")
+    p_run = sub.add_parser("run", help="run a stage (M1: stage0 real, rest gate + stub)")
     p_run.add_argument("slug")
     p_run.add_argument("stage", help=f"one of {STAGE_ORDER}")
+    p_run.add_argument(
+        "--brief",
+        default=None,
+        help=(
+            "stage0 only (mode 0B): path to a creative brief file (frontmatter: "
+            "word_target [required], style_exemplars [optional]). Omit on reruns "
+            "once input/brief.md already exists for the project."
+        ),
+    )
     p_run.set_defaults(func=_cmd_run)
 
     return parser
