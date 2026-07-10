@@ -17,14 +17,16 @@ fences, no commentary before or after):
   "name": "{character_name}",
   "aliases": ["any shortened names, nicknames, or titles used for them"],
   "appearance": {{
-    "hair": "exact, thumbnail-recognizable description",
-    "eyes": "exact, thumbnail-recognizable description",
-    "skin": "exact, thumbnail-recognizable description",
-    "build": "exact, thumbnail-recognizable description",
-    "clothing_primary": "their default/most-worn outfit, exact",
-    "distinguishing_feature": "one unmistakable visual marker (scar, mark, prosthetic, etc), or 'none' if none is stated"
+    "hair": "exact hair color + length/style",
+    "eyes": "exact eye color/shape",
+    "skin": "exact skin tone",
+    "build": "exact body build (e.g. slender, athletic, stocky)",
+    "clothing_primary": "their default/most-worn outfit, concrete",
+    "distinguishing_feature": "one unmistakable visual marker (scar, mark, prosthetic, etc)"
   }},
-  "sd_prompt": "40-60 words describing ONLY appearance (hair, eyes, build, outfit, distinguishing features) for a diffusion model -- no camera angles, no scene/lighting/action description",
+  "appearance_invented": true or false,
+  "sd_prompt": "a single prose sentence or two, roughly 40-60 words, describing ONLY physical appearance (hair, eyes, skin, build, outfit, distinguishing features), reusing the exact adjectives you put in the appearance fields above. NO camera terms, NO lighting, NO mood, NO pose, NO quality tags (no 'dramatic lighting', 'cinematic', 'detailed', 'anime style', 'dynamic pose', 'high contrast', 'background', 'scene', etc). Do NOT mention the word count anywhere in the text",
+  "voice_id_suggestion": "one voice id chosen from the VOICE TABLE below",
   "speech_style": {{
     "category": "one short label for how they talk (e.g. terse, formal, sarcastic, warm)",
     "avg_words_per_line": "short | medium | long",
@@ -44,6 +46,27 @@ fences, no commentary before or after):
   "first_episode": "a short label for the episode/story this text is from, or 'unknown' if not stated"
 }}
 
-Base every field strictly on the passages given. If a field is not evidenced
-in the text, use an empty string, "none", or "unknown" rather than inventing
-detail that contradicts the source.
+APPEARANCE RULES (important):
+- EVERY appearance field must be a concrete, non-empty value. Never write
+  "none", "unknown", or leave a field blank.
+- Fill each field from the script passages where they describe it.
+- Where the script gives NO information for a field, INVENT something ordinary
+  and genre-appropriate that fits the character's role, personality, and the
+  world implied by the passages (a plausible hair/eye/skin, a sensible build,
+  a fitting outfit, one small distinguishing feature).
+- Set `appearance_invented` to true if you invented ANY appearance detail that
+  the script did not state; set it to false only if every appearance field is
+  directly grounded in the passages.
+
+VOICE TABLE (pick the single best-fitting id for `voice_id_suggestion`):
+- Male + formal/deep -> am_eric, am_onyx
+- Male + young/energetic -> am_adam, am_puck
+- Male + villain/grave -> am_michael, am_fenrir
+- Female + protagonist/warm -> af_heart, af_nova
+- Female + cool/analytical -> af_jessica, af_kore
+- Female + narrator-style -> af_bella, af_nicole
+- British male -> bm_george, bm_lewis
+- British female -> bf_emma, bf_isabella
+
+Base non-appearance fields strictly on the passages given; use "none"/"unknown"
+only for the non-appearance fields when they are not evidenced.

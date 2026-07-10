@@ -53,6 +53,7 @@ class Character(BaseModel):
     name: str
     aliases: list[str] = Field(default_factory=list)
     appearance: Appearance = Field(default_factory=Appearance)
+    appearance_invented: bool = False  # true if any appearance field was invented (not in script)
     sd_prompt: str = ""  # 40-60 words, appearance only, no camera/scene/lighting
     voice_id_suggestion: str = ""
     speech_style: SpeechStyle = Field(default_factory=SpeechStyle)

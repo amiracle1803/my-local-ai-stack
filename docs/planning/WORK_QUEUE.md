@@ -40,6 +40,12 @@ never run git.
    events). Biggest stage; split into M2a (scan+profiles) / M2b (world+
    contradictions+expansion) if the order gets long.
 
+## KNOWN ISSUE (blocks M4 LoRA training, not urgent)
+- kohya at `E:\AI\kohya_ss`: venv is sound (torch 2.6.0+cu124, CUDA True) but
+  the train scripts fail argument parsing on `--help`. Diagnose before M4
+  (item 2 of node-additions-plan §B depends on it). Likely a sd-scripts
+  version/entrypoint change — check the repo's current CLI entry points.
+
 ## STANDING FACTS FOR BUILDERS
 - ComfyUI: `C:\AI\ComfyUI` (git checkout, now 0.27.1), venv pins
   torch==2.6.0+cu124 / pydantic 2.12.3 must survive. `E:\AI\ComfyUI` = weekly
