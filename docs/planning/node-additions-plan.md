@@ -7,8 +7,8 @@
 
 | Piece | State | Role |
 |---|---|---|
-| ComfyUI core 0.24 @ `C:\AI\ComfyUI` (E: = weekly mirror) | running, service-managed :8188 | everything |
-| Core LTX nodes (LTXVImgToVideo/Conditioning/Scheduler/AddGuide…) | in core, verified in /object_info | Tier 1/2 motion |
+| ComfyUI core **0.27.1** @ `C:\AI\ComfyUI` (E: = weekly mirror) | running, service-managed :8188 | everything (updated 0.24.0 → 0.27.1 on 2026-07-10 for krea2 support; git v0.24.0-60 `822aca19` → tag v0.27.1 `c2638ce6`; torch/pydantic pins held; 10/10 templates revalidated) |
+| Core LTX nodes (LTXVImgToVideo/Conditioning/Scheduler/AddGuide…) | **installed** — in core, verified in /object_info (ltx_ambient/ltx_director templates PASS on 0.27.1) | Tier 1/2 motion |
 | ComfyUI_IPAdapter_plus + `ip-adapter-plus_sdxl_vit-h` + CLIP-ViT-H | installed | char ref + scene plate conditioning |
 | ComfyUI-WanVideoWrapper + KJNodes | installed | Wan2.2 Tier-2 alternate |
 | ComfyUI-GGUF | installed | flux1-schnell fallback quants |
@@ -18,10 +18,12 @@
 
 ## B. Remaining additions (in order, each gated)
 
-1. **krea2 checkpoint** (BLOCKING for all image stages — model, not a node).
-   Builder sources open weights + a quant that fits 8 GB; `model_lab
-   test-model` verdict decides; report to Amir either way. Banned
-   alternates may never be substituted (design §5.3b MODEL BAN LIST).
+1. **krea2 checkpoint** — **INSTALLED & PROVEN 2026-07-10.** Krea-2-Turbo GGUF
+   Q4_K_S (`krea2_turbo-Q4_K_S.gguf` unet + `qwen3vl_4b_fp8_scaled.safetensors`
+   text encoder + `qwen_image_vae.safetensors` VAE) on disk. Proof render on
+   0.27.1: 1216×704, 8 steps, 113.7 s, peak 7782 MiB VRAM, clean on-prompt
+   anime output (see docs/planning/krea2-lab-report.md). Adopted as
+   image_primary. Banned alternates never substituted (design §5.3b BAN LIST).
 2. **krea2-compatible LoRA re-ecosystem** (training artifacts, not nodes):
    turnaround LoRA + anime-style LoRA + all character LoRAs must target
    krea2's architecture (the on-disk SDXL LoRAs won't load on it). Trained
