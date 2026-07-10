@@ -812,6 +812,14 @@ models:
   build error)
 - `wai-illustrious-v110`
 - `NoobAI-XL-v1.1`
+- `FLUX.1-Krea-dev` (and its GGUF quants) — Amir explicitly banned this as a
+  krea2 stand-in; it is NOT krea2.
+
+**krea2 identity (Amir, 2026-07-09):** krea2 = **`krea/Krea-2-Turbo`** on
+Hugging Face (https://huggingface.co/krea/Krea-2-Turbo). Community build /
+mirror reference: https://civitai.com/models/2738703 ("krea2 SFW NSFW
+uncensored + image-to-prompt + prompt enhancer + 4k upscaler"). Builders
+source from these, nothing else.
 
 `image_primary` is **krea2** (mandated). Fallback chain is now
 `flux1-schnell-Q4_K_S.gguf` only. Consequence the builder must honor: krea2
