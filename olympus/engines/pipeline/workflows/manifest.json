@@ -63,9 +63,9 @@
     "ltx_ambient.json": {
       "purpose": "Tier-1 ambient motion: image-to-video from the shot panel, core ComfyUI LTX nodes",
       "status": "ready",
-      "notes": "FPS patched into both LTXVConditioning.frame_rate and SaveAnimatedWEBP.fps; RIFE conforms to project fps afterwards.",
+      "notes": "FPS patched into both LTXVConditioning.frame_rate and SaveAnimatedWEBP.fps; RIFE conforms to project fps afterwards. 2026-07-10: no LTX 2B checkpoint bundles a text encoder (verified via safetensors headers - all are model+vae only), so a CLIPLoader node (id 20, title T5_ENCODER, type ltxv, clip_name t5xxl_fp8_e4m3fn.safetensors) feeds CLIP to nodes 2/3; node 1 (CheckpointLoaderSimple) still supplies MODEL+VAE. Default checkpoint set to ltx-video-2b-v0.9.5.safetensors.",
       "patchable": {
-        "CKPT_LTX": "1.ckpt_name", "MOTION_PROMPT": "2.text", "PROMPT_NEG": "3.text",
+        "CKPT_LTX": "1.ckpt_name", "T5_ENCODER": "20.clip_name", "MOTION_PROMPT": "2.text", "PROMPT_NEG": "3.text",
         "FPS": "4.frame_rate", "START_FRAME": "5.image",
         "WIDTH": "6.width", "HEIGHT": "6.height", "FRAMES": "6.length",
         "STEPS": "7.steps", "SEED": "9.noise_seed", "CFG": "9.cfg",
@@ -75,8 +75,9 @@
     "ltx_director.json": {
       "purpose": "Tier-2 action motion with first+last frame conditioning (LTXVAddGuide at frame_idx -1)",
       "status": "ready",
+      "notes": "Same T5 wiring as ltx_ambient (2026-07-10): CLIPLoader node 20 (title T5_ENCODER, type ltxv, t5xxl_fp8_e4m3fn.safetensors) feeds CLIP to nodes 2/3; node 1 supplies MODEL+VAE only. Default checkpoint ltx-video-2b-v0.9.5.safetensors.",
       "patchable": {
-        "CKPT_LTX": "1.ckpt_name", "MOTION_PROMPT": "2.text", "PROMPT_NEG": "3.text",
+        "CKPT_LTX": "1.ckpt_name", "T5_ENCODER": "20.clip_name", "MOTION_PROMPT": "2.text", "PROMPT_NEG": "3.text",
         "FPS": "4.frame_rate", "START_FRAME": "5.image", "END_FRAME": "12.image",
         "END_STRENGTH": "13.strength",
         "WIDTH": "6.width", "HEIGHT": "6.height", "FRAMES": "6.length",
