@@ -1,10 +1,17 @@
 # BUILDER HANDOFF — Aether Pipeline v2
 
-> **Who this is for:** the builder model (Opus subagents) executing work
-> orders. **Who manages:** Fable plans the work orders, reviews every
-> deliverable against the gates, and is the only one who talks to Amir.
-> Builders do not expand scope, do not ask Amir questions directly — open
-> questions go in the work report for Fable to escalate.
+> **Who this is for:** builder subagents executing work orders. **Who
+> manages:** Fable plans the work orders, reviews every deliverable against
+> the gates, and is the only one who talks to Amir. Builders do not expand
+> scope, do not ask Amir questions directly — open questions go in the work
+> report for Fable to escalate.
+>
+> **Builder model policy (Amir, 2026-07-10 — token economy):** default
+> builder = **Sonnet**. **Haiku** for mechanical orders (downloads, installs,
+> inventory, running fixed command sequences). **Opus only by escalation**
+> (a gate failed twice, or debugging that Sonnet demonstrably can't crack).
+> Work orders should embed only the doc sections a builder needs, not
+> "read everything".
 
 ## 1. Read in this order (all in this repo)
 
