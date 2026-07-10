@@ -1,5 +1,5 @@
 {
- "last_node_id": 11,
+ "last_node_id": 20,
  "last_link_id": 18,
  "nodes": [
   {
@@ -30,10 +30,7 @@
     {
      "name": "CLIP",
      "type": "CLIP",
-     "links": [
-      1,
-      2
-     ],
+     "links": null,
      "slot_index": 1
     },
     {
@@ -50,7 +47,7 @@
     "Node name for S&R": "CheckpointLoaderSimple"
    },
    "widgets_values": [
-    "PATCH_LTX_CHECKPOINT.safetensors"
+    "ltx-video-2b-v0.9.5.safetensors"
    ]
   },
   {
@@ -123,6 +120,42 @@
    },
    "widgets_values": [
     "euler"
+   ]
+  },
+  {
+   "id": 20,
+   "type": "CLIPLoader",
+   "pos": [
+    0,
+    690
+   ],
+   "size": [
+    340,
+    200
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "T5_ENCODER",
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "CLIP",
+     "type": "CLIP",
+     "links": [
+      1,
+      2
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CLIPLoader"
+   },
+   "widgets_values": [
+    "t5xxl_fp8_e4m3fn.safetensors",
+    "ltxv",
+    0
    ]
   },
   {
@@ -526,16 +559,16 @@
  "links": [
   [
    1,
-   1,
-   1,
+   20,
+   0,
    2,
    0,
    "CLIP"
   ],
   [
    2,
-   1,
-   1,
+   20,
+   0,
    3,
    0,
    "CLIP"

@@ -1,5 +1,5 @@
 {
- "last_node_id": 198,
+ "last_node_id": 214,
  "last_link_id": 224,
  "nodes": [
   {
@@ -2918,10 +2918,7 @@
     {
      "name": "CLIP",
      "type": "CLIP",
-     "links": [
-      143,
-      144
-     ],
+     "links": null,
      "slot_index": 1
     },
     {
@@ -2938,7 +2935,7 @@
     "Node name for S&R": "CheckpointLoaderSimple"
    },
    "widgets_values": [
-    "PATCH_LTX_CHECKPOINT.safetensors"
+    "ltx-video-2b-v0.9.5.safetensors"
    ]
   },
   {
@@ -3011,6 +3008,42 @@
    },
    "widgets_values": [
     "euler"
+   ]
+  },
+  {
+   "id": 152,
+   "type": "CLIPLoader",
+   "pos": [
+    60,
+    5542
+   ],
+   "size": [
+    340,
+    200
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "T5_ENCODER",
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "CLIP",
+     "type": "CLIP",
+     "links": [
+      143,
+      144
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CLIPLoader"
+   },
+   "widgets_values": [
+    "t5xxl_fp8_e4m3fn.safetensors",
+    "ltxv",
+    0
    ]
   },
   {
@@ -3411,11 +3444,11 @@
    ]
   },
   {
-   "id": 154,
+   "id": 163,
    "type": "CheckpointLoaderSimple",
    "pos": [
     60,
-    5762
+    6022
    ],
    "size": [
     340,
@@ -3438,10 +3471,7 @@
     {
      "name": "CLIP",
      "type": "CLIP",
-     "links": [
-      171,
-      172
-     ],
+     "links": null,
      "slot_index": 1
     },
     {
@@ -3459,15 +3489,15 @@
     "Node name for S&R": "CheckpointLoaderSimple"
    },
    "widgets_values": [
-    "PATCH_LTX_CHECKPOINT.safetensors"
+    "ltx-video-2b-v0.9.5.safetensors"
    ]
   },
   {
-   "id": 158,
+   "id": 167,
    "type": "LoadImage",
    "pos": [
     60,
-    6018
+    6278
    ],
    "size": [
     340,
@@ -3502,11 +3532,11 @@
    ]
   },
   {
-   "id": 161,
+   "id": 170,
    "type": "KSamplerSelect",
    "pos": [
     60,
-    6248
+    6508
    ],
    "size": [
     340,
@@ -3535,11 +3565,11 @@
    ]
   },
   {
-   "id": 165,
+   "id": 174,
    "type": "LoadImage",
    "pos": [
     60,
-    6452
+    6712
    ],
    "size": [
     340,
@@ -3574,11 +3604,47 @@
    ]
   },
   {
-   "id": 155,
+   "id": 182,
+   "type": "CLIPLoader",
+   "pos": [
+    60,
+    6942
+   ],
+   "size": [
+    340,
+    200
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "T5_ENCODER",
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "CLIP",
+     "type": "CLIP",
+     "links": [
+      171,
+      172
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CLIPLoader"
+   },
+   "widgets_values": [
+    "t5xxl_fp8_e4m3fn.safetensors",
+    "ltxv",
+    0
+   ]
+  },
+  {
+   "id": 164,
    "type": "CLIPTextEncode",
    "pos": [
     480,
-    5762
+    6022
    ],
    "size": [
     340,
@@ -3613,11 +3679,11 @@
    ]
   },
   {
-   "id": 156,
+   "id": 165,
    "type": "CLIPTextEncode",
    "pos": [
     480,
-    5992
+    6252
    ],
    "size": [
     340,
@@ -3652,11 +3718,11 @@
    ]
   },
   {
-   "id": 157,
+   "id": 166,
    "type": "LTXVConditioning",
    "pos": [
     900,
-    5762
+    6022
    ],
    "size": [
     340,
@@ -3704,11 +3770,11 @@
    ]
   },
   {
-   "id": 159,
+   "id": 168,
    "type": "LTXVImgToVideo",
    "pos": [
     1320,
-    5762
+    6022
    ],
    "size": [
     340,
@@ -3778,11 +3844,11 @@
    ]
   },
   {
-   "id": 166,
+   "id": 175,
    "type": "LTXVAddGuide",
    "pos": [
     1740,
-    5762
+    6022
    ],
    "size": [
     340,
@@ -3861,11 +3927,11 @@
    ]
   },
   {
-   "id": 160,
+   "id": 169,
    "type": "LTXVScheduler",
    "pos": [
     2160,
-    5762
+    6022
    ],
    "size": [
     340,
@@ -3904,11 +3970,11 @@
    ]
   },
   {
-   "id": 162,
+   "id": 171,
    "type": "SamplerCustom",
    "pos": [
     2580,
-    5762
+    6022
    ],
    "size": [
     340,
@@ -3977,11 +4043,11 @@
    ]
   },
   {
-   "id": 163,
+   "id": 172,
    "type": "VAEDecode",
    "pos": [
     3000,
-    5762
+    6022
    ],
    "size": [
     340,
@@ -4019,11 +4085,11 @@
    "widgets_values": []
   },
   {
-   "id": 164,
+   "id": 173,
    "type": "SaveAnimatedWEBP",
    "pos": [
     3420,
-    5762
+    6022
    ],
    "size": [
     340,
@@ -4053,11 +4119,11 @@
    ]
   },
   {
-   "id": 177,
+   "id": 193,
    "type": "WanVideoBlockSwap",
    "pos": [
     60,
-    6902
+    7422
    ],
    "size": [
     340,
@@ -4092,11 +4158,11 @@
    ]
   },
   {
-   "id": 179,
+   "id": 195,
    "type": "LoadWanVideoT5TextEncoder",
    "pos": [
     60,
-    7274
+    7794
    ],
    "size": [
     340,
@@ -4128,11 +4194,11 @@
    ]
   },
   {
-   "id": 181,
+   "id": 197,
    "type": "WanVideoVAELoader",
    "pos": [
     60,
-    7562
+    8082
    ],
    "size": [
     340,
@@ -4166,11 +4232,11 @@
    ]
   },
   {
-   "id": 182,
+   "id": 198,
    "type": "LoadImage",
    "pos": [
     60,
-    7878
+    8398
    ],
    "size": [
     340,
@@ -4205,11 +4271,11 @@
    ]
   },
   {
-   "id": 178,
+   "id": 194,
    "type": "WanVideoModelLoader",
    "pos": [
     480,
-    6902
+    7422
    ],
    "size": [
     340,
@@ -4251,11 +4317,11 @@
    ]
   },
   {
-   "id": 180,
+   "id": 196,
    "type": "WanVideoTextEncode",
    "pos": [
     480,
-    7470
+    7990
    ],
    "size": [
     340,
@@ -4290,11 +4356,11 @@
    ]
   },
   {
-   "id": 183,
+   "id": 199,
    "type": "WanVideoImageToVideoEncode",
    "pos": [
     480,
-    7842
+    8362
    ],
    "size": [
     340,
@@ -4362,11 +4428,11 @@
    ]
   },
   {
-   "id": 184,
+   "id": 200,
    "type": "WanVideoSampler",
    "pos": [
     900,
-    6902
+    7422
    ],
    "size": [
     340,
@@ -4440,11 +4506,11 @@
    ]
   },
   {
-   "id": 185,
+   "id": 201,
    "type": "WanVideoDecode",
    "pos": [
     1320,
-    6902
+    7422
    ],
    "size": [
     340,
@@ -4485,11 +4551,11 @@
    ]
   },
   {
-   "id": 186,
+   "id": 202,
    "type": "SaveAnimatedWEBP",
    "pos": [
     1740,
-    6902
+    7422
    ],
    "size": [
     340,
@@ -4519,11 +4585,11 @@
    ]
   },
   {
-   "id": 197,
+   "id": 213,
    "type": "LoadImage",
    "pos": [
     60,
-    8760
+    9280
    ],
    "size": [
     340,
@@ -4558,11 +4624,11 @@
    ]
   },
   {
-   "id": 198,
+   "id": 214,
    "type": "WD14Tagger|pysssss",
    "pos": [
     480,
-    8760
+    9280
    ],
    "size": [
     340,
@@ -5339,16 +5405,16 @@
   ],
   [
    143,
-   133,
-   1,
+   152,
+   0,
    134,
    0,
    "CLIP"
   ],
   [
    144,
-   133,
-   1,
+   152,
+   0,
    135,
    0,
    "CLIP"
@@ -5483,273 +5549,273 @@
   ],
   [
    171,
-   154,
-   1,
-   155,
+   182,
+   0,
+   164,
    0,
    "CLIP"
   ],
   [
    172,
-   154,
-   1,
-   156,
+   182,
+   0,
+   165,
    0,
    "CLIP"
   ],
   [
    173,
-   155,
+   164,
    0,
-   157,
+   166,
    0,
    "CONDITIONING"
   ],
   [
    174,
-   156,
+   165,
    0,
-   157,
+   166,
    1,
    "CONDITIONING"
   ],
   [
    175,
-   157,
+   166,
    0,
-   159,
+   168,
    0,
    "CONDITIONING"
   ],
   [
    176,
-   157,
+   166,
    1,
-   159,
+   168,
    1,
    "CONDITIONING"
   ],
   [
    177,
-   154,
+   163,
    2,
-   159,
+   168,
    2,
    "VAE"
   ],
   [
    178,
-   158,
+   167,
    0,
-   159,
+   168,
    3,
    "IMAGE"
   ],
   [
    179,
-   159,
+   168,
    0,
-   166,
+   175,
    0,
    "CONDITIONING"
   ],
   [
    180,
-   159,
+   168,
    1,
-   166,
+   175,
    1,
    "CONDITIONING"
   ],
   [
    181,
-   154,
+   163,
    2,
-   166,
+   175,
    2,
    "VAE"
   ],
   [
    182,
-   159,
+   168,
    2,
-   166,
+   175,
    3,
    "LATENT"
   ],
   [
    183,
-   165,
+   174,
    0,
-   166,
+   175,
    4,
    "IMAGE"
   ],
   [
    184,
-   166,
+   175,
    2,
-   160,
+   169,
    0,
    "LATENT"
   ],
   [
    185,
-   154,
+   163,
    0,
-   162,
+   171,
    0,
    "MODEL"
   ],
   [
    186,
-   166,
+   175,
    0,
-   162,
+   171,
    1,
    "CONDITIONING"
   ],
   [
    187,
-   166,
+   175,
    1,
-   162,
+   171,
    2,
    "CONDITIONING"
   ],
   [
    188,
-   161,
+   170,
    0,
-   162,
+   171,
    3,
    "SAMPLER"
   ],
   [
    189,
-   160,
+   169,
    0,
-   162,
+   171,
    4,
    "SIGMAS"
   ],
   [
    190,
-   166,
+   175,
    2,
-   162,
+   171,
    5,
    "LATENT"
   ],
   [
    191,
-   162,
+   171,
    0,
-   163,
+   172,
    0,
    "LATENT"
   ],
   [
    192,
-   154,
-   2,
    163,
+   2,
+   172,
    1,
    "VAE"
   ],
   [
    193,
-   163,
+   172,
    0,
-   164,
+   173,
    0,
    "IMAGE"
   ],
   [
    204,
-   177,
+   193,
    0,
-   178,
+   194,
    null,
    "BLOCKSWAPARGS"
   ],
   [
    205,
-   179,
+   195,
    0,
-   180,
+   196,
    null,
    "WANTEXTENCODER"
   ],
   [
    206,
-   181,
+   197,
    0,
-   183,
+   199,
    null,
    "WANVAE"
   ],
   [
    207,
-   182,
+   198,
    0,
-   183,
+   199,
    0,
    "IMAGE"
   ],
   [
    208,
-   178,
+   194,
    0,
-   184,
+   200,
    null,
    "WANVIDEOMODEL"
   ],
   [
    209,
-   183,
+   199,
    0,
-   184,
+   200,
    null,
    "WANVIDIMAGE_EMBEDS"
   ],
   [
    210,
-   180,
+   196,
    0,
-   184,
+   200,
    null,
    "WANVIDEOTEXTEMBEDS"
   ],
   [
    211,
-   181,
+   197,
    0,
-   185,
+   201,
    null,
    "WANVAE"
   ],
   [
    212,
-   184,
+   200,
    0,
-   185,
+   201,
    0,
    "LATENT"
   ],
   [
    213,
-   185,
+   201,
    0,
-   186,
+   202,
    0,
    "IMAGE"
   ],
   [
    224,
-   197,
+   213,
    0,
-   198,
+   214,
    0,
    "IMAGE"
   ]
@@ -5821,7 +5887,7 @@
     20,
     4772,
     3480,
-    830
+    1090
    ],
    "color": "#2a363b",
    "font_size": 24,
@@ -5831,9 +5897,9 @@
    "title": "AETHER \u00b7 LTX_DIRECTOR",
    "bounding": [
     20,
-    5682,
+    5942,
     3900,
-    1060
+    1320
    ],
    "color": "#2a363b",
    "font_size": 24,
@@ -5843,7 +5909,7 @@
    "title": "AETHER \u00b7 WAN_TI2V",
    "bounding": [
     20,
-    6822,
+    7342,
     2220,
     1778
    ],
@@ -5855,7 +5921,7 @@
    "title": "AETHER \u00b7 LORA_DATASET_PREP",
    "bounding": [
     20,
-    8680,
+    9200,
     960,
     510
    ],
