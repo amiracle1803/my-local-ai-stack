@@ -31,9 +31,11 @@ from pydantic import BaseModel, Field
 from . import services
 from .agents import AgentRegistry
 from .config import WEB_DIR, load_config, resolve_model
+from .pipeline_api import router as pipeline_router
 from .tasks import TaskManager
 
 app = FastAPI(title="Olympus", version="2.0.0-rebuild")
+app.include_router(pipeline_router)
 registry = AgentRegistry()
 tasks = TaskManager(registry)
 

@@ -1,12 +1,12 @@
 # krea2 Lab Report (Work Order KREA-1)
 
-**Date:** 2026-07-10
-**Builder:** Opus (KREA-1 redispatch)
-**Verdict in one line:** krea2 is **feasible as primary on 8 GB** (GGUF quants
-fit under `--novram`) and its **native anime quality is excellent**, BUT it is
-**BLOCKED**: the installed ComfyUI **0.24.0** has no Krea2 support. Krea2 needs
-ComfyUI **0.25.0+**. Proof render + measured VRAM/sec-per-image are deferred
-pending a ComfyUI core update, which needs Amir's approval (see Open Questions).
+**Date:** 2026-07-10 (measured sections filled same day after COMFY-UPDATE)
+**Builder:** Opus (KREA-1 redispatch); measured render by COMFY-UPDATE builder
+**Verdict in one line:** krea2 (Krea-2-Turbo, GGUF Q4_K_S) is **PROVEN as
+primary on this 8 GB card**: ComfyUI was updated 0.24.0 → **0.27.1** (torch /
+pydantic pins held, 10/10 templates revalidated), and the 1216×704 / 8-step
+proof render completed in **113.7 s** at a peak of **7782 MiB VRAM** with a
+clean, on-prompt cel-shaded anime output. **ADOPT as image_primary.**
 
 ---
 
@@ -67,22 +67,42 @@ streams per-layer to the GPU, so the quant size mostly drives RAM, not VRAM peak
 Q4_K_S is the standard quality/size balance and matches the vantagewithai native
 workflow's default. Q3/Q2 are the documented OOM fallbacks.
 
-## 2. VRAM feasibility (8 GB, `--novram`)
+## 2. VRAM feasibility (8 GB, `--novram`) — MEASURED 2026-07-10
 
-Feasible by construction, not yet measured (render blocked — see §4). Rationale:
-krea2 is the same ~12B DiT scale as FL.1-dev, which the existing install already
-runs on this exact 8 GB card via city96 GGUF Q3/Q4 + `--novram`
-(`flux1-dev-Q4_K_S.gguf` is on disk and in use). The Qwen3-VL-4B encoder (5.24 GB
-fp8) runs first and is offloaded before the transformer loads; peak VRAM is the
-streamed working layer + the 16-channel latent activations at 1216×704. Expect a
-peak in the ~6–7.5 GB range and single-image wall time in the low minutes,
-consistent with FLUX-12B behavior here. **Measured peak + sec/image will be
-filled in after the ComfyUI update unblocks the render.**
+Measured on the real proof render (ComfyUI 0.27.1, `--novram
+--disable-cuda-malloc`, 1216×704, 8 steps, euler/simple, cfg 1.0):
+
+| Metric | Value |
+|---|---|
+| Wall clock (queue → history success) | **113.7 s** (~14 s/step + encoder/VAE overhead) |
+| Peak VRAM (nvidia-smi, 5 s polling) | **7782 MiB** of 8188 MiB |
+| VRAM profile | ~7.1–7.3 GiB during text-encode, ~7.7–7.8 GiB plateau during DiT sampling, drop to ~2.8 GiB at VAE decode |
+| Output | `C:\AI\ComfyUI\output\krea_panel_00001_.png`, 1216×704 RGB, 574,987 bytes |
+| OOM / retry | none — first attempt succeeded at full 1216×704 |
+
+Headroom is thin (~400 MiB at peak) but stable; note the baseline before the
+run already held ~1 GiB from other processes. If future runs OOM (e.g. with a
+LoRA loaded), the documented fallbacks are Q3_K_S (6.01 GB) / Q2_K (4.89 GB)
+quants or 896×512. The prior estimate ("peak ~6–7.5 GB, low minutes per
+image") was accurate.
 
 ## 3. Anime-style adherence assessment
 
-Assessed from the model card's own anime samples (the model's native ceiling),
-since a local render is blocked:
+**Local proof render (2026-07-10, prompt: "anime illustration, silver-haired
+girl in a red coat standing on a cliff at dusk, cel shading", 8 steps, seed 0):**
+every prompt element landed — silver-haired girl (with unprompted but coherent
+extras: black hairband, red hair ribbon, backpack), red hooded coat over a
+white lace dress, standing on a rocky cliff edge, dusk gradient sky
+(blue → pink) with a distant mountain silhouette line. The style is clean flat
+**cel shading** with crisp linework — genuinely anime, not "photoreal with
+anime tags". Composition is strong (rule-of-thirds character placement, empty
+sky negative space usable for text overlay). No visible artifacts: face and
+eyes are clean at this small character scale, no extra limbs (hands are in
+pockets), no banding in the sky gradient, no watermark. This is 8-step Turbo
+output at cfg 1.0 with no LoRA — an excellent floor for the recap pipeline.
+
+Prior assessment from the model card's own anime samples (the model's native
+ceiling), written while the local render was blocked:
 
 - **`images/33.jpg`** ("1990s vintage anime style cel animation", dense student
   crowd): production-grade 1990s cel look — clean linework, flat cel shading,
@@ -101,45 +121,49 @@ Caveat: the card leans toward traditional/cel and painterly looks; adherence to 
 specific *modern moe / light-novel* anime style will depend on a style LoRA
 (M4) — the base is broad rather than a narrow anime specialist.
 
-## 4. Proof render + validation (current state)
+## 4. Proof render + validation — COMPLETED 2026-07-10 (post COMFY-UPDATE)
 
-**Render: BLOCKED.** The intended 1216×704 render cannot run on ComfyUI 0.24.0.
-Root cause is unambiguous and captured by the validator below: the `krea2`
-CLIP type and the Krea2 UNET architecture do not exist in this build.
+**The 0.24.0 block was cleared by work order COMFY-UPDATE:** ComfyUI updated
+`822aca19` (v0.24.0-60) → tag **v0.27.1** (`c2638ce6`), torch `2.6.0+cu124` and
+pydantic `2.12.3` pins held, local patches reapplied. Live `/object_info` on
+0.27.1 now lists `krea2` in the `CLIPLoader.type` enum (25 entries) and
+`qwen3vl_4b_fp8_scaled.safetensors` in `clip_name`.
 
-- `/system_stats` → `"comfyui_version": "0.24.0"`, torch `2.6.0+cu124` (pinned),
-  Python 3.11.9, args `--novram --disable-cuda-malloc`.
-- Live `CLIPLoader` / `CLIPLoaderGGUF` `type` enum (23 entries) ends at
-  `ideogram4`; **no `krea2`, no `krea`**. Grep of `C:\AI\ComfyUI\comfy` for
-  "krea" returns only coincidental tokenizer vocab tokens ("kreativ"), i.e. **no
-  model support**. The vantagewithai native workflow is explicitly labeled
-  "Native ComfyUI 0.25.0+ Krea2 workflow" — Krea2 landed after our snapshot.
+**Render: SUCCESS** — prompt_id `361e712a-6103-48aa-86be-55686ea32da2`,
+`/history` status `success / completed=True`, no node errors, no OOM.
+1216×704, 8 steps, 113.7 s wall, peak 7782 MiB VRAM (details §2, quality §3).
+Output: `C:\AI\ComfyUI\output\krea_panel_00001_.png` (574,987 bytes).
 
-**Validator output (`tools/validate_workflows.py`, live server :8188):**
+**Validator output on 0.27.1 (`tools/validate_workflows.py`, live :8188):**
 
 ```
 ComfyUI workflow smoke-validation  (server http://127.0.0.1:8188)
 ==========================================================
-character_sheet.json          PASS-with-note  ...expected PATCH-placeholder file(s) missing on node(s) 1,2,4
-lora_dataset_prep.json        PASS-with-note  ...expected PATCH-placeholder file(s) missing on node(s) 1
-ltx_ambient.json              PASS-with-note  ...expected PATCH-placeholder file(s) missing on node(s) 1,5
-ltx_director.json             PASS-with-note  ...expected PATCH-placeholder file(s) missing on node(s) 1,12,5
-mouth_sheet.json              PASS-with-note  ...expected PATCH-placeholder file(s) missing on node(s) 1,2,3,4
-panel_img2img_lastframe.json  PASS-with-note  ...missing on node(s) 1,17,2,3,4,5,7,9
-panel_txt2img.json            PASS-with-note  ...missing on node(s) 1,2,3,4,5,7,9
-panel_txt2img_krea.json       FAIL            node 2 (CLIPLoader): type: 'krea2' not in (list of length 23); clip_name: 'qwen3vl_4b_fp8_scaled.safetensors' not in [...]
-scene_plate.json              PASS-with-note  ...expected PATCH-placeholder file(s) missing on node(s) 1,2,3
-wan_ti2v.json                 PASS-with-note  ...expected PATCH-placeholder file(s) missing on node(s) 6
+character_sheet.json          PASS-with-note  aliases resolved; expected PATCH-placeholder file(s) missing on node(s) 1,2,4
+lora_dataset_prep.json        PASS-with-note  aliases resolved; clean queue (cancelled before generation)
+ltx_ambient.json              PASS-with-note  aliases resolved; clean queue (cancelled before generation)
+ltx_director.json             PASS-with-note  aliases resolved; clean queue (cancelled before generation)
+mouth_sheet.json              PASS-with-note  aliases resolved; expected PATCH-placeholder file(s) missing on node(s) 1,2
+panel_img2img_lastframe.json  PASS-with-note  aliases resolved; expected PATCH-placeholder file(s) missing on node(s) 1,2,3,4,5
+panel_txt2img.json            PASS-with-note  aliases resolved; expected PATCH-placeholder file(s) missing on node(s) 1,2,3,4,5
+panel_txt2img_krea.json       PASS-with-note  aliases resolved; clean queue (cancelled before generation)
+scene_plate.json              PASS-with-note  aliases resolved; expected PATCH-placeholder file(s) missing on node(s) 1,2,3
+wan_ti2v.json                 PASS-with-note  aliases resolved; clean queue (cancelled before generation)
 ==========================================================
-PASS=0  PASS-with-note=9  FAIL=1  (total 10)
+PASS=0  PASS-with-note=10  FAIL=0  (total 10)
 ```
 
-The single FAIL is the new krea template, failing *only* on the missing `krea2`
-type (the clip_name mismatch line was because the encoder was mid-download at
-validation time; it is now on disk). The 9 pre-existing templates still
-PASS-with-note — **no regression** from the manifest edit. Note: `EmptySD3LatentImage`
-did validate on 0.24.0 (it exists), so once the `krea2` type ships the template
-is expected to queue cleanly.
+All 9 pre-existing templates still pass (**no regression** from the 0.27.1
+update) and `panel_txt2img_krea.json` moved FAIL → PASS-with-note, then
+rendered for real.
+
+<details><summary>Historical: the 0.24.0 blocked state (for the record)</summary>
+
+On 0.24.0 the `CLIPLoader.type` enum (23 entries) ended at `ideogram4` with no
+`krea2`; the krea template was the single FAIL (9 PASS-with-note / 1 FAIL) and
+the render could not run. Krea2 support landed in ComfyUI 0.25.0+.
+
+</details>
 
 **Template built:** `olympus/engines/pipeline/workflows/panel_txt2img_krea.json`
 (API format, stable `_meta` titles: CKPT / CLIP_LOADER / VAE_LOADER / PROMPT_POS
@@ -153,12 +177,12 @@ once ComfyUI is updated.
 
 ## 5. Verdict + what M4 must add
 
-**Verdict:** krea2 (Krea-2-Turbo) is a **strong primary-image candidate** and
-should be adopted — pending (a) the ComfyUI update and (b) a measured render.
-Nothing about the model itself disqualifies it; the block is purely the app
-version. This does **not** meet the work order's hard-stop condition (which is
-"cannot run on 8 GB in any offered form") — it can run; it just needs a newer
-ComfyUI.
+**Verdict (final, 2026-07-10):** krea2 (Krea-2-Turbo, GGUF Q4_K_S) **ADOPT as
+image_primary**. Both former conditions are now met: (a) ComfyUI updated to
+0.27.1 with pins held and zero template regressions, and (b) the measured
+1216×704 render succeeded first-try in 113.7 s at 7782 MiB peak with clean,
+fully on-prompt cel-shaded anime output. The hard-stop condition ("cannot run
+on 8 GB in any offered form") is definitively not met — it runs.
 
 **M4 additions this changes (krea2 is a different arch, so the SDXL-era plan in
 design §5.3b must be revised for image stages):**
@@ -187,16 +211,11 @@ design §5.3b must be revised for image stages):**
 
 ## 6. Open questions for Amir (escalate via Fable)
 
-1. **ComfyUI update approval (the blocker).** krea2 needs ComfyUI **≥0.25.0**;
-   the install is **0.24.0** and the handoff pins torch/pydantic + forbids
-   builder git. Requesting approval to update ComfyUI **core** to the current
-   release **holding the torch==2.6.0+cu124 / pydantic pins**, with a regression
-   check that the accepted WF-1 templates (LTX/Wan/IPAdapter/flux) still validate
-   9/9 and a rollback to the current git ref if anything breaks. This is the one
-   action that unblocks the proof render, measured VRAM/sec-per-image, and the
-   final adherence read on a real 1216×704 anime output. I did **not** do this
-   unilaterally (shared, fragile, GPU-critical infra with an accepted deliverable
-   riding on it — CLAUDE.md "don't replace working tooling unless I ask").
+1. ~~**ComfyUI update approval (the blocker).**~~ **RESOLVED 2026-07-10 by
+   work order COMFY-UPDATE:** ComfyUI updated to v0.27.1 with the
+   torch==2.6.0+cu124 / pydantic 2.12.3 pins held; all 9 prior templates
+   revalidated with no regression; rollback ref `822aca19` (plus local-patch
+   checkpoint commit `834b2568`) recorded in ComfyUI's own git.
 2. **Quant confirmation.** Q4_K_S staged as primary; confirm OK, or prefer
    Q3_K_S/Q2_K for more VRAM headroom (measurable once unblocked).
 3. **License note.** Krea 2 Community License requires deployer content
