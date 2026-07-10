@@ -32,16 +32,11 @@
    only if M4 shows turnaround quality is insufficient without pose control
    AND krea2's architecture supports it (else find its ControlNet equiv).
    Default: skip.
-4. **kohya_ss (sd-scripts)** — external CLI, own venv at `E:\AI\kohya_ss`
-   (NOT inside ComfyUI). LoRA training for style/character/asset.
-5. **RIFE (rife-ncnn-vulkan)** — external CLI at `C:\Users\amire\Tools\rife\`.
-   FPS interpolation. Never a Comfy node (VRAM discipline).
-6. **RealESRGAN-anime (realesrgan-ncnn-vulkan)** — external CLI at
-   `C:\Users\amire\Tools\realesrgan\`. Optional 1080p upscale.
-7. **whisperX** — pip into the STACK venv (not ComfyUI's). Forced alignment
-   for lip sync.
-8. **anime-face-detector** (or equivalent) — pip into stack venv. Mouth bbox
-   for viseme compositing.
+4. **kohya_ss (sd-scripts)** — **INSTALLED 2026-07-10.** External CLI, venv at `E:\AI\kohya_ss` (NOT inside ComfyUI). torch 2.6.0+cu124, CUDA enabled. LoRA training for style/character/asset.
+5. **RIFE (rife-ncnn-vulkan)** — **INSTALLED 2026-07-10.** External CLI at `C:\Users\amire\Tools\rife\rife-ncnn-vulkan.exe`. FPS interpolation. Never a Comfy node (VRAM discipline).
+6. **RealESRGAN-anime (realesrgan-ncnn-vulkan)** — **INSTALLED 2026-07-10.** External CLI at `C:\Users\amire\Tools\realesrgan\realesrgan-ncnn-vulkan.exe`. Anime models present (`realesr-animevideov3-x*`, `realesrgan-x4plus-anime`). Optional 1080p upscale.
+7. **whisperX** — **INSTALLED 2026-07-10** into STACK venv. torch 2.8.0+cpu. Forced alignment for lip sync.
+8. **anime-face-detector** — **INSTALLED 2026-07-10** into stack venv. Successfully imported. Mouth bbox for viseme compositing.
 
 ## C. Custom node development: NONE
 

@@ -24,7 +24,7 @@ _ENGINE_ROOT = Path(__file__).resolve().parent
 if str(_ENGINE_ROOT) not in sys.path:
     sys.path.insert(0, str(_ENGINE_ROOT))
 
-from pipeline import stage0_intake  # noqa: E402
+from pipeline import stage0_intake, stage1_worldbible  # noqa: E402
 from pipeline.blueprint import (  # noqa: E402
     STAGE_ORDER,
     Blueprint,
@@ -102,9 +102,11 @@ def run_stage(
     brief_path: str | Path | None = None,
     config: PipelineConfig | None = None,
 ) -> dict | None:
-    """Run one stage. M1: stage0 (mode 0B, generate-from-brief) is real; all
-    other stages remain pollution-guard -> gate -> ``NotImplementedError``
-    stubs until their milestone lands."""
+    """Run one stage. M1: stage0 (mode 0B, generate-from-brief) is real. M2a:
+    stage1 runs Steps 1-2 (character scan + profiles) and writes a partial
+    world bible, but does not mark stage1 done -- M2b completes it. All other
+    stages remain pollution-guard -> gate -> ``NotImplementedError`` stubs
+    until their milestone lands."""
     if stage not in STAGE_ORDER:
         raise ValueError(f"unknown stage {stage!r}; valid: {STAGE_ORDER}")
     project_dir = _projects_root(projects_dir) / slug
@@ -124,6 +126,10 @@ def run_stage(
         if stage == "stage0":
             cfg = config or PipelineConfig.load()
             return stage0_intake.run(project_dir, cfg, scores, brief_path=brief_path)
+
+        if stage == "stage1":
+            cfg = config or PipelineConfig.load()
+            return stage1_worldbible.run(project_dir, cfg, scores)
 
         # 3. No stage implemented yet.
         raise NotImplementedError(f"{stage} built in M1+")
