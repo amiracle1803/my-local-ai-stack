@@ -800,7 +800,7 @@
    ],
    "size": [
     340,
-    144
+    170
    ],
    "flags": {},
    "order": 10,
@@ -813,7 +813,14 @@
      "link": 26
     }
    ],
-   "outputs": [],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": null,
+     "slot_index": 0
+    }
+   ],
    "properties": {
     "Node name for S&R": "SaveImage"
    },

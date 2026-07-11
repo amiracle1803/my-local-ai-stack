@@ -530,7 +530,7 @@
    ],
    "size": [
     340,
-    256
+    282
    ],
    "flags": {},
    "order": 7,
@@ -543,7 +543,14 @@
      "link": 18
     }
    ],
-   "outputs": [],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": null,
+     "slot_index": 0
+    }
+   ],
    "properties": {
     "Node name for S&R": "SaveAnimatedWEBP"
    },

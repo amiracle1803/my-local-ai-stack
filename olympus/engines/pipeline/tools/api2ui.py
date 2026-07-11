@@ -11,18 +11,20 @@ import json
 import urllib.request
 from pathlib import Path
 
-REPO = Path(r"C:\Users\amire\my-local-ai-stack")
-WF = REPO / "olympus/engines/pipeline/workflows"
+# Paths resolve from this file so the tool runs on both Windows and Linux
+# (2026-07-10: ComfyUI lives repo-local at ./ComfyUI on the Linux box).
+WF = Path(__file__).resolve().parent.parent / "workflows"
+REPO = WF.parents[3]
 COMFY_URL = "http://127.0.0.1:8188"
 OBJ = json.load(urllib.request.urlopen(COMFY_URL + "/object_info", timeout=60))
-OUT_COMFY = Path(r"C:\AI\ComfyUI\user\default\workflows\aether-pipeline")
+OUT_COMFY = REPO / "ComfyUI/user/default/workflows/aether-pipeline"
 OUT_REPO = WF / "ui"
 
 CONNECTION_TYPES = {"MODEL", "CLIP", "VAE", "CONDITIONING", "LATENT", "IMAGE",
                     "MASK", "IPADAPTER", "SIGMAS", "SAMPLER", "NOISE", "GUIDER"}
 TEMPLATES = ["scene_plate", "panel_txt2img", "panel_img2img_lastframe",
              "character_sheet", "mouth_sheet", "ltx_ambient", "ltx_director",
-             "wan_ti2v", "lora_dataset_prep"]
+             "wan_ti2v", "lora_dataset_prep", "image_flux_fallback"]
 
 NODE_W, NODE_H_BASE, COL_GAP, ROW_GAP = 340, 90, 420, 60
 
@@ -123,6 +125,19 @@ def convert(api, x0=0, y0=0, id_off=0, link_off=0):
                 "widgets_values": widgets,
             })
             y += h + ROW_GAP
+            # _meta.note -> a visible yellow Note card under the node so the
+            # explanation reads on the canvas, not just in the API JSON.
+            note = node.get("_meta", {}).get("note")
+            if note:
+                nh = 70 + 16 * (len(note) // 45)
+                ui_nodes.append({
+                    "id": int(nid) + id_off + 1000, "type": "Note",
+                    "pos": [px, y], "size": [NODE_W, nh], "flags": {},
+                    "order": d, "mode": 0, "title": f"note: {node['_meta'].get('title', cls)}",
+                    "properties": {}, "widgets_values": [note],
+                    "color": "#432", "bgcolor": "#653",
+                })
+                y += nh + ROW_GAP
             maxh = max(maxh, y - y0)
     width = (max(depth.values()) + 1) * COL_GAP
     return ui_nodes, ui_links, width, maxh
@@ -140,10 +155,19 @@ def emit(nodes, links, groups, path):
     print("wrote", path)
 
 
+def _installed(api, name):
+    missing = {n["class_type"] for n in api.values() if n["class_type"] not in OBJ}
+    if missing:
+        print(f"skip {name}: node pack(s) not installed for {sorted(missing)}")
+    return not missing
+
+
 def main():
     # individual UI workflows
     for name in TEMPLATES:
         api = json.load(open(WF / f"{name}.json", encoding="utf-8"))
+        if not _installed(api, name):
+            continue
         nodes, links, w, h = convert(api)
         for target in (OUT_COMFY / f"{name}.json", OUT_REPO / f"{name}.ui.json"):
             emit(nodes, links, [], target)
@@ -153,6 +177,8 @@ def main():
     y_cursor, id_off, link_off = 0, 0, 0
     for name in TEMPLATES:
         api = json.load(open(WF / f"{name}.json", encoding="utf-8"))
+        if not _installed(api, name):
+            continue
         nodes, links, w, h = convert(api, x0=60, y0=y_cursor + 80,
                                      id_off=id_off, link_off=link_off)
         all_nodes += nodes

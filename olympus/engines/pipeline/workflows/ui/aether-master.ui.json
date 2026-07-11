@@ -1,6 +1,6 @@
 {
- "last_node_id": 214,
- "last_link_id": 224,
+ "last_node_id": 1228,
+ "last_link_id": 232,
  "nodes": [
   {
    "id": 1,
@@ -384,7 +384,7 @@
    ],
    "size": [
     340,
-    144
+    170
    ],
    "flags": {},
    "order": 6,
@@ -397,7 +397,14 @@
      "link": 13
     }
    ],
-   "outputs": [],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": null,
+     "slot_index": 0
+    }
+   ],
    "properties": {
     "Node name for S&R": "SaveImage"
    },
@@ -1156,7 +1163,7 @@
    ],
    "size": [
     340,
-    144
+    170
    ],
    "flags": {},
    "order": 10,
@@ -1169,7 +1176,14 @@
      "link": 47
     }
    ],
-   "outputs": [],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": null,
+     "slot_index": 0
+    }
+   ],
    "properties": {
     "Node name for S&R": "SaveImage"
    },
@@ -1975,7 +1989,7 @@
    ],
    "size": [
     340,
-    144
+    170
    ],
    "flags": {},
    "order": 10,
@@ -1988,7 +2002,14 @@
      "link": 83
     }
    ],
-   "outputs": [],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": null,
+     "slot_index": 0
+    }
+   ],
    "properties": {
     "Node name for S&R": "SaveImage"
    },
@@ -2432,7 +2453,7 @@
    ],
    "size": [
     340,
-    144
+    170
    ],
    "flags": {},
    "order": 7,
@@ -2445,7 +2466,14 @@
      "link": 108
     }
    ],
-   "outputs": [],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": null,
+     "slot_index": 0
+    }
+   ],
    "properties": {
     "Node name for S&R": "SaveImage"
    },
@@ -2869,7 +2897,7 @@
    ],
    "size": [
     340,
-    144
+    170
    ],
    "flags": {},
    "order": 5,
@@ -2882,7 +2910,14 @@
      "link": 132
     }
    ],
-   "outputs": [],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": null,
+     "slot_index": 0
+    }
+   ],
    "properties": {
     "Node name for S&R": "SaveImage"
    },
@@ -3418,7 +3453,7 @@
    ],
    "size": [
     340,
-    256
+    282
    ],
    "flags": {},
    "order": 7,
@@ -3431,7 +3466,14 @@
      "link": 160
     }
    ],
-   "outputs": [],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": null,
+     "slot_index": 0
+    }
+   ],
    "properties": {
     "Node name for S&R": "SaveAnimatedWEBP"
    },
@@ -4093,7 +4135,7 @@
    ],
    "size": [
     340,
-    256
+    282
    ],
    "flags": {},
    "order": 8,
@@ -4106,7 +4148,14 @@
      "link": 193
     }
    ],
-   "outputs": [],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": null,
+     "slot_index": 0
+    }
+   ],
    "properties": {
     "Node name for S&R": "SaveAnimatedWEBP"
    },
@@ -4559,7 +4608,7 @@
    ],
    "size": [
     340,
-    256
+    282
    ],
    "flags": {},
    "order": 4,
@@ -4572,7 +4621,14 @@
      "link": 213
     }
    ],
-   "outputs": [],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": null,
+     "slot_index": 0
+    }
+   ],
    "properties": {
     "Node name for S&R": "SaveAnimatedWEBP"
    },
@@ -4586,9 +4642,234 @@
   },
   {
    "id": 213,
-   "type": "LoadImage",
+   "type": "UnetLoaderGGUF",
    "pos": [
     60,
+    9280
+   ],
+   "size": [
+    340,
+    144
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "UNET",
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      226
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "UnetLoaderGGUF"
+   },
+   "widgets_values": [
+    "flux1-schnell-Q4_K_S.gguf"
+   ]
+  },
+  {
+   "id": 1213,
+   "type": "Note",
+   "pos": [
+    60,
+    9484
+   ],
+   "size": [
+    340,
+    134
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "note: UNET",
+   "properties": {},
+   "widgets_values": [
+    "Loads the flux1-schnell diffusion model from a 4-bit GGUF quant (fits 8GB VRAM). This is the design-permitted fallback while krea2 has no weights on disk. The ComfyClient ban-check reads unet_name here."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 214,
+   "type": "DualCLIPLoader",
+   "pos": [
+    60,
+    9678
+   ],
+   "size": [
+    340,
+    228
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "CLIP",
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "CLIP",
+     "type": "CLIP",
+     "links": [
+      224
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "DualCLIPLoader"
+   },
+   "widgets_values": [
+    "clip_l.safetensors",
+    "t5xxl_fp8_e4m3fn.safetensors",
+    "flux",
+    "default"
+   ]
+  },
+  {
+   "id": 1214,
+   "type": "Note",
+   "pos": [
+    60,
+    9966
+   ],
+   "size": [
+    340,
+    118
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "note: CLIP",
+   "properties": {},
+   "widgets_values": [
+    "Flux needs two text encoders: clip_l (short tag understanding) + t5xxl fp8 (long natural-language prompts). Both live in ComfyUI/models/clip on the SSD."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 215,
+   "type": "VAELoader",
+   "pos": [
+    60,
+    10144
+   ],
+   "size": [
+    340,
+    144
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "VAE",
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "VAE",
+     "type": "VAE",
+     "links": [
+      231
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "VAELoader"
+   },
+   "widgets_values": [
+    "ae.safetensors"
+   ]
+  },
+  {
+   "id": 1215,
+   "type": "Note",
+   "pos": [
+    60,
+    10348
+   ],
+   "size": [
+    340,
+    102
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "note: VAE",
+   "properties": {},
+   "widgets_values": [
+    "Flux autoencoder (ae.safetensors) that turns the denoised latent back into pixels at node 15."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 225,
+   "type": "EmptySD3LatentImage",
+   "pos": [
+    60,
+    10510
+   ],
+   "size": [
+    340,
+    200
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "LATENT",
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "LATENT",
+     "type": "LATENT",
+     "links": [
+      229
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "EmptySD3LatentImage"
+   },
+   "widgets_values": [
+    1216,
+    704,
+    1
+   ]
+  },
+  {
+   "id": 1225,
+   "type": "Note",
+   "pos": [
+    60,
+    10770
+   ],
+   "size": [
+    340,
+    134
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "note: LATENT",
+   "properties": {},
+   "widgets_values": [
+    "Blank 16-channel latent canvas (flux uses the SD3-style latent space, hence this node instead of EmptyLatentImage). Patched to 1216x704 for panels/plates, 832x1216 portrait for character refs."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 223,
+   "type": "CLIPTextEncode",
+   "pos": [
+    480,
     9280
    ],
    "size": [
@@ -4596,74 +4877,321 @@
     170
    ],
    "flags": {},
-   "order": 0,
-   "mode": 0,
-   "title": "INPUT_IMAGE",
-   "inputs": [],
-   "outputs": [
-    {
-     "name": "IMAGE",
-     "type": "IMAGE",
-     "links": [
-      224
-     ],
-     "slot_index": 0
-    },
-    {
-     "name": "MASK",
-     "type": "MASK",
-     "links": null,
-     "slot_index": 1
-    }
-   ],
-   "properties": {
-    "Node name for S&R": "LoadImage"
-   },
-   "widgets_values": [
-    "PATCH_INPUT_IMAGE.png"
-   ]
-  },
-  {
-   "id": 214,
-   "type": "WD14Tagger|pysssss",
-   "pos": [
-    480,
-    9280
-   ],
-   "size": [
-    340,
-    310
-   ],
-   "flags": {},
    "order": 1,
    "mode": 0,
-   "title": "TAGGER",
+   "title": "PROMPT_POS",
    "inputs": [
     {
-     "name": "image",
-     "type": "IMAGE",
+     "name": "clip",
+     "type": "CLIP",
      "link": 224
     }
    ],
    "outputs": [
     {
-     "name": "STRING",
-     "type": "STRING",
+     "name": "CONDITIONING",
+     "type": "CONDITIONING",
+     "links": [
+      225,
+      228
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CLIPTextEncode"
+   },
+   "widgets_values": [
+    "PATCH_PROMPT"
+   ]
+  },
+  {
+   "id": 1223,
+   "type": "Note",
+   "pos": [
+    480,
+    9510
+   ],
+   "size": [
+    340,
+    150
+   ],
+   "flags": {},
+   "order": 1,
+   "mode": 0,
+   "title": "note: PROMPT_POS",
+   "properties": {},
+   "widgets_values": [
+    "The assembled sd_prompt lands here (patched per shot by ComfyClient: character anchors + location anchor + composition + style tail, 120-word budget). Also reused as the 'negative' input on node 14 because schnell runs CFG 1.0, where the negative is ignored."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 224,
+   "type": "FluxGuidance",
+   "pos": [
+    900,
+    9280
+   ],
+   "size": [
+    340,
+    170
+   ],
+   "flags": {},
+   "order": 2,
+   "mode": 0,
+   "title": "GUIDANCE",
+   "inputs": [
+    {
+     "name": "conditioning",
+     "type": "CONDITIONING",
+     "link": 225
+    }
+   ],
+   "outputs": [
+    {
+     "name": "CONDITIONING",
+     "type": "CONDITIONING",
+     "links": [
+      227
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "FluxGuidance"
+   },
+   "widgets_values": [
+    3.5
+   ]
+  },
+  {
+   "id": 1224,
+   "type": "Note",
+   "pos": [
+    900,
+    9510
+   ],
+   "size": [
+    340,
+    102
+   ],
+   "flags": {},
+   "order": 2,
+   "mode": 0,
+   "title": "note: GUIDANCE",
+   "properties": {},
+   "widgets_values": [
+    "Flux's distilled-guidance knob (not classic CFG). 3.5 is the standard default: higher = stricter prompt following but stiffer images."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 226,
+   "type": "KSampler",
+   "pos": [
+    1320,
+    9280
+   ],
+   "size": [
+    340,
+    388
+   ],
+   "flags": {},
+   "order": 3,
+   "mode": 0,
+   "title": "SAMPLER",
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 226
+    },
+    {
+     "name": "positive",
+     "type": "CONDITIONING",
+     "link": 227
+    },
+    {
+     "name": "negative",
+     "type": "CONDITIONING",
+     "link": 228
+    },
+    {
+     "name": "latent_image",
+     "type": "LATENT",
+     "link": 229
+    }
+   ],
+   "outputs": [
+    {
+     "name": "LATENT",
+     "type": "LATENT",
+     "links": [
+      230
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "KSampler"
+   },
+   "widgets_values": [
+    0,
+    "fixed",
+    4,
+    1.0,
+    "euler",
+    "simple",
+    1.0
+   ]
+  },
+  {
+   "id": 1226,
+   "type": "Note",
+   "pos": [
+    1320,
+    9728
+   ],
+   "size": [
+    340,
+    150
+   ],
+   "flags": {},
+   "order": 3,
+   "mode": 0,
+   "title": "note: SAMPLER",
+   "properties": {},
+   "widgets_values": [
+    "The actual denoising loop. schnell is step-distilled: 4 steps, euler, cfg 1.0 is the intended recipe (more steps does NOT improve it). SEED is patched per shot from hash(scene_id, shot_id, retry) so every panel is reproducible from its sidecar json."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 227,
+   "type": "VAEDecode",
+   "pos": [
+    1740,
+    9280
+   ],
+   "size": [
+    340,
+    168
+   ],
+   "flags": {},
+   "order": 4,
+   "mode": 0,
+   "title": "DECODE",
+   "inputs": [
+    {
+     "name": "samples",
+     "type": "LATENT",
+     "link": 230
+    },
+    {
+     "name": "vae",
+     "type": "VAE",
+     "link": 231
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      232
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "VAEDecode"
+   },
+   "widgets_values": []
+  },
+  {
+   "id": 1227,
+   "type": "Note",
+   "pos": [
+    1740,
+    9508
+   ],
+   "size": [
+    340,
+    86
+   ],
+   "flags": {},
+   "order": 4,
+   "mode": 0,
+   "title": "note: DECODE",
+   "properties": {},
+   "widgets_values": [
+    "Latent -> RGB pixels via the VAE from node 3."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 228,
+   "type": "SaveImage",
+   "pos": [
+    2160,
+    9280
+   ],
+   "size": [
+    340,
+    170
+   ],
+   "flags": {},
+   "order": 5,
+   "mode": 0,
+   "title": "SAVE",
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 232
+    }
+   ],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
      "links": null,
      "slot_index": 0
     }
    ],
    "properties": {
-    "Node name for S&R": "WD14Tagger|pysssss"
+    "Node name for S&R": "SaveImage"
    },
    "widgets_values": [
-    "wd-v1-4-moat-tagger-v2",
-    0.35,
-    0.85,
-    true,
-    false,
-    ""
+    "pipeline/out"
    ]
+  },
+  {
+   "id": 1228,
+   "type": "Note",
+   "pos": [
+    2160,
+    9510
+   ],
+   "size": [
+    340,
+    118
+   ],
+   "flags": {},
+   "order": 5,
+   "mode": 0,
+   "title": "note: SAVE",
+   "properties": {},
+   "widgets_values": [
+    "Writes the PNG under ComfyUI/output/<SAVE_PREFIX>; ComfyClient then copies it into the project's panels/refs directory and renames it deterministically."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
   }
  ],
  "links": [
@@ -5813,9 +6341,73 @@
   ],
   [
    224,
+   214,
+   0,
+   223,
+   0,
+   "CLIP"
+  ],
+  [
+   225,
+   223,
+   0,
+   224,
+   0,
+   "CONDITIONING"
+  ],
+  [
+   226,
    213,
    0,
-   214,
+   226,
+   0,
+   "MODEL"
+  ],
+  [
+   227,
+   224,
+   0,
+   226,
+   1,
+   "CONDITIONING"
+  ],
+  [
+   228,
+   223,
+   0,
+   226,
+   2,
+   "CONDITIONING"
+  ],
+  [
+   229,
+   225,
+   0,
+   226,
+   3,
+   "LATENT"
+  ],
+  [
+   230,
+   226,
+   0,
+   227,
+   0,
+   "LATENT"
+  ],
+  [
+   231,
+   215,
+   0,
+   227,
+   1,
+   "VAE"
+  ],
+  [
+   232,
+   227,
+   0,
+   228,
    0,
    "IMAGE"
   ]
@@ -5918,12 +6510,12 @@
    "flags": {}
   },
   {
-   "title": "AETHER \u00b7 LORA_DATASET_PREP",
+   "title": "AETHER \u00b7 IMAGE_FLUX_FALLBACK",
    "bounding": [
     20,
     9200,
-    960,
-    510
+    2640,
+    1824
    ],
    "color": "#2a363b",
    "font_size": 24,
