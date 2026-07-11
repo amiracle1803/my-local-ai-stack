@@ -24,7 +24,18 @@ _ENGINE_ROOT = Path(__file__).resolve().parent
 if str(_ENGINE_ROOT) not in sys.path:
     sys.path.insert(0, str(_ENGINE_ROOT))
 
-from pipeline import stage0_intake, stage1_worldbible  # noqa: E402
+from pipeline import (  # noqa: E402
+    stage0_intake,
+    stage1_worldbible,
+    stage1_world,
+    stage1r_references,
+    stage2_screenplay,
+    stage3_storyboard,
+    stage3b_images,
+    stage3c_animation,
+    stage4_audio,
+    stage5_assembly,
+)
 from pipeline.blueprint import (  # noqa: E402
     STAGE_ORDER,
     Blueprint,
@@ -123,16 +134,27 @@ def run_stage(
     try:
         scores.require_stage(stage)
 
+        cfg = config or PipelineConfig.load()
         if stage == "stage0":
-            cfg = config or PipelineConfig.load()
             return stage0_intake.run(project_dir, cfg, scores, brief_path=brief_path)
 
         if stage == "stage1":
-            cfg = config or PipelineConfig.load()
-            return stage1_worldbible.run(project_dir, cfg, scores)
+            # M2a (characters) then M2b (world/relationships/contradictions/
+            # expansion) -- one stage, two passes; M2b marks stage1 done.
+            partial = stage1_worldbible.run(project_dir, cfg, scores)
+            full = stage1_world.run(project_dir, cfg, scores)
+            return {"m2a": partial, "m2b": full}
 
-        # 3. No stage implemented yet.
-        raise NotImplementedError(f"{stage} built in M1+")
+        dispatch = {
+            "stage1r": stage1r_references.run,
+            "stage2": stage2_screenplay.run,
+            "stage3": stage3_storyboard.run,
+            "stage3b": stage3b_images.run,
+            "stage4": stage4_audio.run,
+            "stage3c": stage3c_animation.run,
+            "stage5": stage5_assembly.run,
+        }
+        return dispatch[stage](project_dir, cfg, scores)
     finally:
         scores.close()
 
@@ -188,6 +210,38 @@ def _cmd_run(args: argparse.Namespace) -> int:
     return 0
 
 
+def run_all(
+    slug: str,
+    *,
+    projects_dir: str | Path | None = None,
+    brief_path: str | Path | None = None,
+) -> list[dict | None]:
+    """``run.py all`` (design 0.2): run every stage in STAGE_ORDER unattended,
+    skipping stages the scorecard already proves complete (resume-safe)."""
+    project_dir = _projects_root(projects_dir) / slug
+    results: list[dict | None] = []
+    for stage in STAGE_ORDER:
+        scores = Scores(project_dir / "scores.sqlite")
+        try:
+            complete = scores.is_done(stage) and not scores.missing_metrics(stage)
+        finally:
+            scores.close()
+        if complete:
+            print(f"[skip] {stage} already complete")
+            continue
+        print(f"[run ] {stage} ...")
+        results.append(
+            run_stage(slug, stage, projects_dir=projects_dir, brief_path=brief_path)
+        )
+    return results
+
+
+def _cmd_all(args: argparse.Namespace) -> int:
+    run_all(args.slug, brief_path=args.brief)
+    print("[ok] all stages complete")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="run.py", description="Anime Pipeline v2 CLI")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -215,6 +269,11 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     p_run.set_defaults(func=_cmd_run)
+
+    p_all = sub.add_parser("all", help="run every remaining stage in order (design 0.2)")
+    p_all.add_argument("slug")
+    p_all.add_argument("--brief", default=None, help="stage0 brief (first run only)")
+    p_all.set_defaults(func=_cmd_all)
 
     return parser
 

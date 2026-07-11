@@ -45,6 +45,10 @@ class AutomationConfig(BaseModel):
     auto_approve_identity: bool = True
     auto_resolve_contradictions: bool = True
     auto_advance_stages: bool = True
+    # Explicit, scorecard-logged deviation: lets Stage 3B run without trained
+    # per-character LoRAs while kohya is unavailable on Linux (design 1R.2b
+    # gate). Never silent -- stage1r records lora_training_contingency=1.
+    allow_missing_loras: bool = False
 
 
 class AnimationConfig(BaseModel):

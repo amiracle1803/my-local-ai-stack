@@ -1,14 +1,23 @@
 {
   "_readme": "ComfyUI workflow templates (API format), grounded against the live /object_info of ComfyUI 0.27.1 on 2026-07-10 (updated from 0.24.0 for krea2 support; all 10 templates revalidated PASS-with-note). ComfyClient patches nodes by _meta.title using the 'patchable' maps below (title -> node_id.input_field). Every template must pass `model_lab test-workflows` after any node-pack change. SDXL-template checkpoint names default to PATCH placeholders because the MODEL BAN LIST forbids the local SDXL anime checkpoints.",
-  "resolution_default": [1216, 704],
+  "resolution_default": [
+    1216,
+    704
+  ],
   "templates": {
     "scene_plate.json": {
       "purpose": "One location master plate per scene (no characters) - the background consistency anchor",
       "status": "ready",
       "patchable": {
-        "CKPT": "1.ckpt_name", "LORA_SPEED": "2.lora_name", "LORA_STYLE": "3.lora_name",
-        "PROMPT_POS": "11.text", "PROMPT_NEG": "12.text",
-        "WIDTH": "13.width", "HEIGHT": "13.height", "SEED": "14.seed", "SAVE_PREFIX": "16.filename_prefix"
+        "CKPT": "1.ckpt_name",
+        "LORA_SPEED": "2.lora_name",
+        "LORA_STYLE": "3.lora_name",
+        "PROMPT_POS": "11.text",
+        "PROMPT_NEG": "12.text",
+        "WIDTH": "13.width",
+        "HEIGHT": "13.height",
+        "SEED": "14.seed",
+        "SAVE_PREFIX": "16.filename_prefix"
       }
     },
     "panel_txt2img.json": {
@@ -16,26 +25,44 @@
       "status": "ready",
       "notes": "Disable an unused char LoRA by patching its strengths to 0. Disable plate conditioning by patching IPA_PLATE_WEIGHT to 0.",
       "patchable": {
-        "CKPT": "1.ckpt_name", "LORA_SPEED": "2.lora_name", "LORA_STYLE": "3.lora_name",
-        "LORA_CHAR_1": "4.lora_name", "LORA_CHAR_1_STR": "4.strength_model",
-        "LORA_CHAR_2": "5.lora_name", "LORA_CHAR_2_STR": "5.strength_model",
-        "IPA_CHAR_IMG": "7.image", "IPA_CHAR_WEIGHT": "8.weight",
-        "IPA_PLATE_IMG": "9.image", "IPA_PLATE_WEIGHT": "10.weight",
-        "PROMPT_POS": "11.text", "PROMPT_NEG": "12.text",
-        "WIDTH": "13.width", "HEIGHT": "13.height", "SEED": "14.seed", "SAVE_PREFIX": "16.filename_prefix"
+        "CKPT": "1.ckpt_name",
+        "LORA_SPEED": "2.lora_name",
+        "LORA_STYLE": "3.lora_name",
+        "LORA_CHAR_1": "4.lora_name",
+        "LORA_CHAR_1_STR": "4.strength_model",
+        "LORA_CHAR_2": "5.lora_name",
+        "LORA_CHAR_2_STR": "5.strength_model",
+        "IPA_CHAR_IMG": "7.image",
+        "IPA_CHAR_WEIGHT": "8.weight",
+        "IPA_PLATE_IMG": "9.image",
+        "IPA_PLATE_WEIGHT": "10.weight",
+        "PROMPT_POS": "11.text",
+        "PROMPT_NEG": "12.text",
+        "WIDTH": "13.width",
+        "HEIGHT": "13.height",
+        "SEED": "14.seed",
+        "SAVE_PREFIX": "16.filename_prefix"
       }
     },
     "panel_img2img_lastframe.json": {
       "purpose": "Block-opening shot conditioned on previous block's last frame (composition continuity)",
       "status": "ready",
       "patchable": {
-        "CKPT": "1.ckpt_name", "LORA_SPEED": "2.lora_name", "LORA_STYLE": "3.lora_name",
-        "LORA_CHAR_1": "4.lora_name", "LORA_CHAR_1_STR": "4.strength_model",
-        "LORA_CHAR_2": "5.lora_name", "LORA_CHAR_2_STR": "5.strength_model",
-        "IPA_CHAR_IMG": "7.image", "IPA_PLATE_IMG": "9.image",
-        "PROMPT_POS": "11.text", "PROMPT_NEG": "12.text",
-        "INIT_IMAGE": "17.image", "DENOISE": "14.denoise",
-        "SEED": "14.seed", "SAVE_PREFIX": "16.filename_prefix"
+        "CKPT": "1.ckpt_name",
+        "LORA_SPEED": "2.lora_name",
+        "LORA_STYLE": "3.lora_name",
+        "LORA_CHAR_1": "4.lora_name",
+        "LORA_CHAR_1_STR": "4.strength_model",
+        "LORA_CHAR_2": "5.lora_name",
+        "LORA_CHAR_2_STR": "5.strength_model",
+        "IPA_CHAR_IMG": "7.image",
+        "IPA_PLATE_IMG": "9.image",
+        "PROMPT_POS": "11.text",
+        "PROMPT_NEG": "12.text",
+        "INIT_IMAGE": "17.image",
+        "DENOISE": "14.denoise",
+        "SEED": "14.seed",
+        "SAVE_PREFIX": "16.filename_prefix"
       }
     },
     "character_sheet.json": {
@@ -43,10 +70,17 @@
       "status": "ready",
       "notes": "Uses il_anime_model_turn LoRA (SDXL-family). If krea2 is a different architecture, M4 must retrain/replace this LoRA - see design 5.3b.",
       "patchable": {
-        "CKPT": "1.ckpt_name", "LORA_SPEED": "2.lora_name", "LORA_TURNAROUND": "3.lora_name",
-        "LORA_CHAR": "4.lora_name", "LORA_CHAR_STR": "4.strength_model",
-        "PROMPT_POS": "11.text", "PROMPT_NEG": "12.text",
-        "WIDTH": "13.width", "HEIGHT": "13.height", "SEED": "14.seed", "SAVE_PREFIX": "16.filename_prefix"
+        "CKPT": "1.ckpt_name",
+        "LORA_SPEED": "2.lora_name",
+        "LORA_TURNAROUND": "3.lora_name",
+        "LORA_CHAR": "4.lora_name",
+        "LORA_CHAR_STR": "4.strength_model",
+        "PROMPT_POS": "11.text",
+        "PROMPT_NEG": "12.text",
+        "WIDTH": "13.width",
+        "HEIGHT": "13.height",
+        "SEED": "14.seed",
+        "SAVE_PREFIX": "16.filename_prefix"
       }
     },
     "mouth_sheet.json": {
@@ -54,10 +88,14 @@
       "status": "ready",
       "notes": "Pipeline pre-renders the mask PNG (white mouth bbox on black) and uploads both images.",
       "patchable": {
-        "CKPT": "1.ckpt_name", "LORA_CHAR": "2.lora_name",
-        "REF_IMAGE": "3.image", "MASK_IMAGE": "4.image",
-        "VISEME_PROMPT": "11.text", "PROMPT_NEG": "12.text",
-        "SEED": "14.seed", "SAVE_PREFIX": "16.filename_prefix"
+        "CKPT": "1.ckpt_name",
+        "LORA_CHAR": "2.lora_name",
+        "REF_IMAGE": "3.image",
+        "MASK_IMAGE": "4.image",
+        "VISEME_PROMPT": "11.text",
+        "PROMPT_NEG": "12.text",
+        "SEED": "14.seed",
+        "SAVE_PREFIX": "16.filename_prefix"
       }
     },
     "ltx_ambient.json": {
@@ -65,11 +103,20 @@
       "status": "ready",
       "notes": "FPS patched into both LTXVConditioning.frame_rate and SaveAnimatedWEBP.fps; RIFE conforms to project fps afterwards. 2026-07-10: no LTX 2B checkpoint bundles a text encoder (verified via safetensors headers - all are model+vae only), so a CLIPLoader node (id 20, title T5_ENCODER, type ltxv, clip_name t5xxl_fp8_e4m3fn.safetensors) feeds CLIP to nodes 2/3; node 1 (CheckpointLoaderSimple) still supplies MODEL+VAE. Default checkpoint set to ltx-video-2b-v0.9.5.safetensors.",
       "patchable": {
-        "CKPT_LTX": "1.ckpt_name", "T5_ENCODER": "20.clip_name", "MOTION_PROMPT": "2.text", "PROMPT_NEG": "3.text",
-        "FPS": "4.frame_rate", "START_FRAME": "5.image",
-        "WIDTH": "6.width", "HEIGHT": "6.height", "FRAMES": "6.length",
-        "STEPS": "7.steps", "SEED": "9.noise_seed", "CFG": "9.cfg",
-        "SAVE_PREFIX": "11.filename_prefix", "SAVE_FPS": "11.fps"
+        "CKPT_LTX": "1.ckpt_name",
+        "T5_ENCODER": "20.clip_name",
+        "MOTION_PROMPT": "2.text",
+        "PROMPT_NEG": "3.text",
+        "FPS": "4.frame_rate",
+        "START_FRAME": "5.image",
+        "WIDTH": "6.width",
+        "HEIGHT": "6.height",
+        "FRAMES": "6.length",
+        "STEPS": "7.steps",
+        "SEED": "9.noise_seed",
+        "CFG": "9.cfg",
+        "SAVE_PREFIX": "11.filename_prefix",
+        "SAVE_FPS": "11.fps"
       }
     },
     "ltx_director.json": {
@@ -77,12 +124,22 @@
       "status": "ready",
       "notes": "Same T5 wiring as ltx_ambient (2026-07-10): CLIPLoader node 20 (title T5_ENCODER, type ltxv, t5xxl_fp8_e4m3fn.safetensors) feeds CLIP to nodes 2/3; node 1 supplies MODEL+VAE only. Default checkpoint ltx-video-2b-v0.9.5.safetensors.",
       "patchable": {
-        "CKPT_LTX": "1.ckpt_name", "T5_ENCODER": "20.clip_name", "MOTION_PROMPT": "2.text", "PROMPT_NEG": "3.text",
-        "FPS": "4.frame_rate", "START_FRAME": "5.image", "END_FRAME": "12.image",
+        "CKPT_LTX": "1.ckpt_name",
+        "T5_ENCODER": "20.clip_name",
+        "MOTION_PROMPT": "2.text",
+        "PROMPT_NEG": "3.text",
+        "FPS": "4.frame_rate",
+        "START_FRAME": "5.image",
+        "END_FRAME": "12.image",
         "END_STRENGTH": "13.strength",
-        "WIDTH": "6.width", "HEIGHT": "6.height", "FRAMES": "6.length",
-        "STEPS": "7.steps", "SEED": "9.noise_seed", "CFG": "9.cfg",
-        "SAVE_PREFIX": "11.filename_prefix", "SAVE_FPS": "11.fps"
+        "WIDTH": "6.width",
+        "HEIGHT": "6.height",
+        "FRAMES": "6.length",
+        "STEPS": "7.steps",
+        "SEED": "9.noise_seed",
+        "CFG": "9.cfg",
+        "SAVE_PREFIX": "11.filename_prefix",
+        "SAVE_FPS": "11.fps"
       }
     },
     "wan_ti2v.json": {
@@ -90,12 +147,22 @@
       "status": "ready",
       "notes": "Built 2026-07-09 against the live WanVideoWrapper (kijai) install. Uses on-disk weights: WanVideoModelLoader model 'Wan2_2-TI2V-5B_fp8_e4m3fn_scaled_KJ.safetensors' (fp8_e4m3fn_scaled), umt5_xxl_fp8 T5, Wan2_2_VAE_bf16. Block-swap 20 via WanVideoBlockSwap -> loader.block_swap_args. Sampler: 20 steps, unipc, cfg 5.0, shift 5.0. FRAMES=num_frames on WanVideoImageToVideoEncode (81); output fps 16 lives on the SaveAnimatedWEBP node (Wan wrapper has no frame-rate conditioning). PROMPT_NEG shares the MOTION_PROMPT node (WanVideoTextEncode carries positive+negative on one node) so it is patched by node-id, not by a distinct title. fun_or_fl2v_model=false assumed for native TI2V-5B (unverified by a real run - flip if motion is wrong). WIDTH/HEIGHT default 1216x704 to match panel inputs.",
       "patchable": {
-        "BLOCK_SWAP": "1.blocks_to_swap", "WAN_MODEL": "2.model", "WAN_T5": "3.model_name",
-        "MOTION_PROMPT": "4.positive_prompt", "PROMPT_NEG": "4.negative_prompt",
-        "WAN_VAE": "5.model_name", "START_FRAME": "6.image",
-        "WIDTH": "7.width", "HEIGHT": "7.height", "FRAMES": "7.num_frames",
-        "SEED": "8.seed", "STEPS": "8.steps", "CFG": "8.cfg", "SCHEDULER": "8.scheduler",
-        "SAVE_PREFIX": "10.filename_prefix", "SAVE_FPS": "10.fps"
+        "BLOCK_SWAP": "1.blocks_to_swap",
+        "WAN_MODEL": "2.model",
+        "WAN_T5": "3.model_name",
+        "MOTION_PROMPT": "4.positive_prompt",
+        "PROMPT_NEG": "4.negative_prompt",
+        "WAN_VAE": "5.model_name",
+        "START_FRAME": "6.image",
+        "WIDTH": "7.width",
+        "HEIGHT": "7.height",
+        "FRAMES": "7.num_frames",
+        "SEED": "8.seed",
+        "STEPS": "8.steps",
+        "CFG": "8.cfg",
+        "SCHEDULER": "8.scheduler",
+        "SAVE_PREFIX": "10.filename_prefix",
+        "SAVE_FPS": "10.fps"
       }
     },
     "panel_txt2img_krea.json": {
@@ -103,10 +170,15 @@
       "status": "ready",
       "notes": "Built 2026-07-10 from the authoritative Krea-2-Turbo model card + the official native ComfyUI workflow (vantagewithai/Krea-2-Turbo-GGUF) + the calcuis gguf-org workflow. Graph: UnetLoaderGGUF(krea2_turbo-Q4_K_S.gguf) -> KSampler; CLIPLoader(qwen3vl_4b_fp8_scaled.safetensors, type='krea2') -> CLIPTextEncode(POS); negative is ConditioningZeroOut of POS (Turbo is CFG-distilled: KSampler cfg=1.0, so a text negative has no effect - matches the official workflow, PROMPT_NEG carries no patchable text); VAELoader(qwen_image_vae.safetensors); EmptySD3LatentImage gives the 16-channel latent the Qwen-Image VAE needs (NOT EmptyLatentImage). Sampler: euler/simple, 8 steps, cfg 1.0, denoise 1.0 (per model card: steps 8, guidance 0.0). UNBLOCKED 2026-07-10: ComfyUI updated 0.24.0 -> 0.27.1 (torch/pydantic pins held); 'krea2' now in the live CLIPLoader type enum. Proof render passed same day: 1216x704, 8 steps, 113.7s wall, peak VRAM 7782 MiB under --novram, output clean (see docs/planning/krea2-lab-report.md). LoRA stacking + reference/IPAdapter conditioning for this arch are M4 scope (krea2 has its own LoRA format + krea2 identity-edit/style-reference, NOT SDXL IPAdapter).",
       "patchable": {
-        "CKPT": "1.unet_name", "CLIP": "2.clip_name", "VAE": "3.vae_name",
+        "CKPT": "1.unet_name",
+        "CLIP": "2.clip_name",
+        "VAE": "3.vae_name",
         "PROMPT_POS": "11.text",
-        "WIDTH": "13.width", "HEIGHT": "13.height",
-        "SEED": "14.seed", "STEPS": "14.steps", "CFG": "14.cfg",
+        "WIDTH": "13.width",
+        "HEIGHT": "13.height",
+        "SEED": "14.seed",
+        "STEPS": "14.steps",
+        "CFG": "14.cfg",
         "SAVE_PREFIX": "16.filename_prefix"
       }
     },
@@ -116,8 +188,21 @@
       "notes": "Built 2026-07-09 against the installed WD14Tagger|pysssss node. Graph: LoadImage (INPUT_IMAGE) -> WD14Tagger (TAGGER; model wd-v1-4-moat-tagger-v2, threshold 0.35). WD14Tagger is an OUTPUT node: after queueing, the pipeline polls GET /history/<prompt_id> and reads outputs['2']['tags'] (the comma-joined tag string) - there is no SaveText node. Per-image (not folder) by design; design 5.3b's 'INPUT_DIR' title is superseded - the pipeline patches INPUT_IMAGE per file and injects the outfit token into the caption txt after tagging. TAGGER_MODEL/TAGGER_THRESHOLD share the TAGGER node so they patch by node-id.",
       "patchable": {
         "INPUT_IMAGE": "1.image",
-        "TAGGER_MODEL": "2.model", "TAGGER_THRESHOLD": "2.threshold",
+        "TAGGER_MODEL": "2.model",
+        "TAGGER_THRESHOLD": "2.threshold",
         "TAGGER_CHAR_THRESHOLD": "2.character_threshold"
+      }
+    },
+    "image_flux_fallback.json": {
+      "purpose": "Universal fallback image generation via flux1-schnell GGUF (design 5.3b fallback chain). Used for plates, refs, and panels while krea2 is absent. No IPAdapter/LoRA support on flux -- consistency comes from sd_prompt anchors + fixed seeds.",
+      "status": "ready",
+      "patchable": {
+        "PROMPT_POS": "11.text",
+        "WIDTH": "13.width",
+        "HEIGHT": "13.height",
+        "SEED": "14.seed",
+        "STEPS": "14.steps",
+        "SAVE_PREFIX": "16.filename_prefix"
       }
     }
   }

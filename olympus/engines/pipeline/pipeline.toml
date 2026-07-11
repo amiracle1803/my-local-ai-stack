@@ -33,6 +33,10 @@ auto_approve_transform_map = true
 auto_approve_identity = true
 auto_resolve_contradictions = true
 auto_advance_stages = true
+# 2026-07-10: kohya_ss is not runnable on the Linux install yet, so the Stage
+# 1R per-character LoRA gate cannot be satisfied. This flag lets Stage 3B run
+# anyway; the deviation is recorded in every affected scorecard.
+allow_missing_loras = true
 
 # Animation / motion (design 3C).
 [animation]
@@ -44,5 +48,5 @@ default_motion_tier = 1                  # Tier 1 LTX ambient is the floor for e
 # (the directory containing this file). Absolute paths used as-is.
 [paths]
 projects = "projects"                    # per-story artifacts (gitignored)
-loras = "E:/AI/Models/loras"             # trained LoRA checkpoints
-comfyui = "C:/AI/ComfyUI"                # primary ComfyUI install
+loras = "/run/media/amirel/Amir1tb SSD/AI/Models/loras"  # trained LoRA checkpoints
+comfyui = "../../../ComfyUI"             # primary ComfyUI install (repo-local, Linux since 2026-07-10)

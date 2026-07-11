@@ -490,7 +490,14 @@ def test_run_stage_cli_wires_stage1(tmp_path, monkeypatch):
         profiles_by_name={"kaito": _profile_data("Kaito", role="protagonist")},
     )
     monkeypatch.setattr("pipeline.stage1_worldbible.PipelineLLM", lambda *a, **k: fake)
+    # stage1 now chains M2a -> M2b (stage1_world); stub M2b -- its logic has
+    # its own tests and would otherwise call the live LLM here.
+    monkeypatch.setattr(
+        "pipeline.stage1_world.run",
+        lambda project_dir, cfg, scores, **kw: {"stage": "stage1", "status": "done"},
+    )
 
     result = run.run_stage("clitest", "stage1", projects_dir=proj_dir.parent)
-    assert result["status"] == "partial"
-    assert result["profiles_count"] == 1
+    assert result["m2a"]["status"] == "partial"
+    assert result["m2a"]["profiles_count"] == 1
+    assert result["m2b"]["status"] == "done"

@@ -1,0 +1,22 @@
+{
+  "1": {"class_type": "UnetLoaderGGUF", "_meta": {"title": "UNET"},
+        "inputs": {"unet_name": "flux1-schnell-Q4_K_S.gguf"}},
+  "2": {"class_type": "DualCLIPLoader", "_meta": {"title": "CLIP"},
+        "inputs": {"clip_name1": "clip_l.safetensors", "clip_name2": "t5xxl_fp8_e4m3fn.safetensors", "type": "flux", "device": "default"}},
+  "3": {"class_type": "VAELoader", "_meta": {"title": "VAE"},
+        "inputs": {"vae_name": "ae.safetensors"}},
+  "11": {"class_type": "CLIPTextEncode", "_meta": {"title": "PROMPT_POS"},
+         "inputs": {"clip": ["2", 0], "text": "PATCH_PROMPT"}},
+  "12": {"class_type": "FluxGuidance", "_meta": {"title": "GUIDANCE"},
+         "inputs": {"conditioning": ["11", 0], "guidance": 3.5}},
+  "13": {"class_type": "EmptySD3LatentImage", "_meta": {"title": "LATENT"},
+         "inputs": {"width": 1216, "height": 704, "batch_size": 1}},
+  "14": {"class_type": "KSampler", "_meta": {"title": "SAMPLER"},
+         "inputs": {"model": ["1", 0], "positive": ["12", 0], "negative": ["11", 0],
+                    "latent_image": ["13", 0], "seed": 0, "steps": 4, "cfg": 1.0,
+                    "sampler_name": "euler", "scheduler": "simple", "denoise": 1.0}},
+  "15": {"class_type": "VAEDecode", "_meta": {"title": "DECODE"},
+         "inputs": {"samples": ["14", 0], "vae": ["3", 0]}},
+  "16": {"class_type": "SaveImage", "_meta": {"title": "SAVE"},
+         "inputs": {"images": ["15", 0], "filename_prefix": "pipeline/out"}}
+}

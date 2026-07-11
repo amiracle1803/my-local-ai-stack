@@ -77,7 +77,10 @@ class WorldBible(BaseModel):
 
     story_id: str
     characters: list[Character] = Field(default_factory=list)
+    world: dict | None = None  # M2b: era/tech/magic/government/daily_life/economy (design 3.2)
     locations: list[dict] = Field(default_factory=list)
+    recurring_assets: list[dict] = Field(default_factory=list)  # M2b
+    relationships: list[dict] = Field(default_factory=list)  # M2b: pairwise edges + evolution
     power_system: dict | None = None
     world_rules: list[str] = Field(default_factory=list)
     lore_entries: list[dict] = Field(default_factory=list)
