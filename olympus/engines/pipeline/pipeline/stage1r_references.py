@@ -138,6 +138,7 @@ def run(
         comfy = ComfyClient(config)
     if not comfy.healthy():
         raise ContingencyStop("ComfyUI is not reachable at its API - start it first.")
+    comfy.unload_ollama()  # GPU scheduling rule (design section 1)
 
     # Record the model decision honestly (design 5.3b krea2 gate).
     fallback = config.resolve_image_model("fallback")

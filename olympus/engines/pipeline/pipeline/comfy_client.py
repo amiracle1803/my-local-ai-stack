@@ -138,6 +138,23 @@ class ComfyClient:
         except requests.RequestException as exc:  # non-fatal
             logger.warning("comfy /free failed: %s", exc)
 
+    def unload_ollama(self, base_url: str = "http://127.0.0.1:11434") -> None:
+        """GPU scheduling rule (design section 1): never run Ollama and
+        ComfyUI generation simultaneously. Called by image stages before
+        their first generation -- asks Ollama to evict every loaded model
+        (keep_alive: 0). Non-fatal if Ollama is down."""
+        try:
+            loaded = self._session.get(f"{base_url}/api/ps", timeout=10).json()
+            for m in loaded.get("models", []):
+                self._session.post(
+                    f"{base_url}/api/generate",
+                    json={"model": m["name"], "keep_alive": 0},
+                    timeout=30,
+                )
+                logger.info("unloaded ollama model %s before image batch", m["name"])
+        except requests.RequestException as exc:
+            logger.warning("ollama unload skipped: %s", exc)
+
     # ---- generation ------------------------------------------------------
     def generate(
         self,
@@ -186,6 +203,7 @@ class ComfyClient:
         prompt_id = r.json()["prompt_id"]
 
         deadline = time.monotonic() + self.timeout_s
+        poll_errors = 0
         while True:
             if time.monotonic() > deadline:
                 raise ComfyError(f"job {prompt_id} timed out after {self.timeout_s}s")
@@ -193,7 +211,15 @@ class ComfyClient:
             try:
                 h = self._session.get(f"{self.base_url}/history/{prompt_id}", timeout=15)
             except requests.RequestException as exc:
-                raise ComfyError(f"history poll failed: {exc}") from exc
+                # Transient: the server stalls while loading a multi-GB model.
+                # Keep polling until the job deadline; only a sustained outage
+                # (10 consecutive failures) is a real error.
+                poll_errors += 1
+                if poll_errors >= 10:
+                    raise ComfyError(f"history poll failed {poll_errors}x: {exc}") from exc
+                logger.warning("history poll hiccup (%d/10): %s", poll_errors, exc)
+                continue
+            poll_errors = 0
             entry = h.json().get(prompt_id)
             if not entry:
                 continue

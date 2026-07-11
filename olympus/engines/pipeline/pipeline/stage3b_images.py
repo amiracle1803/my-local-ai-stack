@@ -137,6 +137,7 @@ def run(
         comfy = ComfyClient(config)
     if not comfy.healthy():
         raise ContingencyStop("ComfyUI is not reachable - start it first.")
+    comfy.unload_ollama()  # GPU scheduling rule (design section 1)
 
     # LoRA gate (design Stage 3B.5) with the explicit deviation flag.
     lora_dir = config.loras_dir() / project_dir.name
@@ -229,6 +230,10 @@ def run(
             paths[0].replace(panel_path)
             generated += 1
 
+            # GPU scheduling rule: clear flux from VRAM before the vision
+            # model loads (qwen2.5vl uses keep_alive 0, so it evicts itself
+            # after the call; the next generate reloads flux).
+            comfy.free()
             passed, detail = vision_judge(panel_path, shot, scene, config)
             sidecar = {
                 "seed": seed, "prompt": prompt, "model": config.resolve_image_model("fallback"),
