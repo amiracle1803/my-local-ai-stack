@@ -13,10 +13,10 @@
   "class_type": "CLIPLoader",
   "_meta": {
    "title": "CLIP",
-   "note": "krea2 text encoder: Qwen3-VL 'fp8_scaled' ComfyUI repack. The 4B repack was never published; this is the 8B from the old install (SSD symlink) -- same 12-layer conditioning stack, ~5GB transient VRAM while encoding (2026-07-11)."
+   "note": "krea2 text encoder: Qwen3-VL-4B 'fp8_scaled' from the official Comfy-Org/Krea-2 repackaged repo (found 2026-07-11 via the community workflow's source URLs)."
   },
   "inputs": {
-   "clip_name": "qwen3vl_8b_fp8_scaled.safetensors",
+   "clip_name": "qwen3vl_4b_fp8_scaled.safetensors",
    "type": "krea2",
    "device": "default"
   }

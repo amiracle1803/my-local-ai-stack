@@ -1,0 +1,634 @@
+{
+ "last_node_id": 1016,
+ "last_link_id": 9,
+ "nodes": [
+  {
+   "id": 1,
+   "type": "UnetLoaderGGUF",
+   "pos": [
+    0,
+    0
+   ],
+   "size": [
+    340,
+    144
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "UNET",
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      3
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "UnetLoaderGGUF"
+   },
+   "widgets_values": [
+    "krea2_turbo-Q4_K_S.gguf"
+   ]
+  },
+  {
+   "id": 1001,
+   "type": "Note",
+   "pos": [
+    0,
+    204
+   ],
+   "size": [
+    340,
+    166
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "note: UNET",
+   "properties": {},
+   "widgets_values": [
+    "Loads krea2 (Krea-2-Turbo), the design-mandated primary model (design 5.3b), from a Q4_K_S GGUF quant. image_router.pick_template() only routes here once this file exists on disk at its full size -- see pipeline/image_router.py. The ComfyClient ban-check reads unet_name here."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 2,
+   "type": "CLIPLoader",
+   "pos": [
+    0,
+    430
+   ],
+   "size": [
+    340,
+    200
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "CLIP",
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "CLIP",
+     "type": "CLIP",
+     "links": [
+      1
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CLIPLoader"
+   },
+   "widgets_values": [
+    "qwen3vl_4b_fp8_scaled.safetensors",
+    "krea2",
+    "default"
+   ]
+  },
+  {
+   "id": 1002,
+   "type": "Note",
+   "pos": [
+    0,
+    690
+   ],
+   "size": [
+    340,
+    118
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "note: CLIP",
+   "properties": {},
+   "widgets_values": [
+    "krea2 text encoder: Qwen3-VL-4B 'fp8_scaled' from the official Comfy-Org/Krea-2 repackaged repo (found 2026-07-11 via the community workflow's source URLs)."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 3,
+   "type": "VAELoader",
+   "pos": [
+    0,
+    868
+   ],
+   "size": [
+    340,
+    144
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "VAE",
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "VAE",
+     "type": "VAE",
+     "links": [
+      8
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "VAELoader"
+   },
+   "widgets_values": [
+    "qwen_image_vae.safetensors"
+   ]
+  },
+  {
+   "id": 1003,
+   "type": "Note",
+   "pos": [
+    0,
+    1072
+   ],
+   "size": [
+    340,
+    102
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "note: VAE",
+   "properties": {},
+   "widgets_values": [
+    "Qwen-Image VAE (AutoencoderKLQwenImage, 16-channel latent) -- NOT flux's ae.safetensors. Feeds node 15's decode."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 13,
+   "type": "EmptySD3LatentImage",
+   "pos": [
+    0,
+    1234
+   ],
+   "size": [
+    340,
+    200
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "LATENT",
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "LATENT",
+     "type": "LATENT",
+     "links": [
+      6
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "EmptySD3LatentImage"
+   },
+   "widgets_values": [
+    1216,
+    704,
+    1
+   ]
+  },
+  {
+   "id": 1013,
+   "type": "Note",
+   "pos": [
+    0,
+    1494
+   ],
+   "size": [
+    340,
+    118
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "note: LATENT",
+   "properties": {},
+   "widgets_values": [
+    "16-channel latent canvas sized for the Qwen-Image VAE (NOT EmptyLatentImage). Patched to 1216x704 for panels/plates, 832x1216 portrait for character refs."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 11,
+   "type": "CLIPTextEncode",
+   "pos": [
+    420,
+    0
+   ],
+   "size": [
+    340,
+    170
+   ],
+   "flags": {},
+   "order": 1,
+   "mode": 0,
+   "title": "PROMPT_POS",
+   "inputs": [
+    {
+     "name": "clip",
+     "type": "CLIP",
+     "link": 1
+    }
+   ],
+   "outputs": [
+    {
+     "name": "CONDITIONING",
+     "type": "CONDITIONING",
+     "links": [
+      2,
+      4
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CLIPTextEncode"
+   },
+   "widgets_values": [
+    "PATCH_PROMPT"
+   ]
+  },
+  {
+   "id": 1011,
+   "type": "Note",
+   "pos": [
+    420,
+    230
+   ],
+   "size": [
+    340,
+    102
+   ],
+   "flags": {},
+   "order": 1,
+   "mode": 0,
+   "title": "note: PROMPT_POS",
+   "properties": {},
+   "widgets_values": [
+    "The assembled sd_prompt lands here (patched per shot by ComfyClient). Also feeds node 12's zero-out negative."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 12,
+   "type": "ConditioningZeroOut",
+   "pos": [
+    840,
+    0
+   ],
+   "size": [
+    340,
+    142
+   ],
+   "flags": {},
+   "order": 2,
+   "mode": 0,
+   "title": "NEG_ZEROOUT",
+   "inputs": [
+    {
+     "name": "conditioning",
+     "type": "CONDITIONING",
+     "link": 2
+    }
+   ],
+   "outputs": [
+    {
+     "name": "CONDITIONING",
+     "type": "CONDITIONING",
+     "links": [
+      5
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "ConditioningZeroOut"
+   },
+   "widgets_values": []
+  },
+  {
+   "id": 1012,
+   "type": "Note",
+   "pos": [
+    840,
+    202
+   ],
+   "size": [
+    340,
+    166
+   ],
+   "flags": {},
+   "order": 2,
+   "mode": 0,
+   "title": "note: NEG_ZEROOUT",
+   "properties": {},
+   "widgets_values": [
+    "krea2-Turbo is CFG-distilled (KSampler cfg=1.0), so a text negative has no effect -- per the model card and the validated panel_txt2img_krea.json graph, the negative conditioning is a zero-out of the positive instead of a second CLIPTextEncode. There is no PROMPT_NEG patch title on this template."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 14,
+   "type": "KSampler",
+   "pos": [
+    1260,
+    0
+   ],
+   "size": [
+    340,
+    388
+   ],
+   "flags": {},
+   "order": 3,
+   "mode": 0,
+   "title": "SAMPLER",
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 3
+    },
+    {
+     "name": "positive",
+     "type": "CONDITIONING",
+     "link": 4
+    },
+    {
+     "name": "negative",
+     "type": "CONDITIONING",
+     "link": 5
+    },
+    {
+     "name": "latent_image",
+     "type": "LATENT",
+     "link": 6
+    }
+   ],
+   "outputs": [
+    {
+     "name": "LATENT",
+     "type": "LATENT",
+     "links": [
+      7
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "KSampler"
+   },
+   "widgets_values": [
+    0,
+    "fixed",
+    8,
+    1.0,
+    "euler",
+    "simple",
+    1.0
+   ]
+  },
+  {
+   "id": 1014,
+   "type": "Note",
+   "pos": [
+    1260,
+    448
+   ],
+   "size": [
+    340,
+    182
+   ],
+   "flags": {},
+   "order": 3,
+   "mode": 0,
+   "title": "note: SAMPLER",
+   "properties": {},
+   "widgets_values": [
+    "krea2-Turbo's validated recipe (panel_txt2img_krea.json proof render, 2026-07-10): euler/simple, 8 steps, cfg 1.0, denoise 1.0 -- krea2 is not flux, do not change without a fresh model_lab proof render. SEED is patched per shot from hash(scene_id, shot_id, retry) so every panel is reproducible from its sidecar json."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 15,
+   "type": "VAEDecode",
+   "pos": [
+    1680,
+    0
+   ],
+   "size": [
+    340,
+    168
+   ],
+   "flags": {},
+   "order": 4,
+   "mode": 0,
+   "title": "DECODE",
+   "inputs": [
+    {
+     "name": "samples",
+     "type": "LATENT",
+     "link": 7
+    },
+    {
+     "name": "vae",
+     "type": "VAE",
+     "link": 8
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      9
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "VAEDecode"
+   },
+   "widgets_values": []
+  },
+  {
+   "id": 1015,
+   "type": "Note",
+   "pos": [
+    1680,
+    228
+   ],
+   "size": [
+    340,
+    86
+   ],
+   "flags": {},
+   "order": 4,
+   "mode": 0,
+   "title": "note: DECODE",
+   "properties": {},
+   "widgets_values": [
+    "Latent -> RGB pixels via the Qwen-Image VAE from node 3."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 16,
+   "type": "SaveImage",
+   "pos": [
+    2100,
+    0
+   ],
+   "size": [
+    340,
+    170
+   ],
+   "flags": {},
+   "order": 5,
+   "mode": 0,
+   "title": "SAVE",
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 9
+    }
+   ],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": null,
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "SaveImage"
+   },
+   "widgets_values": [
+    "pipeline/out"
+   ]
+  },
+  {
+   "id": 1016,
+   "type": "Note",
+   "pos": [
+    2100,
+    230
+   ],
+   "size": [
+    340,
+    118
+   ],
+   "flags": {},
+   "order": 5,
+   "mode": 0,
+   "title": "note: SAVE",
+   "properties": {},
+   "widgets_values": [
+    "Writes the PNG under ComfyUI/output/<SAVE_PREFIX>; ComfyClient then copies it into the project's panels/refs directory and renames it deterministically."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  }
+ ],
+ "links": [
+  [
+   1,
+   2,
+   0,
+   11,
+   0,
+   "CLIP"
+  ],
+  [
+   2,
+   11,
+   0,
+   12,
+   0,
+   "CONDITIONING"
+  ],
+  [
+   3,
+   1,
+   0,
+   14,
+   0,
+   "MODEL"
+  ],
+  [
+   4,
+   11,
+   0,
+   14,
+   1,
+   "CONDITIONING"
+  ],
+  [
+   5,
+   12,
+   0,
+   14,
+   2,
+   "CONDITIONING"
+  ],
+  [
+   6,
+   13,
+   0,
+   14,
+   3,
+   "LATENT"
+  ],
+  [
+   7,
+   14,
+   0,
+   15,
+   0,
+   "LATENT"
+  ],
+  [
+   8,
+   3,
+   0,
+   15,
+   1,
+   "VAE"
+  ],
+  [
+   9,
+   15,
+   0,
+   16,
+   0,
+   "IMAGE"
+  ]
+ ],
+ "groups": [],
+ "config": {},
+ "extra": {},
+ "version": 0.4
+}

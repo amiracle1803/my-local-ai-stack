@@ -1,5 +1,5 @@
 {
- "last_node_id": 16,
+ "last_node_id": 1002,
  "last_link_id": 14,
  "nodes": [
   {
@@ -49,15 +49,37 @@
     "Node name for S&R": "CheckpointLoaderSimple"
    },
    "widgets_values": [
-    "PATCH_IMAGE_PRIMARY.safetensors"
+    "animagine-xl-4.0.safetensors"
    ]
+  },
+  {
+   "id": 1001,
+   "type": "Note",
+   "pos": [
+    0,
+    256
+   ],
+   "size": [
+    340,
+    102
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "note: CKPT",
+   "properties": {},
+   "widgets_values": [
+    "2026-07-11: defaulted to animagine-xl-4.0.safetensors (non-banned SDXL anime base) - see manifest._readme."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
   },
   {
    "id": 3,
    "type": "LoadImage",
    "pos": [
     0,
-    256
+    418
    ],
    "size": [
     340,
@@ -96,7 +118,7 @@
    "type": "LoadImageMask",
    "pos": [
     0,
-    486
+    648
    ],
    "size": [
     340,
@@ -175,17 +197,39 @@
     "Node name for S&R": "LoraLoader"
    },
    "widgets_values": [
-    "PATCH_CHAR_LORA.safetensors",
-    0.9,
-    0.9
+    "Hyper-SDXL-8steps-CFG-lora.safetensors",
+    0.0,
+    0.0
    ]
+  },
+  {
+   "id": 1002,
+   "type": "Note",
+   "pos": [
+    420,
+    338
+   ],
+   "size": [
+    340,
+    150
+   ],
+   "flags": {},
+   "order": 1,
+   "mode": 0,
+   "title": "note: LORA_CHAR",
+   "properties": {},
+   "widgets_values": [
+    "2026-07-11: no trained character LoRA yet - defaulted to the Hyper speed LoRA at strength 0 (harmless no-op placeholder; original design strength was 0.9 for real identity-lock, restore that once a real per-character LoRA is trained and patched in)."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
   },
   {
    "id": 5,
    "type": "VAEEncodeForInpaint",
    "pos": [
     420,
-    338
+    548
    ],
    "size": [
     340,

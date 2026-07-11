@@ -62,3 +62,7 @@ olympus/engines/pipeline/projects/
 ComfyUI/
 olympus.log
 opencode.log
+
+# runtime model-lab validation marker + generated workflow report (machine state)
+olympus/engines/pipeline/workflows/.krea2_smoke_passed
+olympus/engines/pipeline/tools/check_workflows_report.json

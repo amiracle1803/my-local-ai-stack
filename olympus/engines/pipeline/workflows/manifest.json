@@ -1,5 +1,5 @@
 {
-  "_readme": "ComfyUI workflow templates (API format), grounded against the live /object_info of ComfyUI 0.27.1 on 2026-07-10 (updated from 0.24.0 for krea2 support; all 10 templates revalidated PASS-with-note). ComfyClient patches nodes by _meta.title using the 'patchable' maps below (title -> node_id.input_field). Every template must pass `model_lab test-workflows` after any node-pack change. SDXL-template checkpoint names default to PATCH placeholders because the MODEL BAN LIST forbids the local SDXL anime checkpoints.",
+  "_readme": "ComfyUI workflow templates (API format), grounded against the live /object_info of ComfyUI 0.27.1 on 2026-07-10 (updated from 0.24.0 for krea2 support; all 10 templates revalidated PASS-with-note). ComfyClient patches nodes by _meta.title using the 'patchable' maps below (title -> node_id.input_field). Every template must pass `model_lab test-workflows` after any node-pack change. 2026-07-11: the 5 SDXL templates (scene_plate, panel_txt2img, panel_img2img_lastframe, character_sheet, mouth_sheet) no longer ship PATCH_ checkpoint/LoRA placeholders - CKPT now defaults to animagine-xl-4.0.safetensors (downloaded into models/checkpoints/; a non-banned SDXL anime base, cagliostrolab/animagine-xl-4.0), LORA_SPEED to the real Hyper-SDXL-8steps-CFG-lora.safetensors (already on disk), and every LORA_STYLE/LORA_CHAR*/LORA_CHAR slot with no trained LoRA yet defaults to that same Hyper file at strength 0.0/0.0 (harmless no-op placeholder - a real file resolves in the UI, but it applies zero effect) - see each template's per-node _meta.note. MODEL BAN LIST is unchanged and still forbids NoobAI-XL-v1.1, wai-illustrious-v110, z-anime-distill, FLUX.1-Krea-dev; animagine-xl-4.0 is not on that list. ltx_ambient/ltx_director: CKPT_LTX repointed from the never-present ltx-video-2b-v0.9.5.safetensors to ltx-2.3-22b-dev-fp8.safetensors (symlinked into models/checkpoints/ from the external SSD) purely for UI resolution - it is a different LTX generation than the 2B-era nodes in these templates and is very likely unusable on 8GB VRAM; do not test-render.",
   "resolution_default": [
     1216,
     704
@@ -8,6 +8,7 @@
     "scene_plate.json": {
       "purpose": "One location master plate per scene (no characters) - the background consistency anchor",
       "status": "ready",
+      "notes": "2026-07-11: CKPT defaults to animagine-xl-4.0.safetensors; LORA_STYLE defaults to Hyper-SDXL-8steps-CFG-lora.safetensors at strength 0 (no style LoRA trained yet).",
       "patchable": {
         "CKPT": "1.ckpt_name",
         "LORA_SPEED": "2.lora_name",
@@ -23,7 +24,7 @@
     "panel_txt2img.json": {
       "purpose": "Per-shot panel: base + speed LoRA + style LoRA + <=2 character LoRAs + dual IPAdapter (char ref, scene plate)",
       "status": "ready",
-      "notes": "Disable an unused char LoRA by patching its strengths to 0. Disable plate conditioning by patching IPA_PLATE_WEIGHT to 0.",
+      "notes": "Disable an unused char LoRA by patching its strengths to 0. Disable plate conditioning by patching IPA_PLATE_WEIGHT to 0. 2026-07-11: CKPT defaults to animagine-xl-4.0.safetensors; LORA_STYLE/LORA_CHAR_1/LORA_CHAR_2 default to Hyper-SDXL-8steps-CFG-lora.safetensors at strength 0 (no style/character LoRAs trained yet).",
       "patchable": {
         "CKPT": "1.ckpt_name",
         "LORA_SPEED": "2.lora_name",
@@ -47,6 +48,7 @@
     "panel_img2img_lastframe.json": {
       "purpose": "Block-opening shot conditioned on previous block's last frame (composition continuity)",
       "status": "ready",
+      "notes": "2026-07-11: CKPT defaults to animagine-xl-4.0.safetensors; LORA_STYLE/LORA_CHAR_1/LORA_CHAR_2 default to Hyper-SDXL-8steps-CFG-lora.safetensors at strength 0 (no style/character LoRAs trained yet).",
       "patchable": {
         "CKPT": "1.ckpt_name",
         "LORA_SPEED": "2.lora_name",
@@ -68,7 +70,7 @@
     "character_sheet.json": {
       "purpose": "360-degree turnaround / expression / pose reference frames (Stage 1R). VIEW instruction goes inside PROMPT_POS.",
       "status": "ready",
-      "notes": "Uses il_anime_model_turn LoRA (SDXL-family). If krea2 is a different architecture, M4 must retrain/replace this LoRA - see design 5.3b.",
+      "notes": "Uses il_anime_model_turn LoRA (SDXL-family). If krea2 is a different architecture, M4 must retrain/replace this LoRA - see design 5.3b. 2026-07-11: CKPT defaults to animagine-xl-4.0.safetensors; LORA_CHAR defaults to Hyper-SDXL-8steps-CFG-lora.safetensors at strength 0 (no character LoRA trained yet).",
       "patchable": {
         "CKPT": "1.ckpt_name",
         "LORA_SPEED": "2.lora_name",
@@ -86,7 +88,7 @@
     "mouth_sheet.json": {
       "purpose": "Inpaint the mouth region of a character's front ref into one viseme shape (run 9x per character)",
       "status": "ready",
-      "notes": "Pipeline pre-renders the mask PNG (white mouth bbox on black) and uploads both images.",
+      "notes": "Pipeline pre-renders the mask PNG (white mouth bbox on black) and uploads both images. 2026-07-11: CKPT defaults to animagine-xl-4.0.safetensors; LORA_CHAR defaults to Hyper-SDXL-8steps-CFG-lora.safetensors at strength 0 (original design strength was 0.9 for real identity-lock - restore once a real per-character LoRA is trained).",
       "patchable": {
         "CKPT": "1.ckpt_name",
         "LORA_CHAR": "2.lora_name",
@@ -101,7 +103,7 @@
     "ltx_ambient.json": {
       "purpose": "Tier-1 ambient motion: image-to-video from the shot panel, core ComfyUI LTX nodes",
       "status": "ready",
-      "notes": "FPS patched into both LTXVConditioning.frame_rate and SaveAnimatedWEBP.fps; RIFE conforms to project fps afterwards. 2026-07-10: no LTX 2B checkpoint bundles a text encoder (verified via safetensors headers - all are model+vae only), so a CLIPLoader node (id 20, title T5_ENCODER, type ltxv, clip_name t5xxl_fp8_e4m3fn.safetensors) feeds CLIP to nodes 2/3; node 1 (CheckpointLoaderSimple) still supplies MODEL+VAE. Default checkpoint set to ltx-video-2b-v0.9.5.safetensors.",
+      "notes": "FPS patched into both LTXVConditioning.frame_rate and SaveAnimatedWEBP.fps; RIFE conforms to project fps afterwards. 2026-07-10: no LTX 2B checkpoint bundles a text encoder (verified via safetensors headers - all are model+vae only), so a CLIPLoader node (id 20, title T5_ENCODER, type ltxv, clip_name t5xxl_fp8_e4m3fn.safetensors) feeds CLIP to nodes 2/3; node 1 (CheckpointLoaderSimple) still supplies MODEL+VAE. 2026-07-11: ltx-video-2b-v0.9.5.safetensors was never actually present on disk (missing-model in the UI); CKPT_LTX now defaults to ltx-2.3-22b-dev-fp8.safetensors, symlinked into models/checkpoints/ from the external SSD. This is purely to make the template resolve cleanly in the browser - the 22B model is a different LTX generation than these 2B-era nodes were built for and is very likely unusable on 8GB VRAM. Do NOT test-render this template.",
       "patchable": {
         "CKPT_LTX": "1.ckpt_name",
         "T5_ENCODER": "20.clip_name",
@@ -122,7 +124,7 @@
     "ltx_director.json": {
       "purpose": "Tier-2 action motion with first+last frame conditioning (LTXVAddGuide at frame_idx -1)",
       "status": "ready",
-      "notes": "Same T5 wiring as ltx_ambient (2026-07-10): CLIPLoader node 20 (title T5_ENCODER, type ltxv, t5xxl_fp8_e4m3fn.safetensors) feeds CLIP to nodes 2/3; node 1 supplies MODEL+VAE only. Default checkpoint ltx-video-2b-v0.9.5.safetensors.",
+      "notes": "Same T5 wiring as ltx_ambient (2026-07-10): CLIPLoader node 20 (title T5_ENCODER, type ltxv, t5xxl_fp8_e4m3fn.safetensors) feeds CLIP to nodes 2/3; node 1 supplies MODEL+VAE only. 2026-07-11: ltx-video-2b-v0.9.5.safetensors was never actually present on disk; CKPT_LTX now defaults to ltx-2.3-22b-dev-fp8.safetensors, symlinked into models/checkpoints/ from the external SSD, purely for UI resolution - very likely unusable on 8GB VRAM. Do NOT test-render this template.",
       "patchable": {
         "CKPT_LTX": "1.ckpt_name",
         "T5_ENCODER": "20.clip_name",

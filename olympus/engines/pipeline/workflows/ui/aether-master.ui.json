@@ -1,6 +1,6 @@
 {
- "last_node_id": 1228,
- "last_link_id": 232,
+ "last_node_id": 9165,
+ "last_link_id": 262,
  "nodes": [
   {
    "id": 1,
@@ -48,15 +48,37 @@
     "Node name for S&R": "CheckpointLoaderSimple"
    },
    "widgets_values": [
-    "PATCH_IMAGE_PRIMARY.safetensors"
+    "animagine-xl-4.0.safetensors"
    ]
+  },
+  {
+   "id": 1001,
+   "type": "Note",
+   "pos": [
+    60,
+    336
+   ],
+   "size": [
+    340,
+    102
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "note: CKPT",
+   "properties": {},
+   "widgets_values": [
+    "2026-07-11: defaulted to animagine-xl-4.0.safetensors (non-banned SDXL anime base) - see manifest._readme."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
   },
   {
    "id": 13,
    "type": "EmptyLatentImage",
    "pos": [
     60,
-    336
+    498
    ],
    "size": [
     340,
@@ -135,7 +157,7 @@
     "Node name for S&R": "LoraLoader"
    },
    "widgets_values": [
-    "PATCH_SPEED_LORA.safetensors",
+    "Hyper-SDXL-8steps-CFG-lora.safetensors",
     1.0,
     1.0
    ]
@@ -190,10 +212,32 @@
     "Node name for S&R": "LoraLoader"
    },
    "widgets_values": [
-    "PATCH_STYLE_LORA.safetensors",
+    "Hyper-SDXL-8steps-CFG-lora.safetensors",
     0.0,
     0.0
    ]
+  },
+  {
+   "id": 1003,
+   "type": "Note",
+   "pos": [
+    900,
+    418
+   ],
+   "size": [
+    340,
+    150
+   ],
+   "flags": {},
+   "order": 2,
+   "mode": 0,
+   "title": "note: LORA_STYLE",
+   "properties": {},
+   "widgets_values": [
+    "2026-07-11: no trained style-lock LoRA exists yet - defaulted to the Hyper speed LoRA at strength 0 (a harmless no-op placeholder) purely so the node resolves a real file. Patch LORA_STYLE + its strengths once a real style LoRA is trained."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
   },
   {
    "id": 11,
@@ -413,11 +457,11 @@
    ]
   },
   {
-   "id": 27,
+   "id": 1014,
    "type": "CheckpointLoaderSimple",
    "pos": [
     60,
-    816
+    978
    ],
    "size": [
     340,
@@ -458,15 +502,37 @@
     "Node name for S&R": "CheckpointLoaderSimple"
    },
    "widgets_values": [
-    "PATCH_IMAGE_PRIMARY.safetensors"
+    "animagine-xl-4.0.safetensors"
    ]
   },
   {
-   "id": 33,
+   "id": 2014,
+   "type": "Note",
+   "pos": [
+    60,
+    1234
+   ],
+   "size": [
+    340,
+    102
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "note: CKPT",
+   "properties": {},
+   "widgets_values": [
+    "2026-07-11: defaulted to animagine-xl-4.0.safetensors (non-banned SDXL anime base) - see manifest._readme."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 1020,
    "type": "LoadImage",
    "pos": [
     60,
-    1072
+    1396
    ],
    "size": [
     340,
@@ -501,11 +567,11 @@
    ]
   },
   {
-   "id": 35,
+   "id": 1022,
    "type": "LoadImage",
    "pos": [
     60,
-    1302
+    1626
    ],
    "size": [
     340,
@@ -540,11 +606,11 @@
    ]
   },
   {
-   "id": 39,
+   "id": 1026,
    "type": "EmptyLatentImage",
    "pos": [
     60,
-    1532
+    1856
    ],
    "size": [
     340,
@@ -575,11 +641,11 @@
    ]
   },
   {
-   "id": 28,
+   "id": 1015,
    "type": "LoraLoader",
    "pos": [
     480,
-    816
+    978
    ],
    "size": [
     340,
@@ -623,17 +689,17 @@
     "Node name for S&R": "LoraLoader"
    },
    "widgets_values": [
-    "PATCH_SPEED_LORA.safetensors",
+    "Hyper-SDXL-8steps-CFG-lora.safetensors",
     1.0,
     1.0
    ]
   },
   {
-   "id": 29,
+   "id": 1016,
    "type": "LoraLoader",
    "pos": [
     900,
-    816
+    978
    ],
    "size": [
     340,
@@ -677,17 +743,39 @@
     "Node name for S&R": "LoraLoader"
    },
    "widgets_values": [
-    "PATCH_STYLE_LORA.safetensors",
+    "Hyper-SDXL-8steps-CFG-lora.safetensors",
     0.0,
     0.0
    ]
   },
   {
-   "id": 30,
+   "id": 2016,
+   "type": "Note",
+   "pos": [
+    900,
+    1316
+   ],
+   "size": [
+    340,
+    118
+   ],
+   "flags": {},
+   "order": 2,
+   "mode": 0,
+   "title": "note: LORA_STYLE",
+   "properties": {},
+   "widgets_values": [
+    "2026-07-11: no trained style-lock LoRA exists yet - defaulted to the Hyper speed LoRA at strength 0 (harmless no-op placeholder). Patch once a real style LoRA is trained."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 1017,
    "type": "LoraLoader",
    "pos": [
     1320,
-    816
+    978
    ],
    "size": [
     340,
@@ -731,17 +819,39 @@
     "Node name for S&R": "LoraLoader"
    },
    "widgets_values": [
-    "PATCH_CHAR_LORA_1.safetensors",
+    "Hyper-SDXL-8steps-CFG-lora.safetensors",
     0.0,
     0.0
    ]
   },
   {
-   "id": 31,
+   "id": 2017,
+   "type": "Note",
+   "pos": [
+    1320,
+    1316
+   ],
+   "size": [
+    340,
+    134
+   ],
+   "flags": {},
+   "order": 3,
+   "mode": 0,
+   "title": "note: LORA_CHAR_1",
+   "properties": {},
+   "widgets_values": [
+    "2026-07-11: no trained character LoRA yet - defaulted to the Hyper speed LoRA at strength 0 (harmless no-op placeholder). Patch LORA_CHAR_1(_STR) once a real per-character LoRA is trained."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 1018,
    "type": "LoraLoader",
    "pos": [
     1740,
-    816
+    978
    ],
    "size": [
     340,
@@ -786,17 +896,39 @@
     "Node name for S&R": "LoraLoader"
    },
    "widgets_values": [
-    "PATCH_CHAR_LORA_2.safetensors",
+    "Hyper-SDXL-8steps-CFG-lora.safetensors",
     0.0,
     0.0
    ]
   },
   {
-   "id": 32,
+   "id": 2018,
+   "type": "Note",
+   "pos": [
+    1740,
+    1316
+   ],
+   "size": [
+    340,
+    134
+   ],
+   "flags": {},
+   "order": 4,
+   "mode": 0,
+   "title": "note: LORA_CHAR_2",
+   "properties": {},
+   "widgets_values": [
+    "2026-07-11: no trained character LoRA yet - defaulted to the Hyper speed LoRA at strength 0 (harmless no-op placeholder). Patch LORA_CHAR_2(_STR) once a real per-character LoRA is trained."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 1019,
    "type": "IPAdapterUnifiedLoader",
    "pos": [
     2160,
-    816
+    978
    ],
    "size": [
     340,
@@ -845,11 +977,11 @@
    ]
   },
   {
-   "id": 37,
+   "id": 1024,
    "type": "CLIPTextEncode",
    "pos": [
     2160,
-    1098
+    1260
    ],
    "size": [
     340,
@@ -884,11 +1016,11 @@
    ]
   },
   {
-   "id": 38,
+   "id": 1025,
    "type": "CLIPTextEncode",
    "pos": [
     2160,
-    1328
+    1490
    ],
    "size": [
     340,
@@ -923,11 +1055,11 @@
    ]
   },
   {
-   "id": 34,
+   "id": 1021,
    "type": "IPAdapterAdvanced",
    "pos": [
     2580,
-    816
+    978
    ],
    "size": [
     340,
@@ -988,11 +1120,11 @@
    ]
   },
   {
-   "id": 36,
+   "id": 1023,
    "type": "IPAdapterAdvanced",
    "pos": [
     3000,
-    816
+    978
    ],
    "size": [
     340,
@@ -1053,11 +1185,11 @@
    ]
   },
   {
-   "id": 40,
+   "id": 1027,
    "type": "KSampler",
    "pos": [
     3420,
-    816
+    978
    ],
    "size": [
     340,
@@ -1113,11 +1245,11 @@
    ]
   },
   {
-   "id": 41,
+   "id": 1028,
    "type": "VAEDecode",
    "pos": [
     3840,
-    816
+    978
    ],
    "size": [
     340,
@@ -1155,11 +1287,11 @@
    "widgets_values": []
   },
   {
-   "id": 42,
+   "id": 1029,
    "type": "SaveImage",
    "pos": [
     4260,
-    816
+    978
    ],
    "size": [
     340,
@@ -1192,11 +1324,11 @@
    ]
   },
   {
-   "id": 53,
+   "id": 2029,
    "type": "CheckpointLoaderSimple",
    "pos": [
     60,
-    2012
+    2336
    ],
    "size": [
     340,
@@ -1238,15 +1370,37 @@
     "Node name for S&R": "CheckpointLoaderSimple"
    },
    "widgets_values": [
-    "PATCH_IMAGE_PRIMARY.safetensors"
+    "animagine-xl-4.0.safetensors"
    ]
   },
   {
-   "id": 59,
+   "id": 3029,
+   "type": "Note",
+   "pos": [
+    60,
+    2592
+   ],
+   "size": [
+    340,
+    102
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "note: CKPT",
+   "properties": {},
+   "widgets_values": [
+    "2026-07-11: defaulted to animagine-xl-4.0.safetensors (non-banned SDXL anime base) - see manifest._readme."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 2035,
    "type": "LoadImage",
    "pos": [
     60,
-    2268
+    2754
    ],
    "size": [
     340,
@@ -1281,11 +1435,11 @@
    ]
   },
   {
-   "id": 61,
+   "id": 2037,
    "type": "LoadImage",
    "pos": [
     60,
-    2498
+    2984
    ],
    "size": [
     340,
@@ -1320,11 +1474,11 @@
    ]
   },
   {
-   "id": 69,
+   "id": 2045,
    "type": "LoadImage",
    "pos": [
     60,
-    2728
+    3214
    ],
    "size": [
     340,
@@ -1359,11 +1513,11 @@
    ]
   },
   {
-   "id": 54,
+   "id": 2030,
    "type": "LoraLoader",
    "pos": [
     480,
-    2012
+    2336
    ],
    "size": [
     340,
@@ -1407,17 +1561,17 @@
     "Node name for S&R": "LoraLoader"
    },
    "widgets_values": [
-    "PATCH_SPEED_LORA.safetensors",
+    "Hyper-SDXL-8steps-CFG-lora.safetensors",
     1.0,
     1.0
    ]
   },
   {
-   "id": 70,
+   "id": 2046,
    "type": "VAEEncode",
    "pos": [
     480,
-    2350
+    2674
    ],
    "size": [
     340,
@@ -1455,11 +1609,11 @@
    "widgets_values": []
   },
   {
-   "id": 55,
+   "id": 2031,
    "type": "LoraLoader",
    "pos": [
     900,
-    2012
+    2336
    ],
    "size": [
     340,
@@ -1503,17 +1657,39 @@
     "Node name for S&R": "LoraLoader"
    },
    "widgets_values": [
-    "PATCH_STYLE_LORA.safetensors",
+    "Hyper-SDXL-8steps-CFG-lora.safetensors",
     0.0,
     0.0
    ]
   },
   {
-   "id": 56,
+   "id": 3031,
+   "type": "Note",
+   "pos": [
+    900,
+    2674
+   ],
+   "size": [
+    340,
+    118
+   ],
+   "flags": {},
+   "order": 2,
+   "mode": 0,
+   "title": "note: LORA_STYLE",
+   "properties": {},
+   "widgets_values": [
+    "2026-07-11: no trained style-lock LoRA exists yet - defaulted to the Hyper speed LoRA at strength 0 (harmless no-op placeholder). Patch once a real style LoRA is trained."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 2032,
    "type": "LoraLoader",
    "pos": [
     1320,
-    2012
+    2336
    ],
    "size": [
     340,
@@ -1557,17 +1733,39 @@
     "Node name for S&R": "LoraLoader"
    },
    "widgets_values": [
-    "PATCH_CHAR_LORA_1.safetensors",
+    "Hyper-SDXL-8steps-CFG-lora.safetensors",
     0.0,
     0.0
    ]
   },
   {
-   "id": 57,
+   "id": 3032,
+   "type": "Note",
+   "pos": [
+    1320,
+    2674
+   ],
+   "size": [
+    340,
+    134
+   ],
+   "flags": {},
+   "order": 3,
+   "mode": 0,
+   "title": "note: LORA_CHAR_1",
+   "properties": {},
+   "widgets_values": [
+    "2026-07-11: no trained character LoRA yet - defaulted to the Hyper speed LoRA at strength 0 (harmless no-op placeholder). Patch LORA_CHAR_1(_STR) once a real per-character LoRA is trained."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 2033,
    "type": "LoraLoader",
    "pos": [
     1740,
-    2012
+    2336
    ],
    "size": [
     340,
@@ -1612,17 +1810,39 @@
     "Node name for S&R": "LoraLoader"
    },
    "widgets_values": [
-    "PATCH_CHAR_LORA_2.safetensors",
+    "Hyper-SDXL-8steps-CFG-lora.safetensors",
     0.0,
     0.0
    ]
   },
   {
-   "id": 58,
+   "id": 3033,
+   "type": "Note",
+   "pos": [
+    1740,
+    2674
+   ],
+   "size": [
+    340,
+    134
+   ],
+   "flags": {},
+   "order": 4,
+   "mode": 0,
+   "title": "note: LORA_CHAR_2",
+   "properties": {},
+   "widgets_values": [
+    "2026-07-11: no trained character LoRA yet - defaulted to the Hyper speed LoRA at strength 0 (harmless no-op placeholder). Patch LORA_CHAR_2(_STR) once a real per-character LoRA is trained."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 2034,
    "type": "IPAdapterUnifiedLoader",
    "pos": [
     2160,
-    2012
+    2336
    ],
    "size": [
     340,
@@ -1671,11 +1891,11 @@
    ]
   },
   {
-   "id": 63,
+   "id": 2039,
    "type": "CLIPTextEncode",
    "pos": [
     2160,
-    2294
+    2618
    ],
    "size": [
     340,
@@ -1710,11 +1930,11 @@
    ]
   },
   {
-   "id": 64,
+   "id": 2040,
    "type": "CLIPTextEncode",
    "pos": [
     2160,
-    2524
+    2848
    ],
    "size": [
     340,
@@ -1749,11 +1969,11 @@
    ]
   },
   {
-   "id": 60,
+   "id": 2036,
    "type": "IPAdapterAdvanced",
    "pos": [
     2580,
-    2012
+    2336
    ],
    "size": [
     340,
@@ -1814,11 +2034,11 @@
    ]
   },
   {
-   "id": 62,
+   "id": 2038,
    "type": "IPAdapterAdvanced",
    "pos": [
     3000,
-    2012
+    2336
    ],
    "size": [
     340,
@@ -1879,11 +2099,11 @@
    ]
   },
   {
-   "id": 66,
+   "id": 2042,
    "type": "KSampler",
    "pos": [
     3420,
-    2012
+    2336
    ],
    "size": [
     340,
@@ -1939,11 +2159,11 @@
    ]
   },
   {
-   "id": 67,
+   "id": 2043,
    "type": "VAEDecode",
    "pos": [
     3840,
-    2012
+    2336
    ],
    "size": [
     340,
@@ -1981,11 +2201,11 @@
    "widgets_values": []
   },
   {
-   "id": 68,
+   "id": 2044,
    "type": "SaveImage",
    "pos": [
     4260,
-    2012
+    2336
    ],
    "size": [
     340,
@@ -2018,11 +2238,11 @@
    ]
   },
   {
-   "id": 81,
+   "id": 3044,
    "type": "CheckpointLoaderSimple",
    "pos": [
     60,
-    3178
+    3664
    ],
    "size": [
     340,
@@ -2063,15 +2283,37 @@
     "Node name for S&R": "CheckpointLoaderSimple"
    },
    "widgets_values": [
-    "PATCH_IMAGE_PRIMARY.safetensors"
+    "animagine-xl-4.0.safetensors"
    ]
   },
   {
-   "id": 93,
+   "id": 4044,
+   "type": "Note",
+   "pos": [
+    60,
+    3920
+   ],
+   "size": [
+    340,
+    102
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "note: CKPT",
+   "properties": {},
+   "widgets_values": [
+    "2026-07-11: defaulted to animagine-xl-4.0.safetensors (non-banned SDXL anime base) - see manifest._readme."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 3056,
    "type": "EmptyLatentImage",
    "pos": [
     60,
-    3434
+    4082
    ],
    "size": [
     340,
@@ -2102,11 +2344,11 @@
    ]
   },
   {
-   "id": 82,
+   "id": 3045,
    "type": "LoraLoader",
    "pos": [
     480,
-    3178
+    3664
    ],
    "size": [
     340,
@@ -2150,17 +2392,17 @@
     "Node name for S&R": "LoraLoader"
    },
    "widgets_values": [
-    "PATCH_SPEED_LORA.safetensors",
+    "Hyper-SDXL-8steps-CFG-lora.safetensors",
     1.0,
     1.0
    ]
   },
   {
-   "id": 83,
+   "id": 3046,
    "type": "LoraLoader",
    "pos": [
     900,
-    3178
+    3664
    ],
    "size": [
     340,
@@ -2210,11 +2452,11 @@
    ]
   },
   {
-   "id": 84,
+   "id": 3047,
    "type": "LoraLoader",
    "pos": [
     1320,
-    3178
+    3664
    ],
    "size": [
     340,
@@ -2259,17 +2501,39 @@
     "Node name for S&R": "LoraLoader"
    },
    "widgets_values": [
-    "PATCH_CHAR_LORA.safetensors",
+    "Hyper-SDXL-8steps-CFG-lora.safetensors",
     0.0,
     0.0
    ]
   },
   {
-   "id": 91,
+   "id": 4047,
+   "type": "Note",
+   "pos": [
+    1320,
+    4002
+   ],
+   "size": [
+    340,
+    134
+   ],
+   "flags": {},
+   "order": 3,
+   "mode": 0,
+   "title": "note: LORA_CHAR",
+   "properties": {},
+   "widgets_values": [
+    "2026-07-11: no trained character LoRA yet - defaulted to the Hyper speed LoRA at strength 0 (harmless no-op placeholder). Patch LORA_CHAR(_STR) once a real per-character LoRA is trained."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 3054,
    "type": "CLIPTextEncode",
    "pos": [
     1740,
-    3178
+    3664
    ],
    "size": [
     340,
@@ -2304,11 +2568,11 @@
    ]
   },
   {
-   "id": 92,
+   "id": 3055,
    "type": "CLIPTextEncode",
    "pos": [
     1740,
-    3408
+    3894
    ],
    "size": [
     340,
@@ -2343,11 +2607,11 @@
    ]
   },
   {
-   "id": 94,
+   "id": 3057,
    "type": "KSampler",
    "pos": [
     2160,
-    3178
+    3664
    ],
    "size": [
     340,
@@ -2403,11 +2667,11 @@
    ]
   },
   {
-   "id": 95,
+   "id": 3058,
    "type": "VAEDecode",
    "pos": [
     2580,
-    3178
+    3664
    ],
    "size": [
     340,
@@ -2445,11 +2709,11 @@
    "widgets_values": []
   },
   {
-   "id": 96,
+   "id": 3059,
    "type": "SaveImage",
    "pos": [
     3000,
-    3178
+    3664
    ],
    "size": [
     340,
@@ -2482,11 +2746,11 @@
    ]
   },
   {
-   "id": 107,
+   "id": 4058,
    "type": "CheckpointLoaderSimple",
    "pos": [
     60,
-    3914
+    4562
    ],
    "size": [
     340,
@@ -2528,15 +2792,37 @@
     "Node name for S&R": "CheckpointLoaderSimple"
    },
    "widgets_values": [
-    "PATCH_IMAGE_PRIMARY.safetensors"
+    "animagine-xl-4.0.safetensors"
    ]
   },
   {
-   "id": 109,
+   "id": 5058,
+   "type": "Note",
+   "pos": [
+    60,
+    4818
+   ],
+   "size": [
+    340,
+    102
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "note: CKPT",
+   "properties": {},
+   "widgets_values": [
+    "2026-07-11: defaulted to animagine-xl-4.0.safetensors (non-banned SDXL anime base) - see manifest._readme."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 4060,
    "type": "LoadImage",
    "pos": [
     60,
-    4170
+    4980
    ],
    "size": [
     340,
@@ -2571,11 +2857,11 @@
    ]
   },
   {
-   "id": 110,
+   "id": 4061,
    "type": "LoadImageMask",
    "pos": [
     60,
-    4400
+    5210
    ],
    "size": [
     340,
@@ -2605,11 +2891,11 @@
    ]
   },
   {
-   "id": 108,
+   "id": 4059,
    "type": "LoraLoader",
    "pos": [
     480,
-    3914
+    4562
    ],
    "size": [
     340,
@@ -2654,17 +2940,39 @@
     "Node name for S&R": "LoraLoader"
    },
    "widgets_values": [
-    "PATCH_CHAR_LORA.safetensors",
-    0.9,
-    0.9
+    "Hyper-SDXL-8steps-CFG-lora.safetensors",
+    0.0,
+    0.0
    ]
   },
   {
-   "id": 111,
+   "id": 5059,
+   "type": "Note",
+   "pos": [
+    480,
+    4900
+   ],
+   "size": [
+    340,
+    150
+   ],
+   "flags": {},
+   "order": 1,
+   "mode": 0,
+   "title": "note: LORA_CHAR",
+   "properties": {},
+   "widgets_values": [
+    "2026-07-11: no trained character LoRA yet - defaulted to the Hyper speed LoRA at strength 0 (harmless no-op placeholder; original design strength was 0.9 for real identity-lock, restore that once a real per-character LoRA is trained and patched in)."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 4062,
    "type": "VAEEncodeForInpaint",
    "pos": [
     480,
-    4252
+    5110
    ],
    "size": [
     340,
@@ -2709,11 +3017,11 @@
    ]
   },
   {
-   "id": 117,
+   "id": 4068,
    "type": "CLIPTextEncode",
    "pos": [
     900,
-    3914
+    4562
    ],
    "size": [
     340,
@@ -2748,11 +3056,11 @@
    ]
   },
   {
-   "id": 118,
+   "id": 4069,
    "type": "CLIPTextEncode",
    "pos": [
     900,
-    4144
+    4792
    ],
    "size": [
     340,
@@ -2787,11 +3095,11 @@
    ]
   },
   {
-   "id": 120,
+   "id": 4071,
    "type": "KSampler",
    "pos": [
     1320,
-    3914
+    4562
    ],
    "size": [
     340,
@@ -2847,11 +3155,11 @@
    ]
   },
   {
-   "id": 121,
+   "id": 4072,
    "type": "VAEDecode",
    "pos": [
     1740,
-    3914
+    4562
    ],
    "size": [
     340,
@@ -2889,11 +3197,11 @@
    "widgets_values": []
   },
   {
-   "id": 122,
+   "id": 4073,
    "type": "SaveImage",
    "pos": [
     2160,
-    3914
+    4562
    ],
    "size": [
     340,
@@ -2926,11 +3234,11 @@
    ]
   },
   {
-   "id": 133,
+   "id": 5070,
    "type": "CheckpointLoaderSimple",
    "pos": [
     60,
-    4852
+    5662
    ],
    "size": [
     340,
@@ -2970,15 +3278,37 @@
     "Node name for S&R": "CheckpointLoaderSimple"
    },
    "widgets_values": [
-    "ltx-video-2b-v0.9.5.safetensors"
+    "ltx-2.3-22b-dev-fp8.safetensors"
    ]
   },
   {
-   "id": 137,
+   "id": 6070,
+   "type": "Note",
+   "pos": [
+    60,
+    5918
+   ],
+   "size": [
+    340,
+    230
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "note: CKPT_LTX",
+   "properties": {},
+   "widgets_values": [
+    "2026-07-11: ltx-video-2b-v0.9.5.safetensors was never present on disk (missing-model in the UI). Repointed to ltx-2.3-22b-dev-fp8.safetensors, symlinked into models/checkpoints/ from the external SSD, purely so this template resolves cleanly in the browser. The 22B model is a different LTX generation/architecture than the 2B nodes below (LTXVConditioning/LTXVImgToVideo/LTXVScheduler) were built for, and is very likely unusable on 8GB VRAM regardless - do NOT test-render this template."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 5074,
    "type": "LoadImage",
    "pos": [
     60,
-    5108
+    6208
    ],
    "size": [
     340,
@@ -3013,11 +3343,11 @@
    ]
   },
   {
-   "id": 140,
+   "id": 5077,
    "type": "KSamplerSelect",
    "pos": [
     60,
-    5338
+    6438
    ],
    "size": [
     340,
@@ -3046,11 +3376,11 @@
    ]
   },
   {
-   "id": 152,
+   "id": 5089,
    "type": "CLIPLoader",
    "pos": [
     60,
-    5542
+    6642
    ],
    "size": [
     340,
@@ -3082,11 +3412,11 @@
    ]
   },
   {
-   "id": 134,
+   "id": 5071,
    "type": "CLIPTextEncode",
    "pos": [
     480,
-    4852
+    5662
    ],
    "size": [
     340,
@@ -3121,11 +3451,11 @@
    ]
   },
   {
-   "id": 135,
+   "id": 5072,
    "type": "CLIPTextEncode",
    "pos": [
     480,
-    5082
+    5892
    ],
    "size": [
     340,
@@ -3160,11 +3490,11 @@
    ]
   },
   {
-   "id": 136,
+   "id": 5073,
    "type": "LTXVConditioning",
    "pos": [
     900,
-    4852
+    5662
    ],
    "size": [
     340,
@@ -3212,11 +3542,11 @@
    ]
   },
   {
-   "id": 138,
+   "id": 5075,
    "type": "LTXVImgToVideo",
    "pos": [
     1320,
-    4852
+    5662
    ],
    "size": [
     340,
@@ -3287,11 +3617,11 @@
    ]
   },
   {
-   "id": 139,
+   "id": 5076,
    "type": "LTXVScheduler",
    "pos": [
     1740,
-    4852
+    5662
    ],
    "size": [
     340,
@@ -3330,11 +3660,11 @@
    ]
   },
   {
-   "id": 141,
+   "id": 5078,
    "type": "SamplerCustom",
    "pos": [
     2160,
-    4852
+    5662
    ],
    "size": [
     340,
@@ -3403,11 +3733,11 @@
    ]
   },
   {
-   "id": 142,
+   "id": 5079,
    "type": "VAEDecode",
    "pos": [
     2580,
-    4852
+    5662
    ],
    "size": [
     340,
@@ -3445,11 +3775,11 @@
    "widgets_values": []
   },
   {
-   "id": 143,
+   "id": 5080,
    "type": "SaveAnimatedWEBP",
    "pos": [
     3000,
-    4852
+    5662
    ],
    "size": [
     340,
@@ -3486,11 +3816,11 @@
    ]
   },
   {
-   "id": 163,
+   "id": 6081,
    "type": "CheckpointLoaderSimple",
    "pos": [
     60,
-    6022
+    7122
    ],
    "size": [
     340,
@@ -3531,15 +3861,37 @@
     "Node name for S&R": "CheckpointLoaderSimple"
    },
    "widgets_values": [
-    "ltx-video-2b-v0.9.5.safetensors"
+    "ltx-2.3-22b-dev-fp8.safetensors"
    ]
   },
   {
-   "id": 167,
+   "id": 7081,
+   "type": "Note",
+   "pos": [
+    60,
+    7378
+   ],
+   "size": [
+    340,
+    246
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "note: CKPT_LTX",
+   "properties": {},
+   "widgets_values": [
+    "2026-07-11: ltx-video-2b-v0.9.5.safetensors was never present on disk (missing-model in the UI). Repointed to ltx-2.3-22b-dev-fp8.safetensors, symlinked into models/checkpoints/ from the external SSD, purely so this template resolves cleanly in the browser. The 22B model is a different LTX generation/architecture than the 2B nodes below (LTXVConditioning/LTXVImgToVideo/LTXVScheduler/LTXVAddGuide) were built for, and is very likely unusable on 8GB VRAM regardless - do NOT test-render this template."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 6085,
    "type": "LoadImage",
    "pos": [
     60,
-    6278
+    7684
    ],
    "size": [
     340,
@@ -3574,11 +3926,11 @@
    ]
   },
   {
-   "id": 170,
+   "id": 6088,
    "type": "KSamplerSelect",
    "pos": [
     60,
-    6508
+    7914
    ],
    "size": [
     340,
@@ -3607,11 +3959,11 @@
    ]
   },
   {
-   "id": 174,
+   "id": 6092,
    "type": "LoadImage",
    "pos": [
     60,
-    6712
+    8118
    ],
    "size": [
     340,
@@ -3646,11 +3998,11 @@
    ]
   },
   {
-   "id": 182,
+   "id": 6100,
    "type": "CLIPLoader",
    "pos": [
     60,
-    6942
+    8348
    ],
    "size": [
     340,
@@ -3682,11 +4034,11 @@
    ]
   },
   {
-   "id": 164,
+   "id": 6082,
    "type": "CLIPTextEncode",
    "pos": [
     480,
-    6022
+    7122
    ],
    "size": [
     340,
@@ -3721,11 +4073,11 @@
    ]
   },
   {
-   "id": 165,
+   "id": 6083,
    "type": "CLIPTextEncode",
    "pos": [
     480,
-    6252
+    7352
    ],
    "size": [
     340,
@@ -3760,11 +4112,11 @@
    ]
   },
   {
-   "id": 166,
+   "id": 6084,
    "type": "LTXVConditioning",
    "pos": [
     900,
-    6022
+    7122
    ],
    "size": [
     340,
@@ -3812,11 +4164,11 @@
    ]
   },
   {
-   "id": 168,
+   "id": 6086,
    "type": "LTXVImgToVideo",
    "pos": [
     1320,
-    6022
+    7122
    ],
    "size": [
     340,
@@ -3886,11 +4238,11 @@
    ]
   },
   {
-   "id": 175,
+   "id": 6093,
    "type": "LTXVAddGuide",
    "pos": [
     1740,
-    6022
+    7122
    ],
    "size": [
     340,
@@ -3969,11 +4321,11 @@
    ]
   },
   {
-   "id": 169,
+   "id": 6087,
    "type": "LTXVScheduler",
    "pos": [
     2160,
-    6022
+    7122
    ],
    "size": [
     340,
@@ -4012,11 +4364,11 @@
    ]
   },
   {
-   "id": 171,
+   "id": 6089,
    "type": "SamplerCustom",
    "pos": [
     2580,
-    6022
+    7122
    ],
    "size": [
     340,
@@ -4085,11 +4437,11 @@
    ]
   },
   {
-   "id": 172,
+   "id": 6090,
    "type": "VAEDecode",
    "pos": [
     3000,
-    6022
+    7122
    ],
    "size": [
     340,
@@ -4127,11 +4479,11 @@
    "widgets_values": []
   },
   {
-   "id": 173,
+   "id": 6091,
    "type": "SaveAnimatedWEBP",
    "pos": [
     3420,
-    6022
+    7122
    ],
    "size": [
     340,
@@ -4168,11 +4520,11 @@
    ]
   },
   {
-   "id": 193,
+   "id": 7092,
    "type": "WanVideoBlockSwap",
    "pos": [
     60,
-    7422
+    8828
    ],
    "size": [
     340,
@@ -4207,11 +4559,11 @@
    ]
   },
   {
-   "id": 195,
+   "id": 7094,
    "type": "LoadWanVideoT5TextEncoder",
    "pos": [
     60,
-    7794
+    9200
    ],
    "size": [
     340,
@@ -4243,11 +4595,11 @@
    ]
   },
   {
-   "id": 197,
+   "id": 7096,
    "type": "WanVideoVAELoader",
    "pos": [
     60,
-    8082
+    9488
    ],
    "size": [
     340,
@@ -4281,11 +4633,11 @@
    ]
   },
   {
-   "id": 198,
+   "id": 7097,
    "type": "LoadImage",
    "pos": [
     60,
-    8398
+    9804
    ],
    "size": [
     340,
@@ -4320,11 +4672,11 @@
    ]
   },
   {
-   "id": 194,
+   "id": 7093,
    "type": "WanVideoModelLoader",
    "pos": [
     480,
-    7422
+    8828
    ],
    "size": [
     340,
@@ -4366,11 +4718,11 @@
    ]
   },
   {
-   "id": 196,
+   "id": 7095,
    "type": "WanVideoTextEncode",
    "pos": [
     480,
-    7990
+    9396
    ],
    "size": [
     340,
@@ -4405,11 +4757,11 @@
    ]
   },
   {
-   "id": 199,
+   "id": 7098,
    "type": "WanVideoImageToVideoEncode",
    "pos": [
     480,
-    8362
+    9768
    ],
    "size": [
     340,
@@ -4477,11 +4829,11 @@
    ]
   },
   {
-   "id": 200,
+   "id": 7099,
    "type": "WanVideoSampler",
    "pos": [
     900,
-    7422
+    8828
    ],
    "size": [
     340,
@@ -4555,11 +4907,11 @@
    ]
   },
   {
-   "id": 201,
+   "id": 7100,
    "type": "WanVideoDecode",
    "pos": [
     1320,
-    7422
+    8828
    ],
    "size": [
     340,
@@ -4600,11 +4952,11 @@
    ]
   },
   {
-   "id": 202,
+   "id": 7101,
    "type": "SaveAnimatedWEBP",
    "pos": [
     1740,
-    7422
+    8828
    ],
    "size": [
     340,
@@ -4641,11 +4993,92 @@
    ]
   },
   {
-   "id": 213,
+   "id": 7112,
+   "type": "LoadImage",
+   "pos": [
+    60,
+    10686
+   ],
+   "size": [
+    340,
+    170
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "INPUT_IMAGE",
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      224
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "MASK",
+     "type": "MASK",
+     "links": null,
+     "slot_index": 1
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "LoadImage"
+   },
+   "widgets_values": [
+    "PATCH_INPUT_IMAGE.png"
+   ]
+  },
+  {
+   "id": 7113,
+   "type": "WD14Tagger|pysssss",
+   "pos": [
+    480,
+    10686
+   ],
+   "size": [
+    340,
+    310
+   ],
+   "flags": {},
+   "order": 1,
+   "mode": 0,
+   "title": "TAGGER",
+   "inputs": [
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "link": 224
+    }
+   ],
+   "outputs": [
+    {
+     "name": "STRING",
+     "type": "STRING",
+     "links": null,
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "WD14Tagger|pysssss"
+   },
+   "widgets_values": [
+    "wd-v1-4-moat-tagger-v2",
+    0.35,
+    0.85,
+    true,
+    false,
+    ""
+   ]
+  },
+  {
+   "id": 7124,
    "type": "UnetLoaderGGUF",
    "pos": [
     60,
-    9280
+    11276
    ],
    "size": [
     340,
@@ -4661,7 +5094,7 @@
      "name": "MODEL",
      "type": "MODEL",
      "links": [
-      226
+      237
      ],
      "slot_index": 0
     }
@@ -4674,11 +5107,11 @@
    ]
   },
   {
-   "id": 1213,
+   "id": 8124,
    "type": "Note",
    "pos": [
     60,
-    9484
+    11480
    ],
    "size": [
     340,
@@ -4696,11 +5129,11 @@
    "bgcolor": "#653"
   },
   {
-   "id": 214,
+   "id": 7125,
    "type": "DualCLIPLoader",
    "pos": [
     60,
-    9678
+    11674
    ],
    "size": [
     340,
@@ -4716,7 +5149,7 @@
      "name": "CLIP",
      "type": "CLIP",
      "links": [
-      224
+      235
      ],
      "slot_index": 0
     }
@@ -4732,11 +5165,11 @@
    ]
   },
   {
-   "id": 1214,
+   "id": 8125,
    "type": "Note",
    "pos": [
     60,
-    9966
+    11962
    ],
    "size": [
     340,
@@ -4754,11 +5187,11 @@
    "bgcolor": "#653"
   },
   {
-   "id": 215,
+   "id": 7126,
    "type": "VAELoader",
    "pos": [
     60,
-    10144
+    12140
    ],
    "size": [
     340,
@@ -4774,7 +5207,7 @@
      "name": "VAE",
      "type": "VAE",
      "links": [
-      231
+      242
      ],
      "slot_index": 0
     }
@@ -4787,11 +5220,11 @@
    ]
   },
   {
-   "id": 1215,
+   "id": 8126,
    "type": "Note",
    "pos": [
     60,
-    10348
+    12344
    ],
    "size": [
     340,
@@ -4809,11 +5242,11 @@
    "bgcolor": "#653"
   },
   {
-   "id": 225,
+   "id": 7136,
    "type": "EmptySD3LatentImage",
    "pos": [
     60,
-    10510
+    12506
    ],
    "size": [
     340,
@@ -4829,7 +5262,7 @@
      "name": "LATENT",
      "type": "LATENT",
      "links": [
-      229
+      240
      ],
      "slot_index": 0
     }
@@ -4844,11 +5277,11 @@
    ]
   },
   {
-   "id": 1225,
+   "id": 8136,
    "type": "Note",
    "pos": [
     60,
-    10770
+    12766
    ],
    "size": [
     340,
@@ -4866,11 +5299,11 @@
    "bgcolor": "#653"
   },
   {
-   "id": 223,
+   "id": 7134,
    "type": "CLIPTextEncode",
    "pos": [
     480,
-    9280
+    11276
    ],
    "size": [
     340,
@@ -4884,7 +5317,7 @@
     {
      "name": "clip",
      "type": "CLIP",
-     "link": 224
+     "link": 235
     }
    ],
    "outputs": [
@@ -4892,8 +5325,8 @@
      "name": "CONDITIONING",
      "type": "CONDITIONING",
      "links": [
-      225,
-      228
+      236,
+      239
      ],
      "slot_index": 0
     }
@@ -4906,11 +5339,11 @@
    ]
   },
   {
-   "id": 1223,
+   "id": 8134,
    "type": "Note",
    "pos": [
     480,
-    9510
+    11506
    ],
    "size": [
     340,
@@ -4928,11 +5361,11 @@
    "bgcolor": "#653"
   },
   {
-   "id": 224,
+   "id": 7135,
    "type": "FluxGuidance",
    "pos": [
     900,
-    9280
+    11276
    ],
    "size": [
     340,
@@ -4946,7 +5379,7 @@
     {
      "name": "conditioning",
      "type": "CONDITIONING",
-     "link": 225
+     "link": 236
     }
    ],
    "outputs": [
@@ -4954,7 +5387,7 @@
      "name": "CONDITIONING",
      "type": "CONDITIONING",
      "links": [
-      227
+      238
      ],
      "slot_index": 0
     }
@@ -4967,11 +5400,11 @@
    ]
   },
   {
-   "id": 1224,
+   "id": 8135,
    "type": "Note",
    "pos": [
     900,
-    9510
+    11506
    ],
    "size": [
     340,
@@ -4989,11 +5422,11 @@
    "bgcolor": "#653"
   },
   {
-   "id": 226,
+   "id": 7137,
    "type": "KSampler",
    "pos": [
     1320,
-    9280
+    11276
    ],
    "size": [
     340,
@@ -5007,22 +5440,22 @@
     {
      "name": "model",
      "type": "MODEL",
-     "link": 226
+     "link": 237
     },
     {
      "name": "positive",
      "type": "CONDITIONING",
-     "link": 227
+     "link": 238
     },
     {
      "name": "negative",
      "type": "CONDITIONING",
-     "link": 228
+     "link": 239
     },
     {
      "name": "latent_image",
      "type": "LATENT",
-     "link": 229
+     "link": 240
     }
    ],
    "outputs": [
@@ -5030,7 +5463,7 @@
      "name": "LATENT",
      "type": "LATENT",
      "links": [
-      230
+      241
      ],
      "slot_index": 0
     }
@@ -5049,11 +5482,11 @@
    ]
   },
   {
-   "id": 1226,
+   "id": 8137,
    "type": "Note",
    "pos": [
     1320,
-    9728
+    11724
    ],
    "size": [
     340,
@@ -5071,11 +5504,11 @@
    "bgcolor": "#653"
   },
   {
-   "id": 227,
+   "id": 7138,
    "type": "VAEDecode",
    "pos": [
     1740,
-    9280
+    11276
    ],
    "size": [
     340,
@@ -5089,12 +5522,12 @@
     {
      "name": "samples",
      "type": "LATENT",
-     "link": 230
+     "link": 241
     },
     {
      "name": "vae",
      "type": "VAE",
-     "link": 231
+     "link": 242
     }
    ],
    "outputs": [
@@ -5102,7 +5535,7 @@
      "name": "IMAGE",
      "type": "IMAGE",
      "links": [
-      232
+      243
      ],
      "slot_index": 0
     }
@@ -5113,11 +5546,11 @@
    "widgets_values": []
   },
   {
-   "id": 1227,
+   "id": 8138,
    "type": "Note",
    "pos": [
     1740,
-    9508
+    11504
    ],
    "size": [
     340,
@@ -5135,11 +5568,11 @@
    "bgcolor": "#653"
   },
   {
-   "id": 228,
+   "id": 7139,
    "type": "SaveImage",
    "pos": [
     2160,
-    9280
+    11276
    ],
    "size": [
     340,
@@ -5153,7 +5586,7 @@
     {
      "name": "images",
      "type": "IMAGE",
-     "link": 232
+     "link": 243
     }
    ],
    "outputs": [
@@ -5172,11 +5605,561 @@
    ]
   },
   {
-   "id": 1228,
+   "id": 8139,
    "type": "Note",
    "pos": [
     2160,
-    9510
+    11506
+   ],
+   "size": [
+    340,
+    118
+   ],
+   "flags": {},
+   "order": 5,
+   "mode": 0,
+   "title": "note: SAVE",
+   "properties": {},
+   "widgets_values": [
+    "Writes the PNG under ComfyUI/output/<SAVE_PREFIX>; ComfyClient then copies it into the project's panels/refs directory and renames it deterministically."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 8150,
+   "type": "UnetLoaderGGUF",
+   "pos": [
+    60,
+    13180
+   ],
+   "size": [
+    340,
+    144
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "UNET",
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      256
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "UnetLoaderGGUF"
+   },
+   "widgets_values": [
+    "krea2_turbo-Q4_K_S.gguf"
+   ]
+  },
+  {
+   "id": 9150,
+   "type": "Note",
+   "pos": [
+    60,
+    13384
+   ],
+   "size": [
+    340,
+    166
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "note: UNET",
+   "properties": {},
+   "widgets_values": [
+    "Loads krea2 (Krea-2-Turbo), the design-mandated primary model (design 5.3b), from a Q4_K_S GGUF quant. image_router.pick_template() only routes here once this file exists on disk at its full size -- see pipeline/image_router.py. The ComfyClient ban-check reads unet_name here."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 8151,
+   "type": "CLIPLoader",
+   "pos": [
+    60,
+    13610
+   ],
+   "size": [
+    340,
+    200
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "CLIP",
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "CLIP",
+     "type": "CLIP",
+     "links": [
+      254
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CLIPLoader"
+   },
+   "widgets_values": [
+    "qwen3vl_4b_fp8_scaled.safetensors",
+    "krea2",
+    "default"
+   ]
+  },
+  {
+   "id": 9151,
+   "type": "Note",
+   "pos": [
+    60,
+    13870
+   ],
+   "size": [
+    340,
+    118
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "note: CLIP",
+   "properties": {},
+   "widgets_values": [
+    "krea2 text encoder: Qwen3-VL-4B 'fp8_scaled' from the official Comfy-Org/Krea-2 repackaged repo (found 2026-07-11 via the community workflow's source URLs)."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 8152,
+   "type": "VAELoader",
+   "pos": [
+    60,
+    14048
+   ],
+   "size": [
+    340,
+    144
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "VAE",
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "VAE",
+     "type": "VAE",
+     "links": [
+      261
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "VAELoader"
+   },
+   "widgets_values": [
+    "qwen_image_vae.safetensors"
+   ]
+  },
+  {
+   "id": 9152,
+   "type": "Note",
+   "pos": [
+    60,
+    14252
+   ],
+   "size": [
+    340,
+    102
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "note: VAE",
+   "properties": {},
+   "widgets_values": [
+    "Qwen-Image VAE (AutoencoderKLQwenImage, 16-channel latent) -- NOT flux's ae.safetensors. Feeds node 15's decode."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 8162,
+   "type": "EmptySD3LatentImage",
+   "pos": [
+    60,
+    14414
+   ],
+   "size": [
+    340,
+    200
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "LATENT",
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "LATENT",
+     "type": "LATENT",
+     "links": [
+      259
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "EmptySD3LatentImage"
+   },
+   "widgets_values": [
+    1216,
+    704,
+    1
+   ]
+  },
+  {
+   "id": 9162,
+   "type": "Note",
+   "pos": [
+    60,
+    14674
+   ],
+   "size": [
+    340,
+    118
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "note: LATENT",
+   "properties": {},
+   "widgets_values": [
+    "16-channel latent canvas sized for the Qwen-Image VAE (NOT EmptyLatentImage). Patched to 1216x704 for panels/plates, 832x1216 portrait for character refs."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 8160,
+   "type": "CLIPTextEncode",
+   "pos": [
+    480,
+    13180
+   ],
+   "size": [
+    340,
+    170
+   ],
+   "flags": {},
+   "order": 1,
+   "mode": 0,
+   "title": "PROMPT_POS",
+   "inputs": [
+    {
+     "name": "clip",
+     "type": "CLIP",
+     "link": 254
+    }
+   ],
+   "outputs": [
+    {
+     "name": "CONDITIONING",
+     "type": "CONDITIONING",
+     "links": [
+      255,
+      257
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CLIPTextEncode"
+   },
+   "widgets_values": [
+    "PATCH_PROMPT"
+   ]
+  },
+  {
+   "id": 9160,
+   "type": "Note",
+   "pos": [
+    480,
+    13410
+   ],
+   "size": [
+    340,
+    102
+   ],
+   "flags": {},
+   "order": 1,
+   "mode": 0,
+   "title": "note: PROMPT_POS",
+   "properties": {},
+   "widgets_values": [
+    "The assembled sd_prompt lands here (patched per shot by ComfyClient). Also feeds node 12's zero-out negative."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 8161,
+   "type": "ConditioningZeroOut",
+   "pos": [
+    900,
+    13180
+   ],
+   "size": [
+    340,
+    142
+   ],
+   "flags": {},
+   "order": 2,
+   "mode": 0,
+   "title": "NEG_ZEROOUT",
+   "inputs": [
+    {
+     "name": "conditioning",
+     "type": "CONDITIONING",
+     "link": 255
+    }
+   ],
+   "outputs": [
+    {
+     "name": "CONDITIONING",
+     "type": "CONDITIONING",
+     "links": [
+      258
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "ConditioningZeroOut"
+   },
+   "widgets_values": []
+  },
+  {
+   "id": 9161,
+   "type": "Note",
+   "pos": [
+    900,
+    13382
+   ],
+   "size": [
+    340,
+    166
+   ],
+   "flags": {},
+   "order": 2,
+   "mode": 0,
+   "title": "note: NEG_ZEROOUT",
+   "properties": {},
+   "widgets_values": [
+    "krea2-Turbo is CFG-distilled (KSampler cfg=1.0), so a text negative has no effect -- per the model card and the validated panel_txt2img_krea.json graph, the negative conditioning is a zero-out of the positive instead of a second CLIPTextEncode. There is no PROMPT_NEG patch title on this template."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 8163,
+   "type": "KSampler",
+   "pos": [
+    1320,
+    13180
+   ],
+   "size": [
+    340,
+    388
+   ],
+   "flags": {},
+   "order": 3,
+   "mode": 0,
+   "title": "SAMPLER",
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 256
+    },
+    {
+     "name": "positive",
+     "type": "CONDITIONING",
+     "link": 257
+    },
+    {
+     "name": "negative",
+     "type": "CONDITIONING",
+     "link": 258
+    },
+    {
+     "name": "latent_image",
+     "type": "LATENT",
+     "link": 259
+    }
+   ],
+   "outputs": [
+    {
+     "name": "LATENT",
+     "type": "LATENT",
+     "links": [
+      260
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "KSampler"
+   },
+   "widgets_values": [
+    0,
+    "fixed",
+    8,
+    1.0,
+    "euler",
+    "simple",
+    1.0
+   ]
+  },
+  {
+   "id": 9163,
+   "type": "Note",
+   "pos": [
+    1320,
+    13628
+   ],
+   "size": [
+    340,
+    182
+   ],
+   "flags": {},
+   "order": 3,
+   "mode": 0,
+   "title": "note: SAMPLER",
+   "properties": {},
+   "widgets_values": [
+    "krea2-Turbo's validated recipe (panel_txt2img_krea.json proof render, 2026-07-10): euler/simple, 8 steps, cfg 1.0, denoise 1.0 -- krea2 is not flux, do not change without a fresh model_lab proof render. SEED is patched per shot from hash(scene_id, shot_id, retry) so every panel is reproducible from its sidecar json."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 8164,
+   "type": "VAEDecode",
+   "pos": [
+    1740,
+    13180
+   ],
+   "size": [
+    340,
+    168
+   ],
+   "flags": {},
+   "order": 4,
+   "mode": 0,
+   "title": "DECODE",
+   "inputs": [
+    {
+     "name": "samples",
+     "type": "LATENT",
+     "link": 260
+    },
+    {
+     "name": "vae",
+     "type": "VAE",
+     "link": 261
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      262
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "VAEDecode"
+   },
+   "widgets_values": []
+  },
+  {
+   "id": 9164,
+   "type": "Note",
+   "pos": [
+    1740,
+    13408
+   ],
+   "size": [
+    340,
+    86
+   ],
+   "flags": {},
+   "order": 4,
+   "mode": 0,
+   "title": "note: DECODE",
+   "properties": {},
+   "widgets_values": [
+    "Latent -> RGB pixels via the Qwen-Image VAE from node 3."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
+  },
+  {
+   "id": 8165,
+   "type": "SaveImage",
+   "pos": [
+    2160,
+    13180
+   ],
+   "size": [
+    340,
+    170
+   ],
+   "flags": {},
+   "order": 5,
+   "mode": 0,
+   "title": "SAVE",
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 262
+    }
+   ],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": null,
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "SaveImage"
+   },
+   "widgets_values": [
+    "pipeline/out"
+   ]
+  },
+  {
+   "id": 9165,
+   "type": "Note",
+   "pos": [
+    2160,
+    13410
    ],
    "size": [
     340,
@@ -5301,1113 +6284,1193 @@
   ],
   [
    24,
-   27,
+   1014,
    0,
-   28,
+   1015,
    0,
    "MODEL"
   ],
   [
    25,
-   27,
+   1014,
    1,
-   28,
+   1015,
    1,
    "CLIP"
   ],
   [
    26,
-   28,
+   1015,
    0,
-   29,
+   1016,
    0,
    "MODEL"
   ],
   [
    27,
-   28,
+   1015,
    1,
-   29,
+   1016,
    1,
    "CLIP"
   ],
   [
    28,
-   29,
+   1016,
    0,
-   30,
+   1017,
    0,
    "MODEL"
   ],
   [
    29,
-   29,
+   1016,
    1,
-   30,
+   1017,
    1,
    "CLIP"
   ],
   [
    30,
-   30,
+   1017,
    0,
-   31,
+   1018,
    0,
    "MODEL"
   ],
   [
    31,
-   30,
+   1017,
    1,
-   31,
+   1018,
    1,
    "CLIP"
   ],
   [
    32,
-   31,
+   1018,
    0,
-   32,
+   1019,
    0,
    "MODEL"
   ],
   [
    33,
-   32,
+   1019,
    0,
-   34,
+   1021,
    0,
    "MODEL"
   ],
   [
    34,
-   32,
+   1019,
    1,
-   34,
+   1021,
    1,
    "IPADAPTER"
   ],
   [
    35,
-   33,
+   1020,
    0,
-   34,
+   1021,
    2,
    "IMAGE"
   ],
   [
    36,
-   34,
+   1021,
    0,
-   36,
+   1023,
    0,
    "MODEL"
   ],
   [
    37,
-   32,
+   1019,
    1,
-   36,
+   1023,
    1,
    "IPADAPTER"
   ],
   [
    38,
-   35,
+   1022,
    0,
-   36,
+   1023,
    2,
    "IMAGE"
   ],
   [
    39,
-   31,
+   1018,
    1,
-   37,
+   1024,
    0,
    "CLIP"
   ],
   [
    40,
-   31,
+   1018,
    1,
-   38,
+   1025,
    0,
    "CLIP"
   ],
   [
    41,
-   36,
+   1023,
    0,
-   40,
+   1027,
    0,
    "MODEL"
   ],
   [
    42,
-   37,
+   1024,
    0,
-   40,
+   1027,
    1,
    "CONDITIONING"
   ],
   [
    43,
-   38,
+   1025,
    0,
-   40,
+   1027,
    2,
    "CONDITIONING"
   ],
   [
    44,
-   39,
+   1026,
    0,
-   40,
+   1027,
    3,
    "LATENT"
   ],
   [
    45,
-   40,
+   1027,
    0,
-   41,
+   1028,
    0,
    "LATENT"
   ],
   [
    46,
-   27,
+   1014,
    2,
-   41,
+   1028,
    1,
    "VAE"
   ],
   [
    47,
-   41,
+   1028,
    0,
-   42,
+   1029,
    0,
    "IMAGE"
   ],
   [
    58,
-   53,
+   2029,
    0,
-   54,
+   2030,
    0,
    "MODEL"
   ],
   [
    59,
-   53,
+   2029,
    1,
-   54,
+   2030,
    1,
    "CLIP"
   ],
   [
    60,
-   54,
+   2030,
    0,
-   55,
+   2031,
    0,
    "MODEL"
   ],
   [
    61,
-   54,
+   2030,
    1,
-   55,
+   2031,
    1,
    "CLIP"
   ],
   [
    62,
-   55,
+   2031,
    0,
-   56,
+   2032,
    0,
    "MODEL"
   ],
   [
    63,
-   55,
+   2031,
    1,
-   56,
+   2032,
    1,
    "CLIP"
   ],
   [
    64,
-   56,
+   2032,
    0,
-   57,
+   2033,
    0,
    "MODEL"
   ],
   [
    65,
-   56,
+   2032,
    1,
-   57,
+   2033,
    1,
    "CLIP"
   ],
   [
    66,
-   57,
+   2033,
    0,
-   58,
+   2034,
    0,
    "MODEL"
   ],
   [
    67,
-   58,
+   2034,
    0,
-   60,
+   2036,
    0,
    "MODEL"
   ],
   [
    68,
-   58,
+   2034,
    1,
-   60,
+   2036,
    1,
    "IPADAPTER"
   ],
   [
    69,
-   59,
+   2035,
    0,
-   60,
+   2036,
    2,
    "IMAGE"
   ],
   [
    70,
-   60,
+   2036,
    0,
-   62,
+   2038,
    0,
    "MODEL"
   ],
   [
    71,
-   58,
+   2034,
    1,
-   62,
+   2038,
    1,
    "IPADAPTER"
   ],
   [
    72,
-   61,
+   2037,
    0,
-   62,
+   2038,
    2,
    "IMAGE"
   ],
   [
    73,
-   57,
+   2033,
    1,
-   63,
+   2039,
    0,
    "CLIP"
   ],
   [
    74,
-   57,
+   2033,
    1,
-   64,
+   2040,
    0,
    "CLIP"
   ],
   [
    75,
-   69,
+   2045,
    0,
-   70,
+   2046,
    0,
    "IMAGE"
   ],
   [
    76,
-   53,
+   2029,
    2,
-   70,
+   2046,
    1,
    "VAE"
   ],
   [
    77,
-   62,
+   2038,
    0,
-   66,
+   2042,
    0,
    "MODEL"
   ],
   [
    78,
-   63,
+   2039,
    0,
-   66,
+   2042,
    1,
    "CONDITIONING"
   ],
   [
    79,
-   64,
+   2040,
    0,
-   66,
+   2042,
    2,
    "CONDITIONING"
   ],
   [
    80,
-   70,
+   2046,
    0,
-   66,
+   2042,
    3,
    "LATENT"
   ],
   [
    81,
-   66,
+   2042,
    0,
-   67,
+   2043,
    0,
    "LATENT"
   ],
   [
    82,
-   53,
+   2029,
    2,
-   67,
+   2043,
    1,
    "VAE"
   ],
   [
    83,
-   67,
+   2043,
    0,
-   68,
+   2044,
    0,
    "IMAGE"
   ],
   [
    94,
-   81,
+   3044,
    0,
-   82,
+   3045,
    0,
    "MODEL"
   ],
   [
    95,
-   81,
+   3044,
    1,
-   82,
+   3045,
    1,
    "CLIP"
   ],
   [
    96,
-   82,
+   3045,
    0,
-   83,
+   3046,
    0,
    "MODEL"
   ],
   [
    97,
-   82,
+   3045,
    1,
-   83,
+   3046,
    1,
    "CLIP"
   ],
   [
    98,
-   83,
+   3046,
    0,
-   84,
+   3047,
    0,
    "MODEL"
   ],
   [
    99,
-   83,
+   3046,
    1,
-   84,
+   3047,
    1,
    "CLIP"
   ],
   [
    100,
-   84,
+   3047,
    1,
-   91,
+   3054,
    0,
    "CLIP"
   ],
   [
    101,
-   84,
+   3047,
    1,
-   92,
+   3055,
    0,
    "CLIP"
   ],
   [
    102,
-   84,
+   3047,
    0,
-   94,
+   3057,
    0,
    "MODEL"
   ],
   [
    103,
-   91,
+   3054,
    0,
-   94,
+   3057,
    1,
    "CONDITIONING"
   ],
   [
    104,
-   92,
+   3055,
    0,
-   94,
+   3057,
    2,
    "CONDITIONING"
   ],
   [
    105,
-   93,
+   3056,
    0,
-   94,
+   3057,
    3,
    "LATENT"
   ],
   [
    106,
-   94,
+   3057,
    0,
-   95,
+   3058,
    0,
    "LATENT"
   ],
   [
    107,
-   81,
+   3044,
    2,
-   95,
+   3058,
    1,
    "VAE"
   ],
   [
    108,
-   95,
+   3058,
    0,
-   96,
+   3059,
    0,
    "IMAGE"
   ],
   [
    119,
-   107,
+   4058,
    0,
-   108,
+   4059,
    0,
    "MODEL"
   ],
   [
    120,
-   107,
+   4058,
    1,
-   108,
+   4059,
    1,
    "CLIP"
   ],
   [
    121,
-   109,
+   4060,
    0,
-   111,
+   4062,
    0,
    "IMAGE"
   ],
   [
    122,
-   107,
+   4058,
    2,
-   111,
+   4062,
    1,
    "VAE"
   ],
   [
    123,
-   110,
+   4061,
    0,
-   111,
+   4062,
    2,
    "MASK"
   ],
   [
    124,
-   108,
+   4059,
    1,
-   117,
+   4068,
    0,
    "CLIP"
   ],
   [
    125,
-   108,
+   4059,
    1,
-   118,
+   4069,
    0,
    "CLIP"
   ],
   [
    126,
-   108,
+   4059,
    0,
-   120,
+   4071,
    0,
    "MODEL"
   ],
   [
    127,
-   117,
+   4068,
    0,
-   120,
+   4071,
    1,
    "CONDITIONING"
   ],
   [
    128,
-   118,
+   4069,
    0,
-   120,
+   4071,
    2,
    "CONDITIONING"
   ],
   [
    129,
-   111,
+   4062,
    0,
-   120,
+   4071,
    3,
    "LATENT"
   ],
   [
    130,
-   120,
+   4071,
    0,
-   121,
+   4072,
    0,
    "LATENT"
   ],
   [
    131,
-   107,
+   4058,
    2,
-   121,
+   4072,
    1,
    "VAE"
   ],
   [
    132,
-   121,
+   4072,
    0,
-   122,
+   4073,
    0,
    "IMAGE"
   ],
   [
    143,
-   152,
+   5089,
    0,
-   134,
+   5071,
    0,
    "CLIP"
   ],
   [
    144,
-   152,
+   5089,
    0,
-   135,
+   5072,
    0,
    "CLIP"
   ],
   [
    145,
-   134,
+   5071,
    0,
-   136,
+   5073,
    0,
    "CONDITIONING"
   ],
   [
    146,
-   135,
+   5072,
    0,
-   136,
+   5073,
    1,
    "CONDITIONING"
   ],
   [
    147,
-   136,
+   5073,
    0,
-   138,
+   5075,
    0,
    "CONDITIONING"
   ],
   [
    148,
-   136,
+   5073,
    1,
-   138,
+   5075,
    1,
    "CONDITIONING"
   ],
   [
    149,
-   133,
+   5070,
    2,
-   138,
+   5075,
    2,
    "VAE"
   ],
   [
    150,
-   137,
+   5074,
    0,
-   138,
+   5075,
    3,
    "IMAGE"
   ],
   [
    151,
-   138,
+   5075,
    2,
-   139,
+   5076,
    0,
    "LATENT"
   ],
   [
    152,
-   133,
+   5070,
    0,
-   141,
+   5078,
    0,
    "MODEL"
   ],
   [
    153,
-   138,
+   5075,
    0,
-   141,
+   5078,
    1,
    "CONDITIONING"
   ],
   [
    154,
-   138,
+   5075,
    1,
-   141,
+   5078,
    2,
    "CONDITIONING"
   ],
   [
    155,
-   140,
+   5077,
    0,
-   141,
+   5078,
    3,
    "SAMPLER"
   ],
   [
    156,
-   139,
+   5076,
    0,
-   141,
+   5078,
    4,
    "SIGMAS"
   ],
   [
    157,
-   138,
+   5075,
    2,
-   141,
+   5078,
    5,
    "LATENT"
   ],
   [
    158,
-   141,
+   5078,
    0,
-   142,
+   5079,
    0,
    "LATENT"
   ],
   [
    159,
-   133,
+   5070,
    2,
-   142,
+   5079,
    1,
    "VAE"
   ],
   [
    160,
-   142,
+   5079,
    0,
-   143,
+   5080,
    0,
    "IMAGE"
   ],
   [
    171,
-   182,
+   6100,
    0,
-   164,
+   6082,
    0,
    "CLIP"
   ],
   [
    172,
-   182,
+   6100,
    0,
-   165,
+   6083,
    0,
    "CLIP"
   ],
   [
    173,
-   164,
+   6082,
    0,
-   166,
+   6084,
    0,
    "CONDITIONING"
   ],
   [
    174,
-   165,
+   6083,
    0,
-   166,
+   6084,
    1,
    "CONDITIONING"
   ],
   [
    175,
-   166,
+   6084,
    0,
-   168,
+   6086,
    0,
    "CONDITIONING"
   ],
   [
    176,
-   166,
+   6084,
    1,
-   168,
+   6086,
    1,
    "CONDITIONING"
   ],
   [
    177,
-   163,
+   6081,
    2,
-   168,
+   6086,
    2,
    "VAE"
   ],
   [
    178,
-   167,
+   6085,
    0,
-   168,
+   6086,
    3,
    "IMAGE"
   ],
   [
    179,
-   168,
+   6086,
    0,
-   175,
+   6093,
    0,
    "CONDITIONING"
   ],
   [
    180,
-   168,
+   6086,
    1,
-   175,
+   6093,
    1,
    "CONDITIONING"
   ],
   [
    181,
-   163,
+   6081,
    2,
-   175,
+   6093,
    2,
    "VAE"
   ],
   [
    182,
-   168,
+   6086,
    2,
-   175,
+   6093,
    3,
    "LATENT"
   ],
   [
    183,
-   174,
+   6092,
    0,
-   175,
+   6093,
    4,
    "IMAGE"
   ],
   [
    184,
-   175,
+   6093,
    2,
-   169,
+   6087,
    0,
    "LATENT"
   ],
   [
    185,
-   163,
+   6081,
    0,
-   171,
+   6089,
    0,
    "MODEL"
   ],
   [
    186,
-   175,
+   6093,
    0,
-   171,
+   6089,
    1,
    "CONDITIONING"
   ],
   [
    187,
-   175,
+   6093,
    1,
-   171,
+   6089,
    2,
    "CONDITIONING"
   ],
   [
    188,
-   170,
+   6088,
    0,
-   171,
+   6089,
    3,
    "SAMPLER"
   ],
   [
    189,
-   169,
+   6087,
    0,
-   171,
+   6089,
    4,
    "SIGMAS"
   ],
   [
    190,
-   175,
+   6093,
    2,
-   171,
+   6089,
    5,
    "LATENT"
   ],
   [
    191,
-   171,
+   6089,
    0,
-   172,
+   6090,
    0,
    "LATENT"
   ],
   [
    192,
-   163,
+   6081,
    2,
-   172,
+   6090,
    1,
    "VAE"
   ],
   [
    193,
-   172,
+   6090,
    0,
-   173,
+   6091,
    0,
    "IMAGE"
   ],
   [
    204,
-   193,
+   7092,
    0,
-   194,
+   7093,
    null,
    "BLOCKSWAPARGS"
   ],
   [
    205,
-   195,
+   7094,
    0,
-   196,
+   7095,
    null,
    "WANTEXTENCODER"
   ],
   [
    206,
-   197,
+   7096,
    0,
-   199,
+   7098,
    null,
    "WANVAE"
   ],
   [
    207,
-   198,
+   7097,
    0,
-   199,
+   7098,
    0,
    "IMAGE"
   ],
   [
    208,
-   194,
+   7093,
    0,
-   200,
+   7099,
    null,
    "WANVIDEOMODEL"
   ],
   [
    209,
-   199,
+   7098,
    0,
-   200,
+   7099,
    null,
    "WANVIDIMAGE_EMBEDS"
   ],
   [
    210,
-   196,
+   7095,
    0,
-   200,
+   7099,
    null,
    "WANVIDEOTEXTEMBEDS"
   ],
   [
    211,
-   197,
+   7096,
    0,
-   201,
+   7100,
    null,
    "WANVAE"
   ],
   [
    212,
-   200,
+   7099,
    0,
-   201,
+   7100,
    0,
    "LATENT"
   ],
   [
    213,
-   201,
+   7100,
    0,
-   202,
+   7101,
    0,
    "IMAGE"
   ],
   [
    224,
-   214,
+   7112,
    0,
-   223,
+   7113,
+   0,
+   "IMAGE"
+  ],
+  [
+   235,
+   7125,
+   0,
+   7134,
    0,
    "CLIP"
   ],
   [
-   225,
-   223,
+   236,
+   7134,
    0,
-   224,
+   7135,
    0,
    "CONDITIONING"
   ],
   [
-   226,
-   213,
+   237,
+   7124,
    0,
-   226,
+   7137,
    0,
    "MODEL"
   ],
   [
-   227,
-   224,
+   238,
+   7135,
    0,
-   226,
+   7137,
    1,
    "CONDITIONING"
   ],
   [
-   228,
-   223,
+   239,
+   7134,
    0,
-   226,
+   7137,
    2,
    "CONDITIONING"
   ],
   [
-   229,
-   225,
+   240,
+   7136,
    0,
-   226,
+   7137,
    3,
    "LATENT"
   ],
   [
-   230,
-   226,
+   241,
+   7137,
    0,
-   227,
+   7138,
    0,
    "LATENT"
   ],
   [
-   231,
-   215,
+   242,
+   7126,
    0,
-   227,
+   7138,
    1,
    "VAE"
   ],
   [
-   232,
-   227,
+   243,
+   7138,
    0,
-   228,
+   7139,
+   0,
+   "IMAGE"
+  ],
+  [
+   254,
+   8151,
+   0,
+   8160,
+   0,
+   "CLIP"
+  ],
+  [
+   255,
+   8160,
+   0,
+   8161,
+   0,
+   "CONDITIONING"
+  ],
+  [
+   256,
+   8150,
+   0,
+   8163,
+   0,
+   "MODEL"
+  ],
+  [
+   257,
+   8160,
+   0,
+   8163,
+   1,
+   "CONDITIONING"
+  ],
+  [
+   258,
+   8161,
+   0,
+   8163,
+   2,
+   "CONDITIONING"
+  ],
+  [
+   259,
+   8162,
+   0,
+   8163,
+   3,
+   "LATENT"
+  ],
+  [
+   260,
+   8163,
+   0,
+   8164,
+   0,
+   "LATENT"
+  ],
+  [
+   261,
+   8152,
+   0,
+   8164,
+   1,
+   "VAE"
+  ],
+  [
+   262,
+   8164,
+   0,
+   8165,
    0,
    "IMAGE"
   ]
@@ -6419,7 +7482,7 @@
     20,
     0,
     3060,
-    656
+    818
    ],
    "color": "#2a363b",
    "font_size": 24,
@@ -6429,9 +7492,9 @@
    "title": "AETHER \u00b7 PANEL_TXT2IMG",
    "bounding": [
     20,
-    736,
+    898,
     4740,
-    1116
+    1278
    ],
    "color": "#2a363b",
    "font_size": 24,
@@ -6441,9 +7504,9 @@
    "title": "AETHER \u00b7 PANEL_IMG2IMG_LASTFRAME",
    "bounding": [
     20,
-    1932,
+    2256,
     4740,
-    1086
+    1248
    ],
    "color": "#2a363b",
    "font_size": 24,
@@ -6453,9 +7516,9 @@
    "title": "AETHER \u00b7 CHARACTER_SHEET",
    "bounding": [
     20,
-    3098,
+    3584,
     3480,
-    656
+    818
    ],
    "color": "#2a363b",
    "font_size": 24,
@@ -6465,9 +7528,9 @@
    "title": "AETHER \u00b7 MOUTH_SHEET",
    "bounding": [
     20,
-    3834,
+    4482,
     2640,
-    858
+    1020
    ],
    "color": "#2a363b",
    "font_size": 24,
@@ -6477,9 +7540,9 @@
    "title": "AETHER \u00b7 LTX_AMBIENT",
    "bounding": [
     20,
-    4772,
+    5582,
     3480,
-    1090
+    1380
    ],
    "color": "#2a363b",
    "font_size": 24,
@@ -6489,9 +7552,9 @@
    "title": "AETHER \u00b7 LTX_DIRECTOR",
    "bounding": [
     20,
-    5942,
+    7042,
     3900,
-    1320
+    1626
    ],
    "color": "#2a363b",
    "font_size": 24,
@@ -6501,9 +7564,21 @@
    "title": "AETHER \u00b7 WAN_TI2V",
    "bounding": [
     20,
-    7342,
+    8748,
     2220,
     1778
+   ],
+   "color": "#2a363b",
+   "font_size": 24,
+   "flags": {}
+  },
+  {
+   "title": "AETHER \u00b7 LORA_DATASET_PREP",
+   "bounding": [
+    20,
+    10606,
+    960,
+    510
    ],
    "color": "#2a363b",
    "font_size": 24,
@@ -6513,9 +7588,21 @@
    "title": "AETHER \u00b7 IMAGE_FLUX_FALLBACK",
    "bounding": [
     20,
-    9200,
+    11196,
     2640,
     1824
+   ],
+   "color": "#2a363b",
+   "font_size": 24,
+   "flags": {}
+  },
+  {
+   "title": "AETHER \u00b7 IMAGE_KREA2",
+   "bounding": [
+    20,
+    13100,
+    2640,
+    1812
    ],
    "color": "#2a363b",
    "font_size": 24,

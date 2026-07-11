@@ -24,7 +24,8 @@ CONNECTION_TYPES = {"MODEL", "CLIP", "VAE", "CONDITIONING", "LATENT", "IMAGE",
                     "MASK", "IPADAPTER", "SIGMAS", "SAMPLER", "NOISE", "GUIDER"}
 TEMPLATES = ["scene_plate", "panel_txt2img", "panel_img2img_lastframe",
              "character_sheet", "mouth_sheet", "ltx_ambient", "ltx_director",
-             "wan_ti2v", "lora_dataset_prep", "image_flux_fallback"]
+             "wan_ti2v", "lora_dataset_prep", "image_flux_fallback",
+             "image_krea2"]
 
 NODE_W, NODE_H_BASE, COL_GAP, ROW_GAP = 340, 90, 420, 60
 

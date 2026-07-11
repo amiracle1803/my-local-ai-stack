@@ -1,5 +1,5 @@
 {
- "last_node_id": 20,
+ "last_node_id": 1001,
  "last_link_id": 18,
  "nodes": [
   {
@@ -47,15 +47,37 @@
     "Node name for S&R": "CheckpointLoaderSimple"
    },
    "widgets_values": [
-    "ltx-video-2b-v0.9.5.safetensors"
+    "ltx-2.3-22b-dev-fp8.safetensors"
    ]
+  },
+  {
+   "id": 1001,
+   "type": "Note",
+   "pos": [
+    0,
+    256
+   ],
+   "size": [
+    340,
+    230
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "title": "note: CKPT_LTX",
+   "properties": {},
+   "widgets_values": [
+    "2026-07-11: ltx-video-2b-v0.9.5.safetensors was never present on disk (missing-model in the UI). Repointed to ltx-2.3-22b-dev-fp8.safetensors, symlinked into models/checkpoints/ from the external SSD, purely so this template resolves cleanly in the browser. The 22B model is a different LTX generation/architecture than the 2B nodes below (LTXVConditioning/LTXVImgToVideo/LTXVScheduler) were built for, and is very likely unusable on 8GB VRAM regardless - do NOT test-render this template."
+   ],
+   "color": "#432",
+   "bgcolor": "#653"
   },
   {
    "id": 5,
    "type": "LoadImage",
    "pos": [
     0,
-    256
+    546
    ],
    "size": [
     340,
@@ -94,7 +116,7 @@
    "type": "KSamplerSelect",
    "pos": [
     0,
-    486
+    776
    ],
    "size": [
     340,
@@ -127,7 +149,7 @@
    "type": "CLIPLoader",
    "pos": [
     0,
-    690
+    980
    ],
    "size": [
     340,
