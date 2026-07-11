@@ -107,9 +107,17 @@ def _drift_for(shot_id: str, storyboard: dict[str, Any], config: PipelineConfig)
     return {"axis": axis, "direction": direction, "pixels": pixels}
 
 
+# The delivery timeline (design 3B: 1216x704 generation lands "letter-perfect"
+# in a 1280x720 timeline == blueprint Target.resolution default). Consistency
+# review 2026-07-11 finding 6: segments were shipping at panel size.
+_TIMELINE_SIZE = (1280, 720)
+
+
 def _drift_filter(axis: str, direction: int, pixels: int, fps: int, dur: float) -> str:
-    """scale up + linear crop (never zoom -- design 3C.1)."""
+    """scale up + linear crop (never zoom -- design 3C.1), then pad into the
+    1280x720 delivery timeline."""
     w, h = _PANEL_SIZE
+    tw, th = _TIMELINE_SIZE
     if axis == "horizontal":
         scale = f"{w + pixels}:{h}"
         expr = f"(iw-ow)*t/{dur:.3f}" if direction >= 0 else f"(iw-ow)*(1-t/{dur:.3f})"
@@ -118,7 +126,8 @@ def _drift_filter(axis: str, direction: int, pixels: int, fps: int, dur: float) 
         scale = f"{w}:{h + pixels}"
         expr = f"(ih-oh)*t/{dur:.3f}" if direction >= 0 else f"(ih-oh)*(1-t/{dur:.3f})"
         crop = f"crop={w}:{h}:0:'{expr}'"
-    return f"scale={scale},{crop},fps={fps}"
+    pad = f"pad={tw}:{th}:(ow-iw)/2:(oh-ih)/2:black"
+    return f"scale={scale},{crop},{pad},fps={fps}"
 
 
 def _build_segment_args(
@@ -130,7 +139,7 @@ def _build_segment_args(
         args += ["-loop", "1", "-t", f"{dur:.3f}", "-i", str(panel_path)]
         vf = _drift_filter(drift["axis"], drift["direction"], drift["pixels"], fps, dur)
     else:
-        w, h = _PANEL_SIZE
+        w, h = _TIMELINE_SIZE
         args += ["-f", "lavfi", "-t", f"{dur:.3f}", "-i", f"color=c=black:s={w}x{h}:r={fps}"]
         vf = f"fps={fps}"
 

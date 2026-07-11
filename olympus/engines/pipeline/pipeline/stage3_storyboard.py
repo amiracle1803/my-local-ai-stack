@@ -159,8 +159,7 @@ def run(
         llm = PipelineLLM(config, prompts_dir=PROMPTS_DIR, logs_dir=project_dir / "logs")
 
     shots = [shot for scene in screenplay["scenes"] for shot in scene["shots"]]
-    max_block_seconds = getattr(bp, "target", None)
-    max_block_seconds = 90.0  # design 3.1 target.max_block_seconds default
+    max_block_seconds = float(bp.target.max_block_seconds)  # design 3.1
 
     blocks = partition_blocks(shots, max_block_seconds)
     tiers = assign_motion(shots, config, blocks, llm)

@@ -57,6 +57,10 @@ _CLEAN_ERRORS = (
     FileNotFoundError,
     NotImplementedError,
     ValueError,
+    # ContingencyStop / ComfyError / Stage3BError / Stage5Error / the voice-
+    # studio-down error all subclass RuntimeError -- report them cleanly too
+    # (consistency review 2026-07-11, finding 1).
+    RuntimeError,
 )
 
 

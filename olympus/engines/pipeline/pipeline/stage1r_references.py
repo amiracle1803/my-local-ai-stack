@@ -32,7 +32,7 @@ from typing import Any
 import requests
 
 from .blueprint import Blueprint
-from .comfy_client import ComfyClient, ContingencyStop
+from .comfy_client import ComfyClient, ComfyError, ContingencyStop
 from .config import PipelineConfig
 from .schemas.worldbible import WorldBible
 from .scores import Scores
@@ -146,6 +146,7 @@ def run(
     logger.warning("stage1r: krea2 absent; using permitted fallback %s", fallback)
 
     per_char_counts: dict[str, int] = {}
+    failed_generations = 0
     for char in wb.characters:
         ref_dir = project_dir / "worldbible" / "refs" / char.id
         ref_dir.mkdir(parents=True, exist_ok=True)
@@ -158,16 +159,23 @@ def run(
                 manifest.append({"frame": i, "view": suffix, "file": existing[0].name})
                 continue
             prompt = f"{char.sd_prompt}, {suffix}, plain background, {_STYLE_TAIL}"
-            paths = comfy.generate(
-                "image_flux_fallback.json",
-                {
-                    "PROMPT_POS": prompt,
-                    "WIDTH": _REF_RESOLUTION[0], "HEIGHT": _REF_RESOLUTION[1],
-                    "SEED": _seed_for(char.id, variant) + i,
-                    "SAVE_PREFIX": fname_prefix,
-                },
-                dest=ref_dir,
-            )
+            try:
+                paths = comfy.generate(
+                    "image_flux_fallback.json",
+                    {
+                        "PROMPT_POS": prompt,
+                        "WIDTH": _REF_RESOLUTION[0], "HEIGHT": _REF_RESOLUTION[1],
+                        "SEED": _seed_for(char.id, variant) + i,
+                        "SAVE_PREFIX": fname_prefix,
+                    },
+                    dest=ref_dir,
+                )
+            except ComfyError as exc:
+                # One bad frame must not abort the stage (consistency review
+                # 2026-07-11 finding 2); ContingencyStop still propagates.
+                logger.error("ref frame %s/%d failed: %s", char.id, i, exc)
+                failed_generations += 1
+                continue
             renamed = ref_dir / f"ref_{i:02d}_{paths[0].name}"
             paths[0].rename(renamed)
             manifest.append({"frame": i, "view": suffix, "file": renamed.name})
@@ -189,16 +197,21 @@ def run(
             if sorted(loc_dir.glob(f"ref_{i:02d}*.png")):
                 continue
             prompt = f"{loc['sd_prompt']}, {angle}, {_STYLE_TAIL}"
-            paths = comfy.generate(
-                "image_flux_fallback.json",
-                {
-                    "PROMPT_POS": prompt,
-                    "WIDTH": _PLATE_RESOLUTION[0], "HEIGHT": _PLATE_RESOLUTION[1],
-                    "SEED": _seed_for(loc["id"]) + i,
-                    "SAVE_PREFIX": f"pipeline/{project_dir.name}/refs/{loc['id']}/ref_{i:02d}",
-                },
-                dest=loc_dir,
-            )
+            try:
+                paths = comfy.generate(
+                    "image_flux_fallback.json",
+                    {
+                        "PROMPT_POS": prompt,
+                        "WIDTH": _PLATE_RESOLUTION[0], "HEIGHT": _PLATE_RESOLUTION[1],
+                        "SEED": _seed_for(loc["id"]) + i,
+                        "SAVE_PREFIX": f"pipeline/{project_dir.name}/refs/{loc['id']}/ref_{i:02d}",
+                    },
+                    dest=loc_dir,
+                )
+            except ComfyError as exc:
+                logger.error("location ref %s/%d failed: %s", loc["id"], i, exc)
+                failed_generations += 1
+                continue
             paths[0].rename(loc_dir / f"ref_{i:02d}_{paths[0].name}")
         loc_count += 1
 
@@ -209,16 +222,21 @@ def run(
     for i, subject in enumerate(_STYLE_REF_SUBJECTS):
         if sorted(style_dir.glob(f"style_{i:02d}*.png")):
             continue
-        paths = comfy.generate(
-            "image_flux_fallback.json",
-            {
-                "PROMPT_POS": f"{subject}, {_STYLE_TAIL}",
-                "WIDTH": _PLATE_RESOLUTION[0], "HEIGHT": _PLATE_RESOLUTION[1],
-                "SEED": _seed_for("_style") + i,
-                "SAVE_PREFIX": f"pipeline/{project_dir.name}/refs/_style/style_{i:02d}",
-            },
-            dest=style_dir,
-        )
+        try:
+            paths = comfy.generate(
+                "image_flux_fallback.json",
+                {
+                    "PROMPT_POS": f"{subject}, {_STYLE_TAIL}",
+                    "WIDTH": _PLATE_RESOLUTION[0], "HEIGHT": _PLATE_RESOLUTION[1],
+                    "SEED": _seed_for("_style") + i,
+                    "SAVE_PREFIX": f"pipeline/{project_dir.name}/refs/_style/style_{i:02d}",
+                },
+                dest=style_dir,
+            )
+        except ComfyError as exc:
+            logger.error("style ref %d failed: %s", i, exc)
+            failed_generations += 1
+            continue
         paths[0].rename(style_dir / f"style_{i:02d}_{paths[0].name}")
     comfy.free()
 
@@ -230,6 +248,7 @@ def run(
     refs_min = min(per_char_counts.values()) if per_char_counts else 0
     scores.record("stage1r", "global", "refs_per_character", float(refs_min))
     scores.record("stage1r", "global", "style_refs", float(len(_STYLE_REF_SUBJECTS)))
+    scores.record("stage1r", "global", "failed_generations", float(failed_generations))
     scores.record("stage1r", "global", "auditions", float(auditions))
     scores.stage_done("stage1r")
 

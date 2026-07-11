@@ -71,19 +71,33 @@ def run(
     shot_detail = storyboard["shot_detail"]
     tier_degraded_shots = 0
     drift_shots = 0
+    shots_by_id = {
+        shot["id"]: shot for scene in screenplay["scenes"] for shot in scene["shots"]
+    }
     for i, sid in enumerate(_shots_in_story_order(screenplay)):
         detail = shot_detail[sid]
-        orig_tier = detail["motion_tier"]
+        # Idempotent on re-run: planned_tier records the ORIGINAL tier once
+        # and is never overwritten (consistency review 2026-07-11, finding 4).
+        orig_tier = detail.get("planned_tier", detail["motion_tier"])
         if orig_tier in (1, 2, 3):
             tier_degraded_shots += 1
         direction = 1 if i % 2 == 0 else -1
         detail["motion_tier"] = 0
         detail["planned_tier"] = orig_tier
         detail["drift"] = {"axis": axis, "direction": direction, "pixels": pixels}
+        # Keep the screenplay's duplicate motion fields in sync so the two
+        # files never diverge (finding 3).
+        shot = shots_by_id.get(sid)
+        if shot is not None:
+            shot["motion_tier"] = 0
+            shot["planned_tier"] = orig_tier
         drift_shots += 1
 
     storyboard_path.write_text(
         json.dumps(storyboard, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+    (project_dir / "screenplay" / "screenplay.json").write_text(
+        json.dumps(screenplay, indent=2, ensure_ascii=False), encoding="utf-8"
     )
 
     # Contingencies recorded honestly (design 3C.1 / 5.2) -- never silent.
