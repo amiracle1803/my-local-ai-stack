@@ -1,0 +1,5 @@
+# ComfyUI venv version pins for the aether pipeline (Linux, 2026-07-11).
+# Reapply after any pip/uv upgrade in ComfyUI/.venv:
+#   VIRTUAL_ENV=~/my-local-ai-stack/ComfyUI/.venv ~/.local/bin/uv pip install -r aether-pins.txt
+torch==2.6.0+cu124
+kornia==0.7.3   # >=0.8 removes kornia.geometry.transform.pyramid.pad -> ComfyUI-LTXVideo IMPORT FAILED
