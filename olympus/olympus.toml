@@ -22,8 +22,8 @@ timeout_seconds = 300
 
 [paths]
 # Agents may READ the vault but must never write to it. Artifacts go to output_dir.
-vault      = "C:/Users/amire/Documents/Obsidian Vault"
-output_dir = "E:/LifeOS/_Inbox/olympus-output"
+vault      = "/run/media/amirel/Amir1tb SSD/Obsidian Vault"
+output_dir = "/run/media/amirel/Amir1tb SSD/LifeOS/_Inbox/olympus-output"
 wiki_root  = "../llm-wiki-workflow"
 
 [kernel]

@@ -7,7 +7,7 @@
 # UI:     http://localhost:3030  (first run: sign up locally, no email needed)
 services:
   langfuse-db:
-    image: postgres:15-alpine
+    image: docker.io/library/postgres:15-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: langfuse
@@ -22,7 +22,7 @@ services:
       retries: 10
 
   langfuse:
-    image: langfuse/langfuse:2
+    image: docker.io/langfuse/langfuse:2
     restart: unless-stopped
     depends_on:
       langfuse-db:

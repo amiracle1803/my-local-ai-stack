@@ -57,3 +57,8 @@ olympus/engines/pipeline/mangapipeline try/
 
 # anime pipeline v2 per-project artifacts (blueprints, media, scores.sqlite)
 olympus/engines/pipeline/projects/
+
+# Local ComfyUI install (own git repo + venv + models)
+ComfyUI/
+olympus.log
+opencode.log
