@@ -4,9 +4,16 @@ A private, **100% free** local AI hub on your Windows PC. No subscriptions, no
 cloud, no per-token bills. The stack runs on Ollama and serves a multi-agent
 operating system through a unified web dashboard.
 
+Originally built for Windows; also runs on Linux (Fedora, since 2026-07-10 --
+see docs/GUIDE.md for the Linux-specific service setup). The `.sh` launchers
+mirror the `.bat` launchers 1:1; both are kept up to date.
+
 ## One command to start
 
-Double-click `start.bat`. It brings up:
+**On Windows:** double-click `start.bat`.
+**On Linux:** run `./start.sh`.
+
+Either way, it brings up:
 
 | Service | Port | Description |
 |---|---|---|
@@ -14,6 +21,9 @@ Double-click `start.bat`. It brings up:
 | **Olympus** | 4600 | Agent hub — dashboard, API, task routing, scheduler |
 | **OpenCode MCP** | 4720 | Intelligence layer — web fetch, search, code tools |
 | **Obsidian** | 27123 | Note vault with Local REST API plugin |
+| **Voice Studio** | 5050 | TTS engine (Kokoro / F5-TTS) |
+| **ComfyUI** | 8188 | Image/video generation |
+| **Langfuse** | 3030 | Optional LLM call tracing |
 
 Optional (check status only, start manually): Voice Studio, ComfyUI, LM Studio,
 AnythingLLM, n8n, MCP Gateway, Langfuse.
@@ -26,6 +36,19 @@ Visit `http://127.0.0.1:4600` after startup.
 2. **Python 3.11+** ? https://www.python.org/downloads/ — tick *"Add python.exe to PATH"*
 3. **Run `setup.bat`** — builds `.venv`, installs packages, pulls models
 4. **Edit `config.json`** — set `vault_path` to your Obsidian vault
+
+**On Linux**, the same four steps use the shell scripts instead:
+
+1. **Ollama** -- https://ollama.com/download (native Linux install, or your
+   distro's package) -- launch it once (`ollama serve`, or see the systemd
+   unit below)
+2. **Python 3.11+** -- `sudo dnf install python3` on Fedora, or use `uv`
+3. **Run `./setup.sh`** -- builds `.venv`, installs packages, pulls models
+4. **Edit `config.json`** -- set `vault_path` to your Obsidian vault
+
+Then run `./start.sh` instead of `start.bat`. On Linux, Ollama runs as a
+systemd user unit and n8n/Langfuse run under podman rather than Docker --
+see docs/GUIDE.md section 11 for the details.
 
 New here? Read **`docs/GUIDE.md`**. Stuck? **`docs/TROUBLESHOOTING.md`**.
 
@@ -48,10 +71,16 @@ my-local-ai-stack/
 +-- docs/
 ¦   +-- GUIDE.md
 ¦   +-- TROUBLESHOOTING.md
-+-- foundation/                ? optional Docker layer (n8n etc.)
++-- foundation/                ? optional Docker layer (n8n etc.; podman on Linux)
 +-- LifeOS/                    ? frozen snapshot (live at E:\LifeOS)
-+-- voice-studio/              ? TTS engine (Kokoro + F5-TTS)
++-- voice-studio/              ? TTS engine (Kokoro + F5-TTS) -- port 5050
 +-- llm-wiki-workflow/         ? LLM-managed knowledge base
++-- ComfyUI/                   ? image/video gen, port 8188 (repo-local checkout;
+|                                 extra_model_paths.yaml points bulk model storage
+|                                 at the SSD -- see docs/GUIDE.md section 12)
++-- olympus/engines/pipeline/  ? anime recap-video pipeline (run.py) -- see
+|                                 docs/GUIDE.md section 12
++-- start.sh / setup.sh        ? Linux equivalents of start.bat / setup.bat
 ```
 
 ## Agents

@@ -4,13 +4,15 @@ Role-scaled reference sets per character (mains 30 frames, minors 10),
 4-angle sets per recurring location, 10 style-lock refs, and a 5-second voice
 audition per character. Images run through :class:`~pipeline.comfy_client.ComfyClient`.
 
-**Image model note (design 5.3b)**: krea2 is the mandated primary but has no
-weights on disk, so ``resolve_image_model("primary")`` cannot be honored yet.
-This stage uses the ONLY permitted fallback (flux1-schnell GGUF) via
-``image_flux_fallback.json`` and records ``model_used=fallback`` in the
-scorecard -- never a banned model. flux has no IPAdapter/LoRA path, so
-consistency comes from the world-bible sd_prompt anchors + per-character
-fixed seeds (documented deviation until krea2 passes model_lab).
+**Image model note (design 5.3b)**: krea2 is the mandated primary.
+``pipeline.image_router.pick_template()`` is called ONCE at the top of
+``run()`` and routes to ``image_krea2.json`` when krea2's weights are fully
+on disk, else the ONLY permitted fallback (flux1-schnell GGUF) via
+``image_flux_fallback.json`` -- never a banned model. ``model_used_fallback``
+in the scorecard reflects which one actually ran. flux has no IPAdapter/LoRA
+path, so consistency comes from the world-bible sd_prompt anchors +
+per-character fixed seeds (documented deviation until krea2 has an
+established LoRA/IPAdapter-equivalent path, M4 scope).
 
 **LoRA training (design Stage 1R 2b -- mandatory gate)**: kohya_ss is not
 runnable on this Linux install (Windows venv; known-broken CLI per
@@ -31,6 +33,7 @@ from typing import Any
 
 import requests
 
+from . import image_router
 from .blueprint import Blueprint
 from .comfy_client import ComfyClient, ComfyError, ContingencyStop
 from .config import PipelineConfig
@@ -140,10 +143,11 @@ def run(
         raise ContingencyStop("ComfyUI is not reachable at its API - start it first.")
     comfy.unload_ollama()  # GPU scheduling rule (design section 1)
 
-    # Record the model decision honestly (design 5.3b krea2 gate).
-    fallback = config.resolve_image_model("fallback")
-    scores.record("stage1r", "global", "model_used_fallback", 1.0)
-    logger.warning("stage1r: krea2 absent; using permitted fallback %s", fallback)
+    # Route once for the whole stage run (design 5.3b krea2 gate) and record
+    # the decision honestly.
+    template, model_used = image_router.pick_template(config, comfy)
+    used_fallback = template != "image_krea2.json"
+    scores.record("stage1r", "global", "model_used_fallback", 1.0 if used_fallback else 0.0)
 
     per_char_counts: dict[str, int] = {}
     failed_generations = 0
@@ -161,7 +165,7 @@ def run(
             prompt = f"{char.sd_prompt}, {suffix}, plain background, {_STYLE_TAIL}"
             try:
                 paths = comfy.generate(
-                    "image_flux_fallback.json",
+                    template,
                     {
                         "PROMPT_POS": prompt,
                         "WIDTH": _REF_RESOLUTION[0], "HEIGHT": _REF_RESOLUTION[1],
@@ -199,7 +203,7 @@ def run(
             prompt = f"{loc['sd_prompt']}, {angle}, {_STYLE_TAIL}"
             try:
                 paths = comfy.generate(
-                    "image_flux_fallback.json",
+                    template,
                     {
                         "PROMPT_POS": prompt,
                         "WIDTH": _PLATE_RESOLUTION[0], "HEIGHT": _PLATE_RESOLUTION[1],
@@ -224,7 +228,7 @@ def run(
             continue
         try:
             paths = comfy.generate(
-                "image_flux_fallback.json",
+                template,
                 {
                     "PROMPT_POS": f"{subject}, {_STYLE_TAIL}",
                     "WIDTH": _PLATE_RESOLUTION[0], "HEIGHT": _PLATE_RESOLUTION[1],
@@ -259,7 +263,7 @@ def run(
 
     return {
         "stage": "stage1r", "status": "done",
-        "model": fallback, "refs_per_character": per_char_counts,
+        "model": model_used, "refs_per_character": per_char_counts,
         "recurring_locations": loc_count, "auditions": auditions,
         "lora_training": "contingency_stop (kohya unavailable on Linux; deviation recorded)",
     }

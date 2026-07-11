@@ -182,6 +182,20 @@
         "SAVE_PREFIX": "16.filename_prefix"
       }
     },
+    "image_krea2.json": {
+      "purpose": "Mandated primary (design 5.3b): krea2 (Krea-2-Turbo) GGUF Q4_K_S txt2img. pipeline/image_router.py routes here only after confirming krea2_turbo-Q4_K_S.gguf is fully on disk in ComfyUI/models/unet/; otherwise stages fall back to image_flux_fallback.json.",
+      "status": "ready",
+      "notes": "Simplified single-purpose sibling of panel_txt2img_krea.json: same validated graph (UnetLoaderGGUF -> CLIPLoader(type=krea2, qwen3vl_4b_fp8_scaled.safetensors) -> CLIPTextEncode -> ConditioningZeroOut negative -> EmptySD3LatentImage -> KSampler euler/simple 8-step cfg1.0 -> VAEDecode(qwen_image_vae.safetensors) -> SaveImage), collapsed onto the flux-fallback node-id layout (1/2/3/11/12/13/14/15/16) so stage code can route between the two templates by name alone. No LoRA/IPAdapter path yet -- krea2 uses its own LoRA format + identity/style-reference conditioning, M4 scope (same caveat as panel_txt2img_krea.json).",
+      "patchable": {
+        "PROMPT_POS": "11.text",
+        "WIDTH": "13.width",
+        "HEIGHT": "13.height",
+        "SEED": "14.seed",
+        "STEPS": "14.steps",
+        "CFG": "14.cfg",
+        "SAVE_PREFIX": "16.filename_prefix"
+      }
+    },
     "lora_dataset_prep.json": {
       "purpose": "WD14 captioning of one ref image for LoRA datasets (pipeline loops it over a ref folder)",
       "status": "ready",

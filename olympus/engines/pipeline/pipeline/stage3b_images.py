@@ -3,9 +3,12 @@
 Scene environment lock + per-shot panels, landscape 1216x704, via
 :class:`~pipeline.comfy_client.ComfyClient`:
 
+- ``pipeline.image_router.pick_template()`` is called ONCE at the top of
+  ``run()`` (design 5.3b): routes to ``image_krea2.json`` when krea2's
+  weights are on disk, else the permitted ``image_flux_fallback.json``.
 - Per scene: ONE location master plate first (location sd_prompt + time of
-  day, no characters) -> ``panels/<block>/_plates/<scene>.png``. On the flux
-  fallback there is no IPAdapter, so the plate conditions shots through the
+  day, no characters) -> ``panels/<block>/_plates/<scene>.png``. Neither
+  template has IPAdapter yet, so the plate conditions shots through the
   scene's fixed environment token block + the scene-level base seed
   (``hash(scene_id)``) that all shot seeds derive from.
 - Per shot (skip locked): txt2img with the assembled 120-word sd_prompt; a
@@ -32,6 +35,7 @@ from typing import Any
 import requests
 from pydantic import BaseModel
 
+from . import image_router
 from .blueprint import Blueprint
 from .comfy_client import ComfyClient, ComfyError, ContingencyStop
 from .config import PipelineConfig
@@ -139,6 +143,9 @@ def run(
         raise ContingencyStop("ComfyUI is not reachable - start it first.")
     comfy.unload_ollama()  # GPU scheduling rule (design section 1)
 
+    # Route once for the whole stage run (design 5.3b krea2 gate).
+    template, model_used = image_router.pick_template(config, comfy)
+
     # LoRA gate (design Stage 3B.5) with the explicit deviation flag.
     lora_dir = config.loras_dir() / project_dir.name
     missing_loras = [
@@ -192,7 +199,7 @@ def run(
                     "anime 2d illustration, manga panel style, cel shading"
                 )
                 paths = comfy.generate(
-                    "image_flux_fallback.json",
+                    template,
                     {
                         "PROMPT_POS": plate_prompt,
                         "WIDTH": _RESOLUTION[0], "HEIGHT": _RESOLUTION[1],
@@ -213,7 +220,7 @@ def run(
             seed = _seed_for(scene["id"], sid, attempt)
             try:
                 paths = comfy.generate(
-                    "image_flux_fallback.json",
+                    template,
                     {
                         "PROMPT_POS": prompt,
                         "WIDTH": _RESOLUTION[0], "HEIGHT": _RESOLUTION[1],
@@ -236,7 +243,7 @@ def run(
             comfy.free()
             passed, detail = vision_judge(panel_path, shot, scene, config)
             sidecar = {
-                "seed": seed, "prompt": prompt, "model": config.resolve_image_model("fallback"),
+                "seed": seed, "prompt": prompt, "model": model_used,
                 "attempt": attempt, "vision": detail, "ts": _now_iso(),
             }
             (block_dir / f"{sid}.json").write_text(json.dumps(sidecar, indent=2), encoding="utf-8")
@@ -291,7 +298,7 @@ def run(
         )
 
     return {
-        "stage": "stage3b", "status": "done",
+        "stage": "stage3b", "status": "done", "model": model_used,
         "panels_generated": generated, "retries": retries,
         "prompt_adherence_avg": round(adherence_avg, 3),
         "vision_fail_rate": round(fail_rate, 3),

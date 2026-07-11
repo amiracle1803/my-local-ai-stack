@@ -23,7 +23,23 @@ The consolidated fix-list for the whole stack. Find your symptom; apply the fix.
 | "The model 'â€¦' is not downloaded" | `ollama pull <model>` (the message tells you which). |
 | Port 11434 in use | Another Ollama instance is running â€” that's fine, use it. To change, set `OLLAMA_HOST` and update `config.json`. |
 
-## ~~Project 1 — Ops Hub~~ (archived)
+## Linux (systemd / podman / SSD)
+
+Since 2026-07-10 the stack also runs natively on Fedora. `./setup.sh` /
+`./start.sh` mirror `setup.bat` / `start.bat`; Ollama, ComfyUI, and Voice
+Studio run as **systemd user units**, and n8n/Langfuse run under **podman**
+instead of Docker Desktop.
+
+| Symptom | Fix |
+|---|---|
+| A service is dead after a reboot (Ollama, ComfyUI, Voice Studio) | `systemctl --user status <unit>` (e.g. `ollama`, `comfyui-server`, `voice-studio`) to see why, then `systemctl --user restart <unit>`. ComfyUI/Voice Studio are started as transient units via `systemd-run --user --unit=<name> ...` (see docs/GUIDE.md section 11), so they only exist while running or recently failed. |
+| SSD not mounted (`/run/media/amirel/Amir1tb SSD` missing -- breaks ComfyUI's `extra_model_paths.yaml` and the pipeline's `loras` path) | `systemctl --user restart mount-amir1tb-ssd.service`, or manually `udisksctl mount -b /dev/disk/by-uuid/2A0A35510A351AF1`. |
+| ComfyUI returns HTTP 000 / connection refused on `:8188` | `systemctl --user restart comfyui-server` (or start it per docs/GUIDE.md section 11 if the unit doesn't exist yet). |
+| n8n / Langfuse containers didn't come back after a reboot | Check `podman ps -a`; `podman-restart.service` is what restarts containers with a restart policy on boot -- `systemctl --user status podman-restart.service` and `systemctl --user enable --now podman-restart.service` if it isn't enabled. |
+| `podman-compose` not found | `pip install podman-compose`, or use plain `podman` commands (see `foundation/docker-compose.yml` -- the compose files use fully-qualified image names so either works). |
+| `gh push` / `git push` fails from `scripts/backup-code.sh` | Fresh Linux installs have no stored GitHub credentials yet -- run `gh auth login` once (sets up git's credential helper for `github.com`), then re-run the backup script. |
+
+## ~~Project 1 ï¿½ Ops Hub~~ (archived)
 
 | Symptom | Fix |
 |---|---|
@@ -32,7 +48,7 @@ The consolidated fix-list for the whole stack. Find your symptom; apply the fix.
 | Research: "could not read page" | Site blocks bots or is JS-only. Try another source or install the optional Crawl4AI upgrade. |
 | Inbox file not processed | Must be `.txt`/`.md`; run `run-inbox.bat`; check `inbox.log`. |
 
-## ~~Project 2 — Second Brain~~ (archived)
+## ~~Project 2 ï¿½ Second Brain~~ (archived)
 
 | Symptom | Fix |
 |---|---|
@@ -42,7 +58,7 @@ The consolidated fix-list for the whole stack. Find your symptom; apply the fix.
 | Nightly task didn't run overnight | Task Scheduler â†’ the task â†’ tick "Run whether user is logged on or not" and "Wake the computer to run this task". |
 | AnythingLLM can't reach Ollama | In AnythingLLM set Base URL `http://localhost:11434` and pick your model. |
 
-## ~~Project 3 — Automation~~ (archived)
+## ~~Project 3 ï¿½ Automation~~ (archived)
 
 | Symptom | Fix |
 |---|---|
@@ -72,6 +88,17 @@ The consolidated fix-list for the whole stack. Find your symptom; apply the fix.
 | "Agent not found" in a task | The agent's `.md` file is missing from `olympus/agents/`. Create one with the correct `id` and `domain` frontmatter. |
 | Health check fails | `curl http://127.0.0.1:4600/api/health` should return JSON. If not, check `olympus/data/olympus.log`. |
 | Voice endpoint returns 500 | Verify `engine_python` in `olympus.toml` points to the correct voice-studio venv, and Kokoro/F5-TTS is installed there. |
+
+## Anime pipeline (olympus/engines/pipeline)
+
+| Symptom | Fix |
+|---|---|
+| `SkippedStageError` when running a stage | A stage gate is structural -- it refuses to run until the previous stage proves its metric. Run `python run.py report <slug>` to see the stage ledger and which `missing_metrics` are blocking you, fix/rerun that stage, then retry. |
+| `StoryPollutionError` | `input/script.txt` no longer matches the project's `title_hash` (someone edited/swapped the script file after `new-project`). Restore the original script, or start a new project if the change was intentional. |
+| `BannedModelError` | The resolved image model is on the ban list in `pipeline.toml` (`z-anime-distill-4step-fp8`, `wai-illustrious-v110`, `NoobAI-XL-v1.1`). Point `image_primary`/`image_fallback` at a permitted model -- currently `krea2` (primary, not yet installed) falling back to `flux1-schnell-Q4_K_S.gguf`. |
+| Ollama + ComfyUI VRAM thrash / a history poll stalls during stage1r or stage3b | Already fixed as of commit `84d5ab8` (2026-07-10) -- those stages call `comfy.unload_ollama()` before their first generation so the two never load at once on the 8 GB card. If you still see stalls, check `journalctl --user -u comfyui-server` and `journalctl --user -u ollama`. |
+| Stage 1R LoRA gate can't be satisfied | `kohya_ss` itself doesn't run on the Linux install yet; its underlying engine (`tools-external/sd-scripts`) is installed directly as the workaround. Until that's wired in, `pipeline.toml`'s `[automation] allow_missing_loras = true` lets Stage 3B proceed anyway -- the deviation is recorded in every affected scorecard. |
+
 ## Port reference
 
 | Port | Service |
@@ -81,6 +108,9 @@ The consolidated fix-list for the whole stack. Find your symptom; apply the fix.
 | 5678 | n8n |
 | 4720 | OpenCode MCP |
 | 4600 | Olympus (agent hub) |
+| 5050 | Voice Studio |
+| 8188 | ComfyUI |
+| 3030 | Langfuse (optional) |
 | 6333 | Qdrant (optional) |
 | 9443 | Portainer (optional) |
 

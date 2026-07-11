@@ -18,3 +18,10 @@ crawl4ai>=0.9           # JS-capable web crawler. Installed -- also run once:
 # --- dev / test tooling ---
 pytest>=8.0             # test runner for the anime pipeline v2 suite
                         # (olympus/engines/pipeline/tests). Installed 2026-07-09.
+opencv-python-headless==4.10.0.84  # anime-face bbox detector (design 3C.4) --
+                        # pipeline/facedetect.py, backed by the lbpcascade
+                        # cascade in olympus/engines/pipeline/assets/. Pinned:
+                        # opencv-python-headless 5.x (as of 2026-07) ships
+                        # without cv2.CascadeClassifier (objdetect not built
+                        # in); 4.10.0.84 is the last known-good headless build
+                        # with the Haar/LBP cascade API. Installed 2026-07-10.

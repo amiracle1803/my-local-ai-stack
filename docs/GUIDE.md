@@ -66,6 +66,20 @@ The heavier tools aren't gone — they're **opt-in upgrades** (see §10).
 - **Tailscale** — <https://tailscale.com/download>. Reach your stack from your
   phone securely (§9).
 
+### On Linux (Fedora, since 2026-07-10)
+
+Everything above still applies — Ollama, Python, AnythingLLM, Tailscale all
+have native Linux builds. Two differences:
+- **Docker Desktop → podman.** There's no Docker Desktop on Linux here; n8n
+  and Langfuse run under **podman** instead (rootless, no daemon to keep
+  running). The compose files in `foundation/` use fully-qualified image
+  names (e.g. `docker.io/n8nio/n8n:latest`) so `podman compose` /
+  `podman-compose` can read them unchanged.
+- **Services run as systemd user units**, not "leave a terminal window open."
+  See §11 for the actual units (`ollama.service`, transient
+  `comfyui-server`/`voice-studio` units, `podman-restart.service`,
+  `mount-amir1tb-ssd.service`).
+
 ### Hardware & model size
 Ollama uses your GPU automatically if you have one, otherwise the CPU (slower
 but fine). Pick a model to match your machine in `config.json`:
@@ -83,6 +97,8 @@ After editing, run `ollama pull <model>`. For structured extraction (Project 2)
 
 ## 3. Install order (once)
 
+**On Windows**
+
 1. Install **Ollama**, launch it.
 2. Install **Python 3.11+** (Add to PATH).
 3. Double-click **`setup.bat`** — creates `.venv`, installs packages, pulls
@@ -95,6 +111,25 @@ After editing, run `ollama pull <model>`. For structured extraction (Project 2)
 
 If `setup.bat` reports a missing prerequisite it tells you exactly what to
 install and stops — fix it and re-run. It's safe to run `setup.bat` repeatedly.
+
+**On Linux**
+
+1. Install **Ollama** (native package or the install script from
+   ollama.com), then either launch it once by hand (`ollama serve`) or enable
+   the systemd unit (§11) so it survives reboots.
+2. Install **Python 3.11+** — `uv` is preferred if you have it (`setup.sh`
+   pins a `.venv` to Python 3.12 with `uv`, which survives Fedora's system
+   Python upgrades); a plain `python3` also works.
+3. Run **`./setup.sh`** — mirrors `setup.bat` exactly: creates `.venv`,
+   installs packages, pulls models, creates `config.json`.
+4. Edit **`config.json`** → set `vault_path` to your real Obsidian vault.
+5. (Recommended) Install **AnythingLLM Desktop** the same way as Windows.
+6. Run **`./start.sh`**. It also brings up Olympus, OpenCode MCP, and (if
+   configured) n8n via podman — see §11 for what runs as a systemd service
+   vs. what `start.sh` spawns directly.
+
+`setup.sh` gives the same "missing prerequisite → tells you what to install
+and stops" behavior as `setup.bat`; safe to re-run.
 
 ---
 
@@ -237,7 +272,231 @@ Turn these on only when you want them — the stack is complete without them.
 - **Unsloth** — fine-tune a small model on *your* writing/code so replies sound
   like you. Needs a GPU (or free Colab); it's a project of its own.
 - **ComfyUI** — local image/video generation. Separate from these three projects.
+  Runs at `:8188` on both platforms; see §12 for what it now actually powers
+  (the anime pipeline) and §11 for how it's launched on Linux.
 
 A good habit that ties it together: whenever an agent does something notably
 good or bad, drop a note about it in your vault. Over time those become the
 examples you'd use to tune prompts (§7) or fine-tune a model (Unsloth).
+
+---
+
+## 11. Linux services (systemd user units)
+
+Since 2026-07-10 this box runs Fedora, not Windows. On Windows, "run
+`start.bat`" is enough — everything lives in terminal windows you leave open.
+On Linux, the always-on pieces are wired into **systemd user units** instead,
+so they survive logout/reboot without a terminal babysitting them.
+
+| Service | How it runs | Unit |
+|---|---|---|
+| **Ollama** | Persistent unit, `~/.config/systemd/user/ollama.service`, `WantedBy=default.target` (auto-starts on login) | `ollama.service` |
+| **ComfyUI** (`:8188`) | Transient unit, started on demand via `systemd-run` | `comfyui-server` |
+| **Voice Studio** (`:5050`) | Transient unit, started on demand via `systemd-run` | `voice-studio` |
+| **n8n / Langfuse containers** | podman, restarted on boot | `podman-restart.service` |
+| **SSD automount** (`/run/media/amirel/Amir1tb SSD`) | Persistent unit, `WantedBy=graphical-session.target`, retries `udisksctl mount` for up to 2 minutes after login | `mount-amir1tb-ssd.service` |
+
+**Ollama** (`~/.config/systemd/user/ollama.service`) just wraps `ollama
+serve` with `Restart=on-failure`:
+
+```ini
+[Unit]
+Description=Ollama local LLM server
+After=network-online.target
+
+[Service]
+Environment=LD_LIBRARY_PATH=%h/.local/share/ollama-app/lib/ollama
+ExecStart=%h/.local/share/ollama-app/bin/ollama serve
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target
+```
+
+`start.sh` checks for it and falls back to a plain `ollama serve` in the
+background if the unit isn't installed, so the unit is a nicety, not a
+hard requirement.
+
+**ComfyUI and Voice Studio are GPU-heavy** — the same reason `start.bat` /
+`start.sh` never auto-start them on Windows: loading Ollama + ComfyUI +
+Voice Studio at once has driven this 8 GB laptop GPU down to ~400 MB free
+VRAM before. So instead of a permanent unit file, they're launched as
+**transient** systemd units with `systemd-run` when you actually need them —
+you get systemd's process supervision (`systemctl --user status/stop/restart`,
+`journalctl --user -u <name>`) without a unit file to maintain:
+
+```bash
+# ComfyUI
+systemd-run --user --unit=comfyui-server \
+  --working-directory="$HOME/my-local-ai-stack/ComfyUI" \
+  --property=Restart=on-failure \
+  -- .venv/bin/python main.py --listen 127.0.0.1 --port 8188
+
+# Voice Studio
+systemd-run --user --unit=voice-studio \
+  --working-directory="$HOME/my-local-ai-stack/olympus/engines/voice" \
+  --property=Restart=on-failure \
+  -- .venv/bin/python app.py
+```
+
+Check on either with `systemctl --user status comfyui-server`; stop with
+`systemctl --user stop comfyui-server`. Because they're transient, the unit
+disappears once fully stopped — that's expected, just re-run the
+`systemd-run` command next time you need it.
+
+**n8n / Langfuse (podman, not Docker).** There's no Docker Desktop daemon on
+Linux; containers run rootless under **podman**, and the compose files in
+`foundation/` (`docker-compose.yml`, `docker-compose-langfuse.yml`) already
+use fully-qualified image names (`docker.io/n8nio/n8n:latest`,
+`docker.io/library/postgres:15-alpine`, etc.) specifically so `podman` /
+`podman-compose` can read them without edits. Rootless podman containers
+don't come back on their own after a reboot the way a Docker daemon's
+`restart: unless-stopped` would — `podman-restart.service` is the systemd
+user unit that replays each container's restart policy on login:
+
+```bash
+systemctl --user enable --now podman-restart.service
+```
+
+**SSD automount** (`mount-amir1tb-ssd.service`) exists because both ComfyUI's
+`extra_model_paths.yaml` and the pipeline's `loras` path point at
+`/run/media/amirel/Amir1tb SSD/...` — if the drive isn't mounted yet when
+those start, they simply won't find their models. The unit retries
+`udisksctl mount` every 5 seconds for up to 2 minutes after the graphical
+session starts:
+
+```ini
+[Unit]
+Description=Auto-mount Amir1tb SSD (AI models, Obsidian Vault, LifeOS)
+After=graphical-session.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c "for i in $(seq 1 24); do mountpoint -q \"/run/media/amirel/Amir1tb SSD\" && exit 0; udisksctl mount -b /dev/disk/by-uuid/2A0A35510A351AF1 && exit 0; sleep 5; done; exit 1"
+RemainAfterExit=yes
+
+[Install]
+WantedBy=graphical-session.target
+```
+
+If it still isn't mounted, see docs/TROUBLESHOOTING.md.
+
+---
+
+## 12. The anime pipeline (`olympus/engines/pipeline`)
+
+This is the fourth "project" in the repo, alongside Ops Hub / Second Brain /
+Automation, and the reason ComfyUI is more than an optional add-on now: it
+turns a creative brief into a narrated, edited **recap-style anime video**
+end to end (script → world bible → screenplay → storyboard → panels → voice
+→ motion → assembled `.mp4`), gated at every step by a real scorecard so a
+stage can't silently run on garbage from the one before it.
+
+### Quickstart
+
+```bash
+cd olympus/engines/pipeline
+
+# 1. Write a creative brief -- frontmatter `word_target` is required,
+#    `style_exemplars` (a few sentences of prose to match tone/voice) is
+#    optional. See any projects/<slug>/input/brief.md for a full example.
+cat > /tmp/my-brief.md <<'EOF'
+---
+word_target: 700
+style_exemplars:
+  - "Some sentence in the voice/tone you want."
+---
+Genre: ... Setting: ... Protagonist: ... Themes: ...
+EOF
+
+# 2. Create the project. new-project needs a script FILE to seed the
+#    project folder and pin its title_hash -- a placeholder is fine, because
+#    stage0 (mode 0B, below) generates and re-pins the real script from the
+#    brief.
+echo "placeholder" > /tmp/placeholder.txt
+python run.py new-project my-story --script /tmp/placeholder.txt
+
+# 3. Run every stage in order (stage0 -> stage1 -> stage1r -> stage2 ->
+#    stage3 -> stage3b -> stage4 -> stage3c -> stage5), skipping any stage
+#    the scorecard already proves complete -- resume-safe if it dies
+#    partway through:
+python run.py all my-story --brief /tmp/my-brief.md
+
+# 4. Check progress / see what's blocking a stage at any time:
+python run.py report my-story
+```
+
+The finished video lands at `projects/my-story/video/final.mp4`, with
+`final.srt` subtitles and a `timeline.json` alongside it. A real example
+that ran this all the way through lives at
+`olympus/engines/pipeline/projects/lantern-test/` — its `video/final.mp4`
+and `video/final.srt` are the proof this pipeline works end to end, not just
+on paper.
+
+You can also run one stage at a time with `python run.py run <slug>
+<stage>` — useful for iterating on a single stage without re-running
+everything.
+
+### The stage graph
+
+```
+stage0 ──► stage1 ──► stage1r ──► stage2 ──► stage3 ──► stage3b ──► stage4 ──► stage3c ──► stage5
+intake     world      refs        screen-    story-     panels      voice       motion      assembly
+           bible      +voices     play       board      (GPU)       (CPU)       plan        (ffmpeg)
+```
+
+Every arrow is a **structural gate**: `scores.require_stage()` refuses to run
+a stage unless the previous one wrote `stage.done` *and* its mandatory proof
+metric (e.g. stage3b won't run until stage3's `block_count` is present).
+`python run.py report <slug>` prints this ledger — stage-by-stage
+done/partial/pending plus any `missing_metrics` — and is the first thing to
+check when a stage refuses to run (`SkippedStageError`). The full node-by-node
+breakdown of both this stage graph and the ComfyUI workflow graphs it drives
+lives in `olympus/engines/pipeline/workflows/NODES.md` — read that before
+touching a workflow JSON or adding a stage.
+
+### Known deviations from the original design (honest, as of 2026-07-10)
+
+The pipeline's own config (`pipeline.toml`) and `workflows/NODES.md` are
+explicit about where the current Linux install falls short of the design
+spec:
+
+- **Image model:** `krea2` is the *mandated* primary
+  (`[models] image_primary = "krea2"` in `pipeline.toml`), but it has no
+  weights on disk yet. Every generation today actually runs on the one
+  *permitted* fallback, `flux1-schnell-Q4_K_S.gguf`
+  (`image_flux_fallback.json` — see NODES.md §1 for exactly how that workflow
+  is wired). The SDXL-family workflow templates (`scene_plate.json`,
+  `panel_txt2img.json`, `character_sheet.json`, etc.) exist and are ready,
+  but stay dormant until a permitted SDXL checkpoint replaces the
+  placeholder `PATCH_*` node — every local SDXL checkpoint on this machine
+  is on the model ban list.
+- **Model ban list** (`pipeline.toml [models] banned`, enforced by
+  `ComfyClient`/`BannedModelError`): `z-anime-distill-4step-fp8`,
+  `wai-illustrious-v110`, `NoobAI-XL-v1.1`. These can never be selected for
+  image generation, full stop.
+- **LoRA training gap:** the design's Stage 1R mandatory per-character LoRA
+  gate can't be satisfied yet — `kohya_ss` (the Windows GUI wrapper) doesn't
+  run on this Linux install. The fix in progress is using its underlying
+  engine directly: `tools-external/sd-scripts` is installed and callable
+  without the GUI wrapper. Until that's fully wired into Stage 1R,
+  `pipeline.toml`'s `[automation] allow_missing_loras = true` lets Stage 3B
+  proceed anyway, and every affected project's scorecard records the
+  deviation (`"lora_training": "contingency_stop (kohya unavailable on
+  Linux; deviation recorded)"`) rather than silently pretending it happened.
+- **GPU scheduling:** Ollama and ComfyUI were never meant to generate at the
+  same time on an 8 GB card. Stage 1R and Stage 3B call
+  `comfy_client.unload_ollama()` before their first generation automatically
+  (fixed in commit `84d5ab8`, 2026-07-10) — you shouldn't need to do this by
+  hand, but it's worth knowing it's there if you're debugging a stall.
+- **Video/animation templates** (`ltx_ambient.json`, `ltx_director.json`,
+  `wan_ti2v.json`) are dormant/contingency-stopped — the LTX nodes aren't
+  installed on this box yet, and Wan2.2 is gated behind its own motion-second
+  budget. Every shot degrades to Tier-0 oscillating drift (a plain ffmpeg pan
+  in Stage 5, alternating direction per shot — Ken Burns zooms are banned by
+  spec) until those land.
+
+None of this blocks a full run end to end — `lantern-test` proves that — it
+just means today's output is flux1-schnell + Tier-0 drift, not the krea2 +
+LoRA + LTX/Wan pipeline the design describes as the eventual target.
