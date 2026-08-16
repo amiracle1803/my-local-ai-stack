@@ -49,6 +49,8 @@ class ContingencyStop(RuntimeError):
 class WorkflowTemplate:
     """One workflow JSON + its manifest ``patchable`` map."""
 
+    _cache: dict[str, "WorkflowTemplate"] = {}
+
     def __init__(self, name: str, graph: dict[str, Any], patchable: dict[str, str]):
         self.name = name
         self.graph = graph
@@ -56,6 +58,8 @@ class WorkflowTemplate:
 
     @classmethod
     def load(cls, name: str) -> "WorkflowTemplate":
+        if name in cls._cache:
+            return cls._cache[name]
         manifest = json.loads((WORKFLOWS_DIR / "manifest.json").read_text(encoding="utf-8"))
         entry = manifest["templates"].get(name)
         if entry is None:
@@ -69,7 +73,9 @@ class WorkflowTemplate:
                 raise ComfyError(f"{name}: patchable {title} -> missing node {node_id}")
             if field not in graph[node_id].get("inputs", {}):
                 raise ComfyError(f"{name}: patchable {title} -> node {node_id} has no input {field}")
-        return cls(name, graph, patchable)
+        tmpl = cls(name, graph, patchable)
+        cls._cache[name] = tmpl
+        return tmpl
 
     def patched(self, patches: dict[str, Any]) -> dict[str, Any]:
         """Deep-copy the graph with ``patches`` (title -> value) applied."""
@@ -126,6 +132,25 @@ class ComfyClient:
 
     def output_dir(self) -> Path:
         return self.config.comfyui_dir() / "output"
+
+    def input_dir(self) -> Path:
+        return self.config.comfyui_dir() / "input"
+
+    def upload_image(self, src: Path, name: str | None = None) -> str:
+        """Upload an image to ComfyUI's input directory via /upload/image.
+
+        Returns the filename as registered by ComfyUI (used in LoadImage nodes).
+        """
+        name = name or src.name
+        with open(src, "rb") as f:
+            r = self._session.post(
+                f"{self.base_url}/upload/image",
+                files={"image": (name, f, "image/png")},
+                data={"overwrite": "true"},
+                timeout=30,
+            )
+        r.raise_for_status()
+        return r.json().get("name", name)
 
     def free(self) -> None:
         """Ask ComfyUI to unload models + free VRAM (between batches)."""
@@ -231,15 +256,37 @@ class ComfyClient:
                 return self._collect(entry["outputs"], dest)
 
     def _collect(self, outputs: dict[str, Any], dest: Path) -> list[Path]:
+        """Copy every produced artifact to ``dest``.
+
+        Handles two ComfyUI output shapes:
+
+        - Image save nodes (SaveImage, PreviewImage): ``"images"`` key, files
+          land under ``ComfyUI/output/<subfolder>/<filename>``.
+        - Video save nodes (VHS_VideoCombine): ``"gifs"`` UI key with a
+          ``"type"`` field of ``"output"`` or ``"temp"`` -- files land under
+          ``ComfyUI/output/<subfolder>/<filename>`` or ``ComfyUI/temp/<subfolder>/<filename>``.
+          Without this branch every LTX/Wan animation job raises "produced no
+          images" even though the clip was written successfully.
+        """
         dest.mkdir(parents=True, exist_ok=True)
         copied: list[Path] = []
         out_root = self.output_dir()
+        temp_root = self.config.comfyui_dir() / "temp"
         for node_output in outputs.values():
-            for img in node_output.get("images", []):
-                src = out_root / img.get("subfolder", "") / img["filename"]
+            for art in node_output.get("images", []):
+                src = out_root / art.get("subfolder", "") / art["filename"]
                 if not src.exists():
                     raise ComfyError(f"output image missing on disk: {src}")
-                target = dest / img["filename"]
+                target = dest / art["filename"]
+                shutil.copy2(src, target)
+                copied.append(target)
+            for art in node_output.get("gifs", []):
+                kind = art.get("type", "output")
+                base = temp_root if kind == "temp" else out_root
+                src = base / art.get("subfolder", "") / art["filename"]
+                if not src.exists():
+                    raise ComfyError(f"output video missing on disk: {src}")
+                target = dest / art["filename"]
                 shutil.copy2(src, target)
                 copied.append(target)
         if not copied:

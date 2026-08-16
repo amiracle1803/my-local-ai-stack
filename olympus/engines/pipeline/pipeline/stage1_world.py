@@ -38,14 +38,15 @@ from itertools import combinations
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, RootModel
 
 from .blueprint import Blueprint
 from .chunking import DEFAULT_CHUNK_OVERLAP, DEFAULT_CHUNK_SIZE, chunk_text
 from .config import ENGINE_ROOT, PipelineConfig
 from .llm import PipelineLLM
-from .schemas.worldbible import WorldBible
+from .schemas.worldbible import WorldBible, Location
 from .scores import Scores
+from ._util import now_iso
 
 logger = logging.getLogger(__name__)
 
@@ -84,6 +85,9 @@ class _LocationOut(BaseModel):
     description: str = ""
     recurring: bool = False
     evidence: str = ""
+    sd_prompt: str = ""
+    angles: list[str] = Field(default_factory=list)
+    connections: list[dict] = Field(default_factory=list)  # Spatial relationships to other locations
 
 
 class _AssetOut(BaseModel):
@@ -130,23 +134,45 @@ def _slug(text: str, prefix: str) -> str:
     return f"{prefix}-{s}"
 
 
-def infer_world(script_text: str, wb: WorldBible, llm: PipelineLLM) -> _WorldInference:
+def infer_world(
+    script_text: str,
+    wb: WorldBible,
+    llm: PipelineLLM,
+    *,
+    known_locations: list[str] | None = None,
+) -> _WorldInference:
+    """Infer the world from the script.
+
+    ``known_locations`` seeds the location list from the Stage 0 blueprint's
+    scene plan (e.g. "The Courier's House", "The Geothermal Vault", "The
+    Town's Edge"). These scene names are the authoritative world-space the
+    markers/story went through: without them the LLM collapses every scene to
+    the single most-mentioned location (the "weak world / one room" complaint)
+    because evidence from the middle of the script is sparse. The prompt
+    instructs the model to keep every known name and only drop one if the text
+    gives no trace of it.
+    """
     chunks = chunk_text(script_text, chunk_size=DEFAULT_CHUNK_SIZE, chunk_overlap=DEFAULT_CHUNK_OVERLAP)
-    # Evidence pack: first two + last chunk (era/world signals cluster at the
-    # opening; endings confirm arcs) -- the token-budget guard trims further.
+    # Evidence pack: first two + last chunk (openings confirm arcs) -- the
+    # token-budget guard trims further. known_locations covers the mid-story
+    # world names that the sparse evidence would otherwise lose.
     picked = chunks[:2] + (chunks[-1:] if len(chunks) > 2 else [])
     evidence = "\n---\n".join(c.text for c in picked)
     character_summary = ", ".join(f"{c.name} ({c.role or 'unknown'})" for c in wb.characters)
     return llm.complete_json(
         "s1_world_inference.md",
-        {"evidence_text": evidence, "character_summary": character_summary},
+        {
+            "evidence_text": evidence,
+            "character_summary": character_summary,
+            "known_locations": ", ".join(known_locations) if known_locations else "",
+        },
         _WorldInference,
         role="script",
         stage_hint="stage1_world",
     )
 
 
-_LOCATION_SD_TAIL = "detailed environment, consistent architecture, no people"
+_LOCATION_SD_TAIL = "detailed environment, consistent architecture"
 
 
 def _location_sd_prompt(name: str, description: str, era: str) -> str:
@@ -201,7 +227,7 @@ def build_relationships(
 # --------------------------------------------------------------------------
 # Step 4 -- contradiction detection + auto-resolution
 # --------------------------------------------------------------------------
-_APPEARANCE_FIELDS = ("hair", "eyes", "skin", "build")
+_APPEARANCE_FIELDS = ("hair", "eyes", "skin", "build", "clothing_primary", "distinguishing_feature")
 
 # Per-field regex extractors over evidence sentences; a contradiction is two
 # different extracted values for the same character+field in the script text.
@@ -258,7 +284,8 @@ def detect_contradictions(
                     role="script",
                     stage_hint=f"stage1_contra_{char.id}_{field}",
                 )
-                resolved = resolution.resolved_value or claims[resolution.winner - 1]
+                idx = max(0, min(resolution.winner - 1, len(claims) - 1))
+                resolved = resolution.resolved_value or claims[idx]
                 setattr(char.appearance, field, resolved)
                 finding.update(auto_resolved=True, resolved_value=resolved, reason=resolution.reason)
             findings.append(finding)
@@ -304,8 +331,6 @@ def expand_thin_entries(wb: WorldBible, llm: PipelineLLM) -> int:
     return expanded
 
 
-from pydantic import RootModel  # noqa: E402  (kept near its single use)
-
 
 class _FreeformDict(RootModel[dict[str, str]]):
     pass
@@ -348,8 +373,6 @@ def write_voice_registry(project_dir: Path, wb: WorldBible, script_text: str) ->
 # --------------------------------------------------------------------------
 # main entry point
 # --------------------------------------------------------------------------
-def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
 
 
 def run(
@@ -374,7 +397,18 @@ def run(
         llm = PipelineLLM(config, prompts_dir=PROMPTS_DIR, logs_dir=project_dir / "logs")
 
     # Step 3: world inference.
-    world = infer_world(script_text, wb, llm)
+    # Seed the location list from the Stage 0 blueprint's scene plan so the
+    # full story world (Courier's House, Vault, Town's Edge, Town's Center,
+    # ...) survives; the LLM collapses to one location when left to sparse
+    # middle-script evidence alone (the "single room world" complaint).
+    known_locations: list[str] = []
+    bp_path = project_dir / "stage0_blueprint.json"
+    if bp_path.exists():
+        bp = json.loads(bp_path.read_text(encoding="utf-8"))
+        known_locations = sorted(
+            s.get("location") for s in bp.get("scene_list", []) if s.get("location")
+        )
+    world = infer_world(script_text, wb, llm, known_locations=known_locations)
     wb.world = {
         "era": world.era.model_dump(),
         "technology": world.technology,
@@ -385,12 +419,14 @@ def run(
         "economy": world.economy.model_dump(),
     }
     wb.locations = [
-        {
-            "id": _slug(loc.name, "loc"), "name": loc.name,
-            "description": loc.description, "recurring": loc.recurring,
-            "sd_prompt": _location_sd_prompt(loc.name, loc.description, world.era.value),
-            "evidence": loc.evidence,
-        }
+        Location(
+            id=_slug(loc.name, "loc"), name=loc.name,
+            description=loc.description, recurring=loc.recurring,
+            sd_prompt=_location_sd_prompt(loc.name, loc.description, world.era.value),
+            evidence=loc.evidence,
+            angles=loc.angles or ["wide_establishing", "medium_shot", "closeup_counter", "over_shoulder"],
+            connections=loc.connections or [],
+        )
         for loc in world.locations
     ]
     wb.recurring_assets = [
@@ -419,7 +455,7 @@ def run(
     # VoiceSpec registry.
     write_voice_registry(project_dir, wb, script_text)
 
-    wb.meta.generated_at = _now_iso()
+    wb.meta.generated_at = now_iso()
     wb_path.write_text(wb.model_dump_json(indent=2), encoding="utf-8")
 
     scores.record("stage1", "global", "relationships", float(len(wb.relationships)))
@@ -429,9 +465,24 @@ def run(
     scores.record("stage1", "global", "era_confidence", world.era.confidence)
     scores.stage_done("stage1")
 
+    # M2b standalone completion: stage1_world is its own stage in STAGE_ORDER
+    # with a mandatory ``world_coverage`` metric -- record it and its done
+    # marker here so run_all/gates resolve (design: stage1_world runs as part
+    # of the stage1 dispatch AND can be gated/run individually).
+    world_coverage = (
+        0.25 * min(len(wb.locations) / 3.0, 1.0)
+        + 0.25 * min(len(wb.relationships) / 5.0, 1.0)
+        + 0.25 * float(world.era.confidence)
+        + 0.25 * (1.0 if open_contradictions == 0 else 0.0)
+    )
+    scores.record("stage1_world", "global", "world_coverage", world_coverage)
+    scores.stage_done("stage1_world")
+
     bp = Blueprint.load(project_dir)
     bp.stages["stage1"].status = "done"
-    bp.stages["stage1"].ts = _now_iso()
+    bp.stages["stage1"].ts = now_iso()
+    bp.stages["stage1_world"].status = "done"
+    bp.stages["stage1_world"].ts = now_iso()
     bp.write(project_dir)
 
     return {

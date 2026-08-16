@@ -1,0 +1,193 @@
+{
+  "1": {
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": {
+      "title": "LTX2B_CKPT"
+    },
+    "inputs": {
+      "ckpt_name": "ltxv-2b-0.9.8-distilled-fp8-i2v.safetensors"
+    }
+  },
+  "2": {
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "LTX2B_T5"
+    },
+    "inputs": {
+      "clip_name": "t5xxl_fp8_e4m3fn.safetensors",
+      "type": "ltxv"
+    }
+  },
+  "4": {
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "MOTION_PROMPT"
+    },
+    "inputs": {
+      "text": "a glowing paper lantern among fireflies in a moonlit garden, warm amber light, gentle bobbing motion, cinematic, high detail",
+      "clip": [
+        "2",
+        0
+      ]
+    }
+  },
+  "5": {
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "PROMPT_NEG"
+    },
+    "inputs": {
+      "text": "blurry, low quality, low contrast, flat, washed out, dark, underexposed, noise, grain, oversaturated, cartoon, childish, ugly",
+      "clip": [
+        "2",
+        0
+      ]
+    }
+  },
+  "6": {
+    "class_type": "LTXVScheduler",
+    "inputs": {
+      "steps": 12,
+      "max_shift": 2.05,
+      "base_shift": 0.95,
+      "stretch": true,
+      "terminal": 0.1,
+      "latent": [
+        "52",
+        2
+      ]
+    }
+  },
+  "7": {
+    "class_type": "RandomNoise",
+    "inputs": {
+      "noise_seed": 42
+    }
+  },
+  "8": {
+    "class_type": "KSamplerSelect",
+    "inputs": {
+      "sampler_name": "euler_ancestral_cfg_pp"
+    }
+  },
+  "9": {
+    "class_type": "CFGGuider",
+    "inputs": {
+      "model": [
+        "1",
+        0
+      ],
+      "positive": [
+        "52",
+        0
+      ],
+      "negative": [
+        "52",
+        1
+      ],
+      "cfg": 1
+    }
+  },
+  "10": {
+    "class_type": "SamplerCustomAdvanced",
+    "inputs": {
+      "noise": [
+        "7",
+        0
+      ],
+      "guider": [
+        "9",
+        0
+      ],
+      "sampler": [
+        "8",
+        0
+      ],
+      "sigmas": [
+        "6",
+        0
+      ],
+      "latent_image": [
+        "52",
+        2
+      ]
+    }
+  },
+  "11": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "vae": [
+        "1",
+        2
+      ],
+      "samples": [
+        "10",
+        0
+      ]
+    }
+  },
+  "12": {
+    "class_type": "VHS_VideoCombine",
+    "inputs": {
+      "images": [
+        "11",
+        0
+      ],
+      "frame_rate": 16,
+      "loop_count": 0,
+      "filename_prefix": "ltx2b_i2v_out",
+      "format": "video/h264-mp4",
+      "pingpong": false,
+      "save_output": true
+    }
+  },
+  "50": {
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "START_FRAME"
+    },
+    "inputs": {
+      "image": "compare_sh-001-01.png"
+    }
+  },
+  "52": {
+    "class_type": "LTXVImgToVideo",
+    "inputs": {
+      "positive": [
+        "53",
+        0
+      ],
+      "negative": [
+        "53",
+        1
+      ],
+      "vae": [
+        "1",
+        2
+      ],
+      "image": [
+        "50",
+        0
+      ],
+      "width": 768,
+      "height": 448,
+      "length": 81,
+      "batch_size": 1,
+      "strength": 0.55
+    }
+  },
+  "53": {
+    "class_type": "LTXVConditioning",
+    "inputs": {
+      "positive": [
+        "4",
+        0
+      ],
+      "negative": [
+        "5",
+        0
+      ],
+      "frame_rate": 16
+    }
+  }
+}

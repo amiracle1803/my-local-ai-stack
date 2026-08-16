@@ -18,18 +18,22 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
-# Canonical stage execution order (design 3.9): 0 -> 1 -> 1R -> 2 -> 3 -> 3B
-# -> 4 -> 3C -> 5. Shared with scores.py (gating) and run.py (CLI).
+# Canonical stage execution order (design 3.9): 
+# 0 -> 1 (chars) -> 1M2b (world) -> 1R (refs) -> 3 (storyboard w/ refs) 
+# -> 2 (screenplay w/ storyboard+refs) -> 3B (panels w/ krea2+refs) 
+# -> 4 (audio) -> 3C (animation w/ krea2 base) -> VLM Review (audio+visual) -> 5 (assembly)
 STAGE_ORDER: list[str] = [
     "stage0",
-    "stage1",
-    "stage1r",
-    "stage2",
-    "stage3",
-    "stage3b",
-    "stage4",
-    "stage3c",
-    "stage5",
+    "stage1",       # M2a: character scan + profiles
+    "stage1_world", # M2b: world enrichment (locations, era, magic, economy, relationships)
+    "stage1r",      # reference images: character, location, asset style refs
+    "stage3",       # storyboard: shots+blocks using refs as context, detail per scene
+    "stage2",       # screenplay: narration+dialogue using storyboard+refs as context
+    "stage3b",      # panels: krea2 img2img from plates using refs (identity/style)
+    "stage4",       # audio: TTS + alignment
+    "stage3c",      # animation: krea2 base LTX I2V from panels
+    "stage_vlm_review",  # VLM reviews audio+visual together
+    "stage5",       # assembly: final MP4 with chapters+SRT+timeline
 ]
 
 # fps is fixed at intake, 24-60, snapped to a video-model-friendly rate.
@@ -68,8 +72,7 @@ def compute_title_hash(script_text: str) -> str:
     return hashlib.sha256(prefix.encode("utf-8")).hexdigest()
 
 
-def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+from ._util import now_iso as _now_iso
 
 
 # --------------------------------------------------------------------------
@@ -121,7 +124,25 @@ class Blueprint(BaseModel):
     @classmethod
     def load(cls, project_dir: str | Path) -> "Blueprint":
         path = Path(project_dir) / "blueprint.json"
-        return cls.model_validate_json(path.read_text(encoding="utf-8"))
+        bp = cls.model_validate_json(path.read_text(encoding="utf-8"))
+        bp._backfill_stages()
+        return bp
+
+    def _backfill_stages(self) -> None:
+        """Insert pending entries for any STAGE_ORDER stage missing from the
+        ledger (migrates blueprints created before a stage was added)."""
+        for s in STAGE_ORDER:
+            if s not in self.stages:
+                self.stages[s] = StageEntry()
+
+    @classmethod
+    def mark_stage(cls, project_dir: str | Path, stage_id: str, status: str = "done") -> None:
+        """Load blueprint, update one stage's status+timestamp, write back."""
+        from ._util import now_iso
+        bp = cls.load(project_dir)
+        bp.stages[stage_id].status = status
+        bp.stages[stage_id].ts = now_iso()
+        bp.write(project_dir)
 
 
 def create_blueprint(

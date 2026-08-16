@@ -110,7 +110,7 @@ export default function Shell({ children }) {
           <div>
             <a href="http://localhost:5173" target="_blank">Atlas UI</a>
             {' · '}
-            <a href="http://localhost:8000/docs" target="_blank">API docs</a>
+            <a href="http://localhost:7337/api/docs" target="_blank">API docs</a>
           </div>
         </div>
       </nav>

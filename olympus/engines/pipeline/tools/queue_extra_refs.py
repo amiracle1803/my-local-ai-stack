@@ -94,7 +94,7 @@ def main() -> int:
             continue
         try:
             paths = comfy.generate(
-                "image_flux_fallback.json",
+                "image_txt2img_flux_fallback.json",
                 {"PROMPT_POS": prompt, "WIDTH": 832, "HEIGHT": 1216,
                  "SEED": seed, "SAVE_PREFIX": f"pipeline/{args.slug}/extra/{name}"},
                 dest=dest,

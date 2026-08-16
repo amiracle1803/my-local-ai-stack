@@ -1,0 +1,133 @@
+{
+  "id": "bd919ddc-57ea-4309-9146-50014b556c6a",
+  "revision": 0,
+  "version": 0.4,
+  "last_link_id": 1,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "LoadImage",
+      "pos": [
+        80.0,
+        60.0
+      ],
+      "size": {
+        "width": 230,
+        "height": 130
+      },
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "*",
+          "links": [
+            1
+          ],
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "ver": "0.25.0",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "PATCH_INPUT_IMAGE.png"
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 0
+    },
+    {
+      "id": 2,
+      "type": "Qwen3Caption",
+      "pos": [
+        400.0,
+        60.0
+      ],
+      "size": {
+        "width": 230,
+        "height": 130
+      },
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input_0",
+          "type": "*",
+          "link": 1,
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "*",
+          "links": [],
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "ver": "0.25.0",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "Qwen3Caption"
+      },
+      "widgets_values": [
+        "Qwen_VL_MAX",
+        "4bit",
+        false,
+        true,
+        "English",
+        42,
+        1024,
+        "Describe this image as a single-line natural-language caption for LoRA training. Start with 'a photo of' and include subject, action, setting, lighting, and style. No commentary."
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 1
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      2,
+      0,
+      "*"
+    ]
+  ],
+  "config": {},
+  "groups": [],
+  "extra": {},
+  "definitions": {}
+}

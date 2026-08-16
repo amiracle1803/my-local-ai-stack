@@ -1,0 +1,903 @@
+{
+  "id": "05fb175a-19ba-4244-a18f-d5bb801a10f7",
+  "revision": 0,
+  "version": 0.4,
+  "last_link_id": 13,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "WanVideoBlockSwap",
+      "pos": [
+        80.0,
+        60.0
+      ],
+      "size": {
+        "width": 230,
+        "height": 130
+      },
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "*",
+          "links": [
+            1
+          ],
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "ver": "0.25.0",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "WanVideoBlockSwap"
+      },
+      "widgets_values": [
+        20,
+        false,
+        false
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 0
+    },
+    {
+      "id": 2,
+      "type": "WanVideoModelLoader",
+      "pos": [
+        400.0,
+        60.0
+      ],
+      "size": {
+        "width": 230,
+        "height": 130
+      },
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input_0",
+          "type": "*",
+          "link": 1,
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "*",
+          "links": [
+            3,
+            8
+          ],
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "ver": "0.25.0",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "WanVideoModelLoader"
+      },
+      "widgets_values": [
+        "Wan2_2-TI2V-5B_fp8_e4m3fn_scaled_KJ.safetensors",
+        "bf16",
+        "disabled",
+        "offload_device"
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 1
+    },
+    {
+      "id": 3,
+      "type": "LoadWanVideoT5TextEncoder",
+      "pos": [
+        720.0,
+        60.0
+      ],
+      "size": {
+        "width": 230,
+        "height": 130
+      },
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "*",
+          "links": [
+            2
+          ],
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "ver": "0.25.0",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "LoadWanVideoT5TextEncoder"
+      },
+      "widgets_values": [
+        "umt5-xxl-enc-bf16.safetensors",
+        "bf16",
+        "offload_device",
+        "disabled"
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 2
+    },
+    {
+      "id": 4,
+      "type": "WanVideoTextEncode",
+      "pos": [
+        1040.0,
+        60.0
+      ],
+      "size": {
+        "width": 230,
+        "height": 130
+      },
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input_0",
+          "type": "*",
+          "link": 2,
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        },
+        {
+          "name": "input_1",
+          "type": "*",
+          "link": 3,
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "*",
+          "links": [
+            10
+          ],
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "ver": "0.25.0",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "WanVideoTextEncode"
+      },
+      "widgets_values": [
+        "PATCH: [camera: slow push-in] [motion: ...] anime scene, cinematic",
+        "morphing, warping, flicker, jitter, text, watermark, low quality, deformed",
+        true,
+        "cpu",
+        false
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 3
+    },
+    {
+      "id": 5,
+      "type": "WanVideoVAELoader",
+      "pos": [
+        80.0,
+        280.0
+      ],
+      "size": {
+        "width": 230,
+        "height": 130
+      },
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "*",
+          "links": [
+            5,
+            11
+          ],
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "ver": "0.25.0",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "WanVideoVAELoader"
+      },
+      "widgets_values": [
+        "Wan2_2_VAE_bf16.safetensors",
+        "bf16"
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 4
+    },
+    {
+      "id": 6,
+      "type": "LoadImage",
+      "pos": [
+        400.0,
+        280.0
+      ],
+      "size": {
+        "width": 230,
+        "height": 130
+      },
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "*",
+          "links": [
+            4
+          ],
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "ver": "0.25.0",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "panel.png"
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 5
+    },
+    {
+      "id": 7,
+      "type": "ImageResizeKJv2",
+      "pos": [
+        720.0,
+        280.0
+      ],
+      "size": {
+        "width": 230,
+        "height": 130
+      },
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input_0",
+          "type": "*",
+          "link": 4,
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "*",
+          "links": [
+            6
+          ],
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "ver": "0.25.0",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "ImageResizeKJv2"
+      },
+      "widgets_values": [
+        768,
+        448,
+        "lanczos",
+        "crop",
+        "0, 0, 0",
+        "center",
+        32,
+        "cpu"
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 6
+    },
+    {
+      "id": 8,
+      "type": "WanVideoEncode",
+      "pos": [
+        1040.0,
+        280.0
+      ],
+      "size": {
+        "width": 230,
+        "height": 130
+      },
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input_0",
+          "type": "*",
+          "link": 5,
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        },
+        {
+          "name": "input_1",
+          "type": "*",
+          "link": 6,
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "*",
+          "links": [
+            7
+          ],
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "ver": "0.25.0",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "WanVideoEncode"
+      },
+      "widgets_values": [
+        false,
+        272,
+        272,
+        144,
+        128
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 7
+    },
+    {
+      "id": 9,
+      "type": "WanVideoEmptyEmbeds",
+      "pos": [
+        80.0,
+        500.0
+      ],
+      "size": {
+        "width": 230,
+        "height": 130
+      },
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input_0",
+          "type": "*",
+          "link": 7,
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "*",
+          "links": [
+            9
+          ],
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "ver": "0.25.0",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "WanVideoEmptyEmbeds"
+      },
+      "widgets_values": [
+        768,
+        448,
+        81
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 8
+    },
+    {
+      "id": 10,
+      "type": "WanVideoSampler",
+      "pos": [
+        400.0,
+        500.0
+      ],
+      "size": {
+        "width": 230,
+        "height": 130
+      },
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input_0",
+          "type": "*",
+          "link": 8,
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        },
+        {
+          "name": "input_1",
+          "type": "*",
+          "link": 9,
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 1
+        },
+        {
+          "name": "input_2",
+          "type": "*",
+          "link": 10,
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "*",
+          "links": [
+            12
+          ],
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "ver": "0.25.0",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "WanVideoSampler"
+      },
+      "widgets_values": [
+        30,
+        5.0,
+        5.0,
+        0,
+        true,
+        "unipc",
+        0
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 9
+    },
+    {
+      "id": 11,
+      "type": "WanVideoDecode",
+      "pos": [
+        720.0,
+        500.0
+      ],
+      "size": {
+        "width": 230,
+        "height": 130
+      },
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input_0",
+          "type": "*",
+          "link": 11,
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        },
+        {
+          "name": "input_1",
+          "type": "*",
+          "link": 12,
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "*",
+          "links": [
+            13
+          ],
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "ver": "0.25.0",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "WanVideoDecode"
+      },
+      "widgets_values": [
+        false,
+        272,
+        272,
+        144,
+        128,
+        "default"
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 10
+    },
+    {
+      "id": 13,
+      "type": "VHS_VideoCombine",
+      "pos": [
+        1040.0,
+        500.0
+      ],
+      "size": {
+        "width": 230,
+        "height": 130
+      },
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input_0",
+          "type": "*",
+          "link": 13,
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "*",
+          "links": [],
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "ver": "0.25.0",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "VHS_VideoCombine"
+      },
+      "widgets_values": [
+        16,
+        0,
+        "wan_i2v_out",
+        "video/h264-mp4",
+        false,
+        true
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 11
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      2,
+      0,
+      "*"
+    ],
+    [
+      2,
+      3,
+      0,
+      4,
+      0,
+      "*"
+    ],
+    [
+      3,
+      2,
+      0,
+      4,
+      1,
+      "*"
+    ],
+    [
+      4,
+      6,
+      0,
+      7,
+      0,
+      "*"
+    ],
+    [
+      5,
+      5,
+      0,
+      8,
+      0,
+      "*"
+    ],
+    [
+      6,
+      7,
+      0,
+      8,
+      1,
+      "*"
+    ],
+    [
+      7,
+      8,
+      0,
+      9,
+      0,
+      "*"
+    ],
+    [
+      8,
+      2,
+      0,
+      10,
+      0,
+      "*"
+    ],
+    [
+      9,
+      9,
+      0,
+      10,
+      1,
+      "*"
+    ],
+    [
+      10,
+      4,
+      0,
+      10,
+      2,
+      "*"
+    ],
+    [
+      11,
+      5,
+      0,
+      11,
+      0,
+      "*"
+    ],
+    [
+      12,
+      10,
+      0,
+      11,
+      1,
+      "*"
+    ],
+    [
+      13,
+      11,
+      0,
+      13,
+      0,
+      "*"
+    ]
+  ],
+  "config": {},
+  "groups": [],
+  "extra": {},
+  "definitions": {}
+}

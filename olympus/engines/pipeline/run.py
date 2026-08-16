@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Anime Pipeline v2 CLI (design section 1, milestone M0).
+"""Anime Pipeline v2 CLI (design section 1).
 
 Commands::
 
@@ -7,9 +7,8 @@ Commands::
     run.py report <slug>
     run.py run <slug> <stage>
 
-M0 stage functions are stubs: they enforce the real scores gate
-(``require_stage``) and then raise ``NotImplementedError`` -- the gating and
-the pollution guard are live even though no stage does work yet.
+All stages (0-5) have working implementations. Known gaps (LoRA training,
+lip-sync, music bed) are gated contingencies recorded in per-stage scorecards.
 """
 
 from __future__ import annotations
@@ -35,6 +34,7 @@ from pipeline import (  # noqa: E402
     stage3c_animation,
     stage4_audio,
     stage5_assembly,
+    stage_vlm_review,
 )
 from pipeline.blueprint import (  # noqa: E402
     STAGE_ORDER,
@@ -107,7 +107,7 @@ def new_project(
 
 
 # --------------------------------------------------------------------------
-# stage stubs (M0): real gate, no work yet
+# stage dispatch
 # --------------------------------------------------------------------------
 def run_stage(
     slug: str,
@@ -115,13 +115,12 @@ def run_stage(
     *,
     projects_dir: str | Path | None = None,
     brief_path: str | Path | None = None,
+    force: bool = False,
     config: PipelineConfig | None = None,
 ) -> dict | None:
-    """Run one stage. M1: stage0 (mode 0B, generate-from-brief) is real. M2a:
-    stage1 runs Steps 1-2 (character scan + profiles) and writes a partial
-    world bible, but does not mark stage1 done -- M2b completes it. All other
-    stages remain pollution-guard -> gate -> ``NotImplementedError`` stubs
-    until their milestone lands."""
+    """Run one stage. All stages (0-5) have real implementations. Known
+    gaps (LoRA training, lip-sync, music bed) surface as gated scorecard
+    contingencies rather than blocking execution."""
     if stage not in STAGE_ORDER:
         raise ValueError(f"unknown stage {stage!r}; valid: {STAGE_ORDER}")
     project_dir = _projects_root(projects_dir) / slug
@@ -150,14 +149,20 @@ def run_stage(
             return {"m2a": partial, "m2b": full}
 
         dispatch = {
+            "stage1_world": stage1_world.run,
             "stage1r": stage1r_references.run,
-            "stage2": stage2_screenplay.run,
             "stage3": stage3_storyboard.run,
+            "stage2": stage2_screenplay.run,
             "stage3b": stage3b_images.run,
             "stage4": stage4_audio.run,
             "stage3c": stage3c_animation.run,
+            "stage_vlm_review": stage_vlm_review.run,
             "stage5": stage5_assembly.run,
         }
+        if stage == "stage3b":
+            return dispatch[stage](project_dir, cfg, scores)
+        if stage == "stage4":
+            return dispatch[stage](project_dir, cfg, scores, force=bool(force))
         return dispatch[stage](project_dir, cfg, scores)
     finally:
         scores.close()
@@ -208,7 +213,7 @@ def _cmd_report(args: argparse.Namespace) -> int:
 
 
 def _cmd_run(args: argparse.Namespace) -> int:
-    result = run_stage(args.slug, args.stage, brief_path=args.brief)
+    result = run_stage(args.slug, args.stage, brief_path=args.brief, force=args.force)
     if result is not None:
         print(json.dumps(result, indent=2))
     return 0
@@ -260,7 +265,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_rep.add_argument("slug")
     p_rep.set_defaults(func=_cmd_report)
 
-    p_run = sub.add_parser("run", help="run a stage (M1: stage0 real, rest gate + stub)")
+    p_run = sub.add_parser("run", help="run a stage (all stages 0-5 implemented)")
     p_run.add_argument("slug")
     p_run.add_argument("stage", help=f"one of {STAGE_ORDER}")
     p_run.add_argument(
@@ -271,6 +276,11 @@ def build_parser() -> argparse.ArgumentParser:
             "word_target [required], style_exemplars [optional]). Omit on reruns "
             "once input/brief.md already exists for the project."
         ),
+    )
+    p_run.add_argument(
+        "--force",
+        action="store_true",
+        help="stage3b and stage4: force regeneration of all panels or audio (bypasses the resume-safe skip)",
     )
     p_run.set_defaults(func=_cmd_run)
 

@@ -1,0 +1,160 @@
+{
+  "1": {
+    "class_type": "UnetLoaderGGUF",
+    "inputs": {
+      "unet_name": "ltx-2.3-22b-distilled-1.1-Q4_K_M.gguf"
+    }
+  },
+  "2": {
+    "class_type": "DualCLIPLoaderGGUF",
+    "inputs": {
+      "clip_name1": "gemma-3-12b-it-qat-UD-Q3_K_XL.gguf",
+      "clip_name2": "ltx-2.3_text_projection_bf16.safetensors",
+      "type": "ltxv"
+    }
+  },
+  "3": {
+    "class_type": "VAELoaderKJ",
+    "inputs": {
+      "vae_name": "ltx/LTX23_video_vae_bf16.safetensors",
+      "device": "main_device",
+      "weight_dtype": "bf16"
+    }
+  },
+  "4": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "anime scene, warm lighting",
+      "clip": ["2", 0]
+    }
+  },
+  "5": {
+    "class_type": "EmptyLTXVLatentVideo",
+    "inputs": {
+      "width": 768,
+      "height": 448,
+      "batch_size": 1,
+      "length": 97
+    }
+  },
+  "6": {
+    "class_type": "LTXVScheduler",
+    "inputs": {
+      "steps": 8,
+      "max_shift": 4.0,
+      "base_shift": 0.15,
+      "stretch": true,
+      "terminal": 0.1
+    }
+  },
+  "7": {
+    "class_type": "RandomNoise",
+    "inputs": {
+      "noise_seed": 42
+    }
+  },
+  "8": {
+    "class_type": "SamplerEulerAncestral",
+    "inputs": {
+      "eta": 0.0,
+      "s_noise": 1.0
+    }
+  },
+  "50": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "sh-001-01.png"
+    }
+  },
+  "51": {
+    "class_type": "LTXVPreprocess",
+    "inputs": {
+      "image": ["50", 0],
+      "width": 768,
+      "height": 448,
+      "img_compression": 0
+    }
+  },
+  "52": {
+    "class_type": "LTXVAddGuide",
+    "inputs": {
+      "positive": ["4", 0],
+      "negative": ["4", 0],
+      "vae": ["3", 0],
+      "latent": ["5", 0],
+      "image": ["51", 0],
+      "frame_idx": 0,
+      "strength": 0.55
+    }
+  },
+  "100": {
+    "class_type": "STGAdvancedPresets",
+    "inputs": {
+      "preset": "13b Distilled"
+    }
+  },
+  "9": {
+    "class_type": "STGGuiderAdvanced",
+    "inputs": {
+      "model": ["1", 0],
+      "positive": ["52", 0],
+      "negative": ["52", 1],
+      "skip_steps_sigma_threshold": 0.1,
+      "cfg_star_rescale": false,
+      "sigmas": "",
+      "cfg_values": "",
+      "stg_scale_values": "",
+      "stg_rescale_values": "",
+      "stg_layers_indices": "",
+      "preset": ["100", 0],
+      "apply_apg": false,
+      "apg_cfg_scale": 1.0,
+      "eta": 0.0,
+      "norm_threshold": 0.0
+    }
+  },
+  "10": {
+    "class_type": "LTXVTiledSampler",
+    "inputs": {
+      "model": ["1", 0],
+      "vae": ["3", 0],
+      "noise": ["7", 0],
+      "sampler": ["8", 0],
+      "sigmas": ["6", 0],
+      "guider": ["9", 0],
+      "latents": ["52", 2],
+      "horizontal_tiles": 1,
+      "vertical_tiles": 1,
+      "overlap": 8,
+      "latents_cond_strength": 0.5,
+      "boost_latent_similarity": false,
+      "crop": "disabled"
+    }
+  },
+  "11": {
+    "class_type": "LTXVSpatioTemporalTiledVAEDecode",
+    "inputs": {
+      "vae": ["3", 0],
+      "latents": ["10", 0],
+      "spatial_tiles": 2,
+      "spatial_overlap": 2,
+      "temporal_tile_length": 32,
+      "temporal_overlap": 4,
+      "last_frame_fix": false,
+      "working_device": "cpu",
+      "working_dtype": "float16"
+    }
+  },
+  "12": {
+    "class_type": "VHS_VideoCombine",
+    "inputs": {
+      "images": ["11", 0],
+      "frame_rate": 24,
+      "loop_count": 0,
+      "filename_prefix": "ltx23_out",
+      "format": "video/h264-mp4",
+      "pingpong": false,
+      "save_output": true
+    }
+  }
+}

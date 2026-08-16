@@ -1,0 +1,520 @@
+{
+  "_readme": "MODEL BAN LIST: animagine-xl-4.0, NoobAI-XL-v1.1, wai-illustrious-v110, z-anime-distill, FLUX.1-Krea-dev.",
+  "resolution_default": [
+    1216,
+    704
+  ],
+  "templates": {
+    "scene_plate.json": {
+      "purpose": "Location master plate - background consistency anchor",
+      "status": "deprecated",
+      "patchable": {
+        "CKPT": "1.ckpt_name",
+        "LORA_STYLE": "3.lora_name",
+        "PROMPT_POS": "11.text",
+        "PROMPT_NEG": "12.text",
+        "WIDTH": "13.width",
+        "HEIGHT": "13.height",
+        "SEED": "14.seed",
+        "SAVE_PREFIX": "16.filename_prefix"
+      },
+      "note": "SDXL-only. GGUF port pending. Use image_krea2.json or panel_txt2img_krea.json instead."
+    },
+    "panel_txt2img.json": {
+      "purpose": "Per-shot panel: base + speed LoRA + style LoRA + character LoRAs + IPAdapter",
+      "status": "deprecated",
+      "patchable": {
+        "CKPT": "1.ckpt_name",
+        "LORA_SPEED": "2.lora_name",
+        "LORA_STYLE": "3.lora_name",
+        "LORA_CHAR_1": "4.lora_name",
+        "LORA_CHAR_1_STR": "4.strength_model",
+        "LORA_CHAR_2": "5.lora_name",
+        "LORA_CHAR_2_STR": "5.strength_model",
+        "IPA_CHAR_IMG": "7.image",
+        "IPA_CHAR_WEIGHT": "8.weight",
+        "IPA_PLATE_IMG": "9.image",
+        "IPA_PLATE_WEIGHT": "10.weight",
+        "PROMPT_POS": "11.text",
+        "PROMPT_NEG": "12.text",
+        "WIDTH": "13.width",
+        "HEIGHT": "13.height",
+        "SEED": "14.seed",
+        "SAVE_PREFIX": "16.filename_prefix"
+      },
+      "note": "SDXL-only. GGUF port pending. Use image_krea2.json or panel_txt2img_krea.json instead."
+    },
+    "panel_img2img_lastframe.json": {
+      "purpose": "Block-opening shot conditioned on previous block's last frame",
+      "status": "deprecated",
+      "patchable": {
+        "CKPT": "1.ckpt_name",
+        "LORA_SPEED": "2.lora_name",
+        "LORA_STYLE": "3.lora_name",
+        "LORA_CHAR_1": "4.lora_name",
+        "LORA_CHAR_1_STR": "4.strength_model",
+        "LORA_CHAR_2": "5.lora_name",
+        "LORA_CHAR_2_STR": "5.strength_model",
+        "IPA_CHAR_IMG": "7.image",
+        "IPA_PLATE_IMG": "9.image",
+        "PROMPT_POS": "11.text",
+        "PROMPT_NEG": "12.text",
+        "INIT_IMAGE": "17.image",
+        "DENOISE": "14.denoise",
+        "SEED": "14.seed",
+        "SAVE_PREFIX": "16.filename_prefix"
+      },
+      "note": "SDXL-only. GGUF port pending. Use image_krea2.json or panel_txt2img_krea.json instead."
+    },
+    "ltx22b_i2v.json": {
+      "purpose": "LTX 2.3 22B Q4 image-to-video (panel start frame). Validated 768x448x81f ~55s @ 5.8GB VRAM with LTXVSpatioTemporalTiledVAEDecode.",
+      "status": "ready",
+      "patchable": {
+        "MOTION_PROMPT": "4.text",
+        "START_FRAME": "50.image",
+        "WIDTH": "52.width",
+        "HEIGHT": "52.height",
+        "FRAMES": "52.length",
+        "STEPS": "6.steps",
+        "SEED": "7.noise_seed",
+        "FPS": "12.frame_rate",
+        "SAVE_PREFIX": "12.filename_prefix"
+      }
+    },
+    "wan_ti2v_visual.json": {
+      "purpose": "Visual workflow for ComfyUI browser (load via Load button)",
+      "status": "ready",
+      "type": "visual_workflow"
+    },
+    "image_krea2_controlnet.json": {
+      "purpose": "Krea-2-Turbo txt2img with LoRA support (simplified for pipeline use)",
+      "status": "ready",
+      "note": "Basic Krea2 txt2img with LoRA loading capability. ControlNet preprocessing nodes not available in current ComfyUI installation.",
+      "patchable": {
+        "UNET": "1.unet_name",
+        "CLIP": "2.clip_name",
+        "VAE": "3.vae_name",
+        "LORA_NAME": "4.lora_name",
+        "LORA_STRENGTH": "4.strength_model",
+        "PROMPT_POS": "5.text",
+        "WIDTH": "7.width",
+        "HEIGHT": "7.height",
+        "SEED": "8.seed",
+        "STEPS": "8.steps",
+        "CFG": "8.cfg",
+        "SAMPLER": "8.sampler_name",
+        "SCHEDULER": "8.scheduler",
+        "DENOISE": "8.denoise",
+        "SAVE_PREFIX": "10.filename_prefix"
+      }
+    },
+    "image_krea2_edit.json": {
+      "purpose": "Krea-2-Turbo img2img with LoRA support (simplified for pipeline use)",
+      "status": "ready",
+      "note": "Basic Krea2 img2img using VAEEncode of source image + LoRA. Krea2EditModelPatch nodes not available in current ComfyUI installation.",
+      "patchable": {
+        "UNET": "1.unet_name",
+        "CLIP": "2.clip_name",
+        "VAE": "3.vae_name",
+        "LORA_NAME": "4.lora_name",
+        "LORA_STRENGTH": "4.strength_model",
+        "SOURCE_IMAGE": "5.image",
+        "PROMPT_POS": "7.text",
+        "SEED": "9.seed",
+        "STEPS": "9.steps",
+        "CFG": "9.cfg",
+        "SAMPLER": "9.sampler_name",
+        "SCHEDULER": "9.scheduler",
+        "DENOISE": "9.denoise",
+        "SAVE_PREFIX": "11.filename_prefix"
+      }
+    },
+    "character_turnaround_sheet.json": {
+      "purpose": "Krea-2-Turbo GGUF character reference sheet (portrait orientation, 832x1216). Replaces deprecated SDXL version.",
+      "status": "ready",
+      "note": "GGUF port 2026-07-28. Uses UnetLoaderGGUF + CLIPLoader + VAELoader. CFG-distilled (cfg=1.0, ConditioningZeroOut neg).",
+      "patchable": {
+        "UNET": "1.unet_name",
+        "CLIP": "2.clip_name",
+        "VAE": "3.vae_name",
+        "PROMPT_POS": "4.text",
+        "WIDTH": "6.width",
+        "HEIGHT": "6.height",
+        "SEED": "7.seed",
+        "STEPS": "7.steps",
+        "CFG": "7.cfg",
+        "SAVE_PREFIX": "9.filename_prefix"
+      }
+    },
+    "mouth_viseme_sheet.json": {
+      "purpose": "Krea-2-Turbo GGUF inpaint mouth viseme shapes (replaces deprecated SDXL version)",
+      "status": "ready",
+      "note": "GGUF port 2026-07-28. Uses UnetLoaderGGUF + CLIPLoader + VAELoader + VAEEncodeForInpaint. Denoise 0.65 for face preservation.",
+      "patchable": {
+        "UNET": "1.unet_name",
+        "CLIP": "2.clip_name",
+        "VAE": "3.vae_name",
+        "REF_IMAGE": "4.image",
+        "MASK_IMAGE": "5.image",
+        "VISEME_PROMPT": "7.text",
+        "PROMPT_NEG": "8.text",
+        "SEED": "9.seed",
+        "STEPS": "9.steps",
+        "DENOISE": "9.denoise",
+        "SAVE_PREFIX": "11.filename_prefix"
+      }
+    },
+    "image_krea2_txt2img.json": {
+      "purpose": "Krea-2-Turbo standalone txt2img (primary image model)",
+      "status": "ready",
+      "patchable": {
+        "UNET": "1.unet_name",
+        "CLIP": "2.clip_name",
+        "VAE": "3.vae_name",
+        "PROMPT_POS": "11.text",
+        "WIDTH": "13.width",
+        "HEIGHT": "13.height",
+        "SEED": "14.seed",
+        "STEPS": "14.steps",
+        "CFG": "14.cfg",
+        "SAMPLER": "14.sampler_name",
+        "SCHEDULER": "14.scheduler",
+        "DENOISE": "14.denoise",
+        "SAVE_PREFIX": "16.filename_prefix"
+      }
+    },
+    "image_flux_fallback_txt2img.json": {
+      "purpose": "FLUX schnell GGUF fallback image generation",
+      "status": "ready",
+      "patchable": {
+        "PROMPT_POS": "11.text",
+        "WIDTH": "13.width",
+        "HEIGHT": "13.height",
+        "SEED": "14.seed",
+        "STEPS": "14.steps",
+        "SAVE_PREFIX": "16.filename_prefix"
+      }
+    },
+    "image_anima_txt2img.json": {
+      "purpose": "Anima 1.0 standalone txt2img (anime-tuned panel/plate model). Full safetensors via UNETLoader + qwen3_06b CLIP + qwen_image_vae.",
+      "status": "ready",
+      "note": "Official recipe (image_anima_base_v1 blueprint): er_sde/simple, 30 steps, cfg 4.0, real text negative (NOT cfg-distilled like krea2). DENOISE 1.0 txt2img.",
+      "patchable": {
+        "UNET": "1.unet_name",
+        "CLIP": "2.clip_name",
+        "VAE": "3.vae_name",
+        "PROMPT_POS": "11.text",
+        "PROMPT_NEG": "12.text",
+        "WIDTH": "13.width",
+        "HEIGHT": "13.height",
+        "SEED": "14.seed",
+        "STEPS": "14.steps",
+        "CFG": "14.cfg",
+        "SAVE_PREFIX": "16.filename_prefix"
+      }
+    },
+    "panel_krea2_img2img_plate.json": {
+      "purpose": "Krea-2-Turbo reference-first panel: IMG2IMG redraw of the scene's location master plate (denoise<1.0), compositing the character sd_prompt onto a locked background. Style-lock via img2img (no IPAdapter/LoRA needed). NOW USES KREA2 NATIVE VAE (qwen_image_vae) for 768x448 resolution. ControlNet, Style LoRA, ColorCorrect, Regional Prompts, Mask nodes removed for 8GB VRAM testing.",
+      "status": "ready",
+      "note": "Same krea2 GGUF recipe as image_krea2_txt2img.json but the KSampler latent is VAEEncode(plate) instead of an empty latent. PLATE_IMG is the ComfyUI-registered filename after comfy.upload_image(). DENOISE default 0.2 (tighter plate lock); lower = harder background lock. ControlNet, Style LoRA, ColorCorrect, Regional Prompts, Mask nodes removed for 8GB VRAM testing.",
+      "patchable": {
+        "UNET": "1.unet_name",
+        "CLIP": "2.clip_name",
+        "VAE": "3.vae_name",
+        "PLATE_IMG": "4.image",
+        "PROMPT_POS": "6.text",
+        "SEED": "8.seed",
+        "STEPS": "8.steps",
+        "CFG": "8.cfg",
+        "SAMPLER": "8.sampler_name",
+        "SCHEDULER": "8.scheduler",
+        "DENOISE": "8.denoise",
+        "SAVE_PREFIX": "10.filename_prefix"
+      }
+    },
+    "panel_anima_img2img_plate.json": {
+      "purpose": "Anima 1.0 reference-first panel: IMG2IMG redraw of the scene location plate (denoise<1.0). Anime-tuned faces/eyes on LTX VAE locked background. Style-lock via img2img. ControlNet, Style LoRA, ColorCorrect, Regional Prompts nodes removed for 8GB VRAM testing.",
+      "status": "ready",
+      "note": "Same plate-lock design as panel_krea2_img2img_plate.json but Anima recipe (er_sde/30/cfg 4.0) and real negative. DENOISE default 0.2; lower = harder background lock. ControlNet, Style LoRA, ColorCorrect, Regional Prompts nodes removed for 8GB VRAM testing.",
+      "patchable": {
+        "UNET": "1.unet_name",
+        "CLIP": "2.clip_name",
+        "VAE": "3.vae_name",
+        "PLATE_IMG": "4.image",
+        "PROMPT_POS": "6.text",
+        "PROMPT_NEG": "7.text",
+        "SEED": "8.seed",
+        "STEPS": "8.steps",
+        "CFG": "8.cfg",
+        "SAMPLER": "8.sampler_name",
+        "SCHEDULER": "8.scheduler",
+        "DENOISE": "8.denoise",
+        "SHARPEN_RADIUS": "15.sharpen_radius",
+        "SHARPEN_SIGMA": "15.sigma",
+        "SHARPEN_ALPHA": "15.alpha",
+        "SAVE_PREFIX": "16.filename_prefix"
+      }
+    },
+    "panel_krea2_txt2img.json": {
+      "purpose": "Krea-2-Turbo primary model txt2img panel",
+      "status": "ready",
+      "patchable": {
+        "CKPT": "1.unet_name",
+        "CLIP": "2.clip_name",
+        "VAE": "3.vae_name",
+        "PROMPT_POS": "11.text",
+        "WIDTH": "13.width",
+        "HEIGHT": "13.height",
+        "SEED": "14.seed",
+        "STEPS": "14.steps",
+        "CFG": "14.cfg",
+        "SAVE_PREFIX": "16.filename_prefix"
+      }
+    },
+    "video_ltx2b_i2v.json": {
+      "purpose": "LTX-2 2B I2V (ltxv-2b-0.9.8-distilled-fp8-i2v, T5-XXL text encoder). Self-contained on 8GB VRAM. Real motion and proper contrast at 768x448x81f@16fps.",
+      "status": "ready",
+      "note": "PATCHED 2026-08-07: switched from the broken gemma-3-12b+patched-connector (caption_channels 3840, flat mush output std~11) to T5-XXL encoder + original un-patched model (caption_channels 4096). Fixes: (1) decode via bundled VAE (port 2) not LTX23 VAE; (2) distinct T5-XL negative prompt node 5; (3) KSamplerSelect euler_ancestral_cfg_pp. std went 11->59, bright% 0->19.4. No gemma cold-load needed (T5-XXL is fast).",
+      "patchable": {
+        "MOTION_PROMPT": "4.text",
+        "PROMPT_NEG": "5.text",
+        "START_FRAME": "50.image",
+        "WIDTH": "52.width",
+        "HEIGHT": "52.height",
+        "FRAMES": "52.length",
+        "STEPS": "6.steps",
+        "SEED": "7.noise_seed",
+        "FPS": "12.frame_rate",
+        "SAVE_PREFIX": "12.filename_prefix"
+      }
+    },
+    "video_ltx23_i2v.json": {
+      "purpose": "LTX 2.3 22B GGUF Q4 I2V fallback (8GB VRAM with --lowvram)",
+      "status": "experimental",
+      "patchable": {
+        "MOTION_PROMPT": "4.text",
+        "START_FRAME": "50.image",
+        "WIDTH": "5.width",
+        "HEIGHT": "5.height",
+        "FRAMES": "5.length",
+        "STEPS": "6.steps",
+        "SEED": "7.noise_seed",
+        "FPS": "12.frame_rate",
+        "SAVE_PREFIX": "12.filename_prefix"
+      }
+    },
+    "video_wan_i2v.json": {
+      "purpose": "Wan 2.2 TI2V-5B I2V comparison path (same panel start frame as ltx2b_i2v). VAE-encode start frame -> WanVideoEmptyEmbeds extra_latent -> WanVideoSampler.",
+      "status": "ready",
+      "note": "PATCHED 2026-08-07: unipc 30 steps (was 20), cfg 4.0->5.0, VAE tiling OFF on both WanVideoEncode and WanVideoDecode (was 272x272 tiles with 144/128 strides \u2014 tile seams were causing fuzzy/shaky output). Same fp8 5B model + umt5-xxl. Measured: sharpness 15.4->16.3 (+5.8%), std 62.1->63.5, dark% 5.0->4.8, temporal std 2.52->3.35 (still smooth).",
+      "patchable": {
+        "WAN_MODEL": "2.model",
+        "WAN_T5": "3.model_name",
+        "MOTION_PROMPT": "4.positive_prompt",
+        "PROMPT_NEG": "4.negative_prompt",
+        "WAN_VAE": "5.model_name",
+        "START_FRAME": "6.image",
+        "WIDTH": "9.width",
+        "HEIGHT": "9.height",
+        "FRAMES": "9.num_frames",
+        "STEPS": "10.steps",
+        "CFG": "10.cfg",
+        "SEED": "10.seed",
+        "FPS": "13.frame_rate",
+        "SAVE_PREFIX": "13.filename_prefix"
+      }
+    },
+    "video_wan_t2v.json": {
+      "purpose": "WanVideo 2.2 T2V: 5B GGUF Q4_K_M, 30 steps unipc, block-swap 20, cfg 5.0, 81f@16fps",
+      "status": "ready",
+      "notes": "T2V mode only (5B model lacks I2V cross-attn weights). Verified 480x320 on 8GB VRAM.",
+      "patchable": {
+        "BLOCK_SWAP": "1.blocks_to_swap",
+        "WAN_MODEL": "2.model",
+        "WAN_T5": "3.model_name",
+        "MOTION_PROMPT": "4.positive_prompt",
+        "PROMPT_NEG": "4.negative_prompt",
+        "WAN_VAE": "5.model_name",
+        "WIDTH": "6.width",
+        "HEIGHT": "6.height",
+        "FRAMES": "6.num_frames",
+        "SEED": "7.seed",
+        "STEPS": "7.steps",
+        "CFG": "7.cfg",
+        "SCHEDULER": "7.scheduler",
+        "SAVE_PREFIX": "9.filename_prefix",
+        "SAVE_FPS": "9.fps"
+      }
+    },
+    "pipeline_full_graph.json": {
+      "purpose": "Master end-to-end visual graph: scene plate (3B) + panel txt2img (3B) + LTX-2.3 i2v animation (3C) + video combine \u2014 all in one loadable ComfyUI workflow",
+      "status": "ready",
+      "note": "All 31 nodes verified against ComfyUI object_info (2026-08-05). All 7 model files verified on disk. Load via UI Load button. Patchable points: PROMPT_POS_PANEL, PROMPT_POS_PLATE, MOTION_PROMPT, START_FRAME, SEED, WIDTH, HEIGHT, SAVE_PREFIX.",
+      "patchable": {
+        "PROMPT_POS_PANEL": "11.text",
+        "PROMPT_POS_PLATE": "20.text",
+        "MOTION_PROMPT": "33.text",
+        "START_FRAME": "38.image",
+        "SEED_PANEL": "14.seed",
+        "SEED_PLATE": "23.seed",
+        "SEED_NOISE": "36.noise_seed",
+        "WIDTH": "13.width",
+        "HEIGHT": "13.height",
+        "VIDEO_WIDTH": "34.width",
+        "VIDEO_HEIGHT": "34.height",
+        "VIDEO_FRAMES": "34.length",
+        "SAVE_PANEL_PREFIX": "16.filename_prefix",
+        "SAVE_PLATE_PREFIX": "25.filename_prefix",
+        "SAVE_VIDEO_PREFIX": "45.filename_prefix",
+        "VIDEO_FPS": "45.frame_rate"
+      }
+    },
+    "lora_dataset_prep_old.json": {
+      "purpose": "WD14 captioning of ref images for LoRA datasets",
+      "status": "ready",
+      "patchable": {
+        "INPUT_IMAGE": "1.image",
+        "TAGGER_MODEL": "2.model",
+        "TAGGER_THRESHOLD": "2.threshold",
+        "TAGGER_CHAR_THRESHOLD": "2.character_threshold"
+      }
+    },
+    "lora_caption_wd14.json": {
+      "purpose": "LoRA training dataset captioning (single image) using WD14 Tagger. Anime-friendly danbooru-style tags. Requires wd-v1-4-moat-tagger-v2 in ComfyUI/models/taggers/.",
+      "status": "ready",
+      "note": "Use for character LoRAs that need danbooru-style tag captions (e.g. '1girl, red_hair, school_uniform'). For natural-language captions use lora_caption_qwen3.json instead.",
+      "patchable": {
+        "INPUT_IMAGE": "1.image",
+        "TAGGER_MODEL": "2.model",
+        "TAGGER_THRESHOLD": "2.threshold",
+        "TAGGER_CHAR_THRESHOLD": "2.character_threshold",
+        "REPLACE_UNDERSCORE": "2.replace_underscore",
+        "EXCLUDE_TAGS": "2.exclude_tags"
+      }
+    },
+    "lora_caption_qwen3.json": {
+      "purpose": "LoRA training dataset captioning (single image) using Qwen3-VL. Natural-language sentence captions. Requires Qwen3-VL text encoder in ComfyUI/models/text_encoders/.",
+      "status": "ready",
+      "note": "Use for character/location/style LoRAs that need sentence captions (e.g. 'a photo of a young woman with red hair standing in a mountain shrine at sunset'). 4-bit quantization for 8GB VRAM.",
+      "patchable": {
+        "INPUT_IMAGE": "1.image",
+        "MODEL_PATH": "2.model_path",
+        "DTYPE": "2.dtype",
+        "LANG": "2.lang",
+        "SEED": "2.seed",
+        "MAX_SIDE": "2.max_side",
+        "INSTRUCTION": "2.instruction"
+      }
+    },
+    "lora_dataset_batch.json": {
+      "purpose": "LoRA training dataset captioning (batch from directory) using WD14 Tagger + save .txt per image.",
+      "status": "ready",
+      "note": "Loads all images from a folder via VHS_LoadImagesPath, runs WD14 tagger, saves .txt caption file per image via SaveStringKJ. Use for batch-preparing character/location/style LoRA datasets.",
+      "patchable": {
+        "DATASET_DIR": "1.directory",
+        "IMAGE_LOAD_CAP": "1.image_load_cap",
+        "SKIP_FIRST_IMAGES": "1.skip_first_images",
+        "SELECT_EVERY_NTH": "1.select_every_nth",
+        "TAGGER_MODEL": "2.model",
+        "TAGGER_THRESHOLD": "2.threshold",
+        "TAGGER_CHAR_THRESHOLD": "2.character_threshold",
+        "SAVE_PREFIX": "3.filename_prefix",
+        "OUTPUT_SUBDIR": "3.output_folder",
+        "FILE_EXTENSION": "3.file_extension"
+      }
+    },
+    "lora_caption_qwen3_batch.json": {
+      "purpose": "LoRA training dataset captioning (batch from directory) using Qwen3-VL + save .txt per image. Natural-language sentence captions.",
+      "status": "ready",
+      "note": "Batch folder version of lora_caption_qwen3.json \u2014 loads all images from a folder and emits .txt captions via SaveStringKJ. Use for batch character/location/style LoRA dataset prep when you want natural-language captions instead of danbooru tags.",
+      "patchable": {
+        "DATASET_DIR": "1.directory",
+        "IMAGE_LOAD_CAP": "1.image_load_cap",
+        "SKIP_FIRST_IMAGES": "1.skip_first_images",
+        "SELECT_EVERY_NTH": "1.select_every_nth",
+        "MODEL_PATH": "2.model_path",
+        "DTYPE": "2.dtype",
+        "LANG": "2.lang",
+        "SEED": "2.seed",
+        "MAX_SIDE": "2.max_side",
+        "INSTRUCTION": "2.instruction",
+        "SAVE_PREFIX": "3.filename_prefix",
+        "OUTPUT_SUBDIR": "3.output_folder",
+        "FILE_EXTENSION": "3.file_extension"
+      }
+    },
+    "master_pipeline_graph.json": {
+      "purpose": "Master end-to-end visual graph: scene plate (3B) + panel txt2img (3B) + LTX-2.3 i2v animation (3C) + video combine \u2014 all in one loadable ComfyUI workflow",
+      "status": "ready",
+      "note": "Combined stage3b + stage3c visual graph. Load via UI Load button.",
+      "patchable": {
+        "PROMPT_POS_PANEL": "11.text",
+        "PROMPT_POS_PLATE": "20.text",
+        "MOTION_PROMPT": "33.text",
+        "START_FRAME": "38.image",
+        "SEED_PANEL": "14.seed",
+        "SEED_PLATE": "23.seed",
+        "SEED_NOISE": "36.noise_seed",
+        "WIDTH": "13.width",
+        "HEIGHT": "13.height",
+        "VIDEO_WIDTH": "34.width",
+        "VIDEO_HEIGHT": "34.height",
+        "VIDEO_FRAMES": "34.length",
+        "SAVE_PANEL_PREFIX": "16.filename_prefix",
+        "SAVE_PLATE_PREFIX": "25.filename_prefix",
+        "SAVE_VIDEO_PREFIX": "45.filename_prefix",
+        "VIDEO_FPS": "45.frame_rate"
+      }
+    },
+    "panel_krea2_ipadapter.json": {
+      "purpose": "Krea-2-Turbo reference-first panel with identity/style IPAdapters: IMG2IMG redraw of scene plate + character identity IPAdapter + style IPAdapter. Replaces the _count_clause prompt trick with native krea2 identity/style locking. Requires krea2-compatible IPAdapter models (16-channel Qwen-Image latent space).",
+      "status": "experimental",
+      "note": "EXPERIMENTAL: Requires krea2-compatible IPAdapter models for 16-channel Qwen-Image latent space. All IPAdapter strengths default to 0.0 (bypassed) so workflow functions as standard plate-lock img2img when IPAdapters unavailable.",
+      "patchable": {
+        "UNET": "1.unet_name",
+        "CLIP": "2.clip_name",
+        "VAE": "3.vae_name",
+        "PLATE_IMG": "4.image",
+        "PROMPT_POS": "6.text",
+        "IDENTITY_REF_IMG": "8.image",
+        "IDENTITY_IPADAPTER_MODEL": "9.ipadapter_name",
+        "IDENTITY_STRENGTH": "10.weight",
+        "STYLE_REF_IMG": "11.image",
+        "STYLE_IPADAPTER_MODEL": "12.ipadapter_name",
+        "STYLE_STRENGTH": "13.weight",
+        "SEED": "14.seed",
+        "STEPS": "14.steps",
+        "CFG": "14.cfg",
+        "SAMPLER": "14.sampler_name",
+        "SCHEDULER": "14.scheduler",
+        "DENOISE": "14.denoise",
+        "SHARPEN_RADIUS": "16.sharpen_radius",
+        "SHARPEN_SIGMA": "16.sigma",
+        "SHARPEN_ALPHA": "16.alpha",
+        "SAVE_PREFIX": "17.filename_prefix"
+      }
+    },
+    "video_hailuo_i2v.json": {
+      "purpose": "Hailuo 2.3 (MiniMax H3) image-to-video workflow for panel animation. Optional API or local ComfyUI path.",
+      "status": "ready",
+      "patchable": {
+        "PROMPT_POS": "4.text",
+        "START_FRAME": "8.image",
+        "WIDTH": "5.width",
+        "HEIGHT": "5.height",
+        "FRAMES": "6.num_frames",
+        "SEED": "7.seed",
+        "STEPS": "6.steps",
+        "CFG": "6.cfg",
+        "FPS": "11.frame_rate",
+        "SAVE_PREFIX": "11.filename_prefix"
+      }
+    }
+  },
+  "panel_krea2_ref.json": {
+    "purpose": "(Legacy alias) Krea-2-Turbo reference-first panel with identity/style IPAdapters (moved to panel_krea2_ipadapter.json)",
+    "status": "deprecated",
+    "note": "Renamed to panel_krea2_ipadapter.json on 2026-08-11. This entry kept for backwards-compat lookups only.",
+    "patchable": {}
+  }
+}

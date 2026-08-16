@@ -1,0 +1,110 @@
+{
+ "1": {
+  "class_type": "UNETLoader",
+  "_meta": {
+   "title": "UNET",
+   "note": "Loads anima-base-v1.0 (Anima 1.0), the anime-tuned panel model (design 4-fix 'adopt Anima 1.0 for panels'). Full safetensors -- auto-detected as Anima by model_detection (qwen3_06b + t5 tokenizer pair). image_router.pick_* only routes here when this file is on disk at full size and the anima smoke gate has passed."
+  },
+  "inputs": {
+   "unet_name": "anima-base-v1.0.safetensors",
+   "weight_dtype": "default"
+  }
+ },
+ "2": {
+  "class_type": "CLIPLoader",
+  "_meta": {
+   "title": "CLIP",
+   "note": "Anima text encoder: qwen3_06b_base.safetensors (1.2 GB). The loaded quant is auto-detected as TEModel.QWEN3_06B regardless of the 'type' arg (comfy/sd.py), so the blueprint's stable_diffusion type is retained verbatim."
+  },
+  "inputs": {
+   "clip_name": "qwen_3_06b_base.safetensors",
+   "type": "stable_diffusion",
+   "device": "default"
+  }
+ },
+ "3": {
+  "class_type": "VAELoader",
+  "_meta": {
+   "title": "VAE",
+   "note": "Qwen-Image VAE (AutoencoderKLQwenImage, 16-channel latent, Wan21 format) -- same VAE krea2 uses, already on disk."
+  },
+  "inputs": {
+   "vae_name": "qwen_image_vae.safetensors"
+  }
+ },
+ "11": {
+  "class_type": "CLIPTextEncode",
+  "_meta": {
+   "title": "PROMPT_POS",
+   "note": "The assembled sd_prompt lands here (patched per shot by ComfyClient)."
+  },
+  "inputs": {
+   "clip": ["2", 0],
+   "text": "PATCH_PROMPT"
+  }
+ },
+ "12": {
+  "class_type": "CLIPTextEncode",
+  "_meta": {
+   "title": "PROMPT_NEG",
+   "note": "Anima 1.0 is NOT cfg-distilled (configfg 4.0), so it takes a real text negative like a classic anime checkpoint. PROMPT_NEG is patched by ComfyClient (a fixed quality blacklist by default)."
+  },
+  "inputs": {
+   "clip": ["2", 0],
+   "text": "worst quality, low quality, score_1, score_2, score_3, blurry, jpeg artifacts, sepia"
+  }
+ },
+ "13": {
+  "class_type": "EmptySD3LatentImage",
+  "_meta": {
+   "title": "LATENT",
+   "note": "16-channel latent canvas (Wan21/Qwen-image VAE). Patched to 1024x1024 base; panels/plates are patched to the stage resolution."
+  },
+  "inputs": {
+   "width": 1024,
+   "height": 1024,
+   "batch_size": 1
+  }
+ },
+ "14": {
+  "class_type": "KSampler",
+  "_meta": {
+   "title": "SAMPLER",
+   "note": "Anima 1.0 official recipe (image_anima_base_v1 blueprint, 2026-08-08): er_sde/simple, 30 steps, cfg 4.0, denoise 1.0 for txt2img. SEED patched per shot from hash(scene_id, shot_id, retry)."
+  },
+  "inputs": {
+   "model": ["1", 0],
+   "positive": ["11", 0],
+   "negative": ["12", 0],
+   "latent_image": ["13", 0],
+   "seed": 0,
+   "steps": 30,
+   "cfg": 4.0,
+   "sampler_name": "er_sde",
+   "scheduler": "simple",
+   "denoise": 1.0
+  }
+ },
+ "15": {
+  "class_type": "VAEDecode",
+  "_meta": {
+   "title": "DECODE",
+   "note": "Latent -> RGB via qwen_image_vae."
+  },
+  "inputs": {
+   "samples": ["14", 0],
+   "vae": ["3", 0]
+  }
+ },
+ "16": {
+  "class_type": "SaveImage",
+  "_meta": {
+   "title": "SAVE",
+   "note": "Writes the PNG under ComfyUI/output/<SAVE_PREFIX>; ComfyClient copies it into the project dir."
+  },
+  "inputs": {
+   "images": ["15", 0],
+   "filename_prefix": "pipeline/out"
+  }
+ }
+}

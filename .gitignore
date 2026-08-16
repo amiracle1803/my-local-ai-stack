@@ -7,6 +7,10 @@ __pycache__/
 **/__pycache__/
 *.pyc
 *.log
+.pytest_cache/
+**/.pytest_cache/
+.cache/
+**/.cache/
 vault/_generated/
 **/project1-ops-hub/task-outbox/*
 **/project1-ops-hub/done/*
@@ -27,6 +31,7 @@ node_modules/
 *.pt
 *.pth
 *.bin
+*.zip
 **/audio_output/
 **/voices/*.wav
 **/models/
@@ -39,6 +44,8 @@ voice-studio/_tmp/
 # _archive/agent-atlas-pre-rewrite-*
 *.sqlite
 *.sqlite3
+*.sqlite-wal
+*.sqlite-shm
 **/loom*/data/
 **/loom*/backend/data/
 **/loom*/backend/chroma*/
@@ -60,9 +67,24 @@ olympus/engines/pipeline/projects/
 
 # Local ComfyUI install (own git repo + venv + models)
 ComfyUI/
+# external tooling (kohya sd-scripts, skills-audit) -- not source
+tools-external/
 olympus.log
 opencode.log
 
 # runtime model-lab validation marker + generated workflow report (machine state)
 olympus/engines/pipeline/workflows/.krea2_smoke_passed
 olympus/engines/pipeline/tools/check_workflows_report.json
+.agent-secrets/
+
+# ai-toolkit (ostris/ai-toolkit clone) + Kela LoRA training dataset (6+ GB nested)
+.aitk/
+
+# ComfyUI offline archive blob (2.6 GB backup; the live install is in ComfyUI/)
+ComfyUI.zip
+
+# machine-local agent tooling config (paths, permissions, API keys)
+.claude/settings.local.json
+
+# weekly auto-commit log
+.weekly-commit.log

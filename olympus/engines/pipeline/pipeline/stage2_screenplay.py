@@ -41,8 +41,9 @@ from .blueprint import Blueprint
 from .chunking import DEFAULT_CHUNK_OVERLAP, DEFAULT_CHUNK_SIZE, chunk_text
 from .config import ENGINE_ROOT, PipelineConfig
 from .llm import PipelineLLM
-from .schemas.worldbible import WorldBible
 from .scores import Scores
+from ._util import now_iso
+from .schemas.worldbible import WorldBible
 
 logger = logging.getLogger(__name__)
 
@@ -52,8 +53,25 @@ _TECHNIQUES = (
     "sensory detail", "character interiority", "foreshadow",
     "plain action", "world texture",
 )
-_STYLE_TAIL = "anime 2d illustration, manga panel style, high quality linework, cel shading"
-_PROMPT_WORD_BUDGET = 120
+_STYLE_TAIL = "anime 2d illustration, modern comic style, clean linework, cel shading"
+# No-text suppression: krea2/qwen frequently render readable Japanese
+# lettering (speech bubbles, signs, menus) into the panel even when
+# instructed otherwise. There is no real negative conditioning on this
+# CFG-distilled model, so we append explicit JP-banned tokens to the
+# POSITIVE prompt (krea2 follows positive style tokens well, and explicit
+# language exclusions are stronger than "no text" alone). Shared by the
+# panel AND the location master plate prompts so plates don't bake
+# signage into the background either.
+_NO_TEXT_TAIL = (
+    "no text, no letters, no subtitles, no captions, no signage, no writing, "
+    "no speech bubble, no words, no speech, no dialogue, no watermark, "
+    "clean illustration, english only"
+)
+# Bumped from 120 -> 180 to keep the location descriptor (critical for
+# background consistency across the world's 4 locations) and the expanded
+# JP-ban tail when the shot includes 1-2 characters (their sd_prompt
+# anchors alone can run 50-100 words).
+_PROMPT_WORD_BUDGET = 180
 _NARRATION_MIN_WORDS, _NARRATION_MAX_WORDS = 15, 45
 
 # Banned narration patterns (original spec seed list; per-project additions
@@ -108,6 +126,7 @@ class _ShotOut(BaseModel):
     facial: str = ""
     posture: str = ""
     beat: str = ""
+    camera_angle: str = "wide_establishing"
 
 
 class _ShotList(BaseModel):
@@ -136,17 +155,24 @@ class _AuditScore(BaseModel):
 # --------------------------------------------------------------------------
 # Step 1 -- scene segmentation
 # --------------------------------------------------------------------------
-def segment_scenes(script_text: str, wb: WorldBible, llm: PipelineLLM) -> list[dict[str, Any]]:
+def segment_scenes(script_text: str, wb: WorldBible, llm: PipelineLLM, references: dict | None = None) -> list[dict[str, Any]]:
     chunks = chunk_text(script_text, chunk_size=DEFAULT_CHUNK_SIZE, chunk_overlap=DEFAULT_CHUNK_OVERLAP)
-    location_list = ", ".join(f"{l['id']} ({l['name']})" for l in wb.locations) or "loc-other"
+    location_list = ", ".join(f"{l.id} ({l.name})" for l in wb.locations) or "loc-other"
     character_list = ", ".join(f"{c.id} ({c.name})" for c in wb.characters)
+
+    # Add reference context to scene segmentation
+    ref_context = ""
+    if references:
+        loc_refs = references.get("locations", {})
+        if loc_refs:
+            ref_context += "\nLocation reference images available for: " + ", ".join(loc_refs.keys())
 
     raw: list[_SceneOut] = []
     for chunk in chunks:
         result = llm.complete_json(
             "s2_scene_segment.md",
             {"chunk_text": chunk.text, "location_list": location_list,
-             "character_list": character_list},
+             "character_list": character_list, "reference_context": ref_context},
             _SceneList,
             role="script",
             stage_hint=f"stage2_scenes_chunk{chunk.index}",
@@ -166,7 +192,7 @@ def segment_scenes(script_text: str, wb: WorldBible, llm: PipelineLLM) -> list[d
             merged.append(s)
 
     known_chars = {c.id for c in wb.characters}
-    known_locs = {l["id"] for l in wb.locations}
+    known_locs = {l.id for l in wb.locations}
     scenes = []
     for i, s in enumerate(merged, 1):
         scenes.append({
@@ -195,20 +221,35 @@ def _fix_consecutive_types(shots: list[_ShotOut]) -> None:
 
 
 def plan_shots(scene: dict[str, Any], scene_idx: int, scene_total: int,
-               wb: WorldBible, llm: PipelineLLM) -> list[dict[str, Any]]:
-    loc = next((l for l in wb.locations if l["id"] == scene["location"]), None)
+               wb: WorldBible, llm: PipelineLLM, references: dict | None = None) -> list[dict[str, Any]]:
+    loc = next((l for l in wb.locations if l.id == scene["location"]), None)
     chars = {c.id: c for c in wb.characters}
+    
+    # Build reference context for the LLM
+    ref_context = ""
+    if references:
+        char_refs = references.get("characters", {})
+        loc_refs = references.get("locations", {})
+        style_refs = references.get("style", {})
+        if char_refs:
+            ref_context += "\nCharacter reference images available for: " + ", ".join(char_refs.keys())
+        if loc_refs:
+            ref_context += "\nLocation reference images available for: " + ", ".join(loc_refs.keys())
+        if style_refs:
+            ref_context += "\nStyle reference images available: " + str(len(style_refs)) + " style refs"
+
     result = llm.complete_json(
         "s2_shot_plan.md",
         {
             "scene_summary": scene["summary"],
-            "location_name": loc["name"] if loc else "unspecified",
-            "location_description": loc["description"] if loc else "",
+            "location_name": loc.name if loc else "unspecified",
+            "location_description": loc.description if loc else "",
             "character_list": ", ".join(
                 f"{cid} ({chars[cid].name})" for cid in scene["characters"] if cid in chars
             ) or "(none)",
             "scene_position": scene_idx,
             "scene_total": scene_total,
+            "reference_context": ref_context,
         },
         _ShotList,
         role="script",
@@ -226,6 +267,7 @@ def plan_shots(scene: dict[str, Any], scene_idx: int, scene_total: int,
             "characters_in_frame": s.characters_in_frame,
             "positioning": s.positioning, "movement": s.movement,
             "facial": s.facial, "posture": s.posture, "beat": s.beat,
+            "camera_angle": getattr(s, "camera_angle", "wide_establishing"),
             "sd_prompt": "", "narration": None, "dialogue": [], "lipsync": False,
         }
         for i, s in enumerate(shots, 1)
@@ -236,33 +278,51 @@ def plan_shots(scene: dict[str, Any], scene_idx: int, scene_total: int,
 # Step 3 -- deterministic SD prompt assembly (120-word budget)
 # --------------------------------------------------------------------------
 def assemble_sd_prompt(
-    shot: dict[str, Any], scene: dict[str, Any], wb: WorldBible
+    shot: dict[str, Any], scene: dict[str, Any], wb: WorldBible, references: dict | None = None
 ) -> str:
-    """``anchors + location + composition + style`` under the 120-word budget.
+    """``anchors + location + composition + style + reference_context`` under the 120-word budget.
     Trim order when over: composition first, then location -- never anchors or
-    style (design Stage 2 Step 3). No character names appear in the prompt."""
+    style (design Stage 2 Step 3). No character names appear in the prompt.
+    Includes reference context for visual consistency (character refs, location refs, style refs)."""
     chars = {c.id: c for c in wb.characters}
     anchors = [chars[cid].sd_prompt for cid in shot["characters_in_frame"] if cid in chars]
-    loc = next((l for l in wb.locations if l["id"] == scene["location"]), None)
-    location = loc["sd_prompt"] if loc else ""
+    loc = next((l for l in wb.locations if l.id == scene["location"]), None)
+    location = loc.sd_prompt if loc else ""
+    # Guard: location descriptions must never bleed "no people" into character
+    # shots (design Stage 2). Empty plates add it themselves in stage3b.
+    if shot.get("characters_in_frame"):
+        location = location.replace(", no people", "").replace("no people,", "")
     composition = f"{shot['composition']}, {shot['positioning']}".strip(", ")
     time_od = scene.get("time_of_day", "")
     if time_od and time_od != "unclear":
         composition += f", {time_od} lighting"
 
+    # Add reference context to prompt for visual consistency
+    ref_context = ""
+    if references:
+        char_refs = references.get("characters", {})
+        loc_refs = references.get("locations", {})
+        if shot.get("characters_in_frame"):
+            for cid in shot["characters_in_frame"]:
+                if cid in char_refs:
+                    ref_context += f" [ref: {cid}]"
+        if scene.get("location") in loc_refs:
+            ref_context += f" [loc_ref: {scene['location']}]"
+
     anchor_part = ", ".join(anchors)
-    fixed_words = len(anchor_part.split()) + len(_STYLE_TAIL.split())
+    fixed_words = len(anchor_part.split()) + len(_STYLE_TAIL.split()) + len(_NO_TEXT_TAIL.split())
     remaining = _PROMPT_WORD_BUDGET - fixed_words
 
     comp_words = composition.split()
     loc_words = location.split()
-    if len(comp_words) + len(loc_words) > remaining:
-        comp_budget = max(0, remaining - len(loc_words))
+    ref_words = ref_context.split()
+    if len(comp_words) + len(loc_words) + len(ref_words) > remaining:
+        comp_budget = max(0, remaining - len(loc_words) - len(ref_words))
         comp_words = comp_words[:comp_budget]
-        if len(comp_words) + len(loc_words) > remaining:
-            loc_words = loc_words[: max(0, remaining - len(comp_words))]
+        if len(comp_words) + len(loc_words) + len(ref_words) > remaining:
+            loc_words = loc_words[: max(0, remaining - len(comp_words) - len(ref_words))]
 
-    parts = [p for p in (anchor_part, " ".join(loc_words), " ".join(comp_words), _STYLE_TAIL) if p]
+    parts = [p for p in (anchor_part, " ".join(loc_words), " ".join(comp_words), ref_context, _STYLE_TAIL, _NO_TEXT_TAIL) if p]
     return ", ".join(parts)
 
 
@@ -295,10 +355,12 @@ def _narration_issues(text: str, banned: list[re.Pattern], recent_openers: list[
 
 def write_narrations(
     scenes: list[dict[str, Any]], wb: WorldBible, llm: PipelineLLM, project_dir: Path,
+    references: dict | None = None,
 ) -> int:
     """Technique-rotated narration per shot with the banned-pattern filter and
     one rewrite call max (silence over bad narration: a line that still fails
-    after rewrite is dropped to None). Returns rewrite count."""
+    after rewrite is dropped to None). Returns rewrite count.
+    Uses reference images (character, location, style) for visual context in narration."""
     banned = _load_banned_patterns(project_dir)
     economy = (wb.world or {}).get("economy", {})
     needs_economy_stop = not economy.get("explained_in_story", True)
@@ -321,6 +383,21 @@ def write_narrations(
                 )
                 needs_economy_stop = False  # one stop per episode
 
+            # Add reference context for visual consistency
+            ref_context = ""
+            if references:
+                char_refs = references.get("characters", {})
+                loc_refs = references.get("locations", {})
+                style_refs = references.get("style", {})
+                if shot.get("characters_in_frame"):
+                    for cid in shot["characters_in_frame"]:
+                        if cid in char_refs:
+                            ref_context += f" [Character ref: {cid}]"
+                if scene.get("location") in loc_refs:
+                    ref_context += f" [Location ref: {scene['location']}]"
+                if style_refs:
+                    ref_context += f" [Style refs: {len(style_refs)}]"
+
             text = llm.complete_text(
                 "s2_narration.md",
                 {
@@ -328,6 +405,7 @@ def write_narrations(
                     "scene_summary": scene_summary,
                     "recent_openers": "; ".join(recent_openers[-3:]) or "(none)",
                     "world_note": world_note or "(none)",
+                    "reference_context": ref_context or "(none)",
                 },
                 role="script",
                 stage_hint=f"stage2_narr_{shot['id']}",
@@ -365,9 +443,10 @@ def _style_card(c) -> str:
     )
 
 
-def write_dialogue(scenes: list[dict[str, Any]], wb: WorldBible, llm: PipelineLLM) -> int:
+def write_dialogue(scenes: list[dict[str, Any]], wb: WorldBible, llm: PipelineLLM, references: dict | None = None) -> int:
     """Per-scene dialogue with style cards; clipped/verbose validation and a
-    global first-60-chars dedup. Returns count of dropped/deduped lines."""
+    global first-60-chars dedup. Returns count of dropped/deduped lines.
+    Uses reference images for visual context in dialogue."""
     chars = {c.id: c for c in wb.characters}
     seen_signatures: set[str] = set()
     dropped = 0
@@ -376,12 +455,27 @@ def write_dialogue(scenes: list[dict[str, Any]], wb: WorldBible, llm: PipelineLL
         present = [chars[cid] for cid in scene["characters"] if cid in chars]
         if not present or not scene["shots"]:
             continue
+        
+        # Add reference context for visual consistency
+        ref_context = ""
+        if references:
+            char_refs = references.get("characters", {})
+            loc_refs = references.get("locations", {})
+            style_refs = references.get("style", {})
+            if char_refs:
+                ref_context += "\nCharacter reference images: " + ", ".join(char_refs.keys())
+            if scene.get("location") in loc_refs:
+                ref_context += f"\nLocation ref: {scene['location']}"
+            if style_refs:
+                ref_context += f"\nStyle refs: {len(style_refs)} available"
+
         result = llm.complete_json(
             "s2_dialogue.md",
             {
                 "scene_summary": scene["summary"],
                 "shot_list": "\n".join(f"{s['id']}: {s['beat']}" for s in scene["shots"]),
                 "style_cards": "\n".join(_style_card(c) for c in present),
+                "reference_context": ref_context or "(none)",
             },
             _DialogueList,
             role="script",
@@ -470,8 +564,6 @@ def audit_narrations(
 # --------------------------------------------------------------------------
 # main entry point
 # --------------------------------------------------------------------------
-def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
 
 
 def run(
@@ -481,49 +573,65 @@ def run(
     *,
     llm: PipelineLLM | None = None,
 ) -> dict[str, Any]:
+    """Stage 2 (SWAPPED ORDER -- now runs SECOND, after stage3/storyboard).
+
+    Reads:  storyboard/storyboard.json, references/references.json, worldbible/world_bible.json
+    Writes: screenplay/screenplay.json  (adds narration + dialogue + SFX)
+
+    Now that the block structure is already established by stage3 (storyboard),
+    the narration and dialogue are written ON TOP of that structure, using
+    reference images (character, location, style) as visual context. This
+    ensures the story logic + visual consistency are locked before any prose
+    is generated, improving consistency.
+    """
     project_dir = Path(project_dir)
-    wb = WorldBible.model_validate_json(
-        (project_dir / "worldbible" / "world_bible.json").read_text(encoding="utf-8")
+    bp = Blueprint.load(project_dir)
+    storyboard = json.loads(
+        (project_dir / "storyboard" / "storyboard.json").read_text(encoding="utf-8")
     )
-    script_text = (project_dir / "input" / "script.txt").read_text(encoding="utf-8")
+    # Load references for visual context in narration/dialogue
+    refs_path = project_dir / "references" / "references.json"
+    references = {}
+    if refs_path.exists():
+        references = json.loads(refs_path.read_text(encoding="utf-8"))
+    else:
+        logger.warning("references/references.json not found - running without visual context")
+    scenes = storyboard["scenes"]
+    if not scenes:
+        raise Stage2Error("storyboard has no scenes -- run stage3 first")
+
     if llm is None:
         llm = PipelineLLM(config, prompts_dir=PROMPTS_DIR, logs_dir=project_dir / "logs")
 
-    scenes = segment_scenes(script_text, wb, llm)
-    if not scenes:
-        raise Stage2Error("scene segmentation produced no scenes")
-
-    for i, scene in enumerate(scenes, 1):
-        scene["shots"] = plan_shots(scene, i, len(scenes), wb, llm)
-    total_shots = sum(len(s["shots"]) for s in scenes)
-    if not 20 <= total_shots <= 60:
-        logger.warning("shot count %d outside the 20-60 band (original spec warns)", total_shots)
-
-    for scene in scenes:
-        for shot in scene["shots"]:
-            shot["sd_prompt"] = assemble_sd_prompt(shot, scene, wb)
-
-    rewrites = write_narrations(scenes, wb, llm, project_dir)
-    dedup_drops = write_dialogue(scenes, wb, llm)
+    from .stage3_storyboard import tag_sfx  # local import avoids circular dep
+    wb = WorldBible.model_validate_json(
+        (project_dir / "worldbible" / "world_bible.json").read_text(encoding="utf-8")
+    )
+    rewrites = write_narrations(scenes, wb, llm, project_dir, references=references)
+    dedup_drops = write_dialogue(scenes, wb, llm, references=references)
     avg_before, avg_after = audit_narrations(scenes, llm, project_dir)
 
-    bp = Blueprint.load(project_dir)
-    screenplay = {"story_id": bp.story_id, "scenes": scenes}
+    shots = [shot for scene in scenes for shot in scene["shots"]]
+    sfx = tag_sfx(shots)
+
+    screenplay = {"story_id": bp.story_id, "scenes": scenes, "sfx": sfx}
     out_dir = project_dir / "screenplay"
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / "screenplay.json"
     out_path.write_text(json.dumps(screenplay, indent=2, ensure_ascii=False), encoding="utf-8")
 
+    total_shots = len(shots)
     scores.record("stage2", "global", "scenes", float(len(scenes)))
     scores.record("stage2", "global", "shots", float(total_shots))
     scores.record("stage2", "global", "narration_rewrites", float(rewrites))
     scores.record("stage2", "global", "dialogue_dedup_drops", float(dedup_drops))
     scores.record("stage2", "global", "narration_avg_score_before", avg_before)
     scores.record("stage2", "global", "narration_avg_score", avg_after)
+    scores.record("stage2", "global", "sfx_tags", float(len(sfx)))
     scores.stage_done("stage2")
 
     bp.stages["stage2"].status = "done"
-    bp.stages["stage2"].ts = _now_iso()
+    bp.stages["stage2"].ts = now_iso()
     bp.write(project_dir)
 
     return {

@@ -1,6 +1,6 @@
 ---
 temperature: 0.5
-max_tokens: 1500
+max_tokens: 4096
 ---
 You are revising ONE scene of an anime/light-novel episode based on targeted
 guidance. Rewrite the FULL scene -- do not just patch the flagged parts in

@@ -28,7 +28,7 @@ def test_picks_krea2_when_weights_present_and_lab_passed(tmp_path, monkeypatch):
     monkeypatch.setattr(image_router, "_krea2_lab_passed", lambda: True)
     _write_weights(tmp_path, 200)
     template, model = image_router.pick_template(_config(tmp_path), comfy=None)
-    assert (template, model) == ("image_krea2.json", "krea2")
+    assert (template, model) == ("image_txt2img_krea2.json", "krea2")
 
 
 def test_falls_back_without_lab_marker(tmp_path, monkeypatch):
@@ -37,21 +37,21 @@ def test_falls_back_without_lab_marker(tmp_path, monkeypatch):
     monkeypatch.setattr(image_router, "_krea2_lab_passed", lambda: False)
     _write_weights(tmp_path, 200)
     template, model = image_router.pick_template(_config(tmp_path), comfy=None)
-    assert template == "image_flux_fallback.json"
+    assert template == "image_txt2img_flux_fallback.json"
 
 
 def test_falls_back_when_weights_missing(tmp_path, monkeypatch):
     monkeypatch.setattr(image_router, "_MIN_PRIMARY_BYTES", 100)
     # no weights file written at all
     template, model = image_router.pick_template(_config(tmp_path), comfy=None)
-    assert (template, model) == ("image_flux_fallback.json", "flux1-schnell-Q4_K_S.gguf")
+    assert (template, model) == ("image_txt2img_flux_fallback.json", "flux1-schnell-Q4_K_S.gguf")
 
 
 def test_falls_back_when_weights_partial(tmp_path, monkeypatch):
     monkeypatch.setattr(image_router, "_MIN_PRIMARY_BYTES", 100)
     _write_weights(tmp_path, 50)  # smaller than the threshold: partial download
     template, model = image_router.pick_template(_config(tmp_path), comfy=None)
-    assert (template, model) == ("image_flux_fallback.json", "flux1-schnell-Q4_K_S.gguf")
+    assert (template, model) == ("image_txt2img_flux_fallback.json", "flux1-schnell-Q4_K_S.gguf")
 
 
 def test_banned_primary_propagates(tmp_path, monkeypatch):

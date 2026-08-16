@@ -4,12 +4,12 @@ import pytest
 
 from pipeline.config import BannedModelError, PipelineConfig
 
-BANNED = ["z-anime-distill-4step-fp8", "wai-illustrious-v110", "NoobAI-XL-v1.1"]
+BANNED = ["z-anime-distill-4step-fp8", "wai-illustrious-v110", "NoobAI-XL-v1.1", "animagine-xl-4.0", "FLUX.1-Krea-dev"]
 
 
 def test_loads_default_toml():
     cfg = PipelineConfig.load()
-    assert cfg.models.image_primary == "krea2"
+    assert cfg.models.image_primary == "krea2_turbo-Q4_K_S.gguf"
     assert cfg.models.banned == BANNED
     assert cfg.automation.auto_advance_stages is True
     assert cfg.animation.drift_axis == "vertical"
@@ -18,8 +18,9 @@ def test_loads_default_toml():
 
 def test_resolve_image_model_primary_ok():
     cfg = PipelineConfig.load()
-    assert cfg.resolve_image_model("primary") == "krea2"
-    assert cfg.resolve_image_model("fallback") == "flux1-schnell-Q4_K_S.gguf"
+    assert cfg.resolve_image_model("primary") == "krea2_turbo-Q4_K_S.gguf"
+    assert cfg.resolve_image_model("fallback") == "krea2_turbo-Q4_K_S.gguf"
+    assert cfg.resolve_image_model("floor") == "krea2_turbo-Q4_K_S.gguf"
 
 
 def test_projects_dir_is_absolute():
@@ -36,7 +37,7 @@ llm_vision = "qwen2.5vl:7b"
 llm_default = "llama3.1:8b"
 image_primary = "{image_primary}"
 image_fallback = "flux1-schnell-Q4_K_S.gguf"
-banned = ["z-anime-distill-4step-fp8", "wai-illustrious-v110", "NoobAI-XL-v1.1"]
+banned = {BANNED!r}
 
 [automation]
 auto_advance_stages = true

@@ -69,7 +69,10 @@ def tts():
     body = request.get_json(silent=True) or {}
     text = (body.get("text") or "").strip()
     voice = body.get("voice") or "af_heart"
-    speed = float(body.get("speed") or 1.0)
+    try:
+        speed = float(body.get("speed") or 1.0)
+    except (ValueError, TypeError):
+        speed = 1.0
     if not text:
         return jsonify({"error": "missing 'text'"}), 422
     if voice not in VOICES:

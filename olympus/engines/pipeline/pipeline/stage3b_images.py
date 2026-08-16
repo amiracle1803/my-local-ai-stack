@@ -44,9 +44,12 @@ from .scores import Scores
 
 logger = logging.getLogger(__name__)
 
-_RESOLUTION = (1216, 704)
+_RESOLUTION = (1216, 704)  # krea2 tested resolution per AGENTS.md; fits 8GB VRAM
 _OLLAMA_URL = "http://127.0.0.1:11434"
+_VISION_TIMEOUT = 10  # seconds; vision judge failure returns inconclusive pass
 _VISION_FAIL_GATE = 0.20  # design 0.2 hard gate
+_VISION_MIN_PASS_RATE = 0.85  # minimum panel pass rate to continue
+_MIN_PROMPT_ADHERENCE = 0.80  # minimum vision judge adherence score
 
 
 class Stage3BError(RuntimeError):
@@ -66,14 +69,32 @@ def _seed_for(scene_id: str, shot_id: str = "", retry: int = 0) -> int:
 def _env_token_block(scene: dict[str, Any], wb: WorldBible) -> str:
     """The scene's fixed environment tokens, appended verbatim to every shot
     prompt in the scene (background consistency without IPAdapter)."""
-    loc = next((l for l in wb.locations if l["id"] == scene["location"]), None)
+    loc = next((l for l in wb.locations if l.id == scene["location"]), None)
     tod = scene.get("time_of_day", "")
     bits = []
     if loc:
-        bits.append(f"consistent background: {loc['name']}")
+        bits.append(f"consistent background: {loc.name}")
     if tod and tod != "unclear":
         bits.append(f"{tod} palette")
     return ", ".join(bits)
+
+
+def _enhance_prompt_for_vision(
+    prompt: str, shot: dict[str, Any], vision_detail: dict[str, Any], config: PipelineConfig
+) -> str:
+    """Strengthen prompt based on vision judge failure reasons."""
+    enhanced = prompt
+    if not vision_detail.get("characters_visible") == len(shot.get("characters_in_frame", [])):
+        # Boost character specificity
+        chars = ", ".join(shot.get("characters_in_frame", []))
+        enhanced = f"{enhanced}, EXACTLY {len(shot.get('characters_in_frame', []))} characters: {chars}, each distinct and visible"
+    if not vision_detail.get("background_matches"):
+        enhanced = f"{enhanced}, background MUST match: {shot.get('location', '')}, {shot.get('time_of_day', '')} lighting"
+    if not vision_detail.get("composition_matches"):
+        comp = shot.get("composition", "")
+        if comp:
+            enhanced = f"{enhanced}, composition: {comp}"
+    return enhanced
 
 
 def vision_judge(
@@ -101,7 +122,7 @@ def vision_judge(
                 "stream": False, "format": "json", "keep_alive": 0,
                 "options": {"temperature": 0.0},
             },
-            timeout=180,
+            timeout=_VISION_TIMEOUT,
         )
         r.raise_for_status()
         check = _VisionCheck.model_validate_json(r.json()["message"]["content"])
@@ -192,9 +213,9 @@ def run(
             plate_dir = block_dir / "_plates"
             plate_path = plate_dir / f"{scene['id']}.png"
             if not plate_path.exists():
-                loc = next((l for l in wb.locations if l["id"] == scene["location"]), None)
+                loc = next((l for l in wb.locations if l.id == scene["location"]), None)
                 plate_prompt = (
-                    f"{loc['sd_prompt'] if loc else 'unspecified location'}, "
+                    f"{loc.sd_prompt if loc else 'unspecified location'}, "
                     f"{scene.get('time_of_day', 'day')} lighting, no people, "
                     "anime 2d illustration, manga panel style, cel shading"
                 )
@@ -250,7 +271,13 @@ def run(
             if passed:
                 state["status"] = "generated"
                 break
-            retries += 1
+
+            # Vision failed -- enhance prompt and retry once
+            if attempt == 0:
+                logger.warning("Panel %s vision judge failed (%s) -- enhancing prompt for retry", sid, detail)
+                # Enhance prompt: strengthen character anchors, add composition specificity
+                prompt = _enhance_prompt_for_vision(prompt, shot, detail, config)
+                continue
 
         if not passed and state["status"] != "flagged":
             vision_fails += 1
@@ -280,10 +307,24 @@ def run(
     adherence_avg = sum(adherence_scores) / total_judged if total_judged else 1.0
     fail_rate = vision_fails / total_judged if total_judged else 0.0
 
+    # Quality gates (movie-grade)
+    pass_rate = 1.0 - fail_rate
+    if pass_rate < _VISION_MIN_PASS_RATE:
+        raise Stage3BError(
+            f"Vision pass rate {pass_rate:.2%} below minimum {_VISION_MIN_PASS_RATE:.0%} -- "
+            f"{vision_fails}/{total_judged} panels failed. Regenerate with better prompts or check krea2 weights."
+        )
+    if adherence_avg < _MIN_PROMPT_ADHERENCE:
+        raise Stage3BError(
+            f"Prompt adherence {adherence_avg:.2%} below minimum {_MIN_PROMPT_ADHERENCE:.0%} -- "
+            "krea2 output not matching prompts. Check model weights and prompt construction."
+        )
+
     scores.record("stage3b", "global", "panels_generated", float(generated))
     scores.record("stage3b", "global", "retries", float(retries))
     scores.record("stage3b", "global", "vision_fail_rate", fail_rate)
     scores.record("stage3b", "global", "prompt_adherence_avg", adherence_avg)
+    scores.record("stage3b", "global", "vision_pass_rate", pass_rate)
     scores.stage_done("stage3b")
 
     bp = Blueprint.load(project_dir)

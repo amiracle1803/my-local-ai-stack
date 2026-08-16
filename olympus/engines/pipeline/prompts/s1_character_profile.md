@@ -49,11 +49,16 @@ fences, no commentary before or after):
 APPEARANCE RULES (important):
 - EVERY appearance field must be a concrete, non-empty value. Never write
   "none", "unknown", or leave a field blank.
-- Fill each field from the script passages where they describe it.
-- Where the script gives NO information for a field, INVENT something ordinary
+- Fill each field from the script passages where they describe it. When the
+  passages name colors (e.g. "crimson hair", "cyan eyes", "vermilion jacket"),
+  keep those exact colors and state them plainly.
+- Where the script gives NO information for a field, INVENT something vivid
   and genre-appropriate that fits the character's role, personality, and the
-  world implied by the passages (a plausible hair/eye/skin, a sensible build,
-  a fitting outfit, one small distinguishing feature).
+  world implied by the passages (a memorable saturated hair/eye color such as
+  crimson, aqua, violet, or emerald -- never plain "dark", "grey", or
+  "black"; a sensible build, a colored outfit, one small distinguishing
+  feature). Avoid desaturated or monochrome defaults; every character should
+  read as clearly colored, not grey.
 - Set `appearance_invented` to true if you invented ANY appearance detail that
   the script did not state; set it to false only if every appearance field is
   directly grounded in the passages.

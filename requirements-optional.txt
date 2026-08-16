@@ -25,3 +25,6 @@ opencv-python-headless==4.10.0.84  # anime-face bbox detector (design 3C.4) --
                         # without cv2.CascadeClassifier (objdetect not built
                         # in); 4.10.0.84 is the last known-good headless build
                         # with the Haar/LBP cascade API. Installed 2026-07-10.
+faster-whisper>=1.0     # alignment engine for stage4 audio (word timestamps,
+                        # viseme extraction). CPU int8, no GPU. Install when
+                        # you need lipsync/alignment coverage.

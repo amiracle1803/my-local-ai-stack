@@ -1,0 +1,31 @@
+{
+  "1": {
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "INPUT_IMAGE"
+    },
+    "inputs": {
+      "image": "PATCH_INPUT_IMAGE.png"
+    }
+  },
+  "2": {
+    "class_type": "Qwen3Caption",
+    "_meta": {
+      "title": "QWEN3_VL_CAPTION"
+    },
+    "inputs": {
+      "image": [
+        "1",
+        0
+      ],
+      "model_path": "Qwen_VL_MAX",
+      "dtype": "4bit",
+      "keep_model_loaded": false,
+      "unload_other_models": true,
+      "lang": "English",
+      "seed": 42,
+      "max_side": 1024,
+      "instruction": "Describe this image as a single-line natural-language caption for LoRA training. Start with 'a photo of' and include subject, action, setting, lighting, and style. No commentary."
+    }
+  }
+}

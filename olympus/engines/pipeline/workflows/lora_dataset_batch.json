@@ -1,0 +1,205 @@
+{
+  "id": "8a4ec80f-cf0a-4261-8e46-448ca7cda634",
+  "revision": 0,
+  "version": 0.4,
+  "last_link_id": 2,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "VHS_LoadImagesPath",
+      "pos": [
+        80.0,
+        60.0
+      ],
+      "size": {
+        "width": 230,
+        "height": 130
+      },
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "*",
+          "links": [
+            1
+          ],
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "ver": "0.25.0",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "VHS_LoadImagesPath"
+      },
+      "widgets_values": [
+        "PATCH_DATASET_DIR",
+        0,
+        0,
+        1
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 0
+    },
+    {
+      "id": 2,
+      "type": "WD14Tagger|pysssss",
+      "pos": [
+        400.0,
+        60.0
+      ],
+      "size": {
+        "width": 230,
+        "height": 130
+      },
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input_0",
+          "type": "*",
+          "link": 1,
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "*",
+          "links": [
+            2
+          ],
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "ver": "0.25.0",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "WD14Tagger|pysssss"
+      },
+      "widgets_values": [
+        "wd-v1-4-moat-tagger-v2",
+        0.35,
+        0.85,
+        true,
+        false,
+        ""
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 1
+    },
+    {
+      "id": 3,
+      "type": "SaveStringKJ",
+      "pos": [
+        720.0,
+        60.0
+      ],
+      "size": {
+        "width": 230,
+        "height": 130
+      },
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input_0",
+          "type": "*",
+          "link": 2,
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "*",
+          "links": [],
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "ver": "0.25.0",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "SaveStringKJ"
+      },
+      "widgets_values": [
+        "PATCH_SAVE_PREFIX",
+        "PATCH_OUTPUT_SUBDIR",
+        ".txt"
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 2
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      2,
+      0,
+      "*"
+    ],
+    [
+      2,
+      2,
+      0,
+      3,
+      0,
+      "*"
+    ]
+  ],
+  "config": {},
+  "groups": [],
+  "extra": {},
+  "definitions": {}
+}

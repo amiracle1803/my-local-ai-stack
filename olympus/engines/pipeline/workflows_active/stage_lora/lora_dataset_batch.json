@@ -1,0 +1,47 @@
+{
+  "1": {
+    "class_type": "VHS_LoadImagesPath",
+    "_meta": {
+      "title": "DATASET_FOLDER_INPUT"
+    },
+    "inputs": {
+      "directory": "PATCH_DATASET_DIR",
+      "image_load_cap": 0,
+      "skip_first_images": 0,
+      "select_every_nth": 1
+    }
+  },
+  "2": {
+    "class_type": "WD14Tagger|pysssss",
+    "_meta": {
+      "title": "WD14_BATCH_TAGGER"
+    },
+    "inputs": {
+      "image": [
+        "1",
+        0
+      ],
+      "model": "wd-v1-4-moat-tagger-v2",
+      "threshold": 0.35,
+      "character_threshold": 0.85,
+      "replace_underscore": true,
+      "trailing_comma": false,
+      "exclude_tags": ""
+    }
+  },
+  "3": {
+    "class_type": "SaveStringKJ",
+    "_meta": {
+      "title": "SAVE_CAPTION_TXT"
+    },
+    "inputs": {
+      "string": [
+        "2",
+        0
+      ],
+      "filename_prefix": "PATCH_SAVE_PREFIX",
+      "output_folder": "PATCH_OUTPUT_SUBDIR",
+      "file_extension": ".txt"
+    }
+  }
+}

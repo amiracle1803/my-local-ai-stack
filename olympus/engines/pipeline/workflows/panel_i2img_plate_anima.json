@@ -1,0 +1,132 @@
+{
+  "1": {
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "UNET",
+      "note": "anima-base-v1.0 (Anima 1.0) -- the anime-tuned panel model. The panel is generated as an IMG2IMG redraw of the scene's location master plate (reference-first design): the plate is encoded to a 16-channel latent and the KSampler redraws it with a denoise < 1.0, so the background stays anchored to the plate while the character sd_prompt is composited in. NOW USES LTX VAE + 768x448 resolution for native LTX compatibility. ControlNet, Style LoRA, ColorCorrect, Regional Prompts nodes removed for 8GB VRAM testing."
+    },
+    "inputs": {
+      "unet_name": "anima-base-v1.0.safetensors",
+      "weight_dtype": "default"
+    }
+  },
+  "2": {
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "CLIP",
+      "note": "Anima text encoder: qwen3_06b_base.safetensors."
+    },
+    "inputs": {
+      "clip_name": "qwen_3_06b_base.safetensors",
+      "type": "stable_diffusion",
+      "device": "default"
+    }
+  },
+  "3": {
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "VAE",
+      "note": "LTX Video VAE (bf16) for encode/decode at 768x448. Replaces Qwen-Image VAE for native LTX latent space compatibility."
+    },
+    "inputs": {
+      "vae_name": "LTX23_video_vae_bf16.safetensors"
+    }
+  },
+  "4": {
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "PLATE_IMG",
+      "note": "Scene location master plate (no people) at 768x448. Uploaded by stage3b via comfy.upload_image(); the registered filename is patched here as PATCH_PLATE. Every shot in the scene starts from this same plate."
+    },
+    "inputs": {
+      "image": "PATCH_PLATE.png"
+    }
+  },
+  "5": {
+    "class_type": "VAEEncode",
+    "_meta": {
+      "title": "PLATE_ENCODE",
+      "note": "Encodes the plate to the Anima latent space via LTX VAE; becomes the KSampler's starting latent. Resolution is inherited from the plate, so no EMPTY latent is needed."
+    },
+    "inputs": {
+      "pixels": ["4", 0],
+      "vae": ["3", 0]
+    }
+  },
+  "6": {
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "PROMPT_POS",
+      "note": "Assembled sd_prompt (character description + composition/environment tokens) composited onto the plate's backdrop."
+    },
+    "inputs": {
+      "clip": ["2", 0],
+      "text": "PATCH_PROMPT"
+    }
+  },
+  "7": {
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "PROMPT_NEG",
+      "note": "Anima (cfg 4.0) takes a real text negative."
+    },
+    "inputs": {
+      "clip": ["2", 0],
+      "text": "worst quality, low quality, score_1, score_2, score_3, blurry, jpeg artifacts, sepia"
+    }
+  },
+  "8": {
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "SAMPLER",
+      "note": "Anima IMG2IMG recipe at LTX resolution: er_sde/simple, 30 steps, cfg 4.0. DENOISE 0.2 (tight plate lock for background consistency). SEED patched per shot."
+    },
+    "inputs": {
+      "model": ["1", 0],
+      "positive": ["6", 0],
+      "negative": ["7", 0],
+      "latent_image": ["5", 0],
+      "seed": 0,
+      "steps": 30,
+      "cfg": 4.0,
+      "sampler_name": "er_sde",
+      "scheduler": "simple",
+      "denoise": 0.2
+    }
+  },
+  "14": {
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "DECODE",
+      "note": "Decodes the redrawn latent back to RGB via LTX VAE."
+    },
+    "inputs": {
+      "samples": ["8", 0],
+      "vae": ["3", 0]
+    }
+  },
+  "15": {
+    "class_type": "ImageSharpen",
+    "_meta": {
+      "title": "REFINE_SHARPEN",
+      "note": "Stock ComfyUI post-decode detail refinement. Light, GPU-cheap (no second KSampler pass, so no 8GB OOM risk). Knobs SHARPEN_RADIUS / SHARPEN_SIGMA / SHARPEN_ALPHA are patchable from stack.toml [animation]; set alpha 0.0 to bypass."
+    },
+    "inputs": {
+      "image": ["14", 0],
+      "sharpen_radius": 1,
+      "sigma": 1.0,
+      "alpha": 0.35
+    }
+  },
+  "16": {
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "SAVE",
+      "note": "Writes the panel PNG under ComfyUI/output/<SAVE_PREFIX>; ComfyClient copies it into the project panels dir."
+    },
+    "inputs": {
+      "images": ["15", 0],
+      "filename_prefix": "pipeline/out"
+    }
+  }
+}

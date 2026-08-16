@@ -2,7 +2,7 @@
 ComfyClient and report wall time + output path. Run this before letting a
 newly-installed model's template take over an image stage.
 
-Usage:  python tools/model_smoke.py [--template image_krea2.json]
+Usage:  python tools/model_smoke.py [--template image_txt2img_krea2.json]
 Exit codes: 0 on success, 2 on ComfyError/ContingencyStop.
 """
 
@@ -27,7 +27,7 @@ _DEST = Path("/tmp/model-smoke")
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--template", default="image_krea2.json")
+    ap.add_argument("--template", default="image_txt2img_krea2.json")
     args = ap.parse_args()
 
     config = PipelineConfig.load()
@@ -56,8 +56,12 @@ def main() -> int:
 
     # A passing krea2 render satisfies the model_lab gate (design 5.3b) --
     # image_router routes to krea2 only once this marker exists.
-    if args.template == "image_krea2.json":
+    if args.template in ("image_txt2img_krea2.json", "image_krea2.json"):
         marker = ENGINE_ROOT / "workflows" / ".krea2_smoke_passed"
+        marker.write_text(f"passed {elapsed:.1f}s seed={_SEED}\n", encoding="utf-8")
+        print(f"lab gate marker written: {marker}")
+    elif args.template in ("image_txt2img_anima.json", "image_anima.json"):
+        marker = ENGINE_ROOT / "workflows" / ".anima_smoke_passed"
         marker.write_text(f"passed {elapsed:.1f}s seed={_SEED}\n", encoding="utf-8")
         print(f"lab gate marker written: {marker}")
 

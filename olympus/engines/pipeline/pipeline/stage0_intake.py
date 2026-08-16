@@ -42,6 +42,7 @@ from typing import Any
 
 import frontmatter
 
+from .agi_scorer import scorer_enabled
 from .blueprint import Blueprint, compute_title_hash
 from .chunking import chunk_text
 from .config import ENGINE_ROOT, PipelineConfig
@@ -56,6 +57,7 @@ from .schemas.stage0 import (
     ThreeActStructure,
 )
 from .scores import Scores
+from ._util import now_iso
 
 PROMPTS_DIR = ENGINE_ROOT / "prompts"
 
@@ -68,6 +70,12 @@ _MIN_SCENE_WORDS = 50
 # Word-count enforcement band (original spec: >130% condense, <70% expand).
 _CONDENSE_ABOVE = 1.30
 _EXPAND_BELOW = 0.70
+
+# Quality thresholds (new -- enforce movie-grade script)
+_MIN_AGI_FIDELITY = 0.75
+_MIN_AGI_CAUSAL_FLOW = 0.70
+_MIN_AGI_CONSISTENCY = 0.70
+_MAX_CRITIQUE_ITERATIONS = 3
 
 # Keyword heuristic for "transitional" scenes -- the spec describes the
 # adjustment but leaves detection to editorial judgment; this module has no
@@ -140,8 +148,6 @@ def load_brief(path: str | Path) -> Brief:
 # --------------------------------------------------------------------------
 # small pure helpers
 # --------------------------------------------------------------------------
-def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
 
 
 def _word_count(text: str) -> int:
@@ -315,6 +321,84 @@ def _structure_completeness(
     return round((name_score + loc_score + size_score + word_pct_score + checks_score) / 5, 4)
 
 
+def _script_quality_scores(
+    scorer: Any,
+    story_bp: StoryBlueprint,
+    scene_records: list[SceneProse],
+    scores: Scores,
+) -> dict[str, float]:
+    """Best-effort AGI script-quality scoring (Pass 3, no LLM).
+
+    Uses the vendored AGI relationship scorer to add three non-mandatory
+    metrics on top of ``structure_completeness``:
+
+    - ``agi_fidelity``      (mean over scenes) -- SAME-head: does each scene's
+      prose deliver its blueprint beat (narrative_function + emotional_purpose)?
+    - ``agi_causal_flow``   (mean over scene pairs) -- CAUSE-head: does scene N
+      lead plausibly into scene N+1?
+    - ``agi_consistency``   (mean over characters) -- SAME-head: is each
+      character written consistently with their blueprint profile?
+
+    Every call is tolerant: if the scorer is unavailable (disabled / checkpoint
+    missing / no torch), each metric is skipped and ``None`` is recorded. Never
+    raises -- script quality is advisory, not a stage gate.
+    """
+    if scorer is None or not getattr(scorer, "available", lambda: False)():
+        return {}
+
+    beat_by_number = {s.number: s for s in story_bp.scene_list}
+    by_number = {r.number: r for r in scene_records}
+
+    # Scene fidelity: prose vs its own blueprint beat.
+    fidelities: list[float] = []
+    for rec in scene_records:
+        beat = beat_by_number.get(rec.number)
+        if beat is None:
+            continue
+        beat_text = (
+            f"Scene {rec.number} {beat.title}: "
+            f"{beat.narrative_function}; {beat.emotional_purpose}"
+        )
+        sim = scorer.fidelity(rec.text, beat_text)
+        if sim is not None:
+            fidelities.append(sim)
+        if sim is not None:
+            scores.record("stage0", f"scene_{rec.number}", "agi_fidelity", sim)
+
+    # Causal flow between consecutive scenes.
+    flows: list[float] = []
+    ordered = sorted(scene_records, key=lambda r: r.number)
+    for a, b in zip(ordered, ordered[1:]):
+        sim = scorer.causal_flow(a.text, b.text)
+        if sim is not None:
+            flows.append(sim)
+
+    # Character consistency: profile vs the prose they appear in.
+    consistencies: list[float] = []
+    for char in story_bp.characters:
+        profile = (
+            f"{char.name} ({char.role}): {char.personality_core}. "
+            f"Wants: {char.episode_want}. Fears: {char.episode_fear}."
+        )
+        matching = [r.text for r in scene_records if char.name in r.text]
+        if not matching:
+            continue
+        sim = scorer.consistency(profile, " ".join(matching))
+        if sim is not None:
+            consistencies.append(sim)
+
+    metrics: dict[str, float] = {}
+    if fidelities:
+        metrics["agi_fidelity"] = round(sum(fidelities) / len(fidelities), 4)
+    if flows:
+        metrics["agi_causal_flow"] = round(sum(flows) / len(flows), 4)
+    if consistencies:
+        metrics["agi_consistency"] = round(sum(consistencies) / len(consistencies), 4)
+    if metrics:
+        scores.record_globals("stage0", metrics)
+    return metrics
+
+
 # --------------------------------------------------------------------------
 # main entry point
 # --------------------------------------------------------------------------
@@ -325,6 +409,7 @@ def run(
     *,
     brief_path: str | Path | None = None,
     llm: PipelineLLM | None = None,
+    scorer: Any | None = None,
 ) -> dict[str, Any]:
     """Run Stage 0B (GENERATE) for the project at ``project_dir``.
 
@@ -332,6 +417,11 @@ def run(
     a later call -- e.g. after an ``awaiting_approval`` pause -- does not need
     it repeated). If omitted, an existing ``input/brief.md`` is reused; if
     neither exists, raises :class:`Stage0Error`.
+
+    ``scorer`` (optional) is an AGI script-quality scorer; when not passed, a
+    shared instance is pulled from :func:`~pipeline.agi_scorer.get_scorer` when
+    AGI scoring is enabled in config. It is advisory only -- unavailable
+    scoring degrades to recording no agi_* metrics.
     """
     project_dir = Path(project_dir)
     brief_file = project_dir / "input" / "brief.md"
@@ -350,6 +440,10 @@ def run(
 
     if llm is None:
         llm = PipelineLLM(config, prompts_dir=PROMPTS_DIR, logs_dir=project_dir / "logs")
+    if scorer is None and config.agi.enabled and scorer_enabled(config.agi):
+        from .agi_scorer import get_scorer
+
+        scorer = get_scorer(config.agi)
 
     # ---- Pass 1: Story Blueprint ---------------------------------------
     blueprint_path = project_dir / "stage0_blueprint.json"
@@ -376,7 +470,7 @@ def run(
             draft_path.write_text(story_bp.model_dump_json(indent=2), encoding="utf-8")
             bp = Blueprint.load(project_dir)
             bp.stages["stage0"].status = "awaiting_approval"
-            bp.stages["stage0"].ts = _now_iso()
+            bp.stages["stage0"].ts = now_iso()
             bp.write(project_dir)
             return {
                 "stage": "stage0",
@@ -435,23 +529,69 @@ def run(
             "style_exemplars": style_block,
         }
 
-        draft = llm.complete_text(
-            "s0b_scene_prose.md", base_ctx, role="script",
-            stage_hint=f"stage0_scene{plan.number}_draft",
-        )
-        critique = llm.complete_text(
-            "s0b_critique.md", {**base_ctx, "scene_text": draft}, role="script",
-            stage_hint=f"stage0_scene{plan.number}_critique",
-        )
-        revised = llm.complete_text(
-            "s0b_revise.md",
-            {**base_ctx, "scene_text": draft, "guidance": critique},
-            role="script",
-            stage_hint=f"stage0_scene{plan.number}_revise",
-        )
+        # Iterative quality loop: draft -> critique -> revise -> score -> repeat until threshold
+        current_text = ""
+        for iteration in range(_MAX_CRITIQUE_ITERATIONS + 1):
+            if iteration == 0:
+                current_text = llm.complete_text(
+                    "s0b_scene_prose.md", base_ctx, role="script",
+                    stage_hint=f"stage0_scene{plan.number}_draft",
+                )
+            else:
+                # Full revision with accumulated guidance
+                current_text = llm.complete_text(
+                    "s0b_revise.md",
+                    {**base_ctx, "scene_text": current_text, "guidance": guidance},
+                    role="script",
+                    stage_hint=f"stage0_scene{plan.number}_revise_iter{iteration}",
+                )
 
+            # Score the scene if AGI scorer available
+            agi_fid = agi_causal = agi_cons = None
+            if scorer is not None and getattr(scorer, "available", lambda: False)():
+                beat = next((s for s in story_bp.scene_list if s.number == plan.number), None)
+                if beat:
+                    beat_text = f"Scene {plan.number} {beat.title}: {beat.narrative_function}; {beat.emotional_purpose}"
+                    agi_fid = scorer.fidelity(current_text, beat_text)
+                    agi_cons = scorer.consistency(
+                        f"{plan.characters_present}: {plan.emotional_purpose}",
+                        current_text
+                    )
+                # Causal flow needs previous scene
+                if scene_records:
+                    agi_causal = scorer.causal_flow(scene_records[-1].text, current_text)
+
+            # Check quality thresholds
+            quality_pass = True
+            failures = []
+            if agi_fid is not None and agi_fid < _MIN_AGI_FIDELITY:
+                quality_pass = False
+                failures.append(f"agi_fidelity {agi_fid:.3f} < {_MIN_AGI_FIDELITY}")
+            if agi_causal is not None and agi_causal < _MIN_AGI_CAUSAL_FLOW:
+                quality_pass = False
+                failures.append(f"agi_causal_flow {agi_causal:.3f} < {_MIN_AGI_CAUSAL_FLOW}")
+            if agi_cons is not None and agi_cons < _MIN_AGI_CONSISTENCY:
+                quality_pass = False
+                failures.append(f"agi_consistency {agi_cons:.3f} < {_MIN_AGI_CONSISTENCY}")
+
+            if quality_pass or iteration == _MAX_CRITIQUE_ITERATIONS:
+                final_text = current_text
+                if not quality_pass:
+                    logger.warning(
+                        "Scene %d quality below threshold after %d iterations: %s -- accepting best attempt",
+                        plan.number, _MAX_CRITIQUE_ITERATIONS, "; ".join(failures)
+                    )
+                break
+
+            # Generate targeted critique for next iteration
+            guidance = llm.complete_text(
+                "s0b_critique.md", {**base_ctx, "scene_text": current_text}, role="script",
+                stage_hint=f"stage0_scene{plan.number}_critique_iter{iteration}",
+            )
+
+        # Word-count enforcement
         final_text, enforcement = _enforce_word_count(
-            revised, plan.word_target, base_ctx, llm, plan.number
+            final_text, plan.word_target, base_ctx, llm, plan.number
         )
         checks = _scene_checks(final_text)
         scene_records.append(
@@ -510,7 +650,7 @@ def run(
     bp = Blueprint.load(project_dir)
     bp.title_hash = compute_title_hash(full_script)
     bp.stages["stage0"].status = "done"
-    bp.stages["stage0"].ts = _now_iso()
+    bp.stages["stage0"].ts = now_iso()
     bp.write(project_dir)
 
     structure_completeness = _structure_completeness(
@@ -519,6 +659,9 @@ def run(
     scores.record("stage0", "global", "structure_completeness", structure_completeness)
     scores.record("stage0", "global", "total_word_count", float(total_word_count))
     scores.record("stage0", "global", "word_count_pct", float(word_count_pct))
+    agi_metrics = _script_quality_scores(scorer, story_bp, scene_records, scores)
+    if scorer is not None and getattr(scorer, "available", lambda: False)():
+        scorer.close()  # free the model after the scoring pass
     scores.stage_done("stage0")
 
     return {
@@ -528,4 +671,5 @@ def run(
         "total_word_count": total_word_count,
         "target_word_count": target_word_count,
         "script_path": str(project_dir / "input" / "script.txt"),
+        "agi": agi_metrics,
     }

@@ -265,7 +265,9 @@ class PipelineLLM:
 
             last_raw = raw
             try:
-                data = json.loads(raw)
+                # Extract JSON from markdown code fences if present
+                json_text = _extract_json(raw)
+                data = json.loads(json_text)
                 return schema.model_validate(data)
             except (json.JSONDecodeError, ValidationError) as exc:
                 last_error = str(exc)
@@ -308,6 +310,22 @@ class PipelineLLM:
         except requests.RequestException as exc:
             self._save_failure(stage_hint, str(prompt_file), "", str(exc))
             raise LLMCallError(f"complete_text failed ({prompt_file}): {exc}") from exc
+
+
+def _extract_json(text: str) -> str:
+    """Extract JSON from text that may contain markdown code fences."""
+    text = text.strip()
+    # Handle ```json ... ``` or ``` ... ``` fences
+    if text.startswith("```"):
+        lines = text.split("\n")
+        if len(lines) >= 2:
+            # Find the closing fence; if the output was truncated (no closing
+            # fence), still strip the opening fence line and keep the rest.
+            for i, line in enumerate(lines[1:], 1):
+                if line.strip() == "```":
+                    return "\n".join(lines[1:i])
+            return "\n".join(lines[1:])
+    return text
 
 
 def _stringify(value: Any) -> str:

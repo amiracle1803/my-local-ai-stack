@@ -1,0 +1,131 @@
+{
+ "1": {
+  "class_type": "UnetLoaderGGUF",
+  "_meta": {
+   "title": "UNET",
+   "note": "krea2-Turbo GGUF primary model for mouth viseme inpainting. Matches image_krea2.json node 1."
+  },
+  "inputs": {
+   "unet_name": "krea2_turbo-Q4_K_S.gguf"
+  }
+ },
+ "2": {
+  "class_type": "CLIPLoader",
+  "_meta": {
+   "title": "CLIP",
+   "note": "Qwen3-VL-4B fp8_scaled text encoder for krea2."
+  },
+  "inputs": {
+   "clip_name": "qwen3vl_4b_fp8_scaled.safetensors",
+   "type": "krea2",
+   "device": "default"
+  }
+ },
+ "3": {
+  "class_type": "VAELoader",
+  "_meta": {
+   "title": "VAE",
+   "note": "Qwen-Image VAE (16-channel latent) for encode/decode."
+  },
+  "inputs": {
+   "vae_name": "qwen_image_vae.safetensors"
+  }
+ },
+ "4": {
+  "class_type": "LoadImage",
+  "_meta": {
+   "title": "REF_IMAGE",
+   "note": "Character face close-up reference frame. Patched per character."
+  },
+  "inputs": {
+   "image": "PATCH_FRONT_REF.png"
+  }
+ },
+ "5": {
+  "class_type": "LoadImageMask",
+  "_meta": {
+   "title": "MASK_IMAGE",
+   "note": "Mouth region mask (white = inpaint area). Patched per viseme."
+  },
+  "inputs": {
+   "image": "PATCH_MOUTH_MASK.png",
+   "channel": "red"
+  }
+ },
+ "6": {
+  "class_type": "VAEEncodeForInpaint",
+  "_meta": {
+   "title": "INPAINT_ENCODE",
+   "note": "Encodes reference image + mask into krea2 16-channel latent space via qwen_image_vae."
+  },
+  "inputs": {
+   "pixels": ["4", 0],
+   "vae": ["3", 0],
+   "mask": ["5", 0],
+   "grow_mask_by": 8
+  }
+ },
+ "7": {
+  "class_type": "CLIPTextEncode",
+  "_meta": {
+   "title": "VISEME_PROMPT",
+   "note": "Positive prompt describing the mouth shape. Patched per viseme (A/E/I/O/U/M/F/L/REST)."
+  },
+  "inputs": {
+   "clip": ["2", 0],
+   "text": "same character, close-up on mouth area only. Mouth shape: slightly open, lips relaxed. Face is exactly the same as the reference image, no changes to eyes, hair, or other features. anime art style, masterpiece, best quality."
+  }
+ },
+ "8": {
+  "class_type": "CLIPTextEncode",
+  "_meta": {
+   "title": "PROMPT_NEG",
+   "note": "Negative prompt to preserve the character's face identity during inpainting."
+  },
+  "inputs": {
+   "clip": ["2", 0],
+   "text": "different face, changed eyes, changed hair, different character, extra mouth, extra lips, missing mouth, deformed face, lowres, blurry"
+  }
+ },
+ "9": {
+  "class_type": "KSampler",
+  "_meta": {
+   "title": "SAMPLER",
+   "note": "krea2 inpainting recipe: euler/simple, 8 steps, cfg 1.0, denoise 0.65 — lower denoise preserves face, higher blends mouth better. SEED patched from hash(character_id, viseme_id)."
+  },
+  "inputs": {
+   "model": ["1", 0],
+   "positive": ["7", 0],
+   "negative": ["8", 0],
+   "latent_image": ["6", 0],
+   "seed": 0,
+   "steps": 8,
+   "cfg": 1.0,
+   "sampler_name": "euler",
+   "scheduler": "simple",
+   "denoise": 0.65
+  }
+ },
+ "10": {
+  "class_type": "VAEDecode",
+  "_meta": {
+   "title": "DECODE",
+   "note": "Decodes the inpainted latent back to RGB via qwen_image_vae."
+  },
+  "inputs": {
+   "samples": ["9", 0],
+   "vae": ["3", 0]
+  }
+ },
+ "11": {
+  "class_type": "SaveImage",
+  "_meta": {
+   "title": "SAVE",
+   "note": "Writes the viseme PNG. ComfyClient copies it out and renames to viseme_{A,E,I,O,U,M,F,L,REST}.png."
+  },
+  "inputs": {
+   "images": ["10", 0],
+   "filename_prefix": "pipeline/viseme"
+  }
+ }
+}

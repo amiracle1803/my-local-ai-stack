@@ -9,6 +9,9 @@ only -- no prose, no dialogue text). Rules:
 - Composition uses camera vocabulary (wide shot, close-up, over-shoulder,
   low angle, etc.). Positioning/movement describe where characters are and
   how they move.
+- Camera angle selects the world-space plate variant: wide_establishing,
+  medium_shot, closeup_counter, over_shoulder. Assign per shot to build
+  consistent multi-angle coverage of each location.
 
 SCENE SUMMARY: {scene_summary}
 LOCATION: {location_name} -- {location_description}
@@ -26,6 +29,7 @@ Return ONLY a single JSON object with exactly this shape (no markdown fences):
     "movement": "camera or character movement, or 'static'",
     "facial": "facial expression note for visible characters",
     "posture": "posture note",
-    "beat": "one sentence: what story beat this shot carries"
+    "beat": "one sentence: what story beat this shot carries",
+    "camera_angle": "wide_establishing|medium_shot|closeup_counter|over_shoulder"
   }}]
 }}

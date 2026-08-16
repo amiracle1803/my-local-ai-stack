@@ -1,0 +1,97 @@
+# kohya-ss training container for Krea2/LoRA
+# Based on ghcr.io/kohya-ss/sd-scripts:latest (CUDA 12.4)
+
+FROM docker.io/nvidia/cuda:12.4.1-devel-ubuntu22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.10 python3.10-venv python3-pip \
+    git wget curl ca-certificates \
+    libglib2.0-0 libsm6 libxext6 libxrender1 libgl1-mesa-glx \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create working directory
+WORKDIR /workspace
+
+# Clone kohya-ss sd-scripts
+RUN git clone --depth 1 https://github.com/kohya-ss/sd-scripts.git /opt/sd-scripts
+
+# Copy constraints file
+COPY constraints.txt /workspace/constraints.txt
+
+# Install Python dependencies - FIRST install torch with pinned version
+RUN cd /opt/sd-scripts && \
+    python3.10 -m pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir -c /workspace/constraints.txt \
+    torch==2.13.0+cu130 torchvision==0.28.0+cu130 torchaudio==2.11.0+cu130 \
+    --index-url https://download.pytorch.org/whl/cu130
+
+# Install additional dependencies for krea2/Qwen-Image training
+# Use compatible versions that work with torch 2.13.0+cu130
+RUN pip install --no-cache-dir -c /workspace/constraints.txt \
+    "accelerate==1.14.0" \
+    "transformers==4.44.0" \
+    "diffusers==0.31.0" \
+    "peft==0.13.0" \
+    "safetensors==0.5.0" \
+    "xformers==0.0.35" && \
+    pip install --no-cache-dir -c /workspace/constraints.txt \
+    "huggingface-hub<1.0,>=0.23.2" \
+    "numpy>=1.17" \
+    "packaging>=20.0" \
+    "pyyaml>=5.1" \
+    "regex!=2019.12.17" \
+    "requests" \
+    "tokenizers<0.20,>=0.19" \
+    "tqdm>=4.27" \
+    "importlib-metadata" \
+    "Pillow" \
+    "psutil" \
+    "fsspec" \
+    "filelock" \
+    "einops" \
+    "typing-extensions>=4.8.0" \
+    "sympy" \
+    "networkx" \
+    "jinja2" \
+    "huggingface-hub<1.0,>=0.23.2" \
+    "accelerate>=0.21.0" \
+    "typing-extensions>=4.8.0" \
+    "sympy" \
+    "networkx" \
+    "jinja2" \
+    "fsspec" \
+    "hf-xet<2.0.0,>=1.1.3" \
+    "safetensors>=0.4.3" \
+    "filelock" \
+    "gguf>=0.10.0" \
+    "kornia>=0.7.0" \
+    "librosa" \
+    "lycoris-lora>=0.1.0" \
+    "optimum>=1.18.0" \
+    "prodigyopt" \
+    "scipy" \
+    "soundfile" \
+    "tensorboard" \
+    "tensorboardX" \
+    "toml" \
+    "tomli" \
+    "transformers==4.44.0" \
+    "diffusers==0.31.0" \
+    "peft==0.13.0" \
+    "safetensors==0.5.0" \
+    "xformers==0.0.35" && \
+    # Final verification
+    python3 -c "import torch; print(f'torch: {torch.__version__}'); import torchvision; print(f'torchvision: {torchvision.__version__}'); import torchaudio; print(f'torchaudio: {torchaudio.__version__}')"
+
+# Set up entrypoint
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["--help"]

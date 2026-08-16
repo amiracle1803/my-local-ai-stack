@@ -1,90 +1,104 @@
 #!/usr/bin/env bash
 # ==========================================================================
-#  setup.sh  --  Linux equivalent of setup.bat. Run me ONCE.
+#  setup.sh — One-time setup for the Local AI Stack
 #
-#  What it does (mirrors setup.bat):
-#    1. Checks that Ollama and Python are installed.
-#    2. Creates a Python virtual environment in .venv
-#    3. Installs the lean base requirements.
-#    4. Pulls the chat + embedding models.
-#    5. Creates config.json from the example if you don't have one.
+#  1. Creates Python virtual environment (.venv)
+#  2. Installs all Python dependencies
+#  3. Pulls required Ollama models
+#  4. Optionally creates config from example
+#
+#  Run once, then use ./start.sh to launch everything.
 # ==========================================================================
-set -u
+set -euo pipefail
 cd "$(dirname "$0")"
+REPO="$(pwd)"
 
 echo
-echo "============================================================"
-echo "  Local AI Stack - one-time setup (Linux)"
-echo "============================================================"
+echo "  Local AI Stack Setup"
+echo "  $(date)"
 echo
 
-# --- 1. Ollama -----------------------------------------------------------
-if ! command -v ollama >/dev/null 2>&1; then
-    echo "[X] Ollama is not installed or not on your PATH."
-    echo "    Download and install it, then re-run setup.sh:"
-    echo "       https://ollama.com/download"
+# ── 1. Python ──────────────────────────────────────────────────────────────
+echo "[1/5] Checking Python..."
+if ! command -v python3 >/dev/null 2>&1; then
+    echo "  [X] python3 not found. Install Python 3.12+ first."
     exit 1
 fi
-echo "[ok] Ollama found."
+echo "  [ok] $(python3 --version)"
 
-# --- 2. Python -----------------------------------------------------------
-# Prefer uv (pinned Python 3.12 -- survives Fedora's system-Python upgrades);
-# fall back to system python3.
-if command -v uv >/dev/null 2>&1; then
-    PYTHON_SETUP="uv"
-elif command -v python3 >/dev/null 2>&1; then
-    PYTHON_SETUP="python3"
-else
-    echo "[X] Python is not installed. Install python3 (or uv) and re-run."
-    exit 1
-fi
-echo "[ok] Python found ($PYTHON_SETUP)."
-
-# --- 3. Virtual environment ---------------------------------------------
+# ── 2. Virtual environment ─────────────────────────────────────────────────
+echo "[2/5] Creating virtual environment..."
 if [ ! -x ".venv/bin/python" ]; then
-    echo "[..] Creating virtual environment in .venv ..."
-    if [ "$PYTHON_SETUP" = "uv" ]; then
-        uv venv --python 3.12 .venv || exit 1
-    else
-        python3 -m venv .venv || exit 1
-    fi
-fi
-echo "[ok] Virtual environment ready."
-
-echo "[..] Installing base requirements (this can take a few minutes)..."
-if [ "$PYTHON_SETUP" = "uv" ]; then
-    VIRTUAL_ENV="$PWD/.venv" uv pip install -r requirements.txt || {
-        echo "[X] Installing requirements failed. See docs/TROUBLESHOOTING.md."; exit 1; }
+    python3 -m venv .venv
+    echo "  [ok] .venv created"
 else
-    .venv/bin/python -m pip install --upgrade pip >/dev/null
-    .venv/bin/python -m pip install -r requirements.txt || {
-        echo "[X] Installing requirements failed. See docs/TROUBLESHOOTING.md."; exit 1; }
+    echo "  [ok] .venv already exists"
 fi
-echo "[ok] Python packages installed."
 
-# --- 4. Models -----------------------------------------------------------
-echo
-echo "[..] Pulling models. First time downloads a few GB."
-echo "     (Skips instantly if you already have them.)"
-for MODEL in $(.venv/bin/python -c "from olympus.shared.lib.config import load_config as c;x=c();print(x['chat_model']);print(x['embed_model'])"); do
-    echo "    pulling $MODEL ..."
-    ollama pull "$MODEL"
+# ── 3. Dependencies ────────────────────────────────────────────────────────
+echo "[3/5] Installing Python packages..."
+.venv/bin/python -m ensurepip --upgrade 2>/dev/null || true
+.venv/bin/python -m pip install --upgrade pip -q 2>/dev/null || true
+
+# Base dependencies
+.venv/bin/python -m pip install -q -r requirements.txt 2>&1 | tail -1
+echo "  [ok] base requirements"
+
+# Voice Studio dependencies
+if [ -f "olympus/engines/voice/requirements.txt" ]; then
+    .venv/bin/python -m pip install -q -r olympus/engines/voice/requirements.txt 2>&1 | tail -1
+    echo "  [ok] voice dependencies"
+fi
+
+# ── 4. Ollama models ───────────────────────────────────────────────────────
+echo "[4/5] Pulling Ollama models..."
+MODELS=(
+    "qwen3:8b" "qwen2.5vl:7b" "llama3.1:8b"
+    "llama3.2:3b" "nomic-embed-text"
+)
+for model in "${MODELS[@]}"; do
+    if ollama list 2>/dev/null | grep -q "$model"; then
+        echo "  [ok] $model"
+    else
+        echo "  [..] pulling $model..."
+        ollama pull "$model" >/dev/null 2>&1 && echo "  [ok] $model" || echo "  [!] $model failed"
+    fi
 done
 
-# --- 5. config.json ------------------------------------------------------
-if [ ! -f "config.json" ]; then
-    cp config.example.json config.json
-    echo "[ok] Created config.json  (edit \"vault_path\" to point at your Obsidian vault)"
+# ── 5. Config ──────────────────────────────────────────────────────────────
+echo "[5/5] Config..."
+if [ ! -f "stack.toml" ]; then
+    echo "  [!] stack.toml missing — something is wrong"
 else
-    echo "[ok] config.json already exists - leaving it alone."
+    echo "  [ok] stack.toml present"
 fi
 
+# Enable systemd services
 echo
-echo "============================================================"
+echo "Enabling systemd user services..."
+systemctl --user daemon-reload 2>/dev/null || true
+
+# Generate podman open-webui service if needed
+if ! systemctl --user is-enabled open-webui.service >/dev/null 2>&1; then
+    if command -v podman >/dev/null 2>&1; then
+        podman run -d --name open-webui --restart always --network host \
+            -v open-webui-data:/app/backend/data \
+            -e OLLAMA_BASE_URL=http://127.0.0.1:11434 \
+            ghcr.io/open-webui/open-webui:main 2>/dev/null && \
+        podman generate systemd --new --name open-webui > ~/.config/systemd/user/open-webui.service 2>/dev/null
+        echo "  [ok] Open WebUI container created"
+    fi
+fi
+
+for unit in olympus-kernel comfyui-server voice-studio opencode-mcp llama-server; do
+    systemctl --user enable "$unit.service" 2>/dev/null && echo "  [ok] $unit enabled" || echo "  [-] $unit skipped"
+done
+
+echo
 echo "  Setup complete."
-echo "============================================================"
-echo "  Next:"
-echo "    - Edit config.json and set \"vault_path\" to your Obsidian vault"
-echo "    - Or just run ./start.sh -- it brings up the whole stack."
-echo "    - Read docs/GUIDE.md for the full walkthrough."
+echo
+echo "  Next: ./start.sh     (launch all services)"
+echo "        ./stop.sh      (stop all services)"
+echo "        http://localhost:4600     (Olympus dashboard)"
+echo "        http://localhost:8080     (Open WebUI chat)"
 echo

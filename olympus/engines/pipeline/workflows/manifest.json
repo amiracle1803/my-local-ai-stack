@@ -144,6 +144,46 @@
         "SAVE_FPS": "11.fps"
       }
     },
+    "video_i2v_ltx_2b.json": {
+      "purpose": "Tier-1/2 primary: LTX-2 2B image-to-video (ltxv-2b-0.9.8-distilled-fp8-i2v, self-contained on 8GB VRAM). 768x448x81f@16fps.",
+      "status": "ready",
+      "notes": "The verified 2B LTX path (video_router._DEFAULT_TEMPLATE; proof render frames delta ~94 on 8GB, smoke gate .ltx_smoke_passed). Native graph: CheckpointLoaderSimple(ltxv-2b-0.9.8) -> LTXVScheduler(6) + CLIPLoader T5(2, type ltxv) -> CLIPTextEncode POS(4)/NEG(5) -> LTXVConditioning(53); LoadImage(50) START_FRAME -> LTXVImgToVideo(52) -> SamplerCustomAdvanced with RandomNoise(7, noise_seed) + CFGGuider(9); VAEDecode(11) -> VHS_VideoCombine(12) h264-mp4. FPS patched into LTXVConditioning.frame_rate (53) AND VHS_VideoCombine.frame_rate (12).",
+"patchable": {
+    "CKPT_LTX": "1.ckpt_name",
+    "T5_ENCODER": "2.clip_name",
+    "MOTION_PROMPT": "4.text",
+    "PROMPT_NEG": "5.text",
+    "START_FRAME": "50.image",
+    "WIDTH": "52.width",
+    "HEIGHT": "52.height",
+    "FRAMES": "52.length",
+    "STEPS": "6.steps",
+    "SEED": "7.noise_seed",
+    "CFG": "9.cfg",
+    "FPS": "53.frame_rate",
+    "SAVE_PREFIX": "12.filename_prefix",
+    "SAVE_FPS": "12.frame_rate"
+   }
+  },
+  "hunyuan_i2v.json": {
+   "purpose": "HunyuanVideo image-to-video (5B/13B, GGUF Q4_K_M 7.9GB on 8GB VRAM). 848x480x53f default.",
+   "status": "new",
+   "notes": "Native ComfyUI Hunyuan I2V graph: UnetLoaderGGUF(hunyuan-video-i2v-720p-Q4_K_M.gguf,1) -> DualCLIPLoader(clip_l+llava_llama3_fp8_scaled,2) + CLIPVisionLoader(llava_llama3_vision,3) -> CLIPVisionEncode(6); TextEncodeHunyuanVideo_ImageToVideo(7) -> HunyuanImageToVideo(8, v1 concat) -> ModelSamplingSD3(9, shift7) -> FluxGuidance(10, 6) -> BasicGuider(11); BasicScheduler(14, simple x20) + KSamplerSelect(13, euler) + RandomNoise(12); SamplerCustomAdvanced(15) -> VAEDecodeTiled(16) -> ImageFromBatch(17, skip 4 bad frames) -> SaveWEBM(18) vp9.",
+   "patchable": {
+    "HY_MODEL": "1.unet_name",
+    "MOTION_PROMPT": "7.prompt",
+    "START_FRAME": "5.image",
+    "WIDTH": "8.width",
+    "HEIGHT": "8.height",
+    "FRAMES": "8.length",
+    "STEPS": "14.steps",
+    "SEED": "12.noise_seed",
+    "GUIDANCE": "10.guidance",
+    "SHIFT": "9.shift",
+    "FPS": "18.fps",
+    "SAVE_PREFIX": "18.filename_prefix"
+   }
+  },
     "wan_ti2v.json": {
       "purpose": "Tier-2 alternate: Wan2.2-TI2V-5B fp8, 20 steps unipc, block-swap 20, cfg 5.0, 81f@16fps, image-to-video from START_FRAME",
       "status": "ready",
@@ -156,15 +196,15 @@
         "PROMPT_NEG": "4.negative_prompt",
         "WAN_VAE": "5.model_name",
         "START_FRAME": "6.image",
-        "WIDTH": "7.width",
-        "HEIGHT": "7.height",
-        "FRAMES": "7.num_frames",
-        "SEED": "8.seed",
-        "STEPS": "8.steps",
-        "CFG": "8.cfg",
-        "SCHEDULER": "8.scheduler",
-        "SAVE_PREFIX": "10.filename_prefix",
-        "SAVE_FPS": "10.fps"
+        "WIDTH": "8.width",
+        "HEIGHT": "8.height",
+        "FRAMES": "8.num_frames",
+        "SEED": "9.seed",
+        "STEPS": "9.steps",
+        "CFG": "9.cfg",
+        "SCHEDULER": "9.scheduler",
+        "SAVE_PREFIX": "11.filename_prefix",
+        "FPS": "11.frame_rate"
       }
     },
     "panel_txt2img_krea.json": {
@@ -218,6 +258,20 @@
         "HEIGHT": "13.height",
         "SEED": "14.seed",
         "STEPS": "14.steps",
+        "SAVE_PREFIX": "16.filename_prefix"
+      }
+    },
+    "image_txt2img_krea2.json": {
+      "purpose": "Mandated primary (design 5.3b): krea2 (Krea-2-Turbo) GGUF Q4_K_S txt2img. pipeline/image_router.py routes here only after confirming krea2_turbo-Q4_K_S.gguf is fully on disk in ComfyUI/models/unet/; otherwise stages fall back to image_flux_fallback.json.",
+      "status": "ready",
+      "notes": "Simplified single-purpose sibling of panel_txt2img_krea.json: same validated graph (UnetLoaderGGUF -> CLIPLoader(type=krea2, qwen3vl_4b_fp8_scaled.safetensors) -> CLIPTextEncode -> ConditioningZeroOut negative -> EmptySD3LatentImage -> KSampler euler/simple 8-step cfg1.0 -> VAEDecode(qwen_image_vae.safetensors) -> SaveImage), collapsed onto the flux-fallback node-id layout (1/2/3/11/12/13/14/15/16) so stage code can route between the two templates by name alone. No LoRA/IPAdapter path yet -- krea2 uses its own LoRA format + identity/style-reference conditioning, M4 scope (same caveat as panel_txt2img_krea.json).",
+      "patchable": {
+        "PROMPT_POS": "11.text",
+        "WIDTH": "13.width",
+        "HEIGHT": "13.height",
+        "SEED": "14.seed",
+        "STEPS": "14.steps",
+        "CFG": "14.cfg",
         "SAVE_PREFIX": "16.filename_prefix"
       }
     }

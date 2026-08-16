@@ -3,33 +3,80 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Olympus</title>
+<title>Olympus | Local AI Stack Dashboard</title>
+<meta name="description" content="Olympus dashboard — central hub for the Local AI Stack. Monitor agents, tasks, pipeline stages, voice studio, and system health.">
+<meta name="theme-color" content="#04060c">
+<meta property="og:title" content="Olympus | Local AI Stack Dashboard">
+<meta property="og:description" content="Central hub for the Local AI Stack. Monitor agents, tasks, pipeline stages, voice studio, and system health.">
+<meta property="og:type" content="website">
+<link rel="manifest" href="data:application/json,{%22name%22:%22Olympus%22,%22short_name%22:%22Olympus%22,%22start_url%22:%22/%22,%22display%22:%22standalone%22,%22background_color%22:%22%2304060c%22,%22theme_color%22:%22%2304060c%22}">
 <style>
-  :root {
-    --bg:#04060c; --panel:rgba(10,16,28,.85); --line:#123347; --line2:#1d4d66;
-    --cyan:#57c7e3; --cyan-dim:#2a7d99; --text:#dfe9f2; --dim:#5f7d93;
-    --purple:#8f7bff; --pink:#ff5ca8; --green:#3ddc84; --gold:#e8b84b; --red:#ef6b73;
-    color-scheme: dark;
-  }
-  * { box-sizing:border-box; margin:0; }
-  body { background:var(--bg); color:var(--text); font:14px/1.5 "Segoe UI",system-ui,sans-serif; height:100vh; display:flex; flex-direction:column; overflow:hidden; }
-  .mono { font-family:Consolas,"Cascadia Mono",monospace; }
+/* ============ TABLE OF CONTENTS ============
+1. CSS VARIABLES & BASE STYLES
+2. LAYOUT & GRID SYSTEMS
+3. COMPONENT STYLES
+   - HEADER & NAVIGATION
+   - BUTTONS & FORM ELEMENTS
+   - HUD (HEADS-UP DISPLAY) PANELS
+   - CARDS & NOTIFICATIONS
+   - KANBAN BOARD
+   - WIKI INTERFACE
+   - VOICE STUDIO
+   - STUDIO PIPELINE
+4. PAGE-SPECIFIC STYLES
+   - HOME PAGE (CORTEX VISUALIZATION)
+   - TASKS PAGE
+   - WIKI PAGE
+   - COMMERCE PAGE
+   - AUTOMATIONS PAGE
+   - VOICE PAGE
+   - STUDIO PAGE
+   - SYSTEM PAGE
+5. RESPONSIVE BREAKPOINTS
+6. ANIMATIONS & TRANSITIONS
+============================================ */
+/* 1. CSS VARIABLES & BASE STYLES */
+:root {
+     --bg:#04060c; --panel:rgba(10,16,28,.85); --line:#123347; --line2:#1d4d66;
+     --cyan:#57c7e3; --cyan-dim:#2a7d99; --text:#dfe9f2; --dim:#8b9fb3; /* Improved contrast from #5f7d93 */
+     --purple:#8f7bff; --pink:#ff5ca8; --green:#3ddc84; --gold:#e8b84b; --red:#ef6b73;
+     color-scheme: dark;
+   }
+   * { box-sizing:border-box; margin:0; }
+/* Improved focus visibility for accessibility */
+*:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+/* Ensure form elements are keyboard accessible */
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--cyan);
+}
+   body { background:var(--bg); color:var(--text); font:14px/1.5 "Segoe UI",system-ui,sans-serif; height:100vh; display:flex; flex-direction:column; overflow:hidden; }
+   .mono { font-family:Consolas,"Cascadia Mono",monospace; }
 
-  header { display:flex; align-items:center; gap:2rem; padding:.65rem 1.5rem; border-bottom:1px solid var(--line); background:rgba(6,10,18,.9); z-index:5; }
-  .logo { display:flex; align-items:center; gap:.5rem; font-family:Consolas,monospace; font-weight:700; letter-spacing:.35em; font-size:1rem; }
-  .logo .orb { width:14px; height:14px; border-radius:50%; background:radial-gradient(circle at 35% 35%, #9ec9ff, #2b6bff 60%, #0a1e4a); box-shadow:0 0 8px #2b6bff88; }
-  header nav { display:flex; gap:1.4rem; }
-  header nav a { font-family:Consolas,monospace; font-size:.75rem; letter-spacing:.22em; color:var(--cyan-dim); text-decoration:none; cursor:pointer; padding:.25rem 0; border-bottom:2px solid transparent; }
-  header nav a:hover { color:var(--cyan); }
-  header nav a.active { color:#fff; border-bottom-color:var(--cyan); }
-  #hdr-right { margin-left:auto; font-family:Consolas,monospace; font-size:.72rem; letter-spacing:.15em; color:var(--dim); }
-  #hdr-right .ok { color:var(--green); }
+/* 2. LAYOUT & GRID SYSTEMS */
+header { display:flex; align-items:center; gap:2rem; padding:.65rem 1.5rem; border-bottom:1px solid var(--line); background:rgba(6,10,18,.9); z-index:5; }
+   /* 3. COMPONENT STYLES - HEADER & NAVIGATION */
+   .logo { display:flex; align-items:center; gap:.5rem; font-family:Consolas,monospace; font-weight:700; letter-spacing:.35em; font-size:1rem; }
+   .logo .orb { width:14px; height:14px; border-radius:50%; background:radial-gradient(circle at 35% 35%, #9ec9ff, #2b6bff 60%, #0a1e4a); box-shadow:0 0 8px #2b6bff88; }
+   header nav { display:flex; gap:1.4rem; }
+   header nav a { font-family:Consolas,monospace; font-size:.75rem; letter-spacing:.22em; color:var(--cyan-dim); text-decoration:none; cursor:pointer; padding:.25rem 0; border-bottom:2px solid transparent; }
+   header nav a:hover { color:var(--cyan); }
+   header nav a.active { color:#fff; border-bottom-color:var(--cyan); }
+   #hdr-right { margin-left:auto; font-family:Consolas,monospace; font-size:.72rem; letter-spacing:.15em; color:var(--dim); }
+   #hdr-right .ok { color:var(--green); }
 
-  main { flex:1; position:relative; overflow:hidden; }
-  .page { display:none; height:100%; overflow-y:auto; padding:1.25rem 1.5rem; }
-  .page.active { display:block; }
-  #page-home { display:none; padding:0; overflow:hidden; }
-  #page-home.active { display:block; }
+/* Continued LAYOUT & GRID SYSTEMS */
+main { flex:1; position:relative; overflow:hidden; }
+   .page { display:none; height:100%; overflow-y:auto; padding:1.25rem 1.5rem; }
+   .page.active { display:block; }
+   #page-home { display:none; padding:0; overflow:hidden; }
+   #page-home.active { display:block; }
 
   .hud { background:var(--panel); border:1px solid var(--line); position:relative; backdrop-filter:blur(3px); }
   .hud::before, .hud::after { content:""; position:absolute; width:10px; height:10px; border:1px solid var(--cyan-dim); pointer-events:none; }
@@ -106,6 +153,11 @@
   .card { padding:.9rem 1.1rem; }
   .card .big { font-size:1.3rem; font-weight:600; font-family:Consolas,monospace; }
   .card .lbl { color:var(--dim); font-size:.72rem; font-family:Consolas,monospace; letter-spacing:.15em; text-transform:uppercase; }
+  .st-dot { display:inline-block; width:7px; height:7px; border-radius:50%; flex:none; }
+  .st-dot.s-done { background:var(--green); }
+  .st-dot.s-failed { background:var(--pink); }
+  .st-dot.s-running { background:var(--cyan); }
+  .st-dot.s-queued { background:var(--gold); }
   .link-row a { color:var(--cyan); margin-right:1.4rem; line-height:2.1; font-size:.85rem; }
 
   /* tasks kanban */
@@ -120,18 +172,35 @@
   .kcard .kagent { color:var(--green); letter-spacing:.1em; }
   .kcard .ktext { color:var(--text); }
   .kcard .kres { color:var(--dim); font-size:.74rem; margin-top:.3rem; max-height:70px; overflow:hidden; white-space:pre-wrap; }
+  .kcard .kres-wide { max-width:480px; }
   .kcard .kbtns { margin-top:.4rem; display:flex; gap:.4rem; }
 
   /* wiki */
   .browser { display:grid; grid-template-columns:300px 1fr; gap:1rem; height:calc(100% - 6.5rem); }
   .filelist { overflow-y:auto; font-size:.85rem; padding:.5rem; }
-  .filelist div { padding:.3rem .5rem; cursor:pointer; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .filelist div:hover { color:#fff; background:rgba(87,199,227,.08); }
   .notepane { overflow-y:auto; padding:1.1rem 1.4rem; }
   .notepane pre { background:#060a12; padding:.7rem; overflow-x:auto; border:1px solid var(--line); }
   .notepane a { color:var(--cyan); }
-  #wiki-crumb { font-family:Consolas,monospace; font-size:.72rem; color:var(--cyan-dim); margin-bottom:.5rem; letter-spacing:.1em; }
-  #wiki-filter { width:300px; margin-bottom:.6rem; }
+  #wiki-crumb { font-family:Consolas,monospace; font-size:.72rem; color:var(--cyan-dim); letter-spacing:.1em; cursor:pointer; }
+  #wiki-crumb span { cursor:pointer; }
+  #wiki-crumb span:hover { color:var(--cyan); }
+  #wiki-filter { max-width:280px; margin-bottom:.6rem; }
+  #wiki-count { font-family:Consolas,monospace; }
+  .filelist div { padding:.35rem .6rem; cursor:pointer; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; border-radius:3px; }
+  .filelist div:hover { color:#fff; background:rgba(87,199,227,.08); }
+  .wiki-up { font-family:Consolas,monospace; font-size:.78rem; color:var(--cyan-dim); padding:.4rem .6rem; border-bottom:1px solid var(--line); margin-bottom:.3rem; }
+  .wiki-dir, .wiki-note { display:flex; align-items:center; gap:.6rem; padding:.4rem .6rem; border-radius:3px; }
+  .wiki-dir b, .wiki-note b { font-size:.82rem; color:var(--text); }
+  .wiki-ic { width:22px; text-align:center; flex:none; }
+  .wiki-note:hover b { color:var(--cyan); }
+  .notepane h1,.notepane h2,.notepane h3,.notepane h4 { color:var(--cyan); font-family:Consolas,monospace; margin:1rem 0 .5rem; }
+  .notepane code { background:#101d2c; padding:.15rem .4rem; border-radius:3px; font-size:.82rem; }
+  .notepane pre { background:#060a12; padding:.7rem; overflow-x:auto; border:1px solid var(--line); border-radius:4px; }
+  .notepane a { color:var(--cyan); }
+  .notepane blockquote { border-left:3px solid var(--cyan-dim); padding:.4rem .8rem; color:var(--dim); margin:.5rem 0; }
+  .notepane table { border-collapse:collapse; width:100%; }
+  .notepane th { font-family:Consolas,monospace; font-size:.68rem; color:var(--cyan-dim); border:1px solid var(--line); padding:.4rem .6rem; }
+  .notepane td { border:1px solid var(--line); padding:.4rem .6rem; }
 
   /* voice */
   #voice-grid { display:grid; grid-template-columns:340px 1fr; gap:1.2rem; max-width:1100px; }
@@ -159,7 +228,106 @@
   .stage .sdot.failed { background:var(--red); box-shadow:0 0 6px var(--red); }
   .stage .sdot.awaiting_approval { background:var(--gold); box-shadow:0 0 6px var(--gold); }
   .stage button.ghost { margin-top:.5rem; font-size:.66rem; padding:.15rem .55rem; }
+  .stage { cursor:pointer; transition:border-color .15s, transform .15s; }
+  .stage:hover { border-color:var(--cyan); transform:translateY(-1px); }
   #comfy-frame { width:100%; height:calc(100vh - 21rem); border:1px solid var(--line2); background:#000; display:none; }
+  /* stage-artifact viewer modal */
+  #stage-modal { display:none; position:fixed; inset:0; background:rgba(4,8,14,.72); backdrop-filter:blur(4px); z-index:60; }
+  #stage-modal.open { display:flex; align-items:center; justify-content:center; padding:1.5rem; }
+  #stage-modal-box { width:min(1100px, 95vw); max-height:88vh; overflow:auto; background:var(--panel); border:1px solid var(--line2); position:relative; }
+  #stage-modal-head { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:.7rem .9rem; border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--panel); z-index:2; }
+  #stage-modal-title { font-family:Consolas,monospace; font-size:.74rem; letter-spacing:.22em; color:var(--cyan); }
+  #stage-modal-close { background:none; border:1px solid var(--line2); color:var(--dim); font-size:.7rem; padding:.2rem .6rem; cursor:pointer; }
+  #stage-modal-close:hover { color:#fff; border-color:var(--cyan); }
+  #stage-modal-body { padding:1rem 1.1rem; min-height:40vh; }
+  .sm-metrics { display:flex; flex-wrap:wrap; gap:.45rem; margin-bottom:1rem; }
+  .sm-metrics span { font-family:Consolas,monospace; font-size:.66rem; color:var(--dim); background:#101d2c; border:1px solid var(--line); padding:.2rem .5rem; }
+  .sm-metrics b { color:var(--cyan); font-weight:400; }
+  .sm-empty { color:var(--dim); font-size:.75rem; padding:2rem .5rem; text-align:center; }
+  .sm-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:.7rem; }
+  .sm-item { border:1px solid var(--line); background:#0e1a28; }
+  .sm-item img, .sm-item video { width:100%; max-height:260px; object-fit:cover; display:block; background:#000; }
+  .sm-item audio { width:100%; display:block; }
+  .sm-item .sm-cap { font-family:Consolas,monospace; font-size:.62rem; color:var(--dim); padding:.3rem .5rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .sm-doc { font-family:Consolas,monospace; font-size:.72rem; color:#cfe3f0; white-space:pre-wrap; word-break:break-word; max-height:55vh; overflow:auto; border:1px solid var(--line); background:#0b1522; padding:.8rem; }
+
+/* 4. UTILITY CLASSES (replaces inline styles) */
+.cursor-pointer { cursor:pointer; }
+.mono-sm { font-family:Consolas,monospace; font-size:.7rem; color:var(--cyan-dim); }
+.mono-xs { font-family:Consolas,monospace; font-size:.68rem; color:var(--dim); }
+.text-cyan { color:var(--cyan); }
+.text-cyan-dim { color:var(--cyan-dim); }
+.text-dim { color:var(--dim); }
+.text-red { color:var(--red); }
+.text-green { color:var(--green); }
+.w-full { width:100%; }
+.flex-1 { flex:1; }
+.min-w-160 { min-width:160px; }
+.min-w-200 { min-width:200px; }
+.min-w-220 { min-width:220px; }
+.btn-pad { padding:.5rem .9rem; }
+.p-md { padding:.8rem 1rem; }
+.p-lg { padding:1rem; }
+.mb-sm { margin-bottom:.6rem; }
+.mb-md { margin-bottom:.9rem; }
+.mb-lg { margin-bottom:1.2rem; }
+.mt-sm { margin-top:.6rem; }
+.mt-md { margin-top:.7rem; }
+.mt-lg { margin-top:1rem; }
+.inline-actions { display:flex; align-items:center; gap:1rem; flex-wrap:wrap; }
+.form-vertical { display:flex; flex-direction:column; gap:.6rem; max-width:760px; margin-bottom:1.4rem; }
+.grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:1.2rem; max-width:1200px; }
+
+/* 5. RESPONSIVE BREAKPOINTS */
+@media (max-width: 1200px) {
+  #jarvis-panel { width: 300px; }
+  #rail { width: 250px; }
+  .browser { grid-template-columns: 250px 1fr; }
+}
+
+@media (max-width: 992px) {
+  header { flex-wrap: wrap; gap: 1rem; }
+  #hdr-right { width: 100%; margin-top: 1rem; text-align: center; }
+  #jarvis-panel { width: 100%; height: 150px; }
+  #rail { width: 100%; height: 150px; margin-top: 1rem; }
+  .browser { grid-template-columns: 1fr; }
+  #voice-grid { grid-template-columns: 1fr; }
+  .stages { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+}
+
+@media (max-width: 768px) {
+  body { font-size: 12px; }
+  header { padding: .5rem 1rem; }
+  .hud-title { font-size: .65rem; padding: .45rem .75rem; }
+  .page { padding: 1rem; }
+  #cortex-search { padding: .45rem; font-size: .65rem; }
+  .sq { width: 32px; font-size: .75rem; }
+  button.primary, button.ghost { padding: .4rem .8rem; font-size: .65rem; }
+  .chip { font-size: .75rem; padding: .25rem .5rem; }
+  .kcard { padding: .4rem .5rem; font-size: .75rem; }
+  .notepane { padding: .75rem 1rem; }
+  .sm-doc { font-size: .65rem; }
+}
+
+@media (max-width: 480px) {
+  body { font-size: 11px; }
+  header { gap: .5rem; }
+  .logo { gap: .25rem; font-size: .8rem; }
+  .logo .orb { width: 12px; height: 12px; }
+  header nav { gap: .8rem; }
+  header nav a { font-size: .65rem; letter-spacing: .1em; }
+  #hdr-right { font-size: .65rem; }
+  .hud-title { font-size: .6rem; }
+  .page { padding: .75rem; }
+  #cortex-search { padding: .35rem; font-size: .6rem; }
+  .sq { width: 28px; font-size: .7rem; }
+  button.primary, button.ghost { padding: .35rem .7rem; font-size: .6rem; }
+  .chip { font-size: .7rem; padding: .2rem .4rem; }
+  .kcard { padding: .35rem .4rem; font-size: .7rem; }
+  .notepane { padding: .5rem .75rem; }
+  .sm-doc { font-size: .6rem; }
+  #studio-project-select { min-width: 150px; }
+}
 </style>
 </head>
 <body>
@@ -183,15 +351,21 @@
 
 <!-- ================= HOME ================= -->
 <div class="page active" id="page-home">
-  <canvas id="cortex"></canvas>
+  <canvas id="cortex" role="img" aria-label="Interactive agent knowledge graph visualization. Drag to rotate, click nodes to view details."></canvas>
+<noscript>
+  <div class="hud p-lg">
+    <p class="text-dim">JavaScript is required for the full Olympus experience.</p>
+    <p class="text-dim">Use the navigation tabs above to access individual pages, or enable JavaScript to view the interactive knowledge graph.</p>
+  </div>
+</noscript>
   <div id="search-wrap">
     <input id="cortex-search" class="mono" placeholder="✦ SEARCH THE CORTEX" autocomplete="off">
     <div id="search-results" class="hud"></div>
   </div>
   <div id="jarvis-panel" class="hud">
-    <div class="hud-title" id="jarvis-title" style="cursor:pointer" title="click to collapse/expand">● JARVIS
+    <div class="hud-title cursor-pointer" id="jarvis-title" title="click to collapse/expand">● JARVIS
       <span id="jstatus" class="online mono">ONLINE</span>
-      <span id="jarvis-caret" style="color:var(--cyan-dim);margin-left:.6rem">▾</span></div>
+      <span id="jarvis-caret" class="mono-sm" style="margin-left:.6rem">▾</span></div>
     <div id="jarvis-log">
       <div class="jmsg bot"><span class="who">JARVIS ~</span>At your service, Amir. Questions answered, work routed.</div>
     </div>
@@ -228,7 +402,7 @@
     <input class="txt" id="orchestrate-goal" placeholder="Give the Conductor a goal — it plans the steps and agents pick them up…">
     <button class="primary" id="orchestrate-btn">ORCHESTRATE</button>
     <input class="txt" id="quick-task" placeholder="…or drop a single task (auto-routed)">
-    <button class="ghost" id="quick-btn" style="padding:.5rem .9rem">QUEUE</button>
+    <button class="ghost btn-pad" id="quick-btn">QUEUE</button>
   </div>
   <div class="kanban">
     <div class="kcol hud"><div class="hud-title">QUEUED <span class="cnt" id="cnt-queued">0</span></div><div class="kcards" id="col-queued"></div></div>
@@ -241,18 +415,23 @@
 <!-- ================= WIKI ================= -->
 <div class="page" id="page-wiki">
   <h1 class="pg">WIKI · KNOWLEDGE CORPUS</h1>
-  <div id="wiki-crumb">/</div>
-  <input class="txt mono" id="wiki-filter" placeholder="filter notes…">
+  <div style="display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;margin-bottom:.8rem">
+    <div id="wiki-crumb" class="mono-sm" style="cursor:pointer">/ vault root</div>
+    <input class="txt mono" id="wiki-filter" placeholder="filter notes…" style="max-width:280px">
+    <span id="wiki-count" class="mono-xs text-dim"></span>
+  </div>
   <div class="browser">
     <div class="filelist hud" id="wiki-files"></div>
-    <div class="notepane hud" id="wiki-note">Select a note.</div>
+    <div class="notepane hud" id="wiki-note">
+      <div class="sm-empty">Select a note from the corpus to read it.</div>
+    </div>
   </div>
 </div>
 
 <!-- ================= COMMERCE ================= -->
 <div class="page" id="page-commerce">
   <h1 class="pg">COMMERCE · PLUTUS</h1>
-  <form class="task" id="plutus-form" style="display:flex;flex-direction:column;gap:.6rem;max-width:760px;margin-bottom:1.4rem">
+  <form class="task form-vertical" id="plutus-form">
     <textarea id="plutus-text" rows="3" placeholder="Ask Plutus — listings, invoices, pricing, budgets…"></textarea>
     <div><button class="primary">SEND TO PLUTUS</button></div>
   </form>
@@ -263,7 +442,7 @@
 <!-- ================= AUTOMATIONS ================= -->
 <div class="page" id="page-automations">
   <h1 class="pg">AUTOMATIONS</h1>
-  <div id="auto-services" style="margin-bottom:1.2rem"></div>
+  <div id="auto-services" class="mb-lg"></div>
   <div class="link-row">
     <a href="http://localhost:5678" target="_blank">n8n workflows :5678</a>
     <a href="http://127.0.0.1:3030" target="_blank">Langfuse :3030</a>
@@ -327,19 +506,31 @@
   </div>
 
   <div class="stages">
-    <div class="stage hud" data-stage="stage0"><div class="sdot" id="sdot-stage0"></div><div class="sic">📥</div><div class="snm">STAGE 0 · INTAKE</div><div class="sst">script.txt → project blueprint · FPS 24–60 · story-pollution guard</div><button class="ghost" id="stage0-run-btn">RUN ▶</button></div>
-    <div class="stage hud" data-stage="stage1"><div class="sdot" id="sdot-stage1"></div><div class="sic">🌍</div><div class="snm">STAGE 1 · WORLD BIBLE</div><div class="sst">chunked full-script character extraction · era/tech inference · relationship web · outfit specs · contradiction detection · creative expansion · sd_prompt anchors</div></div>
-    <div class="stage hud" data-stage="stage1r"><div class="sdot" id="sdot-stage1r"></div><div class="sic">👤</div><div class="snm">STAGE 1R · REFERENCES</div><div class="sst">10+ refs per character (360° full body) · locations + assets · style pick → consistency LoRA · voice ID per character</div></div>
-    <div class="stage hud" data-stage="stage2"><div class="sdot" id="sdot-stage2"></div><div class="sic">📝</div><div class="snm">STAGE 2 · SCREENPLAY</div><div class="sst">prompt assembly (char + location + composition) · narration craft · dialogue voice-validation · pacing pauses · quality audit (fix 3 weakest)</div></div>
-    <div class="stage hud" data-stage="stage3"><div class="sdot" id="sdot-stage3"></div><div class="sic">🎞</div><div class="snm">STAGE 3 · STORYBOARD</div><div class="sst">scene blocks: first part → ending → in-betweens · last frame seeds next block · panel lock + regenerate</div></div>
-    <div class="stage hud" data-stage="stage3b"><div class="sdot" id="sdot-stage3b"></div><div class="sic">🎨</div><div class="snm">STAGE 3B · IMAGES</div><div class="sst">one z-anime image per shot · same anchors every time = consistent characters</div></div>
-    <div class="stage hud" data-stage="stage4"><div class="sdot" id="sdot-stage4"></div><div class="sic">🎙</div><div class="snm">STAGE 4 · AUDIO</div><div class="sst">Kokoro TTS · narration + per-character dialogue voices · thinking pauses</div></div>
-    <div class="stage hud" data-stage="stage5"><div class="sdot" id="sdot-stage5"></div><div class="sic">🎬</div><div class="snm">STAGE 5 · ASSEMBLY</div><div class="sst">audio→frame timing · clip chunking · subtle transitions · quiet generated music · copyright check · next-episode carryover · length/GB prediction</div></div>
+    <div class="stage hud" data-stage="stage0"><div class="sdot" id="sdot-stage0"></div><div class="sic">📥</div><div class="snm">STAGE 0 · INTAKE</div><div class="sst">script.txt → project blueprint · FPS 24–60 · story-pollution guard</div><button class="ghost srun" data-stage="stage0">RUN ▶</button></div>
+    <div class="stage hud" data-stage="stage1"><div class="sdot" id="sdot-stage1"></div><div class="sic">🌍</div><div class="snm">STAGE 1 · WORLD BIBLE</div><div class="sst">chunked full-script character extraction · era/tech inference · relationship web · outfit specs · contradiction detection · creative expansion · sd_prompt anchors</div><button class="ghost srun" data-stage="stage1">RUN ▶</button></div>
+    <div class="stage hud" data-stage="stage1r"><div class="sdot" id="sdot-stage1r"></div><div class="sic">👤</div><div class="snm">STAGE 1R · REFERENCES</div><div class="sst">10+ refs per character (360° full body) · locations + assets · style pick → consistency LoRA · voice ID per character</div><button class="ghost srun" data-stage="stage1r">RUN ▶</button></div>
+    <div class="stage hud" data-stage="stage3"><div class="sdot" id="sdot-stage3"></div><div class="sic">🎞</div><div class="snm">STAGE 3 · STORYBOARD</div><div class="sst">scene blocks: first part → ending → in-betweens · last frame seeds next block · panel lock + regenerate · sets shot direction</div><button class="ghost srun" data-stage="stage3">RUN ▶</button></div>
+    <div class="stage hud" data-stage="stage2"><div class="sdot" id="sdot-stage2"></div><div class="sic">📝</div><div class="snm">STAGE 2 · SCREENPLAY</div><div class="sst">reads storyboard → adds narration + dialogue + SFX · composition prompts per shot · pacing pauses · quality audit (fix 3 weakest) · sequence-order check</div><button class="ghost srun" data-stage="stage2">RUN ▶</button></div>
+    <div class="stage hud" data-stage="stage3b"><div class="sdot" id="sdot-stage3b"></div><div class="sic">🎨</div><div class="snm">STAGE 3B · IMAGES</div><div class="sst">one krea2 image per shot · same anchors every time = consistent characters</div><button class="ghost srun" data-stage="stage3b">RUN ▶</button></div>
+    <div class="stage hud" data-stage="stage3c"><div class="sdot" id="sdot-stage3c"></div><div class="sic">🎞️</div><div class="snm">STAGE 3C · ANIMATION</div><div class="sst">LTX-Video motion per panel → clips · motion tiers · facial anchors</div><button class="ghost srun" data-stage="stage3c">RUN ▶</button></div>
+    <div class="stage hud" data-stage="stage_vlm_review"><div class="sdot" id="sdot-stage_vlm_review"></div><div class="sic">🔍</div><div class="snm">STAGE · VLM REVIEW</div><div class="sst">vision-model consistency check · prompt-adherence scoring · blunder gating</div><button class="ghost srun" data-stage="stage_vlm_review">RUN ▶</button></div>
+    <div class="stage hud" data-stage="stage4"><div class="sdot" id="sdot-stage4"></div><div class="sic">🎙</div><div class="snm">STAGE 4 · AUDIO</div><div class="sst">Kokoro TTS · narration + per-character dialogue voices · thinking pauses</div><button class="ghost srun" data-stage="stage4">RUN ▶</button></div>
+    <div class="stage hud" data-stage="stage5"><div class="sdot" id="sdot-stage5"></div><div class="sic">🎬</div><div class="snm">STAGE 5 · ASSEMBLY</div><div class="sst">audio→frame timing · clip chunking · subtle transitions · quiet generated music · copyright check · next-episode carryover · length/GB prediction</div><button class="ghost srun" data-stage="stage5">RUN ▶</button></div>
+  </div>
+
+  <div id="stage-modal" role="dialog" aria-modal="true">
+    <div id="stage-modal-box">
+      <div id="stage-modal-head">
+        <span id="stage-modal-title">STAGE</span>
+        <button id="stage-modal-close" aria-label="close">CLOSE ✕</button>
+      </div>
+      <div id="stage-modal-body"><div class="sm-empty">loading…</div></div>
+    </div>
   </div>
   <div style="display:flex;gap:1.5rem;flex-wrap:wrap">
-    <p class="mono" style="font-size:.72rem;color:var(--dim)">v1 code: E:\Projects\anime-pipeline-updated\anime-pipeline\anime-pipeline</p>
-    <p class="mono" style="font-size:.72rem;color:var(--dim)">master plan: docs\planning\anime-pipeline-v2-plan.md</p>
-    <p class="mono" style="font-size:.72rem;color:var(--dim)">cross-cutting: per-stage persistent scores · skipped-step reporting · prompt enhancer · model/LoRA test + train flow</p>
+    <p class="mono" style="font-size:.72rem;color:var(--dim)">pipeline engine: olympus/engines/pipeline/ · kernel: olympus/kernel/</p>
+    <p class="mono" style="font-size:.72rem;color:var(--dim)">design: docs/planning/anime-pipeline-v2-design.md</p>
+    <p class="mono" style="font-size:.72rem;color:var(--dim)">tools: realesrgan · rife-ncnn-vulkan · anime-face-detector</p>
   </div>
 </div>
 
@@ -368,25 +559,59 @@
 
 </main>
 
+
+
 <script>
 const $ = id => document.getElementById(id);
 async function j(url, opts) { const r = await fetch(url, opts); if (!r.ok) throw new Error(await r.text()); return r.json(); }
 function esc(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
+const _CSRF = (document.cookie.match(/(?:^|; )olympus_csrf=([^;]+)/) || [,''])[1];
+const _origFetch = window.fetch;
+window.fetch = (url, opts = {}) => {
+  const m = (opts.method || 'GET').toUpperCase();
+  if (['POST','PUT','PATCH','DELETE'].includes(m)) {
+    const h = new Headers(opts.headers);
+    h.set('x-csrf-token', _CSRF);
+    opts.headers = h;
+  }
+  return _origFetch(url, opts);
+};
+ function sanitizePromptInput(text) {
+   if (typeof text !== 'string') return '';
+   const stripped = text
+     .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, '')
+     .replace(/\s+/g, ' ')
+     .trim();
+   const lower = stripped.toLowerCase();
+   const blocked = [
+     'ignore previous', 'ignore all', 'disregard',
+     'system prompt', 'you are now', 'act as', 'you are a',
+     'new instruction', 'override'
+   ];
+   for (const pattern of blocked) {
+     if (lower.includes(pattern)) {
+       return '[filtered: prompt manipulation detected]';
+     }
+   }
+   return stripped.slice(0, 2000);
+ }
 
 /* ============ nav ============ */
+function goPage(name) { document.querySelector(`header nav a[data-page="${name}"]`).click(); }
 document.querySelectorAll('header nav a').forEach(a => a.addEventListener('click', () => {
   document.querySelectorAll('header nav a').forEach(x => x.classList.remove('active'));
   document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
   a.classList.add('active'); $('page-' + a.dataset.page).classList.add('active');
+  if (a.dataset.page === 'wiki') loadWiki(wikiFolder);
 }));
-function goPage(name) { document.querySelector(`header nav a[data-page="${name}"]`).click(); }
 
 /* ============ CORTEX ============ */
 const AGENT_COLORS = ['#8f7bff','#c05cff','#ff5ca8','#ff9f45','#e8b84b','#4ade80','#37c9a2','#5cb8ff','#7bd4ff','#b08fff'];
 const HOME_ROT_X = 0.25, HOME_VEL = 0.0018;
 let cortex = { nodes:[], edges:[], nuclei:[], rotY:0, rotX:HOME_ROT_X, vel:HOME_VEL,
                firing:-1, fireT:0, lastDrag:0,
-               zoom:1, zoomT:1, userZoom:1, userZoomT:1, offX:0, offY:0, focus:-1, hover:-1, proj:[] };
+               zoom:1, zoomT:1, userZoom:1, userZoomT:1, offX:0, offY:0, focus:-1, hover:-1, proj:[],
+               _paused:false };
 
 function buildCortex(agents, notePaths) {
   const R = 1, nodes = [];
@@ -428,88 +653,90 @@ function buildCortex(agents, notePaths) {
 }
 
 function drawCortex() {
-  const cv = $('cortex'), ctx = cv.getContext('2d');
-  const dpr = devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
-  if (cv.width !== W*dpr || cv.height !== H*dpr) { cv.width = W*dpr; cv.height = H*dpr; }
-  ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,W,H);
-  // sphere dead-center of the entire page
-  const cx = W / 2, cy = H / 2;
-  const now = performance.now();
-  const focused = cortex.focus >= 0;
-  if (focused) {
-    // reading a node: stop the spin, zoom in
-    cortex.vel += (0 - cortex.vel) * .08;
-    cortex.zoomT = 1.85;
-  } else if (cortex.dragging || cortex.hover >= 0) {
-    // any interaction (grabbing, or hovering a node to click it) halts the spin
-    cortex.vel += (0 - cortex.vel) * .25;
-    cortex.zoomT = 1;
-  } else {
-    cortex.zoomT = 1;
-    // idle again: ease tilt + spin back to defaults after 3s
-    if (now - cortex.lastDrag > 3000) {
-      cortex.rotX += (HOME_ROT_X - cortex.rotX) * .03;
-      cortex.vel += (HOME_VEL - cortex.vel) * .03;
-    }
-  }
-  cortex.zoom += (cortex.zoomT - cortex.zoom) * .07;
-  cortex.userZoom += (cortex.userZoomT - cortex.userZoom) * .12;
-  cortex.rotY += cortex.vel;
-  const scale = Math.min(W * .62, H) * .42 * cortex.zoom * cortex.userZoom;
-  const sy = Math.sin(cortex.rotY), cyr = Math.cos(cortex.rotY);
-  const sx = Math.sin(cortex.rotX), cxr = Math.cos(cortex.rotX);
-  const raw = cortex.nodes.map(n => {
-    let x = n.x*cyr + n.z*sy, z = -n.x*sy + n.z*cyr, y = n.y;
-    let y2 = y*cxr - z*sx, z2 = y*sx + z*cxr;
-    const p = 1.6 / (1.6 + z2);
-    return { X: cx + x*scale*p, Y: cy + y2*scale*p, d: p, n };
-  });
-  // pan so the focused node eases to just below the note reader; otherwise ease back to center
-  if (focused) {
-    const f = raw[cortex.focus];
-    cortex.offX += ((cx - f.X) - cortex.offX) * .07;
-    cortex.offY += ((cy + H*.18 - f.Y) - cortex.offY) * .07;
-  } else {
-    cortex.offX += (0 - cortex.offX) * .07;
-    cortex.offY += (0 - cortex.offY) * .07;
-  }
-  const proj = raw.map(p => ({ X: p.X + cortex.offX, Y: p.Y + cortex.offY, d: p.d, n: p.n }));
-  cortex.proj = proj;
-  for (const [a,b] of cortex.edges) {
-    const A = proj[a], B = proj[b];
-    let alpha = .10 * Math.min(A.d, B.d), color = '150,190,220';
-    if (cortex.firing >= 0 && (cortex.nodes[a].cluster === cortex.firing || a === cortex.firing || b === cortex.firing)) {
-      alpha += .35 * Math.max(0, 1 - (now - cortex.fireT)/900); color = '190,160,255';
-    }
-    ctx.strokeStyle = `rgba(${color},${alpha})`;
-    ctx.beginPath(); ctx.moveTo(A.X, A.Y); ctx.lineTo(B.X, B.Y); ctx.stroke();
-  }
-  const order = proj.map((p,i) => i).sort((a,b) => proj[a].d - proj[b].d);
-  for (const i of order) {
-    const p = proj[i];
-    const hot = i === cortex.hover || i === cortex.focus;
-    const r = p.n.r * p.d * 1.15 * (hot ? 1.6 : 1);
-    ctx.beginPath(); ctx.arc(p.X, p.Y, r, 0, 7);
-    ctx.fillStyle = p.n.color;
-    ctx.globalAlpha = .35 + .65 * (p.d - .55) / .9;
-    if (p.n.nucleus || hot) { ctx.shadowColor = p.n.color; ctx.shadowBlur = hot ? 20 : 14; }
-    ctx.fill(); ctx.shadowBlur = 0; ctx.globalAlpha = 1;
-  }
-  // hover / focus label
-  const lbl = cortex.hover >= 0 ? cortex.hover : cortex.focus;
-  if (lbl >= 0 && cortex.nodes[lbl].label) {
-    const p = proj[lbl], text = cortex.nodes[lbl].label;
-    ctx.font = '11px Consolas, monospace';
-    const w = ctx.measureText(text).width;
-    ctx.fillStyle = 'rgba(6,10,18,.9)';
-    ctx.fillRect(p.X + 10, p.Y - 18, w + 12, 18);
-    ctx.strokeStyle = 'rgba(87,199,227,.4)';
-    ctx.strokeRect(p.X + 10, p.Y - 18, w + 12, 18);
-    ctx.fillStyle = '#9fe3f7';
-    ctx.fillText(text, p.X + 16, p.Y - 5);
-  }
-  requestAnimationFrame(drawCortex);
-}
+   if (cortex._paused) return; // caller restarts when appropriate
+   
+   const cv = $('cortex'), ctx = cv.getContext('2d');
+   const dpr = devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+   if (cv.width !== W*dpr || cv.height !== H*dpr) { cv.width = W*dpr; cv.height = H*dpr; }
+   ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,W,H);
+   // sphere dead-center of the entire page
+   const cx = W / 2, cy = H / 2;
+   const now = performance.now();
+   const focused = cortex.focus >= 0;
+   if (focused) {
+     // reading a node: stop the spin, zoom in
+     cortex.vel += (0 - cortex.vel) * .08;
+     cortex.zoomT = 1.85;
+   } else if (cortex.dragging || cortex.hover >= 0) {
+     // any interaction (grabbing, or hovering a node to click it) halts the spin
+     cortex.vel += (0 - cortex.vel) * .25;
+     cortex.zoomT = 1;
+   } else {
+     cortex.zoomT = 1;
+     // idle again: ease tilt + spin back to defaults after 3s
+     if (now - cortex.lastDrag > 3000) {
+       cortex.rotX += (HOME_ROT_X - cortex.rotX) * .03;
+       cortex.vel += (HOME_VEL - cortex.vel) * .03;
+     }
+   }
+   cortex.zoom += (cortex.zoomT - cortex.zoom) * .07;
+   cortex.userZoom += (cortex.userZoomT - cortex.userZoom) * .12;
+   cortex.rotY += cortex.vel;
+   const scale = Math.min(W * .62, H) * .42 * cortex.zoom * cortex.userZoom;
+   const sy = Math.sin(cortex.rotY), cyr = Math.cos(cortex.rotY);
+   const sx = Math.sin(cortex.rotX), cxr = Math.cos(cortex.rotX);
+   const raw = cortex.nodes.map(n => {
+     let x = n.x*cyr + n.z*sy, z = -n.x*sy + n.z*cyr, y = n.y;
+     let y2 = y*cxr - z*sx, z2 = y*sx + z*cxr;
+     const p = 1.6 / (1.6 + z2);
+     return { X: cx + x*scale*p, Y: cy + y2*scale*p, d: p, n };
+   });
+   // pan so the focused node eases to just below the note reader; otherwise ease back to center
+   if (focused) {
+     const f = raw[cortex.focus];
+     cortex.offX += ((cx - f.X) - cortex.offX) * .07;
+     cortex.offY += ((cy + H*.18 - f.Y) - cortex.offY) * .07;
+   } else {
+     cortex.offX += (0 - cortex.offX) * .07;
+     cortex.offY += (0 - cortex.offY) * .07;
+   }
+   const proj = raw.map(p => ({ X: p.X + cortex.offX, Y: p.Y + cortex.offY, d: p.d, n: p.n }));
+   cortex.proj = proj;
+   for (const [a,b] of cortex.edges) {
+     const A = proj[a], B = proj[b];
+     let alpha = .10 * Math.min(A.d, B.d), color = '150,190,220';
+     if (cortex.firing >= 0 && (cortex.nodes[a].cluster === cortex.firing || a === cortex.firing || b === cortex.firing)) {
+       alpha += .35 * Math.max(0, 1 - (now - cortex.fireT)/900); color = '190,160,255';
+     }
+     ctx.strokeStyle = `rgba(${color},${alpha})`;
+     ctx.beginPath(); ctx.moveTo(A.X, A.Y); ctx.lineTo(B.X, B.Y); ctx.stroke();
+   }
+   const order = proj.map((p,i) => i).sort((a,b) => proj[a].d - proj[b].d);
+   for (const i of order) {
+     const p = proj[i];
+     const hot = i === cortex.hover || i === cortex.focus;
+     const r = p.n.r * p.d * 1.15 * (hot ? 1.6 : 1);
+     ctx.beginPath(); ctx.arc(p.X, p.Y, r, 0, 7);
+     ctx.fillStyle = p.n.color;
+     ctx.globalAlpha = .35 + .65 * (p.d - .55) / .9;
+     if (p.n.nucleus || hot) { ctx.shadowColor = p.n.color; ctx.shadowBlur = hot ? 20 : 14; }
+     ctx.fill(); ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+   }
+   // hover / focus label
+   const lbl = cortex.hover >= 0 ? cortex.hover : cortex.focus;
+   if (lbl >= 0 && cortex.nodes[lbl].label) {
+     const p = proj[lbl], text = cortex.nodes[lbl].label;
+     ctx.font = '11px Consolas, monospace';
+     const w = ctx.measureText(text).width;
+     ctx.fillStyle = 'rgba(6,10,18,.9)';
+     ctx.fillRect(p.X + 10, p.Y - 18, w + 12, 18);
+     ctx.strokeStyle = 'rgba(87,199,227,.4)';
+     ctx.strokeRect(p.X + 10, p.Y - 18, w + 12, 18);
+     ctx.fillStyle = '#9fe3f7';
+     ctx.fillText(text, p.X + 16, p.Y - 5);
+   }
+   requestAnimationFrame(drawCortex);
+ }
 
 setInterval(() => {
   if (!cortex.nuclei.length || cortex.focus >= 0) return;
@@ -531,26 +758,38 @@ function cortexHit(x, y) {
   return best;
 }
 async function focusCortexNode(i) {
-  const n = cortex.nodes[i];
-  cortex.focus = i;
-  $('note-float').classList.add('open');
+   const n = cortex.nodes[i];
+   cortex.focus = i;
+   cortex._paused = true;
+   $('note-float').classList.add('open');
   if (n.nucleus) {
     $('nf-title').textContent = 'AGENT · ' + n.label;
-    $('nf-body').innerHTML = `<p>${esc(n.desc || '')}</p><p class="mono" style="color:var(--dim);font-size:.74rem;margin-top:.6rem">click ✕ to release the cortex</p>`;
+    $('nf-body').innerHTML = `<p>${esc(n.desc || '')}</p><p class="mono text-dim mono-xs mt-sm">click ✕ to release the cortex</p>`;
     return;
   }
   $('nf-title').textContent = n.label;
-  $('nf-body').innerHTML = '<em style="color:var(--dim)">reading…</em>';
+  $('nf-body').innerHTML = '<em class="text-dim">reading…</em>';
   try {
     const note = await j('/api/brain/note?path=' + encodeURIComponent(n.path));
     $('nf-body').innerHTML = note.html || '<em>empty note</em>';
   } catch { $('nf-body').innerHTML = '<em>could not load this note</em>'; }
 }
 function releaseCortex() {
-  cortex.focus = -1;                    // pan/zoom ease back to center automatically
-  cortex.lastDrag = 0;                  // resume default rotation immediately
-  $('note-float').classList.remove('open');
-}
+   cortex.focus = -1;                    // pan/zoom ease back to center automatically
+   cortex.lastDrag = 0;                  // resume default rotation immediately
+   cortex._paused = false;
+   $('note-float').classList.remove('open');
+ }
+ 
+function cortexResume() {
+   if (cortex._paused) {
+     cortex._paused = false;
+     requestAnimationFrame(drawCortex);
+   }
+ }
+ document.addEventListener('visibilitychange', () => {
+   if (!document.hidden && cortex._paused && cortex.focus < 0) cortexResume();
+ });
 $('nf-close').addEventListener('click', releaseCortex);
 addEventListener('keydown', e => { if (e.key === 'Escape') releaseCortex(); });
 
@@ -564,7 +803,10 @@ addEventListener('keydown', e => { if (e.key === 'Escape') releaseCortex(); });
   }, { passive: false });
   cv.addEventListener('dblclick', e => {
     const rect = cv.getBoundingClientRect();
-    if (cortexHit(e.clientX - rect.left, e.clientY - rect.top) < 0) cortex.userZoomT = 1;
+    if (cortexHit(e.clientX - rect.left, e.clientY - rect.top) < 0) {
+      cortex.userZoomT = 1;
+      cortexResume();
+    }
   });
   cv.addEventListener('mousedown', e => { drag = true; cortex.dragging = true; moved = 0; lx = e.clientX; ly = e.clientY; cv.style.cursor='grabbing'; });
   addEventListener('mouseup', e => {
@@ -573,6 +815,7 @@ addEventListener('keydown', e => { if (e.key === 'Escape') releaseCortex(); });
       const hit = cortexHit(e.clientX - rect.left, e.clientY - rect.top);
       if (hit >= 0) focusCortexNode(hit);
       else if (cortex.focus >= 0) releaseCortex();
+      else if (cortex._paused) cortexResume();
     }
     drag = false; cortex.dragging = false; cortex.lastDrag = performance.now(); cv.style.cursor='grab';
   });
@@ -606,7 +849,7 @@ async function refreshHealth() {
 
 async function refreshSystems() {
   const svcs = await j('/api/services');
-  const rows = [{name:'ollama', running: window._health ? window._health.ollama : false, noStart:true}, ...svcs];
+  const rows = svcs.map(s => s.name === 'ollama' ? { ...s, noStart: true } : s);
   $('systems-body').innerHTML = rows.map(s => `<div class="sys-row">
       <span class="dot" style="background:${s.running ? 'var(--green)' : '#2a3a4a'}"></span>
       <span class="nm">${esc(s.name)}</span>
@@ -630,7 +873,7 @@ async function startSvc(name) { await j(`/api/services/${encodeURIComponent(name
 const STATUS_DOT = { done:'var(--green)', failed:'var(--pink)', running:'var(--cyan)', queued:'var(--gold)' };
 function kcard(t) {
   return `<div class="kcard">
-    <div class="khead"><span class="dot" style="background:${STATUS_DOT[t.status]}"></span>
+    <div class="khead"><span class="st-dot s-${t.status}"></span>
       <span class="kid">#${t.id}</span><span class="kagent">${esc(t.agent).toUpperCase()}</span></div>
     <div class="ktext">${esc(t.text).slice(0, 140)}</div>
     ${t.result || t.error ? `<div class="kres">${esc((t.result || t.error)).slice(0, 220)}</div>` : ''}
@@ -646,15 +889,15 @@ async function refreshTasks() {
   const tasks = await j('/api/tasks');
   $('activity-body').innerHTML = tasks.slice(0, 9).map(t => `<div class="act-row">
       <span class="dot" style="background:${STATUS_DOT[t.status]}"></span>
-      <span class="txt">${esc(t.text)}</span><span class="agent">${esc(t.agent)}</span></div>`).join('') || '<span style="color:var(--dim)">no activity yet</span>';
+      <span class="txt">${esc(t.text)}</span><span class="agent">${esc(t.agent)}</span></div>`).join('') || '<span class="text-dim">no activity yet</span>';
   for (const st of ['queued','running','done','failed']) {
     const list = tasks.filter(t => t.status === st);
-    $('col-' + st).innerHTML = list.map(kcard).join('') || '<div style="color:var(--dim);font-size:.75rem;padding:.3rem">empty</div>';
+    $('col-' + st).innerHTML = list.map(kcard).join('') || '<div class="text-dim mono-sm">empty</div>';
     $('cnt-' + st).textContent = list.length;
   }
   $('plutus-rows').innerHTML = tasks.filter(t => t.agent === 'plutus').map(t => `<tr><td>${t.id}</td>
       <td class="${t.status==='done'?'ok':t.status==='failed'?'bad':'warn'}">${t.status}</td>
-      <td>${esc(t.text).slice(0,110)}</td><td style="white-space:pre-wrap;max-width:480px">${esc(t.result || t.error || '')}</td></tr>`).join('');
+      <td>${esc(t.text).slice(0,110)}</td><td class="kres kres-wide">${esc(t.result || t.error || '')}</td></tr>`).join('');
   const brief = tasks.find(t => t.status === 'done' && /brief|wrap|summary|\[PLAN\]/i.test(t.text)) || tasks.find(t => t.status === 'done');
   if (brief) $('briefing-body').innerHTML =
     `<b># ${esc(brief.text.slice(0,80))}</b>\n&gt; 🤖 ${esc(brief.agent)} · Olympus · ${esc(brief.updated)}\n\n${esc((brief.result||'').slice(0,300))}`;
@@ -681,7 +924,7 @@ async function refreshSystemPage() {
     $('sys-models').querySelector('tbody').innerHTML = Object.entries(s.models)
       .map(([r,m]) => `<tr><td class="mono">${esc(r)}</td><td class="mono">${esc(m)}</td></tr>`).join('');
     $('sys-paths').querySelector('tbody').innerHTML = Object.entries(s.paths)
-      .map(([k,v]) => `<tr><td class="mono" style="color:var(--cyan-dim)">${esc(k)}</td><td class="mono">${esc(v)}</td></tr>`).join('');
+      .map(([k,v]) => `<tr><td class="mono text-cyan-dim">${esc(k)}</td><td class="mono">${esc(v)}</td></tr>`).join('');
     $('sys-agents-tbl').querySelector('tbody').innerHTML = s.agents.map((a,i) =>
       `<tr><td><span style="color:${AGENT_COLORS[i % AGENT_COLORS.length]}">●</span> ${esc(a.name)}</td>
        <td class="mono">${esc(a.domain)}</td><td class="mono">${esc(a.model)}</td><td class="mono">${esc(a.resolved_model)}</td></tr>`).join('');
@@ -699,35 +942,62 @@ async function pollTask(id, onDone) {
   }
   onDone({ status:'failed', error:'timed out' });
 }
-async function speak(text) {
-  if (!$('speak-replies').checked) return;
-  try {
-    const r = await fetch('/api/voice/tts', { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ text: text.slice(0, 400) }) });
-    if (r.ok) { new Audio(URL.createObjectURL(await r.blob())).play(); return; }
-  } catch {}
-  try { speechSynthesis.speak(new SpeechSynthesisUtterance(text.slice(0, 400))); } catch {}
+// Add loading state helper
+function setLoading(element, isLoading) {
+  if (element) {
+    element.disabled = isLoading;
+    element.style.opacity = isLoading ? '0.6' : '1';
+    element.style.cursor = isLoading ? 'not-allowed' : 'pointer';
+    
+    // Also update button text for visual feedback
+    const originalText = element.dataset.originalText || element.textContent;
+    if (isLoading) {
+      element.dataset.originalText = originalText;
+      element.textContent = 'LOADING…';
+    } else {
+      element.textContent = originalText || element.textContent;
+    }
+  }
 }
+
+async function speak(text) {
+   if (!$('speak-replies').checked) return;
+   try {
+     const r = await fetch('/api/voice/tts', { method:'POST', headers:{'Content-Type':'application/json'},
+       body: JSON.stringify({ text: text.slice(0, 400) }) });
+     if (r.ok) { new Audio(URL.createObjectURL(await r.blob())).play(); return; }
+   } catch {}
+   try { speechSynthesis.speak(new SpeechSynthesisUtterance(text.slice(0, 400))); } catch {}
+ }
 $('jarvis-form').addEventListener('submit', async e => {
-  e.preventDefault();
-  const text = $('jarvis-in').value.trim(); if (!text) return;
-  $('jarvis-in').value = '';
-  const log = $('jarvis-log');
-  log.insertAdjacentHTML('beforeend', `<div class="jmsg you"><span class="who">YOU ›</span>${esc(text)}</div>`);
-  const el = document.createElement('div');
-  el.className = 'jmsg bot'; el.innerHTML = '<span class="who">JARVIS ~</span><em style="color:var(--dim)">thinking…</em>';
-  log.appendChild(el); log.scrollTop = log.scrollHeight;
-  $('jstatus').textContent = 'PROCESSING'; $('jstatus').className = 'processing mono';
-  const t = await j('/api/tasks', { method:'POST', headers:{'Content-Type':'application/json'},
-                                    body: JSON.stringify({ text, agent:'jarvis' }) });
-  pollTask(t.id, done => {
-    const reply = done.result || ('⚠ ' + (done.error || 'failed'));
-    el.innerHTML = `<span class="who">JARVIS ~</span>${esc(reply)}<span class="tlink">→ task ${done.id ?? t.id}</span>`;
-    log.scrollTop = log.scrollHeight;
-    $('jstatus').textContent = 'ONLINE'; $('jstatus').className = 'online mono';
-    speak(reply); refreshTasks();
+   e.preventDefault();
+   const btn = $('jarvis-form').querySelector('button[type="submit"]');
+   setLoading(btn, true);
+   try {
+     const text = $('jarvis-in').value.trim(); if (!text) return;
+     $('jarvis-in').value = '';
+     const log = $('jarvis-log');
+     log.insertAdjacentHTML('beforeend', `<div class="jmsg you"><span class="who">YOU ›</span>${esc(text)}</div>`);
+     const el = document.createElement('div');
+     el.className = 'jmsg bot'; el.innerHTML = '<span class="who">JARVIS ~</span><em class="text-dim">thinking…</em>';
+     log.appendChild(el); log.scrollTop = log.scrollHeight;
+     $('jstatus').textContent = 'PROCESSING'; $('jstatus').className = 'processing mono';
+     const t = await j('/api/tasks', { method:'POST', headers:{'Content-Type':'application/json'},
+                                       body: JSON.stringify({ text, agent:'jarvis' }) });
+     pollTask(t.id, done => {
+       const reply = done.result || ('⚠ ' + (done.error || 'failed'));
+       el.innerHTML = `<span class="who">JARVIS ~</span>${esc(reply)}<span class="tlink">→ task ${done.id ?? t.id}</span>`;
+       log.scrollTop = log.scrollHeight;
+       $('jstatus').textContent = 'ONLINE'; $('jstatus').className = 'online mono';
+       speak(reply); refreshTasks();
+     });
+} catch (err) {
+      alert('Error: ' + err.message);
+    } finally {
+      const btn = $('jarvis-form').querySelector('button[type="submit"]');
+      setLoading(btn, false);
+    }
   });
-});
 $('jarvis-title').addEventListener('click', e => {
   if (e.target.tagName === 'INPUT') return;
   const p = $('jarvis-panel');
@@ -744,12 +1014,21 @@ $('mic-btn').addEventListener('click', () => {
 
 /* ============ capture ============ */
 $('capture-btn').addEventListener('click', async () => {
-  const v = $('capture-in').value.trim(); if (!v) return;
-  $('capture-in').value = '';
-  await j('/api/tasks', { method:'POST', headers:{'Content-Type':'application/json'},
-                          body: JSON.stringify({ text: 'Capture this note for the inbox: ' + v, agent:'archivist' }) });
-  refreshTasks();
-});
+   const v = $('capture-in').value.trim(); if (!v) return;
+   const btn = $('capture-btn');
+   setLoading(btn, true);
+   try {
+     $('capture-in').value = '';
+     const sanitized = sanitizePromptInput(v);
+     await j('/api/tasks', { method:'POST', headers:{'Content-Type':'application/json'},
+                           body: JSON.stringify({ text: 'Capture this note for the inbox: ' + sanitized, agent:'archivist' }) });
+     refreshTasks();
+   } catch (err) {
+     alert('Error: ' + err.message);
+   } finally {
+     setLoading($('capture-btn'), false);
+   }
+ });
 
 /* ============ cortex search ============ */
 let noteIndex = null;
@@ -788,88 +1067,141 @@ $('cortex-search').addEventListener('keydown', async e => {
 });
 
 /* ============ wiki ============ */
-let wikiFolder = '', wikiItems = [];
+let wikiFolder = '', wikiItems = [], wikiNoteCache = {};
 async function loadWiki(folder) {
   try { wikiItems = await j('/api/brain/notes?folder=' + encodeURIComponent(folder)); }
   catch { if (folder) return loadWiki(''); wikiItems = []; }
   wikiFolder = folder;
-  $('wiki-crumb').textContent = '/ ' + (folder || 'vault root');
+  const parts = folder ? folder.split('/') : [];
+  $('wiki-crumb').innerHTML =
+    '<span data-dir="">📂 vault root</span>' +
+    parts.map((p, i) => {
+      const d = parts.slice(0, i + 1).join('/');
+      return `<span class="text-dim"> / </span><span data-dir="${esc(d)}">${esc(p)}</span>`;
+    }).join('');
+  $('wiki-crumb').querySelectorAll('[data-dir]').forEach(el =>
+    el.addEventListener('click', () => loadWiki(el.dataset.dir))
+  );
+  const fc = wikiItems.filter(i => i.type === 'note').length;
+  const dc = wikiItems.filter(i => i.type === 'dir').length;
+  $('wiki-count').textContent = `${fc} notes${dc ? ', ' + dc + ' folders' : ''}`;
   renderWiki();
 }
 function renderWiki() {
   const f = $('wiki-filter').value.trim().toLowerCase();
   const items = wikiItems.filter(it => !f || it.name.toLowerCase().includes(f));
-  const up = wikiFolder ? `<div data-dir="${esc(wikiFolder.split('/').slice(0,-1).join('/'))}">⬆ ..</div>` : '';
+  const up = wikiFolder ? `<div class="wiki-up" data-dir="${esc(wikiFolder.split('/').slice(0,-1).join('/'))}">⬆ ..</div>` : '';
   $('wiki-files').innerHTML = up + items.map(it => it.type === 'dir'
-    ? `<div data-dir="${esc(wikiFolder ? wikiFolder + '/' + it.name : it.name)}">📁 ${esc(it.name)}</div>`
-    : `<div data-note="${esc(wikiFolder ? wikiFolder + '/' + it.name : it.name)}">📄 ${esc(it.name)}</div>`).join('')
-    || '<div style="color:var(--dim)">nothing here</div>';
-  $('wiki-files').querySelectorAll('[data-dir]').forEach(el => el.addEventListener('click', () => loadWiki(el.dataset.dir)));
-  $('wiki-files').querySelectorAll('[data-note]').forEach(el => el.addEventListener('click', () => openWikiNote(el.dataset.note)));
+    ? `<div class="wiki-dir" data-dir="${esc(wikiFolder ? wikiFolder + '/' + it.name : it.name)}"><span class="wiki-ic">📁</span><div><b>${esc(it.name)}</b><div class="mono-xs text-dim">folder</div></div></div>`
+    : `<div class="wiki-note" data-note="${esc(wikiFolder ? wikiFolder + '/' + it.name : it.name)}"><span class="wiki-ic">📄</span><div><b>${esc(it.name)}</b><div class="mono-xs text-dim">markdown note</div></div></div>`).join('')
+    || '<div class="sm-empty">nothing in this folder</div>';
+  $('wiki-files').querySelectorAll('[data-dir]').forEach(el =>
+    el.addEventListener('click', () => loadWiki(el.dataset.dir)));
+  $('wiki-files').querySelectorAll('[data-note]').forEach(el =>
+    el.addEventListener('click', () => openWikiNote(el.dataset.note)));
 }
 async function openWikiNote(path) {
+  if (wikiNoteCache[path]) {
+    $('wiki-note').innerHTML = `<div class="mono-sm text-cyan-dim mb-sm">${esc(path)}</div>` + wikiNoteCache[path];
+    return;
+  }
+  $('wiki-note').innerHTML = '<em class="text-dim">loading…</em>';
   try {
     const n = await j('/api/brain/note?path=' + encodeURIComponent(path));
-    $('wiki-note').innerHTML = `<div class="mono" style="color:var(--cyan-dim);font-size:.7rem;margin-bottom:.6rem">${esc(path)}</div>` + (n.html || '<em>empty note</em>');
-  } catch { $('wiki-note').innerHTML = '<em>could not load note</em>'; }
+    wikiNoteCache[path] = n.html || '<em>empty note</em>';
+    $('wiki-note').innerHTML = `<div class="mono-sm text-cyan-dim mb-sm">${esc(path)}</div>` + wikiNoteCache[path];
+  } catch { $('wiki-note').innerHTML = '<em>could not load note — check vault path in stack.toml</em>'; }
 }
 $('wiki-filter').addEventListener('input', renderWiki);
 
 /* ============ tasks page ============ */
 $('orchestrate-btn').addEventListener('click', async () => {
-  const goal = $('orchestrate-goal').value.trim(); if (!goal) return;
-  $('orchestrate-goal').value = '';
-  await j('/api/orchestrate', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ goal }) });
-  refreshTasks();
-});
-$('quick-btn').addEventListener('click', async () => {
-  const text = $('quick-task').value.trim(); if (!text) return;
-  $('quick-task').value = '';
-  await j('/api/tasks', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ text }) });
-  refreshTasks();
-});
+   const goal = $('orchestrate-goal').value.trim(); if (!goal) return;
+   const btn = $('orchestrate-btn');
+   setLoading(btn, true);
+   try {
+     $('orchestrate-goal').value = '';
+     await j('/api/orchestrate', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ goal }) });
+     refreshTasks();
+   } catch (err) {
+     alert('Error: ' + err.message);
+   } finally {
+     setLoading($('orchestrate-btn'), false);
+   }
+ });
+ $('quick-btn').addEventListener('click', async () => {
+   const text = $('quick-task').value.trim(); if (!text) return;
+   const btn = $('quick-btn');
+   setLoading(btn, true);
+   try {
+     $('quick-task').value = '';
+     await j('/api/tasks', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ text }) });
+     refreshTasks();
+   } catch (err) {
+     alert('Error: ' + err.message);
+   } finally {
+     setLoading($('quick-btn'), false);
+   }
+ });
 
 /* ============ commerce ============ */
 $('plutus-form').addEventListener('submit', async e => { e.preventDefault();
-  const text = $('plutus-text').value.trim(); if (!text) return;
-  await j('/api/tasks', { method:'POST', headers:{'Content-Type':'application/json'},
-                          body: JSON.stringify({ text, agent:'plutus' }) });
-  $('plutus-text').value = ''; refreshTasks(); });
+   const btn = $('plutus-form').querySelector('button[type="submit"]');
+   setLoading(btn, true);
+   try {
+     const text = $('plutus-text').value.trim(); if (!text) return;
+     await j('/api/tasks', { method:'POST', headers:{'Content-Type':'application/json'},
+                           body: JSON.stringify({ text, agent:'plutus' }) });
+     $('plutus-text').value = ''; refreshTasks();
+   } catch (err) {
+     alert('Error: ' + err.message);
+   } finally {
+     setLoading($('plutus-form').querySelector('button[type="submit"]'), false);
+   }
+ });
 
 /* ============ voice page ============ */
 let selectedVoice = 'af_heart';
 async function loadVoices() {
-  try {
-    const vs = await j('/api/voice/voices');
-    window._voicesLoaded = true;
-    $('voice-list').innerHTML = vs.map(v => `<div class="vrow ${v===selectedVoice?'sel':''}" data-v="${v}">
-        <span class="vico">${v.split('_')[0].toUpperCase()}</span> ${esc(v)}</div>`).join('');
-    $('voice-list').querySelectorAll('.vrow').forEach(el => el.addEventListener('click', () => {
-      selectedVoice = el.dataset.v;
-      $('voice-list').querySelectorAll('.vrow').forEach(x => x.classList.toggle('sel', x.dataset.v === selectedVoice));
-    }));
-  } catch {}
-}
+   try {
+     const vs = await j('/api/voice/voices');
+     window._voicesLoaded = true;
+     $('voice-list').innerHTML = vs.map(v => `<div class="vrow ${v===selectedVoice?'sel':''}" data-v="${v}">
+         <span class="vico">${v.split('_')[0].toUpperCase()}</span> ${esc(v)}</div>`).join('');
+     $('voice-list').querySelectorAll('.vrow').forEach(el => el.addEventListener('click', () => {
+       selectedVoice = el.dataset.v;
+$('voice-list').querySelectorAll('.vrow').forEach(x => x.classList.toggle('sel', x.dataset.v === selectedVoice));
+      }));
+   } catch {}
+ }
 $('voice-speed').addEventListener('input', e => $('speed-val').textContent = Number(e.target.value).toFixed(2));
 $('voice-gen').addEventListener('click', async () => {
-  const text = $('voice-text').value.trim(); if (!text) return;
-  $('voice-gen').disabled = true; $('voice-gen').textContent = 'GENERATING…';
-  try {
-    const r = await fetch('/api/voice/tts', { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ text, voice: selectedVoice, speed: Number($('voice-speed').value) }) });
-    if (!r.ok) throw new Error(await r.text());
-    const url = URL.createObjectURL(await r.blob());
-    const div = document.createElement('div');
-    div.className = 'clip hud';
-    div.innerHTML = `<div class="cmeta"><span>${esc(selectedVoice)}</span><span>x${$('voice-speed').value}</span>
-        <span>${new Date().toLocaleTimeString()}</span><a href="${url}" download="tts.wav" style="color:var(--cyan)">download</a></div>
-      <div style="font-size:.78rem;color:var(--dim);margin-bottom:.3rem">${esc(text.slice(0,120))}</div>
-      <audio controls src="${url}"></audio>`;
-    $('clips').prepend(div);
-    div.querySelector('audio').play();
-  } catch (err) { alert('TTS failed: ' + err.message); }
-  $('voice-gen').disabled = false; $('voice-gen').textContent = 'GENERATE ▶';
-});
+    const text = $('voice-text').value.trim(); if (!text) return;
+    const btn = $('voice-gen');
+    setLoading(btn, true);
+    try {
+      const r = await fetch('/api/voice/tts', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ text, voice: selectedVoice, speed: Number($('voice-speed').value) }) });
+      if (!r.ok) throw new Error(await r.text());
+      const url = URL.createObjectURL(await r.blob());
+      const div = document.createElement('div');
+      div.className = 'clip hud';
+      div.dataset.blobUrl = url;
+      div.innerHTML = `<div class="cmeta"><span>${esc(selectedVoice)}</span><span>x${$('voice-speed').value}</span>
+          <span>${new Date().toLocaleTimeString()}</span><a href="${esc(url)}" download="tts.wav" class="text-cyan">download</a></div>
+        <div class="mono-xs text-dim">${esc(text.slice(0,120))}</div>
+        <audio controls src="${esc(url)}"></audio>`;
+      $('clips').prepend(div);
+      const audio = div.querySelector('audio');
+      const revoke = () => { URL.revokeObjectURL(url); };
+      audio.addEventListener('ended', revoke, { once: true });
+      audio.addEventListener('abort', revoke, { once: true });
+      audio.play();
+    } catch (err) { alert('TTS failed: ' + err.message); }
+    finally {
+      setLoading($('voice-gen'), false);
+    }
+  });
 
 /* ============ studio ============ */
 $('comfy-embed-btn').addEventListener('click', () => {
@@ -881,7 +1213,7 @@ $('comfy-embed-btn').addEventListener('click', () => {
   f.scrollIntoView({ behavior:'smooth' });
 });
 
-const PIPELINE_STAGES = ['stage0','stage1','stage1r','stage2','stage3','stage3b','stage4','stage3c','stage5'];
+const PIPELINE_STAGES = ['stage0','stage1','stage1r','stage2','stage3','stage3b','stage3c','stage_vlm_review','stage4','stage5'];
 const DOT_CLASSES = new Set(['pending','running','done','failed','awaiting_approval','not_built']);
 let studioProject = localStorage.getItem('studio-project') || '';
 
@@ -939,7 +1271,7 @@ async function pollStudioStatus() {
     $('studio-project-meta').textContent = `fps ${st.fps} · story_id ${st.story_id.slice(0, 8)}…`;
     PIPELINE_STAGES.forEach(s => {
       const d = $('sdot-' + s);
-      if (!d) return; // stage3c has no card in this UI
+      if (!d) return;
       const info = st.stages[s] || {};
       const status = DOT_CLASSES.has(info.status) ? info.status : 'pending';
       d.className = 'sdot ' + status;
@@ -947,14 +1279,85 @@ async function pollStudioStatus() {
     });
   } catch { /* project may not exist yet / kernel hiccup — skip this tick */ }
 }
-$('stage0-run-btn').addEventListener('click', async () => {
+document.querySelectorAll('.srun').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    if (!studioProject) { alert('create or select a project first'); return; }
+    const stage = btn.dataset.stage;
+    btn.disabled = true; btn.textContent = 'RUNNING…';
+    try {
+      await j('/api/pipeline/' + encodeURIComponent(studioProject) + '/run/' + stage, { method:'POST' });
+    } catch (err) { alert(stage + ' run failed: ' + (err.message || err).slice(0, 300)); }
+    btn.disabled = false; btn.textContent = 'RUN ▶';
+    pollStudioStatus();
+  });
+});
+
+/* ============ stage-artifact viewer ============ */
+const STAGE_TITLES = {
+  stage0: 'STAGE 0 · INTAKE', stage1: 'STAGE 1 · WORLD BIBLE', stage1r: 'STAGE 1R · REFERENCES',
+  stage2: 'STAGE 2 · SCREENPLAY', stage3: 'STAGE 3 · STORYBOARD', stage3b: 'STAGE 3B · IMAGES',
+  stage3c: 'STAGE 3C · ANIMATION', stage_vlm_review: 'VLM REVIEW', stage4: 'STAGE 4 · AUDIO',
+  stage5: 'STAGE 5 · ASSEMBLY',
+};
+const smModal = $('stage-modal'), smBody = $('stage-modal-body'), smTitle = $('stage-modal-title');
+
+function smTags(metrics) {
+  if (!metrics) return '';
+  const m = Object.entries(metrics).map(([k, v]) =>
+    `<span>${esc(k)} <b>${typeof v === 'number' ? v.toLocaleString() : esc(v)}</b></span>`).join('');
+  return m ? `<div class="sm-metrics">${m}</div>` : '';
+}
+function smFile(a) {
+   const src = '/api/pipeline/' + encodeURIComponent(studioProject) + '/file?path=' + encodeURIComponent(a.path);
+   if (a.kind === 'image') return `<div class="sm-item"><img loading="lazy" src="${esc(src)}" alt="${esc(a.name)}"><div class="sm-cap">${esc(a.name)}</div></div>`;
+   if (a.kind === 'video') return `<div class="sm-item"><video controls src="${esc(src)}"></video><div class="sm-cap">${esc(a.name)}</div></div>`;
+   if (a.kind === 'audio') return `<div class="sm-item"><audio controls src="${esc(src)}"></audio><div class="sm-cap">${esc(a.name)}</div></div>`;
+   return '';
+ }
+function smRender(artifacts) {
+  if (!artifacts.length) return '<div class="sm-empty">no artifacts yet for this stage — run it first</div>';
+  const vis = artifacts.filter(a => a.kind !== 'text' && a.kind !== 'json');
+  const docs = artifacts.filter(a => a.kind === 'text' || a.kind === 'json');
+  let html = '';
+  if (vis.length) html += `<div class="sm-grid">${vis.map(smFile).join('')}</div>`;
+  if (docs.length) {
+    html += `<h2 class="pg mb-lg">DOCUMENTS</h2>` + docs.map(a => {
+      // stash the doc path in the pre's data attribute via a placeholder token
+      return `<h3 class="mono-sm text-cyan">${esc(a.name)}</h3><pre class="sm-doc" data-doc-path="${esc(a.path)}">loading…</pre>`;
+    }).join('');
+  }
+  return html || '<div class="sm-empty">no viewable artifacts</div>';
+}
+function smDocUrl(path) {
+  return '/api/pipeline/' + encodeURIComponent(studioProject) + '/file?path=' + encodeURIComponent(path);
+}
+async function loadStageArtifacts(stage, arts) {
+  const st = await j('/api/pipeline/' + encodeURIComponent(studioProject) + '/status');
+  smBody.innerHTML = smTags((st.stages[stage] || {}).metrics) + smRender(arts, stage);
+  await Promise.all([...smBody.querySelectorAll('[data-doc-path]')].map(async pre => {
+    try {
+      const r = await fetch(smDocUrl(pre.dataset.docPath));
+      if (!r.ok) throw new Error();
+      let t = await r.text();
+      if (t.length > 120000) t = t.slice(0, 120000) + '\n…(truncated)';
+      pre.textContent = t;
+    } catch { pre.textContent = '(unable to load document)'; }
+  }));
+}
+function openStageModal(stage) {
   if (!studioProject) { alert('create or select a project first'); return; }
-  $('stage0-run-btn').disabled = true;
-  try {
-    await j('/api/pipeline/' + encodeURIComponent(studioProject) + '/run/stage0', { method:'POST' });
-  } catch (err) { alert('run failed: ' + err.message); }
-  $('stage0-run-btn').disabled = false;
-  pollStudioStatus();
+  smTitle.textContent = STAGE_TITLES[stage] || 'STAGE';
+  smBody.innerHTML = '<div class="sm-empty">loading…</div>';
+  smModal.classList.add('open');
+  j('/api/pipeline/' + encodeURIComponent(studioProject) + '/artifacts')
+    .then(list => loadStageArtifacts(stage, list[stage] || []))
+    .catch(err => { smBody.innerHTML = '<div class="sm-empty">error: ' + esc(err.message) + '</div>'; });
+}
+$('stage-modal-close').addEventListener('click', () => smModal.classList.remove('open'));
+smModal.addEventListener('click', e => { if (e.target === smModal) smModal.classList.remove('open'); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') smModal.classList.remove('open'); });
+document.querySelectorAll('.stage').forEach(card => {
+  card.addEventListener('click', e => { if (e.target.closest('.srun')) return; openStageModal(card.dataset.stage); });
 });
 
 loadStudioProjects().then(pollStudioStatus);

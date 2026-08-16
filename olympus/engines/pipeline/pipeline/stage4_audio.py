@@ -50,6 +50,7 @@ import soundfile as sf
 from .blueprint import Blueprint
 from .config import PipelineConfig
 from .scores import Scores
+from ._util import now_iso
 
 logger = logging.getLogger(__name__)
 
@@ -90,6 +91,9 @@ def _render_tts(text: str, voice: dict[str, Any], base_url: str) -> bytes:
         timeout=120,
     )
     r.raise_for_status()
+    ct = r.headers.get("content-type", "")
+    if "audio" not in ct and "wav" not in ct:
+        raise RuntimeError(f"Voice Studio returned non-audio response: {ct}")
     return r.content
 
 
@@ -103,15 +107,54 @@ def _qc_pass(duration_s: float, word_count: int) -> bool:
     return expected * (1 - _QC_TOLERANCE) <= duration_s <= expected * (1 + _QC_TOLERANCE)
 
 
+def _apply_emotional_delivery(data: np.ndarray, sr: int, delivery: str | None, emotion: str | None) -> np.ndarray:
+    """Apply emotional delivery transforms (design 4.4.2)."""
+    if delivery == "whispered":
+        data = data * 0.5  # -6 dB
+        data = data * 0.92  # speed adjustment via resample would need scipy; approximate with gain
+        # Lowpass 6 kHz - simplified
+        from scipy.signal import butter, filtfilt
+        b, a = butter(4, 6000 / (sr / 2), btype='low')
+        data = filtfilt(b, a, data, axis=0)
+    elif delivery == "shouted":
+        data = data * 1.41  # +3 dB
+        data = np.clip(data, -1.0, 1.0)
+        # Mild compression
+        data = np.sign(data) * (1 - np.exp(-2 * np.abs(data)))
+    elif delivery == "trailing_off":
+        fade_len = int(sr * 0.4)  # 400 ms
+        if len(data) > fade_len:
+            fade = np.linspace(1.0, 0.0, fade_len)
+            if data.ndim > 1:
+                fade = fade[:, np.newaxis]
+            data[-fade_len:] *= fade
+    elif delivery == "cutting_in":
+        # Trim leading silence
+        if data.ndim == 1:
+            nonzero = np.where(np.abs(data) > 0.01)[0]
+        else:
+            nonzero = np.where(np.abs(data).max(axis=1) > 0.01)[0]
+        if len(nonzero) > 0:
+            data = data[nonzero[0]:]
+    elif delivery == "inner_thought" or emotion == "thought":
+        data = data * 0.707  # -3 dB
+        # Simple reverb approximation
+        delay = int(sr * 0.03)  # 30ms
+        if len(data) > delay:
+            wet = np.zeros_like(data)
+            wet[delay:] = data[:-delay] * 0.12
+            data = data + wet
+    return data
+
+
 def _process_and_save(
     wav_bytes: bytes, out_path: Path, pause_before_ms: int, audio_thought: bool,
+    delivery: str | None = None, emotion: str | None = None,
 ) -> float:
-    """Prepend leading silence for ``pause_before_ms`` and apply the -3 dB
-    thought-line gain cut, then write the wav. Returns the total duration
-    (pause included) in seconds."""
+    """Prepend leading silence for ``pause_before_ms``, apply emotional
+    delivery transforms, then write the wav. Returns total duration (pause included)."""
     data, sr = sf.read(io.BytesIO(wav_bytes), dtype="float32")
-    if audio_thought:
-        data = data * _THOUGHT_GAIN
+    data = _apply_emotional_delivery(data, sr, delivery, emotion)
     if pause_before_ms > 0:
         pad_len = int(sr * pause_before_ms / 1000)
         pad = np.zeros((pad_len,) + data.shape[1:], dtype=data.dtype)
@@ -147,8 +190,21 @@ def _render_and_qc(
             logger.warning("%s: duration QC still failing after re-render - flagging", label)
             flagged = True
 
-    total = _process_and_save(wav_bytes, out_path, pause_before_ms, audio_thought)
-    return total, flagged
+    # Map emotion to delivery type
+        delivery = None
+        if audio_thought:
+            delivery = "inner_thought"
+        elif emotion in ("whispered", "whisper"):
+            delivery = "whispered"
+        elif emotion in ("shouted", "shout", "yell", "scream"):
+            delivery = "shouted"
+        elif emotion in ("trailing_off", "trail_off", "fade"):
+            delivery = "trailing_off"
+        elif emotion in ("cutting_in", "cut_in", "interrupt"):
+            delivery = "cutting_in"
+
+        total = _process_and_save(wav_bytes, out_path, pause_before_ms, audio_thought, delivery, emotion)
+        return total, flagged
 
 
 # --------------------------------------------------------------------------
@@ -213,17 +269,15 @@ def _write_alignment(aligner: _Aligner, wav_path: Path, transcript: str, align_p
 # --------------------------------------------------------------------------
 # main entry point
 # --------------------------------------------------------------------------
-def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
 
 
-def run(project_dir: str | Path, config: PipelineConfig, scores: Scores) -> dict[str, Any]:
+def run(project_dir: str | Path, config: PipelineConfig, scores: Scores, force: bool = False) -> dict[str, Any]:
     project_dir = Path(project_dir)
     base_url = _VOICE_STUDIO_URL
     if not _voice_studio_healthy(base_url):
         raise RuntimeError(
-            f"Voice Studio is not reachable at {base_url} - start Voice Studio first "
-            "(cd olympus/engines/voice && start.bat)."
+            f"Voice Studio is not reachable at {base_url} - "
+            "systemctl --user start voice-studio.service"
         )
 
     screenplay_path = project_dir / "screenplay" / "screenplay.json"
@@ -252,9 +306,15 @@ def run(project_dir: str | Path, config: PipelineConfig, scores: Scores) -> dict
             if narration:
                 text = narration["text"]
                 wav_path = narration_dir / f"{shot_id}.wav"
-                duration, flagged = _render_and_qc(
-                    text, narrator_voice, wav_path, 0, False, base_url, f"narration {shot_id}",
-                )
+                if force or not wav_path.exists():
+                    duration, flagged = _render_and_qc(
+                        text, narrator_voice, wav_path, 0, False, base_url, f"narration {shot_id}",
+                    )
+                else:
+                    # reuse existing wav length (resume-safe)
+                    data, sr = sf.read(wav_path)
+                    duration = len(data) / sr
+                    flagged = False
                 durations.append(duration)
                 lines_rendered += 1
                 qc_flags += int(flagged)
@@ -272,10 +332,15 @@ def run(project_dir: str | Path, config: PipelineConfig, scores: Scores) -> dict
                     voice = narrator_voice
                 text = line["text"]
                 wav_path = dialogue_dir / f"{shot_id}_{n}.wav"
-                duration, flagged = _render_and_qc(
-                    text, voice, wav_path, line.get("pause_before_ms", 0),
-                    line.get("audio_thought", False), base_url, f"dialogue {shot_id}_{n}",
-                )
+                if force or not wav_path.exists():
+                    duration, flagged = _render_and_qc(
+                        text, voice, wav_path, line.get("pause_before_ms", 0),
+                        line.get("audio_thought", False), base_url, f"dialogue {shot_id}_{n}",
+                    )
+                else:
+                    data, sr = sf.read(wav_path)
+                    duration = len(data) / sr
+                    flagged = False
                 durations.append(duration)
                 lines_rendered += 1
                 qc_flags += int(flagged)
@@ -298,7 +363,7 @@ def run(project_dir: str | Path, config: PipelineConfig, scores: Scores) -> dict
 
     bp = Blueprint.load(project_dir)
     bp.stages["stage4"].status = "done"
-    bp.stages["stage4"].ts = _now_iso()
+    bp.stages["stage4"].ts = now_iso()
     bp.write(project_dir)
 
     return {

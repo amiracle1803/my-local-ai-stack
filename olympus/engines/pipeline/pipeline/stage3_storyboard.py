@@ -28,6 +28,8 @@ from .blueprint import Blueprint
 from .config import ENGINE_ROOT, PipelineConfig
 from .llm import PipelineLLM
 from .scores import Scores
+from ._util import now_iso
+from .video_metrics import location_diversity
 
 logger = logging.getLogger(__name__)
 
@@ -88,29 +90,44 @@ def assign_motion(
     """Motion tiers (design 3C.1): Tier 1 floor, Tier 2 for action shots,
     Tier 3 for lipsync close-ups -- capped by max_animated_seconds_per_block
     (overflow degrades to Tier 0 oscillating drift, the designed degradation
-    path). Tier 1-2 shots get a motion prompt."""
+    path). Tier 1-2 shots get a motion prompt.
+
+    M-AP-5 (2026-08-09): Adds motion_tier_reason provenance field to each shot
+    for audit trail -- why a shot was Tier 1 vs Tier 2 (composition cue? 
+    camera_movement field? motion-budget heuristics?).
+    """
     tiers: dict[str, int] = {}
+    tier_reasons: dict[str, str] = {}
     by_id = {s["id"]: s for s in shots}
     for block in blocks:
         budget = config.animation.max_animated_seconds_per_block
         for sid in block["shots"]:
             shot = by_id[sid]
+            reason_parts = []
             if shot.get("lipsync"):
                 tier = 3
+                reason_parts.append("lip-sync dialogue")
             elif shot["shot_type"] == "action":
                 tier = 2
+                reason_parts.append("action shot_type")
             else:
                 tier = config.animation.default_motion_tier
+                reason_parts.append(f"default tier {tier}")
             dur = estimate_shot_seconds(shot)
             if tier >= 1 and budget - dur < 0:
                 tier = 0  # budget exhausted -> clean drift hold
+                reason_parts.append("motion budget exhausted")
             elif tier >= 1:
                 budget -= dur
+                reason_parts.append(f"budget remaining {budget:.1f}s")
             tiers[sid] = tier
+            tier_reasons[sid] = "; ".join(reason_parts)
 
     for sid, tier in tiers.items():
         shot = by_id[sid]
         shot["motion_tier"] = tier
+        # M-AP-5: Record the reason for this tier assignment
+        shot["motion_tier_reason"] = tier_reasons.get(sid, "")
         if tier in (1, 2):
             shot["motion_prompt"] = llm.complete_text(
                 "s3_motion_prompt.md",
@@ -133,14 +150,12 @@ def tag_sfx(shots: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for shot in shots:
         blob = f"{shot['beat']} {shot['movement']}".lower()
         for keyword, sound in _SFX_MAP.items():
-            if re.search(rf"\b{keyword}", blob):
+            if re.search(rf"\b{keyword}\b", blob):
                 sfx.append({"shot": shot["id"], "sound": sound, "keyword": keyword})
                 break
     return sfx
 
 
-def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
 
 
 def run(
@@ -150,20 +165,67 @@ def run(
     *,
     llm: PipelineLLM | None = None,
 ) -> dict[str, Any]:
+    """Stage 3 -- STORYBOARD (design section 4 / Stage 3).
+
+    Reads:  worldbible/world_bible.json, references/references.json, input/script.txt
+    Writes: storyboard/storyboard.json  (scenes + shots + blocks, NO narration/dialogue yet)
+
+    The scene segmentation, shot planning, and SD-prompt assembly use reference
+    images (character refs, location refs, asset style refs) as context so that
+    the storyboard reflects the actual visual references. This gives downstream
+    stage2 (screenplay) and stage3b (panels) a solid structural + visual skeleton.
+    """
     project_dir = Path(project_dir)
-    screenplay = json.loads(
-        (project_dir / "screenplay" / "screenplay.json").read_text(encoding="utf-8")
+    # Imports inside run() to avoid a circular import (stage2 imports tag_sfx
+    # from this module).
+    from .stage2_screenplay import (
+        segment_scenes, plan_shots, assemble_sd_prompt, Stage2Error,
     )
+    from .schemas.worldbible import WorldBible
+    wb = WorldBible.model_validate_json(
+        (project_dir / "worldbible" / "world_bible.json").read_text(encoding="utf-8")
+    )
+    # Load references (stage1r output) for visual context
+    refs_path = project_dir / "references" / "references.json"
+    references = {}
+    if refs_path.exists():
+        references = json.loads(refs_path.read_text(encoding="utf-8"))
+    else:
+        logger.warning("references/references.json not found - running without visual context")
+    script_text = (project_dir / "input" / "script.txt").read_text(encoding="utf-8")
     bp = Blueprint.load(project_dir)
     if llm is None:
         llm = PipelineLLM(config, prompts_dir=PROMPTS_DIR, logs_dir=project_dir / "logs")
 
-    shots = [shot for scene in screenplay["scenes"] for shot in scene["shots"]]
+    # --- scene segmentation + shot planning (moved from old stage2) ---
+    scenes = segment_scenes(script_text, wb, llm, references=references)
+    if not scenes:
+        raise Stage2Error("scene segmentation produced no scenes")
+
+    for i, scene in enumerate(scenes, 1):
+        scene["shots"] = plan_shots(scene, i, len(scenes), wb, llm, references=references)
+    total_shots = sum(len(s["shots"]) for s in scenes)
+    if not 20 <= total_shots <= 60:
+        logger.warning("shot count %d outside the 20-60 band (original spec warns)", total_shots)
+
+    for scene in scenes:
+        for shot in scene["shots"]:
+            shot["sd_prompt"] = assemble_sd_prompt(shot, scene, wb, references=references)
+
+    shots = [shot for scene in scenes for shot in scene["shots"]]
     max_block_seconds = float(bp.target.max_block_seconds)  # design 3.1
 
-    blocks = partition_blocks(shots, max_block_seconds)
+    # --- per-scene block partitioning (first/ending/infill per scene) ---
+    blocks: list[dict[str, Any]] = []
+    for scene in scenes:
+        scene_blocks = partition_blocks(scene["shots"], max_block_seconds)
+        for b in scene_blocks:
+            b["id"] = f"blk-{len(blocks) + 1:03d}"
+            b["scene_id"] = scene["id"]
+            blocks.append(b)
+
+    # --- motion tier assignment (still done here so blocks have tiers) ---
     tiers = assign_motion(shots, config, blocks, llm)
-    sfx = tag_sfx(shots)
 
     est_total = sum(b["est_seconds"] for b in blocks)
     if est_total > 11 * 3600:
@@ -172,6 +234,7 @@ def run(
     storyboard = {
         "story_id": bp.story_id,
         "fps": bp.fps,
+        "scenes": scenes,           # scenes+shots now live in storyboard (structural)
         "blocks": blocks,
         "panels": {
             s["id"]: {"status": "pending", "locked_by": None, "issues": []} for s in shots
@@ -184,7 +247,6 @@ def run(
             }
             for s in shots
         },
-        "sfx": sfx,
         "estimated_duration_s": round(est_total, 1),
     }
     out_dir = project_dir / "storyboard"
@@ -192,27 +254,45 @@ def run(
     out_path = out_dir / "storyboard.json"
     out_path.write_text(json.dumps(storyboard, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    # Screenplay gains motion fields -- persist the enrichment.
-    (project_dir / "screenplay" / "screenplay.json").write_text(
-        json.dumps(screenplay, indent=2, ensure_ascii=False), encoding="utf-8"
-    )
+    # Write the freshly-assembled sd_prompts back to screenplay.json so
+    # stage3b reads the NO_TEXT_TAIL-expanded prompts (krea2 / qwen3vl will
+    # otherwise render JP signage when manga is in the prompt).
+    screenplay_path = project_dir / "screenplay" / "screenplay.json"
+    if screenplay_path.exists():
+        sp = json.loads(screenplay_path.read_text(encoding="utf-8"))
+        new_prompts = {
+            shot["id"]: shot["sd_prompt"]
+            for scene in scenes for shot in scene["shots"]
+        }
+        for sp_scene in sp.get("scenes", []):
+            for sp_shot in sp_scene.get("shots", []):
+                if sp_shot.get("id") in new_prompts:
+                    sp_shot["sd_prompt"] = new_prompts[sp_shot["id"]]
+        screenplay_path.write_text(json.dumps(sp, indent=2, ensure_ascii=False), encoding="utf-8")
 
     tier_counts = {t: sum(1 for v in tiers.values() if v == t) for t in (0, 1, 2, 3)}
+    loc_div = location_diversity(scenes)
+    if loc_div < 0.5:
+        logger.warning(
+            "location_diversity %.2f: most scenes share one location - the "
+            "'weak world' complaint. Enrich the world bible before ship.",
+            loc_div,
+        )
     scores.record("stage3", "global", "block_count", float(len(blocks)))
     scores.record("stage3", "global", "estimated_duration_s", est_total)
-    scores.record("stage3", "global", "sfx_tags", float(len(sfx)))
+    scores.record("stage3", "global", "location_diversity", loc_div)
     for t, n in tier_counts.items():
         scores.record("stage3", "global", f"tier{t}_shots", float(n))
     scores.stage_done("stage3")
 
     bp.stages["stage3"].status = "done"
-    bp.stages["stage3"].ts = _now_iso()
+    bp.stages["stage3"].ts = now_iso()
     bp.write(project_dir)
 
     return {
         "stage": "stage3", "status": "done",
-        "blocks": len(blocks), "shots": len(shots),
+        "scenes": len(scenes), "blocks": len(blocks), "shots": total_shots,
         "estimated_duration_s": round(est_total, 1),
-        "motion_tiers": tier_counts, "sfx_tags": len(sfx),
+        "motion_tiers": tier_counts,
         "storyboard_path": str(out_path),
     }

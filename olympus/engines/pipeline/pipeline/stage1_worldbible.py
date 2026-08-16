@@ -58,6 +58,7 @@ from .schemas.worldbible import (
     WorldBibleMeta,
 )
 from .scores import Scores
+from ._util import now_iso
 
 logger = logging.getLogger(__name__)
 
@@ -356,12 +357,15 @@ def _enforce_sd_prompt(
 # ---- FIX 4: voice assignment (LLM-suggested, code-enforced uniqueness) -----
 # Original spec Step 2 "Voice ID assignment logic". The LLM suggests a voice id
 # from the table (baked into the profile prompt); code guarantees uniqueness.
+# Voice IDs must be drawn only from the Kokoro catalog installed in Voice
+# Studio (/api/voices): af_heart af_bella af_nicole af_sarah af_sky,
+# am_adam am_michael, bf_emma bf_isabella, bm_george bm_lewis.
 _VOICE_CANDIDATES: dict[tuple[str, str], tuple[str, ...]] = {
-    ("male", "formal_deep"): ("am_eric", "am_onyx"),
-    ("male", "young_energetic"): ("am_adam", "am_puck"),
-    ("male", "villain_grave"): ("am_michael", "am_fenrir"),
-    ("female", "protagonist_warm"): ("af_heart", "af_nova"),
-    ("female", "cool_analytical"): ("af_jessica", "af_kore"),
+    ("male", "formal_deep"): ("am_michael", "bm_george"),
+    ("male", "young_energetic"): ("am_adam", "bm_lewis"),
+    ("male", "villain_grave"): ("bm_george", "am_michael"),
+    ("female", "protagonist_warm"): ("af_heart", "af_sky"),
+    ("female", "cool_analytical"): ("af_sarah", "af_nicole"),
     ("female", "narrator_style"): ("af_bella", "af_nicole"),
     ("male", "british"): ("bm_george", "bm_lewis"),
     ("female", "british"): ("bf_emma", "bf_isabella"),
@@ -388,9 +392,14 @@ _FEMALE_PRONOUN_RE = re.compile(r"\bshe\b|\bher\b|\bhers\b", re.IGNORECASE)
 
 def _infer_gender(context: str) -> str:
     """Pronoun-count heuristic (local voice-assignment signal only; not a
-    persisted field)."""
+    persisted field). On ties, defaults to 'male' -- voice candidates require
+    a gender key; this is a logged deviation, not a semantic claim."""
     male = len(_MALE_PRONOUN_RE.findall(context))
     female = len(_FEMALE_PRONOUN_RE.findall(context))
+    if male == female and male == 0:
+        logger.debug("_infer_gender: no pronouns found, defaulting to male")
+    elif male == female:
+        logger.debug("_infer_gender: tie (%d each), defaulting to male", male)
     return "female" if female > male else "male"
 
 
@@ -574,8 +583,6 @@ def extract_profiles(
 # --------------------------------------------------------------------------
 # main entry point
 # --------------------------------------------------------------------------
-def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
 
 
 def run(
@@ -603,7 +610,7 @@ def run(
     wb = WorldBible(
         story_id=bp.story_id,
         characters=profiles,
-        meta=WorldBibleMeta(generated_at=_now_iso(), scanned_names=scanned_names),
+        meta=WorldBibleMeta(generated_at=now_iso(), scanned_names=scanned_names),
     )
 
     out_dir = project_dir / "worldbible"
@@ -616,10 +623,10 @@ def run(
     scores.record("stage1", "global", "characters_found", float(len(profiles)))
 
     bp.stages["stage1"].status = "running"
-    bp.stages["stage1"].ts = _now_iso()
+    bp.stages["stage1"].ts = now_iso()
     bp.write(project_dir)
 
-    print(
+    logger.info(
         "[stage1] partial world bible written (characters only) -- world/lore "
         "extraction, contradiction detection, and creative expansion (M2b) are "
         "still pending; stage1 is not yet marked done."

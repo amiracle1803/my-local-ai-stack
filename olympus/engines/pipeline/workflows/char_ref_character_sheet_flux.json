@@ -1,0 +1,121 @@
+{
+  "1": {
+    "class_type": "UnetLoaderGGUF",
+    "_meta": {
+      "title": "UNET",
+      "note": "Flux1-schnell GGUF - lighter than krea2 for 8GB VRAM character reference generation."
+    },
+    "inputs": {
+      "unet_name": "flux1-schnell-Q4_K_S.gguf"
+    }
+  },
+  "2": {
+    "class_type": "DualCLIPLoader",
+    "_meta": {
+      "title": "CLIP",
+      "note": "Flux needs two text encoders: clip_l (short tags) + t5xxl fp8 (long natural-language prompts)."
+    },
+    "inputs": {
+      "clip_name1": "clip_l.safetensors",
+      "clip_name2": "t5xxl_fp8_e4m3fn.safetensors",
+      "type": "flux",
+      "device": "default"
+    }
+  },
+  "3": {
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "VAE",
+      "note": "Flux autoencoder (ae.safetensors) for encode/decode."
+    },
+    "inputs": {
+      "vae_name": "ae.safetensors"
+    }
+  },
+  "4": {
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "PROMPT_POS",
+      "note": "Character description + pose details. Assembled from world bible specs."
+    },
+    "inputs": {
+      "clip": ["2", 0],
+      "text": "PATCH_PROMPT"
+    }
+  },
+  "5": {
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "PROMPT_NEG",
+      "note": "Negative prompt for flux guidance."
+    },
+    "inputs": {
+      "clip": ["2", 0],
+      "text": "blurry, low quality, low contrast, flat, washed out, dark, underexposed, noise, grain, oversaturated, cartoon, childish, ugly, text, watermark, signature, extra limbs, deformed"
+    }
+  },
+  "6": {
+    "class_type": "EmptySD3LatentImage",
+    "_meta": {
+      "title": "LATENT",
+      "note": "16-channel latent. Portrait orientation 512x768 for character refs."
+    },
+    "inputs": {
+      "width": 512,
+      "height": 768,
+      "batch_size": 1
+    }
+  },
+  "7": {
+    "class_type": "FluxGuidance",
+    "_meta": {
+      "title": "GUIDANCE",
+      "note": "Flux's distilled-guidance knob (not classic CFG). 3.5 is standard."
+    },
+    "inputs": {
+      "conditioning": ["4", 0],
+      "guidance": 3.5
+    }
+  },
+  "8": {
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "SAMPLER",
+      "note": "Flux schnell recipe: euler, 4 steps, cfg 1.0, guidance 3.5."
+    },
+    "inputs": {
+      "model": ["1", 0],
+      "positive": ["7", 0],
+      "negative": ["5", 0],
+      "latent_image": ["6", 0],
+      "seed": 0,
+      "steps": 4,
+      "cfg": 1.0,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1.0
+    }
+  },
+  "9": {
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "DECODE",
+      "note": "Decodes the latent back to RGB via Flux VAE."
+    },
+    "inputs": {
+      "samples": ["8", 0],
+      "vae": ["3", 0]
+    }
+  },
+  "10": {
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "SAVE",
+      "note": "Writes character ref PNG."
+    },
+    "inputs": {
+      "images": ["9", 0],
+      "filename_prefix": "pipeline/char_ref"
+    }
+  }
+}

@@ -1,0 +1,402 @@
+{
+ "1": {
+  "class_type": "UnetLoaderGGUF",
+  "_meta": {
+   "title": "UNET_KREA2",
+   "note": "Stage 3B image model: krea2-turbo Q4_K_S GGUF. Used for both the scene plate and the per-shot panel."
+  },
+  "inputs": {
+   "unet_name": "krea2_turbo-Q4_K_S.gguf"
+  }
+ },
+ "2": {
+  "class_type": "CLIPLoader",
+  "_meta": {
+   "title": "CLIP_KREA2",
+   "note": "Qwen3-VL-4B fp8_scaled text encoder for krea2."
+  },
+  "inputs": {
+   "clip_name": "qwen3vl_4b_fp8_scaled.safetensors",
+   "type": "krea2",
+   "device": "default"
+  }
+ },
+ "3": {
+  "class_type": "VAELoader",
+  "_meta": {
+   "title": "VAE_QWEN_IMAGE",
+   "note": "Qwen-Image VAE (16-channel latent) for krea2 decode."
+  },
+  "inputs": {
+   "vae_name": "qwen_image_vae.safetensors"
+  }
+ },
+ "11": {
+  "class_type": "CLIPTextEncode",
+  "_meta": {
+   "title": "PROMPT_POS_PANEL",
+   "note": "[STAGE 3B Panel] The assembled 120-word sd_prompt + env tokens + character count clause. Patched per shot by ComfyClient. In the UI type a test prompt here."
+  },
+  "inputs": {
+   "clip": ["2", 0],
+   "text": "PATCH_PROMPT_POS"
+  }
+ },
+ "12": {
+  "class_type": "ConditioningZeroOut",
+  "_meta": {
+   "title": "NEG_ZEROOUT",
+   "note": "krea2-Turbo is CFG-distilled (cfg=1.0); negative = zero-out of positive."
+  },
+  "inputs": {
+   "conditioning": ["11", 0]
+  }
+ },
+ "13": {
+  "class_type": "EmptySD3LatentImage",
+  "_meta": {
+   "title": "LATENT_PANEL",
+   "note": "16-channel latent for Qwen-Image VAE. 1024x576 for 8GB VRAM safety."
+  },
+  "inputs": {
+   "width": 1024,
+   "height": 576,
+   "batch_size": 1
+  }
+ },
+ "14": {
+  "class_type": "KSampler",
+  "_meta": {
+   "title": "SAMPLER_PANEL",
+   "note": "[STAGE 3B] krea2-turbo: euler/simple, 8 steps, cfg 1.0, denoise 1.0."
+  },
+  "inputs": {
+   "model": ["1", 0],
+   "positive": ["11", 0],
+   "negative": ["12", 0],
+   "latent_image": ["13", 0],
+   "seed": 42,
+   "steps": 8,
+   "cfg": 1,
+   "sampler_name": "euler",
+   "scheduler": "simple",
+   "denoise": 1
+  }
+ },
+ "15": {
+  "class_type": "VAEDecode",
+  "_meta": {
+   "title": "DECODE_PANEL",
+   "note": "Latent to RGB via Qwen-Image VAE."
+  },
+  "inputs": {
+   "samples": ["14", 0],
+   "vae": ["3", 0]
+  }
+ },
+ "16": {
+  "class_type": "SaveImage",
+  "_meta": {
+   "title": "SAVE_PANEL",
+   "note": "[STAGE 3B output] PNG written to ComfyUI output. ComfyClient copies to project panels/block/shot_id.png"
+  },
+  "inputs": {
+   "images": ["15", 0],
+   "filename_prefix": "pipeline/panel"
+  }
+ },
+ "20": {
+  "class_type": "CLIPTextEncode",
+  "_meta": {
+   "title": "PROMPT_POS_PLATE",
+   "note": "[STAGE 3B Scene Plate] Background-only location master plate prompt. No characters."
+  },
+  "inputs": {
+   "clip": ["2", 0],
+   "text": "PATCH_LOCATION_PROMPT, no humans, empty scene"
+  }
+ },
+ "21": {
+  "class_type": "ConditioningZeroOut",
+  "_meta": {
+   "title": "NEG_ZEROOUT_PLATE"
+  },
+  "inputs": {
+   "conditioning": ["20", 0]
+  }
+ },
+ "22": {
+  "class_type": "EmptySD3LatentImage",
+  "_meta": {
+   "title": "LATENT_PLATE",
+   "note": "Scene plate latent."
+  },
+  "inputs": {
+   "width": 1024,
+   "height": 576,
+   "batch_size": 1
+  }
+ },
+ "23": {
+  "class_type": "KSampler",
+  "_meta": {
+   "title": "SAMPLER_PLATE",
+   "note": "[STAGE 3B Scene Plate] Same krea2 recipe. SEED from hash(scene_id)."
+  },
+  "inputs": {
+   "model": ["1", 0],
+   "positive": ["20", 0],
+   "negative": ["21", 0],
+   "latent_image": ["22", 0],
+   "seed": 99,
+   "steps": 8,
+   "cfg": 1,
+   "sampler_name": "euler",
+   "scheduler": "simple",
+   "denoise": 1
+  }
+ },
+ "24": {
+  "class_type": "VAEDecode",
+  "_meta": {
+   "title": "DECODE_PLATE"
+  },
+  "inputs": {
+   "samples": ["23", 0],
+   "vae": ["3", 0]
+  }
+ },
+ "25": {
+  "class_type": "SaveImage",
+  "_meta": {
+   "title": "SAVE_PLATE",
+   "note": "[STAGE 3B plate] Written to project panels/block/_plates/scene_id.png"
+  },
+  "inputs": {
+   "images": ["24", 0],
+   "filename_prefix": "pipeline/plate"
+  }
+ },
+ "30": {
+  "class_type": "UnetLoaderGGUF",
+  "_meta": {
+   "title": "UNET_LTX23",
+   "note": "[STAGE 3C] LTX-2.3 22B distilled Q4_K_M GGUF image-to-video model."
+  },
+  "inputs": {
+   "unet_name": "ltx-2.3-22b-distilled-1.1-Q4_K_M.gguf"
+  }
+ },
+ "31": {
+  "class_type": "DualCLIPLoaderGGUF",
+  "_meta": {
+   "title": "CLIP_LTX23",
+   "note": "LTX-2.3 dual text encoder: Gemma-3-12B QAT Q3 + LTX text projection."
+  },
+  "inputs": {
+   "clip_name1": "gemma-3-12b-it-qat-UD-Q3_K_XL.gguf",
+   "clip_name2": "ltx-2.3_text_projection_bf16.safetensors",
+   "type": "ltxv"
+  }
+ },
+ "32": {
+  "class_type": "VAELoaderKJ",
+  "_meta": {
+   "title": "VAE_LTX23",
+   "note": "LTX-2.3 video VAE bf16."
+  },
+  "inputs": {
+   "vae_name": "LTX23_video_vae_bf16.safetensors",
+   "device": "main_device",
+   "weight_dtype": "bf16"
+  }
+ },
+ "33": {
+  "class_type": "CLIPTextEncode",
+  "_meta": {
+   "title": "MOTION_PROMPT",
+   "note": "[STAGE 3C] Motion prompt. Patched per shot with motion_prompt from storyboard.json."
+  },
+  "inputs": {
+   "text": "anime scene, gentle camera pan, warm lighting",
+   "clip": ["31", 0]
+  }
+ },
+ "34": {
+  "class_type": "EmptyLTXVLatentVideo",
+  "_meta": {
+   "title": "LATENT_VIDEO",
+   "note": "[STAGE 3C] 768x448 landscape x 97 frames at 24fps = ~4s clip."
+  },
+  "inputs": {
+   "width": 768,
+   "height": 448,
+   "batch_size": 1,
+   "length": 97
+  }
+ },
+ "35": {
+  "class_type": "LTXVScheduler",
+  "_meta": {
+   "title": "LTX_SIGMAS",
+   "note": "8 turbo steps, max_shift 4.0, base_shift 0.15."
+  },
+  "inputs": {
+   "steps": 8,
+   "max_shift": 4,
+   "base_shift": 0.15,
+   "stretch": true,
+   "terminal": 0.1
+  }
+ },
+ "36": {
+  "class_type": "RandomNoise",
+  "_meta": {
+   "title": "NOISE",
+   "note": "Noise source. SEED patched per shot."
+  },
+  "inputs": {
+   "noise_seed": 42
+  }
+ },
+ "37": {
+  "class_type": "SamplerEulerAncestral",
+  "_meta": {
+   "title": "SAMPLER_LTX",
+   "note": "Euler ancestral for LTX video."
+  },
+  "inputs": {
+   "eta": 0,
+   "s_noise": 1
+  }
+ },
+ "38": {
+  "class_type": "LoadImage",
+  "_meta": {
+   "title": "START_FRAME",
+   "note": "[STAGE 3C] Panel PNG from Stage 3B loaded as i2v start frame. Browse to a panel in the UI."
+  },
+  "inputs": {
+   "image": "sh-001-01.png"
+  }
+ },
+ "39": {
+  "class_type": "LTXVPreprocess",
+  "_meta": {
+   "title": "PREPROCESS_FRAME",
+   "note": "Preprocess start frame for LTX conditioning."
+  },
+  "inputs": {
+   "image": ["38", 0],
+   "width": 768,
+   "height": 448,
+   "img_compression": 35
+  }
+ },
+ "40": {
+  "class_type": "LTXVAddGuide",
+  "_meta": {
+   "title": "ADD_GUIDE",
+   "note": "Add start-frame image guide strength 0.9."
+  },
+  "inputs": {
+   "positive": ["33", 0],
+   "negative": ["33", 0],
+   "vae": ["32", 0],
+   "latent": ["34", 0],
+   "image": ["39", 0],
+   "frame_idx": 0,
+   "strength": 0.9
+  }
+ },
+ "41": {
+  "class_type": "STGAdvancedPresets",
+  "_meta": {
+   "title": "STG_PRESET",
+   "note": "STG preset: 13B Distilled."
+  },
+  "inputs": {
+   "preset": "13b Distilled"
+  }
+ },
+ "42": {
+  "class_type": "STGGuiderAdvanced",
+  "_meta": {
+   "title": "LTX_GUIDER",
+   "note": "STG advanced guider wrapping LTX model with guide conditioning."
+  },
+  "inputs": {
+   "model": ["30", 0],
+   "positive": ["40", 0],
+   "negative": ["40", 1],
+   "skip_steps_sigma_threshold": 0.1,
+   "cfg_star_rescale": false,
+   "sigmas": "",
+   "cfg_values": "",
+   "stg_scale_values": "",
+   "stg_rescale_values": "",
+   "stg_layers_indices": "",
+   "preset": ["41", 0],
+   "apply_apg": false,
+   "apg_cfg_scale": 1,
+   "eta": 0,
+   "norm_threshold": 0
+  }
+ },
+ "43": {
+  "class_type": "LTXVTiledSampler",
+  "_meta": {
+   "title": "LTX_TILED_SAMPLER",
+   "note": "[STAGE 3C core] Tiled video sampler. 1x1 tiles on 8GB."
+  },
+  "inputs": {
+   "model": ["30", 0],
+   "vae": ["32", 0],
+   "noise": ["36", 0],
+   "sampler": ["37", 0],
+   "sigmas": ["35", 0],
+   "guider": ["42", 0],
+   "latents": ["40", 2],
+   "horizontal_tiles": 1,
+   "vertical_tiles": 1,
+   "overlap": 8,
+   "latents_cond_strength": 0.5,
+   "boost_latent_similarity": false,
+   "crop": "disabled"
+  }
+ },
+ "44": {
+  "class_type": "LTXVSpatioTemporalTiledVAEDecode",
+  "_meta": {
+   "title": "LTX_VAE_DECODE",
+   "note": "Spatio-temporal tiled VAE decode. 2 spatial tiles, temporal 32. CPU device saves VRAM."
+  },
+  "inputs": {
+   "vae": ["32", 0],
+   "latents": ["43", 0],
+   "spatial_tiles": 2,
+   "spatial_overlap": 2,
+   "temporal_tile_length": 32,
+   "temporal_overlap": 4,
+   "last_frame_fix": false,
+   "working_device": "cpu",
+   "working_dtype": "float16"
+  }
+ },
+ "45": {
+  "class_type": "VHS_VideoCombine",
+  "_meta": {
+   "title": "SAVE_VIDEO",
+   "note": "[STAGE 3C output] MP4 clip. Stage 5 ffmpeg concatenates all clips into final.mp4."
+  },
+  "inputs": {
+   "images": ["44", 0],
+   "frame_rate": 24,
+   "loop_count": 0,
+   "filename_prefix": "pipeline/animation",
+   "format": "video/h264-mp4",
+   "pingpong": false,
+   "save_output": true
+  }
+ }
+}

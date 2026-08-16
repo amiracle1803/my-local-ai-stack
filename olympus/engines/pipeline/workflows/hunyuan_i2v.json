@@ -1,0 +1,229 @@
+{
+ "1": {
+  "class_type": "UnetLoaderGGUF",
+  "_meta": {
+   "title": "HY_MODEL"
+  },
+  "inputs": {
+   "unet_name": "hunyuan-video-i2v-720p-Q4_K_M.gguf"
+  }
+ },
+ "2": {
+  "class_type": "DualCLIPLoader",
+  "_meta": {
+   "title": "HY_TE"
+  },
+  "inputs": {
+   "clip_name1": "clip_l.safetensors",
+   "clip_name2": "llava_llama3_fp8_scaled.safetensors",
+   "type": "hunyuan_video"
+  }
+ },
+ "3": {
+  "class_type": "CLIPVisionLoader",
+  "_meta": {
+   "title": "HY_CV"
+  },
+  "inputs": {
+   "clip_name": "llava_llama3_vision.safetensors"
+  }
+ },
+ "4": {
+  "class_type": "VAELoader",
+  "_meta": {
+   "title": "HY_VAE"
+  },
+  "inputs": {
+   "vae_name": "hunyuan_video_vae_bf16.safetensors"
+  }
+ },
+ "5": {
+  "class_type": "LoadImage",
+  "_meta": {
+   "title": "START_FRAME"
+  },
+  "inputs": {
+   "image": "sh-001-01.png"
+  }
+ },
+ "6": {
+  "class_type": "CLIPVisionEncode",
+  "inputs": {
+   "clip_vision": [
+    "3",
+    0
+   ],
+   "image": [
+    "5",
+    0
+   ],
+   "crop": "none"
+  }
+ },
+ "7": {
+  "class_type": "TextEncodeHunyuanVideo_ImageToVideo",
+  "_meta": {
+   "title": "MOTION_PROMPT"
+  },
+  "inputs": {
+   "clip": [
+    "2",
+    0
+   ],
+   "clip_vision_output": [
+    "6",
+    0
+   ],
+   "prompt": "a glowing paper lantern among fireflies in a moonlit garden, warm amber light, gentle bobbing motion, cinematic, high detail",
+   "image_interleave": 2
+  }
+ },
+ "8": {
+  "class_type": "HunyuanImageToVideo",
+  "inputs": {
+   "positive": [
+    "7",
+    0
+   ],
+   "vae": [
+    "4",
+    0
+   ],
+   "start_image": [
+    "5",
+    0
+   ],
+   "width": 848,
+   "height": 480,
+   "length": 53,
+   "batch_size": 1,
+   "guidance_type": "v1 (concat)"
+  }
+ },
+ "9": {
+  "class_type": "ModelSamplingSD3",
+  "inputs": {
+   "model": [
+    "1",
+    0
+   ],
+   "shift": 7
+  }
+ },
+ "10": {
+  "class_type": "FluxGuidance",
+  "inputs": {
+   "conditioning": [
+    "8",
+    0
+   ],
+   "guidance": 6
+  }
+ },
+ "11": {
+  "class_type": "BasicGuider",
+  "inputs": {
+   "model": [
+    "9",
+    0
+   ],
+   "conditioning": [
+    "10",
+    0
+   ]
+  }
+ },
+ "12": {
+  "class_type": "RandomNoise",
+  "inputs": {
+   "noise_seed": 42
+  }
+ },
+ "13": {
+  "class_type": "KSamplerSelect",
+  "inputs": {
+   "sampler_name": "euler"
+  }
+ },
+ "14": {
+  "class_type": "BasicScheduler",
+  "inputs": {
+   "model": [
+    "9",
+    0
+   ],
+   "scheduler": "simple",
+   "steps": 20,
+   "denoise": 1
+  }
+ },
+ "15": {
+  "class_type": "SamplerCustomAdvanced",
+  "inputs": {
+   "noise": [
+    "12",
+    0
+   ],
+   "guider": [
+    "11",
+    0
+   ],
+   "sampler": [
+    "13",
+    0
+   ],
+   "sigmas": [
+    "14",
+    0
+   ],
+   "latent_image": [
+    "8",
+    1
+   ]
+  }
+ },
+ "16": {
+  "class_type": "VAEDecodeTiled",
+  "inputs": {
+   "samples": [
+    "15",
+    0
+   ],
+   "vae": [
+    "4",
+    0
+   ],
+   "tile_size": 256,
+   "overlap": 64,
+   "temporal_size": 64,
+   "temporal_overlap": 8
+  }
+ },
+ "17": {
+  "class_type": "ImageFromBatch",
+  "inputs": {
+   "image": [
+    "16",
+    0
+   ],
+   "batch_index": 4,
+   "length": 4096
+  }
+ },
+ "18": {
+  "class_type": "SaveWEBM",
+  "_meta": {
+   "title": "SAVE_PREFIX"
+  },
+  "inputs": {
+   "images": [
+    "17",
+    0
+   ],
+   "filename_prefix": "hunyuan_i2v_out",
+   "codec": "vp9",
+   "fps": 24,
+   "crf": 12
+  }
+ }
+}

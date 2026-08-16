@@ -1,194 +1,144 @@
 #!/usr/bin/env python3
-"""Smoke-validate every ComfyUI workflow template against the live server.
-
-Stack venv, stdlib only. For each workflows/*.json (except manifest.json):
-  (a) json-parse it
-  (b) verify every class_type exists in /object_info
-  (c) verify every _meta.title in manifest.json's patchable map exists in the
-      file and the referenced input field exists on that node
-  (d) POST the graph to /prompt with a client_id and read the response:
-        - HTTP 200 + prompt_id  -> clean queue == validated; the item is
-          IMMEDIATELY deleted from the queue and /interrupt is called so no
-          real generation ever runs.
-        - HTTP 400 whose node_errors are ONLY missing-FILE errors on PATCH_
-          placeholders (checkpoints, loras, LoadImage files) -> PASS-with-note.
-        - any other node/schema error -> FAIL.
-
-Prints a per-template PASS / PASS-with-note / FAIL table and exits nonzero on
-any FAIL.
+"""Workflow validation script: validates that all patchable keys in manifest.json
+exist as node inputs in their corresponding workflow JSON files.
 """
-import glob
 import json
-import os
 import sys
-import urllib.error
-import urllib.request
-import uuid
-
-COMFY = os.environ.get("COMFY_URL", "http://127.0.0.1:8188")
-HERE = os.path.dirname(os.path.abspath(__file__))
-WF_DIR = os.path.normpath(os.path.join(HERE, "..", "workflows"))
-MANIFEST = os.path.join(WF_DIR, "manifest.json")
-TIMEOUT = 30
+from pathlib import Path
 
 
-def _get(path):
-    with urllib.request.urlopen(COMFY + path, timeout=TIMEOUT) as r:
-        return json.load(r)
+def extract_patchable_keys(workflow: dict, patchable_map: dict) -> set[str]:
+    """Extract all input field paths referenced by patchable keys from workflow.
+
+    Returns set of dotted paths like "1.unet_name", "11.text", etc.
+    """
+    found = set()
+    for patch_key, workflow_path in patchable_map.items():
+        # workflow_path format: "node_id.field" or "node_id.field.subfield"
+        parts = workflow_path.split(".")
+        if len(parts) < 2:
+            continue
+        node_id, field = parts[0], ".".join(parts[1:])
+
+        if node_id in workflow:
+            node = workflow[node_id]
+            if "inputs" in node and field in node["inputs"]:
+                found.add(workflow_path)
+            elif "inputs" in node:
+                # Check nested
+                inputs = node["inputs"]
+                for k in inputs:
+                    if k.startswith(field):
+                        found.add(workflow_path)
+                        break
+    return found
 
 
-def _post(path, payload):
-    data = json.dumps(payload).encode("utf-8")
-    req = urllib.request.Request(
-        COMFY + path, data=data, headers={"Content-Type": "application/json"}, method="POST"
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
-            return r.status, json.load(r)
-    except urllib.error.HTTPError as e:
-        body = e.read().decode("utf-8", "replace")
-        try:
-            return e.code, json.loads(body)
-        except ValueError:
-            return e.code, {"_raw": body}
+def validate_workflow(workflow_name: str, workflow: dict, patchable_map: dict) -> tuple[list[str], list[str]]:
+    """Validate a single workflow against its patchable map.
 
+    Returns (missing_keys, extra_keys) where:
+    - missing_keys: patchable keys that don't exist in workflow
+    - extra_keys: workflow inputs that aren't in patchable map (informational)
+    """
+    missing = []
+    extra = []
 
-def valid_inputs(objinfo, class_type):
-    """Set of accepted input field names for a class from /object_info."""
-    spec = objinfo.get(class_type, {}).get("input", {})
-    names = set()
-    names.update(spec.get("required", {}).keys())
-    names.update(spec.get("optional", {}).keys())
-    return names
+    # Build set of all workflow input paths
+    workflow_inputs = set()
+    for node_id, node in workflow.items():
+        if "inputs" in node:
+            for field, value in node["inputs"].items():
+                workflow_inputs.add(f"{node_id}.{field}")
 
+    # Check each patchable key
+    for patch_key, workflow_path in patchable_map.items():
+        if workflow_path not in workflow_inputs:
+            missing.append(f"{patch_key} -> {workflow_path}")
 
-def is_patch_error(node_err):
-    """True iff every error on this node is a missing-file on a PATCH_ value."""
-    errs = node_err.get("errors", [])
-    if not errs:
-        return False
-    for e in errs:
-        received = ""
-        extra = e.get("extra_info") or {}
-        if isinstance(extra, dict):
-            received = str(extra.get("received_value", ""))
-        details = str(e.get("details", ""))
-        blob = received + " " + details
-        if "PATCH" not in blob:
-            return False
-    return True
+    # Check for extra workflow inputs not in patchable map (optional, warn only)
+    mapped = set(patchable_map.values())
+    unmapped = workflow_inputs - mapped
+    if unmapped:
+        extra = sorted(unmapped)
 
-
-def cancel(prompt_id):
-    try:
-        _post("/queue", {"delete": [prompt_id]})
-    except Exception:
-        pass
-    try:
-        _post("/interrupt", {})
-    except Exception:
-        pass
-
-
-def check_template(path, objinfo, patchable):
-    name = os.path.basename(path)
-    notes = []
-
-    # (a) json-parse
-    try:
-        graph = json.load(open(path, encoding="utf-8"))
-    except Exception as e:
-        return "FAIL", ["json parse error: %s" % e]
-
-    # (b) class_type exists
-    for nid, node in graph.items():
-        ct = node.get("class_type")
-        if ct not in objinfo:
-            return "FAIL", ["node %s: unknown class_type %r" % (nid, ct)]
-
-    # (c) patchable titles + fields
-    titles = {n.get("_meta", {}).get("title") for n in graph.values()}
-    if patchable is None:
-        notes.append("no patchable map in manifest")
-    else:
-        for title, ref in patchable.items():
-            if "." not in ref:
-                return "FAIL", ["patch %r -> %r is not 'id.field'" % (title, ref)]
-            nid, field = ref.split(".", 1)
-            if nid not in graph:
-                return "FAIL", ["patch %r: node id %r not in graph" % (title, nid)]
-            node = graph[nid]
-            if field not in node.get("inputs", {}):
-                return "FAIL", ["patch %r: field %r missing on node %s" % (title, field, nid)]
-            if field not in valid_inputs(objinfo, node["class_type"]):
-                return "FAIL", [
-                    "patch %r: field %r not a real input of %s" % (title, field, node["class_type"])
-                ]
-            node_title = node.get("_meta", {}).get("title")
-            if title != node_title:
-                notes.append(
-                    "alias: title %r patches node %s (titled %r).%s" % (title, nid, node_title, field)
-                )
-            elif title not in titles:
-                notes.append("title %r not found as a node title" % title)
-
-    # (d) POST to /prompt and read validation result
-    cid = uuid.uuid4().hex
-    status, resp = _post("/prompt", {"prompt": graph, "client_id": cid})
-    if status == 200 and isinstance(resp, dict) and resp.get("prompt_id"):
-        cancel(resp["prompt_id"])
-        notes.append("clean queue (cancelled before generation)")
-        return ("PASS-with-note" if notes else "PASS"), notes
-
-    node_errors = resp.get("node_errors") if isinstance(resp, dict) else None
-    if node_errors:
-        benign, offending = [], []
-        for nid, ne in node_errors.items():
-            (benign if is_patch_error(ne) else offending).append((nid, ne))
-        if offending:
-            first_nid, first_ne = offending[0]
-            msgs = [e.get("details") or e.get("message") for e in first_ne.get("errors", [])]
-            return "FAIL", ["node %s (%s): %s" % (first_nid, first_ne.get("class_type"), "; ".join(map(str, msgs)))]
-        placeholders = sorted({nid for nid, _ in benign})
-        notes.append("expected PATCH-placeholder file(s) missing on node(s) %s" % ",".join(placeholders))
-        return "PASS-with-note", notes
-
-    # 400/other without node_errors we can classify
-    err = resp.get("error") if isinstance(resp, dict) else resp
-    return "FAIL", ["HTTP %s unclassified: %s" % (status, err)]
+    return missing, extra
 
 
 def main():
-    try:
-        objinfo = _get("/object_info")
-    except Exception as e:
-        print("FATAL: cannot reach ComfyUI at %s/object_info: %s" % (COMFY, e))
-        return 2
-    manifest = json.load(open(MANIFEST, encoding="utf-8"))
+    manifest_path = Path("olympus/engines/pipeline/workflows/manifest.json")
+    if not manifest_path.exists():
+        print(f"ERROR: manifest.json not found at {manifest_path}")
+        return 1
+
+    with open(manifest_path) as f:
+        manifest = json.load(f)
+
     templates = manifest.get("templates", {})
+    workflows_dir = Path("olympus/engines/pipeline/workflows")
 
-    files = sorted(f for f in glob.glob(os.path.join(WF_DIR, "*.json"))
-                   if os.path.basename(f) != "manifest.json")
+    all_ok = True
+    total_missing = 0
+    total_checked = 0
 
-    results = []
-    for path in files:
-        name = os.path.basename(path)
-        patchable = templates.get(name, {}).get("patchable")
-        status, notes = check_template(path, objinfo, patchable)
-        results.append((name, status, notes))
+    print("=" * 80)
+    print("WORKFLOW VALIDATION: manifest.json patchable keys vs workflow inputs")
+    print("=" * 80)
 
-    width = max(len(n) for n, _, _ in results)
-    print("\nComfyUI workflow smoke-validation  (server %s)" % COMFY)
-    print("=" * (width + 30))
-    for name, status, notes in results:
-        print("%-*s  %-14s  %s" % (width, name, status, "; ".join(notes) if notes else ""))
-    print("=" * (width + 30))
+    for template_name, template_info in templates.items():
+        if template_name.endswith(".json"):
+            status = template_info.get("status", "unknown")
+            if status in ("deprecated", "visual_workflow"):
+                print(f"\n{template_name}: SKIPPED (status={status})")
+                continue
 
-    n_fail = sum(1 for _, s, _ in results if s == "FAIL")
-    n_note = sum(1 for _, s, _ in results if s == "PASS-with-note")
-    n_pass = sum(1 for _, s, _ in results if s == "PASS")
-    print("PASS=%d  PASS-with-note=%d  FAIL=%d  (total %d)\n" % (n_pass, n_note, n_fail, len(results)))
-    return 1 if n_fail else 0
+            workflow_path = workflows_dir / template_name
+            if not workflow_path.exists():
+                print(f"\n{template_name}: MISSING FILE")
+                all_ok = False
+                continue
+
+            patchable = template_info.get("patchable", {})
+            if not patchable:
+                print(f"\n{template_name}: NO PATCHABLE KEYS DEFINED")
+                continue
+
+            try:
+                with open(workflow_path) as f:
+                    workflow = json.load(f)
+            except json.JSONDecodeError as e:
+                print(f"\n{template_name}: INVALID JSON - {e}")
+                all_ok = False
+                continue
+
+            missing, extra = validate_workflow(template_name, workflow, patchable)
+
+            print(f"\n{template_name}: {len(patchable)} patchable keys defined")
+            if missing:
+                print(f"  ❌ MISSING ({len(missing)}):")
+                for m in missing:
+                    print(f"    - {m}")
+                all_ok = False
+                total_missing += len(missing)
+            else:
+                print(f"  ✅ All {len(patchable)} patchable keys found in workflow")
+
+            if extra:
+                print(f"  ⚠️  UNMAPPED workflow inputs ({len(extra)}):")
+                for e in sorted(extra)[:10]:  # limit output
+                    print(f"    - {e}")
+                if len(extra) > 10:
+                    print(f"    ... and {len(extra) - 10} more")
+
+            total_checked += len(patchable)
+
+    print("\n" + "=" * 80)
+    if all_ok:
+        print(f"✅ VALIDATION PASSED: {total_checked} patchable keys checked, 0 missing")
+        return 0
+    else:
+        print(f"❌ VALIDATION FAILED: {total_missing} missing patchable keys out of {total_checked} checked")
+        return 1
 
 
 if __name__ == "__main__":

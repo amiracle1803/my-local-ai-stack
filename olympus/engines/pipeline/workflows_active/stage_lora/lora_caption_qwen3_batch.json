@@ -1,0 +1,49 @@
+{
+  "1": {
+    "class_type": "VHS_LoadImagesPath",
+    "_meta": {
+      "title": "DATASET_FOLDER_INPUT"
+    },
+    "inputs": {
+      "directory": "PATCH_DATASET_DIR",
+      "image_load_cap": 0,
+      "skip_first_images": 0,
+      "select_every_nth": 1
+    }
+  },
+  "2": {
+    "class_type": "Qwen3CaptionBatch",
+    "_meta": {
+      "title": "QWEN3_VL_BATCH_CAPTION"
+    },
+    "inputs": {
+      "image": [
+        "1",
+        0
+      ],
+      "model_path": "Qwen_VL_MAX",
+      "dtype": "4bit",
+      "keep_model_loaded": false,
+      "unload_other_models": true,
+      "lang": "English",
+      "seed": 42,
+      "max_side": 1024,
+      "instruction": "Describe this image as a single-line natural-language caption for LoRA training. Start with 'a photo of' and include subject, action, setting, lighting, and style. No commentary."
+    }
+  },
+  "3": {
+    "class_type": "SaveStringKJ",
+    "_meta": {
+      "title": "SAVE_CAPTION_TXT"
+    },
+    "inputs": {
+      "string": [
+        "2",
+        0
+      ],
+      "filename_prefix": "PATCH_SAVE_PREFIX",
+      "output_folder": "PATCH_OUTPUT_SUBDIR",
+      "file_extension": ".txt"
+    }
+  }
+}

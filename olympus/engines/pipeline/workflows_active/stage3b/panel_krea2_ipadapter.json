@@ -1,0 +1,198 @@
+{
+  "1": {
+    "class_type": "UnetLoaderGGUF",
+    "_meta": {
+      "title": "UNET",
+      "note": "krea2-Turbo GGUF primary model. Matches image_krea2.json node 1."
+    },
+    "inputs": {
+      "unet_name": "krea2_turbo-Q4_K_S.gguf"
+    }
+  },
+  "2": {
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "CLIP",
+      "note": "Qwen3-VL-4B fp8_scaled text encoder for krea2."
+    },
+    "inputs": {
+      "clip_name": "qwen3vl_4b_fp8_scaled.safetensors",
+      "type": "krea2",
+      "device": "default"
+    }
+  },
+  "3": {
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "VAE",
+      "note": "Qwen-Image VAE (16-channel latent) for encode/decode."
+    },
+    "inputs": {
+      "vae_name": "qwen_image_vae.safetensors"
+    }
+  },
+  "4": {
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "PLATE_IMG",
+      "note": "Scene location master plate (no people). Uploaded by stage3b via comfy.upload_image(); the registered filename is patched here. Every shot in the scene starts from this same plate, giving consistent background/location across the story."
+    },
+    "inputs": {
+      "image": "PATCH_PLATE.png"
+    }
+  },
+  "5": {
+    "class_type": "VAEEncode",
+    "_meta": {
+      "title": "PLATE_ENCODE",
+      "note": "Encodes the plate to krea2 latent space via qwen_image_vae; becomes the KSampler's starting latent. Resolution is inherited from the plate (1024x576), so no EmptySD3LatentImage is needed."
+    },
+    "inputs": {
+      "pixels": ["4", 0],
+      "vae": ["3", 0]
+    }
+  },
+  "6": {
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "PROMPT_POS",
+      "note": "The assembled sd_prompt (character description + composition/environment tokens) lands here; composited onto the plate's backdrop. Same anchors as stage1r's character reference sheets so identities stay consistent."
+    },
+    "inputs": {
+      "clip": ["2", 0],
+      "text": "PATCH_PROMPT"
+    }
+  },
+  "7": {
+    "class_type": "ConditioningZeroOut",
+    "_meta": {
+      "title": "NEG_ZEROOUT",
+      "note": "krea2-Turbo is CFG-distilled (cfg=1.0); negative is a zero-out of the positive, mirroring image_krea2.json node 12."
+    },
+    "inputs": {
+      "conditioning": ["6", 0]
+    }
+  },
+  "8": {
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "IDENTITY_REF",
+      "note": "Character identity reference image (from stage1r front reference sheet). Uploaded by stage3b. Used with IPAdapter for identity lock. Optional - bypass by setting IDENTITY_STRENGTH=0.0."
+    },
+    "inputs": {
+      "image": "PATCH_IDENTITY_REF.png"
+    }
+  },
+  "9": {
+    "class_type": "IPAdapterLoader",
+    "_meta": {
+      "title": "IP_ADAPTER_IDENTITY",
+      "note": "IPAdapter for krea2 identity reference. Uses the krea2-compatible IPAdapter model (IPAdapter-Plus or similar for Qwen-Image latent space). Model file patched via IDENTITY_IPADAPTER_MODEL."
+    },
+    "inputs": {
+      "ipadapter_name": "PATCH_IDENTITY_IPADAPTER_MODEL"
+    }
+  },
+  "10": {
+    "class_type": "IPAdapterApply",
+    "_meta": {
+      "title": "IP_ADAPTER_APPLY_IDENTITY",
+      "note": "Applies identity IPAdapter to positive conditioning. Strength patched via IDENTITY_STRENGTH (0.0 to bypass, 0.5-0.8 typical). Noise strength 0.0 for pure identity."
+    },
+    "inputs": {
+      "positive": ["7", 0],
+      "ipadapter": ["9", 0],
+      "image": ["8", 0],
+      "weight": 0.6,
+      "noise": 0.0
+    }
+  },
+  "11": {
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "STYLE_REF",
+      "note": "Style reference image (from stage1r style reference sheet). Uploaded by stage3b. Used with IPAdapter for style lock. Optional - bypass by setting STYLE_STRENGTH=0.0."
+    },
+    "inputs": {
+      "image": "PATCH_STYLE_REF.png"
+    }
+  },
+  "12": {
+    "class_type": "IPAdapterLoader",
+    "_meta": {
+      "title": "IP_ADAPTER_STYLE",
+      "note": "IPAdapter for krea2 style reference. Uses the krea2-compatible IPAdapter model. Model file patched via STYLE_IPADAPTER_MODEL."
+    },
+    "inputs": {
+      "ipadapter_name": "PATCH_STYLE_IPADAPTER_MODEL"
+    }
+  },
+  "13": {
+    "class_type": "IPAdapterApply",
+    "_meta": {
+      "title": "IP_ADAPTER_APPLY_STYLE",
+      "note": "Applies style IPAdapter to positive conditioning. Strength patched via STYLE_STRENGTH (0.0 to bypass, 0.3-0.5 typical)."
+    },
+    "inputs": {
+      "positive": ["10", 0],
+      "ipadapter": ["12", 0],
+      "image": ["11", 0],
+      "weight": 0.4,
+      "noise": 0.1
+    }
+  },
+  "14": {
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "SAMPLER",
+      "note": "krea2 IMG2IMG recipe with identity/style refs: euler/simple, 8 steps, cfg 1.0. DENOISE < 1.0 blends the plate's locked background with the character prompt + identity/style refs. Default 0.35 (tighter plate lock for background consistency). SEED patched per shot. SAMPLER + SCHEDULER + STEPS + CFG + IDENTITY_STRENGTH + STYLE_STRENGTH are exposed as patchable knobs."
+    },
+    "inputs": {
+      "model": ["1", 0],
+      "positive": ["13", 0],
+      "negative": ["7", 0],
+      "latent_image": ["5", 0],
+      "seed": 0,
+      "steps": 8,
+      "cfg": 1.0,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 0.35
+    }
+  },
+  "15": {
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "DECODE",
+      "note": "Decodes the redrawn latent back to RGB via qwen_image_vae."
+    },
+    "inputs": {
+      "samples": ["14", 0],
+      "vae": ["3", 0]
+    }
+  },
+  "16": {
+    "class_type": "ImageSharpen",
+    "_meta": {
+      "title": "REFINE_SHARPEN",
+      "note": "Stock ComfyUI post-decode detail refinement. Light, GPU-cheap. Knobs SHARPEN_RADIUS / SHARPEN_SIGMA / SHARPEN_ALPHA are patchable from stack.toml [animation]; set alpha 0.0 to bypass."
+    },
+    "inputs": {
+      "image": ["15", 0],
+      "sharpen_radius": 1,
+      "sigma": 1.0,
+      "alpha": 0.35
+    }
+  },
+  "17": {
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "SAVE",
+      "note": "Writes the panel PNG under ComfyUI/output/<SAVE_PREFIX>; ComfyClient copies it into the project panels dir."
+    },
+    "inputs": {
+      "images": ["16", 0],
+      "filename_prefix": "pipeline/out"
+    }
+  }
+}

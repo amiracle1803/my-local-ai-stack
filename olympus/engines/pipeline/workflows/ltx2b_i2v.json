@@ -1,0 +1,1207 @@
+{
+  "id": "c25546ad-fca3-4f68-897f-97d8abf22d04",
+  "revision": 0,
+  "version": 0.4,
+  "last_link_id": 20,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "CheckpointLoaderSimple",
+      "pos": [
+        80.0,
+        60.0
+      ],
+      "size": {
+        "width": 230,
+        "height": 130
+      },
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "output_0",
+          "type": "*",
+          "links": [
+            10
+          ],
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        },
+        {
+          "name": "output_1",
+          "type": "*",
+          "links": [],
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 1
+        },
+        {
+          "name": "output_2",
+          "type": "*",
+          "links": [
+            7,
+            18
+          ],
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "ver": "0.25.0",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "CheckpointLoaderSimple"
+      },
+      "widgets_values": [
+        "ltxv-2b-0.9.8-distilled-fp8-i2v.safetensors"
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 0
+    },
+    {
+      "id": 2,
+      "type": "CLIPLoader",
+      "pos": [
+        400.0,
+        60.0
+      ],
+      "size": {
+        "width": 230,
+        "height": 130
+      },
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "*",
+          "links": [
+            1,
+            2
+          ],
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "ver": "0.25.0",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "CLIPLoader"
+      },
+      "widgets_values": [
+        "t5xxl_fp8_e4m3fn.safetensors",
+        "ltxv"
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 1
+    },
+    {
+      "id": 4,
+      "type": "CLIPTextEncode",
+      "pos": [
+        720.0,
+        60.0
+      ],
+      "size": {
+        "width": 230,
+        "height": 130
+      },
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input_0",
+          "type": "*",
+          "link": 1,
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "*",
+          "links": [
+            3
+          ],
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "ver": "0.25.0",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "a glowing paper lantern among fireflies in a moonlit garden, warm amber light, gentle bobbing motion, cinematic, high detail"
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 2
+    },
+    {
+      "id": 5,
+      "type": "CLIPTextEncode",
+      "pos": [
+        1040.0,
+        60.0
+      ],
+      "size": {
+        "width": 230,
+        "height": 130
+      },
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input_0",
+          "type": "*",
+          "link": 2,
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "*",
+          "links": [
+            4
+          ],
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "ver": "0.25.0",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "blurry, low quality, low contrast, flat, washed out, dark, underexposed, noise, grain, oversaturated, cartoon, childish, ugly"
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 3
+    },
+    {
+      "id": 7,
+      "type": "RandomNoise",
+      "pos": [
+        80.0,
+        280.0
+      ],
+      "size": {
+        "width": 230,
+        "height": 130
+      },
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "*",
+          "links": [
+            13
+          ],
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "ver": "0.25.0",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "RandomNoise"
+      },
+      "widgets_values": [
+        42
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 4
+    },
+    {
+      "id": 8,
+      "type": "KSamplerSelect",
+      "pos": [
+        400.0,
+        280.0
+      ],
+      "size": {
+        "width": 230,
+        "height": 130
+      },
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "*",
+          "links": [
+            15
+          ],
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "ver": "0.25.0",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "KSamplerSelect"
+      },
+      "widgets_values": [
+        "euler_ancestral_cfg_pp"
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 5
+    },
+    {
+      "id": 50,
+      "type": "LoadImage",
+      "pos": [
+        720.0,
+        280.0
+      ],
+      "size": {
+        "width": 230,
+        "height": 130
+      },
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "*",
+          "links": [
+            8
+          ],
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "ver": "0.25.0",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "compare_sh-001-01.png"
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 6
+    },
+    {
+      "id": 53,
+      "type": "LTXVConditioning",
+      "pos": [
+        1040.0,
+        280.0
+      ],
+      "size": {
+        "width": 230,
+        "height": 130
+      },
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input_0",
+          "type": "*",
+          "link": 3,
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        },
+        {
+          "name": "input_1",
+          "type": "*",
+          "link": 4,
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output_0",
+          "type": "*",
+          "links": [
+            5
+          ],
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        },
+        {
+          "name": "output_1",
+          "type": "*",
+          "links": [
+            6
+          ],
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "ver": "0.25.0",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "LTXVConditioning"
+      },
+      "widgets_values": [
+        16
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 7
+    },
+    {
+      "id": 52,
+      "type": "LTXVImgToVideo",
+      "pos": [
+        80.0,
+        500.0
+      ],
+      "size": {
+        "width": 230,
+        "height": 130
+      },
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input_0",
+          "type": "*",
+          "link": 5,
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        },
+        {
+          "name": "input_1",
+          "type": "*",
+          "link": 6,
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 1
+        },
+        {
+          "name": "input_2",
+          "type": "*",
+          "link": 7,
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 2
+        },
+        {
+          "name": "input_3",
+          "type": "*",
+          "link": 8,
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output_0",
+          "type": "*",
+          "links": [
+            11
+          ],
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        },
+        {
+          "name": "output_1",
+          "type": "*",
+          "links": [
+            12
+          ],
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 1
+        },
+        {
+          "name": "output_2",
+          "type": "*",
+          "links": [
+            9,
+            17
+          ],
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "ver": "0.25.0",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "LTXVImgToVideo"
+      },
+      "widgets_values": [
+        768,
+        448,
+        81,
+        1,
+        0.55
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 8
+    },
+    {
+      "id": 6,
+      "type": "LTXVScheduler",
+      "pos": [
+        400.0,
+        500.0
+      ],
+      "size": {
+        "width": 230,
+        "height": 130
+      },
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input_0",
+          "type": "*",
+          "link": 9,
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "*",
+          "links": [
+            16
+          ],
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "ver": "0.25.0",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "LTXVScheduler"
+      },
+      "widgets_values": [
+        12,
+        2.05,
+        0.95,
+        true,
+        0.1
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 9
+    },
+    {
+      "id": 9,
+      "type": "CFGGuider",
+      "pos": [
+        720.0,
+        500.0
+      ],
+      "size": {
+        "width": 230,
+        "height": 130
+      },
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input_0",
+          "type": "*",
+          "link": 10,
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        },
+        {
+          "name": "input_1",
+          "type": "*",
+          "link": 11,
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 1
+        },
+        {
+          "name": "input_2",
+          "type": "*",
+          "link": 12,
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "*",
+          "links": [
+            14
+          ],
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "ver": "0.25.0",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "CFGGuider"
+      },
+      "widgets_values": [
+        1
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 10
+    },
+    {
+      "id": 10,
+      "type": "SamplerCustomAdvanced",
+      "pos": [
+        1040.0,
+        500.0
+      ],
+      "size": {
+        "width": 230,
+        "height": 130
+      },
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input_0",
+          "type": "*",
+          "link": 13,
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        },
+        {
+          "name": "input_1",
+          "type": "*",
+          "link": 14,
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 1
+        },
+        {
+          "name": "input_2",
+          "type": "*",
+          "link": 15,
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 2
+        },
+        {
+          "name": "input_3",
+          "type": "*",
+          "link": 16,
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 3
+        },
+        {
+          "name": "input_4",
+          "type": "*",
+          "link": 17,
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 4
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "*",
+          "links": [
+            19
+          ],
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "ver": "0.25.0",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "SamplerCustomAdvanced"
+      },
+      "widgets_values": [],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 11
+    },
+    {
+      "id": 11,
+      "type": "VAEDecode",
+      "pos": [
+        80.0,
+        720.0
+      ],
+      "size": {
+        "width": 230,
+        "height": 130
+      },
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input_0",
+          "type": "*",
+          "link": 18,
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        },
+        {
+          "name": "input_1",
+          "type": "*",
+          "link": 19,
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "*",
+          "links": [
+            20
+          ],
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "ver": "0.25.0",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "VAEDecode"
+      },
+      "widgets_values": [],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 12
+    },
+    {
+      "id": 12,
+      "type": "VHS_VideoCombine",
+      "pos": [
+        400.0,
+        720.0
+      ],
+      "size": {
+        "width": 230,
+        "height": 130
+      },
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input_0",
+          "type": "*",
+          "link": 20,
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "*",
+          "links": [],
+          "label": null,
+          "shape": null,
+          "dir": null,
+          "pos": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "locked": null,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "ver": "0.25.0",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "VHS_VideoCombine"
+      },
+      "widgets_values": [
+        16,
+        0,
+        "ltx2b_i2v_out",
+        "video/h264-mp4",
+        false,
+        true
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 13
+    }
+  ],
+  "links": [
+    [
+      1,
+      2,
+      0,
+      4,
+      0,
+      "*"
+    ],
+    [
+      2,
+      2,
+      0,
+      5,
+      0,
+      "*"
+    ],
+    [
+      3,
+      4,
+      0,
+      53,
+      0,
+      "*"
+    ],
+    [
+      4,
+      5,
+      0,
+      53,
+      1,
+      "*"
+    ],
+    [
+      5,
+      53,
+      0,
+      52,
+      0,
+      "*"
+    ],
+    [
+      6,
+      53,
+      1,
+      52,
+      1,
+      "*"
+    ],
+    [
+      7,
+      1,
+      2,
+      52,
+      2,
+      "*"
+    ],
+    [
+      8,
+      50,
+      0,
+      52,
+      3,
+      "*"
+    ],
+    [
+      9,
+      52,
+      2,
+      6,
+      0,
+      "*"
+    ],
+    [
+      10,
+      1,
+      0,
+      9,
+      0,
+      "*"
+    ],
+    [
+      11,
+      52,
+      0,
+      9,
+      1,
+      "*"
+    ],
+    [
+      12,
+      52,
+      1,
+      9,
+      2,
+      "*"
+    ],
+    [
+      13,
+      7,
+      0,
+      10,
+      0,
+      "*"
+    ],
+    [
+      14,
+      9,
+      0,
+      10,
+      1,
+      "*"
+    ],
+    [
+      15,
+      8,
+      0,
+      10,
+      2,
+      "*"
+    ],
+    [
+      16,
+      6,
+      0,
+      10,
+      3,
+      "*"
+    ],
+    [
+      17,
+      52,
+      2,
+      10,
+      4,
+      "*"
+    ],
+    [
+      18,
+      1,
+      2,
+      11,
+      0,
+      "*"
+    ],
+    [
+      19,
+      10,
+      0,
+      11,
+      1,
+      "*"
+    ],
+    [
+      20,
+      11,
+      0,
+      12,
+      0,
+      "*"
+    ]
+  ],
+  "config": {},
+  "groups": [],
+  "extra": {},
+  "definitions": {}
+}

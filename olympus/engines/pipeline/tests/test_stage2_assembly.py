@@ -68,6 +68,30 @@ def test_narration_filter_catches_banned_and_length(tmp_path):
     assert not _narration_issues(ok, banned, [])
 
 
+def test_ltx_clip_segment_loops_short_clip_to_fill_shot():
+    """Regression: a ~5s motion clip over a 9-12s shot must loop (not just trim)
+    so the video stream no longer runs short against the audio -> av desync."""
+    from pathlib import Path
+    from pipeline.stage5_assembly import _build_segment_args
+
+    clip = Path("/tmp/opencode/fake_clip.mp4")
+    clip.touch()
+    args = _build_segment_args(
+        panel_path=None,
+        seg_path=Path("/tmp/opencode/seg.mp4"),
+        dur=10.0,
+        fps=24,
+        drift={"axis": "vertical", "direction": 1, "pixels": 80},
+        audio_paths=[Path("/tmp/opencode/nar.wav")],
+        clip_path=clip,
+    )
+    # clip input must loop so a 5s clip fills a 10s shot
+    assert "-stream_loop" in args and "-1" in args
+    # exactly one trim bound at the full shot duration
+    vf = args[args.index("-filter_complex") + 1]
+    assert f"trim=0:10.000" in vf
+
+
 def test_narration_filter_catches_repeated_opener(tmp_path):
     banned = _load_banned_patterns(tmp_path)
     line = "The morning sun climbs over the ridge as the caravan finally rolls out of the valley."

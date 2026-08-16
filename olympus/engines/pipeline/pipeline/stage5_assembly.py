@@ -34,13 +34,22 @@ from typing import Any
 from .blueprint import Blueprint
 from .config import PipelineConfig
 from .scores import Scores
+from ._util import now_iso
+from .video_metrics import (
+    _probe_duration,
+    _probe_video_frames,
+    repeat_detect,
+    segment_align_ratio,
+)
+
+import shutil
 
 logger = logging.getLogger(__name__)
 
-_FFMPEG_BIN = "/usr/bin/ffmpeg"
-_FFPROBE_BIN = "/usr/bin/ffprobe"
+_FFMPEG_BIN = shutil.which("ffmpeg") or "/home/amire/Downloads/my-local-ai-stack/ComfyUI/.venv/lib/python3.12/site-packages/imageio_ffmpeg/binaries/ffmpeg-linux-x86_64-v7.0.2"
+_FFPROBE_BIN = shutil.which("ffprobe") or "/home/amire/Downloads/my-local-ai-stack/ComfyUI/.venv/lib/python3.12/site-packages/imageio_ffmpeg/binaries/ffprobe-linux-x86_64-v7.0.2"
 
-_PANEL_SIZE = (1216, 704)  # design 3B generation resolution
+_PANEL_SIZE = (1024, 576)  # design 3B generation resolution (reduced from 1216x704, see stage3b OOM note)
 _DEFAULT_DURATION_S = 3.0  # fallback when real_duration_s is missing
 _DEFAULT_DRIFT_PIXELS = 200  # Tier-0 drift fallback when stage3c has no detail yet
 _MUSIC_DB = "-18dB"  # design Stage 5.3
@@ -55,8 +64,6 @@ class Stage5Error(RuntimeError):
 # --------------------------------------------------------------------------
 # small helpers
 # --------------------------------------------------------------------------
-def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
 
 
 def _shot_duration(shot: dict[str, Any]) -> float:
@@ -113,6 +120,49 @@ def _drift_for(shot_id: str, storyboard: dict[str, Any], config: PipelineConfig)
 _TIMELINE_SIZE = (1280, 720)
 
 
+def _clip_vf(
+    clip_path: Path, dur: float, tw: int, th: int, fps: int,
+) -> tuple[str, bool]:
+    """Build the filter_graph fragment (with ``[0:v]`` label and ``[v]`` out
+    label) for an LTX clip over a shot of ``dur`` seconds.
+
+    Returns ``(vf, needs_loop)``:
+
+    - **Ping-pong loop** (the P0 fix): when the clip is shorter than the shot,
+      the clip is played forward then reversed into a seamless ``2*clip_len``
+      palindrome and looped, so a 9-12s shot over a ~5s motion clip reads as
+      continuous breathing instead of the identical 3x repeat a naive
+      ``-stream_loop`` re-showed. The frame one clip-period apart is the
+      *reversed* take, defeating :func:`video_metrics.repeat_detect`.
+    - **Trim with input loop**: when the clip already covers the full shot (or
+      the clip duration/count cannot be probed), fall back to ``-stream_loop```
+      + ``trim`` (the validated A/V-sync behavior -- ``needs_loop`` True so the
+      caller loops the input). A small clip with an unprobeable length still
+      fills the shot rather than silently running short against the audio.
+    """
+    frames = _probe_video_frames(clip_path)
+    clip_dur = _probe_duration(clip_path)
+    if frames and frames > 0 and clip_dur and dur > clip_dur * 1.2:
+        pal_frames = frames * 2
+        vf = (
+            "split=2[fw][bk];"
+            f"[bk]reverse[rv];"
+            f"[fw][rv]concat=n=2:v=1:a=0[pal];"
+            f"[pal]loop=loop=-1:size={pal_frames}:start=0,"
+            f"trim=0:{dur:.3f},setpts=PTS-STARTPTS,"
+            f"scale={tw}:{th}:force_original_aspect_ratio=decrease,"
+            f"pad={tw}:{th}:(ow-iw)/2:(oh-ih)/2,fps={fps}"
+        )
+        return f"[0:v]{vf}[v]", False
+    # Trim path (clip longer than the shot, or unprobeable -> safe fallback).
+    base = (
+        f"trim=0:{dur:.3f},setpts=PTS-STARTPTS,"
+        f"scale={tw}:{th}:force_original_aspect_ratio=decrease,"
+        f"pad={tw}:{th}:(ow-iw)/2:(oh-ih)/2,fps={fps}"
+    )
+    return f"[0:v]{base}[v]", True
+
+
 def _drift_filter(axis: str, direction: int, pixels: int, fps: int, dur: float) -> str:
     """scale up + linear crop (never zoom -- design 3C.1), then pad into the
     1280x720 delivery timeline."""
@@ -130,18 +180,58 @@ def _drift_filter(axis: str, direction: int, pixels: int, fps: int, dur: float) 
     return f"scale={scale},{crop},{pad},fps={fps}"
 
 
+def _segment_stale(seg_path: Path, sources: list[Path | None]) -> bool:
+    """True iff the cached segment predates any still-existing source it was
+    built from. stage3b/stage3c re-render in place (new panels, new AI-
+    upscaled clips) but keep the same filenames, so a plain ``exists()``
+    resume check would silently concat stale encodes (review finding: the
+    June baseline final kept old 1152x672 segments after an AI re-render)."""
+    if not seg_path.exists():
+        return True
+    try:
+        seg_mtime = seg_path.stat().st_mtime
+    except OSError:
+        return True
+    for src in sources:
+        if src is None or not src.exists():
+            continue
+        try:
+            if src.stat().st_mtime > seg_mtime:
+                return True
+        except OSError:
+            continue
+    return False
+
+
 def _build_segment_args(
     panel_path: Path | None, seg_path: Path, dur: float, fps: int,
     drift: dict[str, Any], audio_paths: list[Path],
+    clip_path: Path | None = None,
 ) -> list[str]:
     args: list[str] = ["-y"]
-    if panel_path is not None:
+
+    tw, th = _TIMELINE_SIZE
+    if clip_path is not None and clip_path.exists():
+        # LTX clip: prefer a seamless ping-pong loop so a short (~5s) motion
+        # clip fills a 9-12s shot without the "identical 3x repeat" artifact; a
+        # small clip that cannot be probed falls back to the -stream_loop + trim
+        # behavior (the validated A/V-sync path). Either way the video stream is
+        # trimmed to exactly `dur` so it never runs short against the audio.
+        vf_full, clip_needs_loop = _clip_vf(clip_path, dur, tw, th, fps)
+        if clip_needs_loop:
+            args += ["-stream_loop", "-1"]
+        args += ["-i", str(clip_path)]
+        v_in_label = 0
+    elif panel_path is not None:
         args += ["-loop", "1", "-t", f"{dur:.3f}", "-i", str(panel_path)]
         vf = _drift_filter(drift["axis"], drift["direction"], drift["pixels"], fps, dur)
+        v_in_label = 0
+        vf_full = f"[{v_in_label}:v]{vf}[v]"
     else:
-        w, h = _TIMELINE_SIZE
-        args += ["-f", "lavfi", "-t", f"{dur:.3f}", "-i", f"color=c=black:s={w}x{h}:r={fps}"]
+        args += ["-f", "lavfi", "-t", f"{dur:.3f}", "-i", f"color=c=black:s={tw}x{th}:r={fps}"]
         vf = f"fps={fps}"
+        v_in_label = 0
+        vf_full = f"[{v_in_label}:v]{vf}[v]"
 
     if audio_paths:
         for p in audio_paths:
@@ -151,9 +241,9 @@ def _build_segment_args(
         args += ["-f", "lavfi", "-i", "anullsrc=r=24000:cl=mono"]
         n_audio = 1
 
-    concat_labels = "".join(f"[{i + 1}:a]" for i in range(n_audio))
+    concat_labels = "".join(f"[{v_in_label + 1 + i}:a]" for i in range(n_audio))
     filter_complex = (
-        f"[0:v]{vf}[v];"
+        f"{vf_full};"
         f"{concat_labels}concat=n={n_audio}:v=0:a=1[acat];"
         f"[acat]apad[a]"
     )
@@ -282,6 +372,7 @@ def run(project_dir: str | Path, config: PipelineConfig, scores: Scores) -> dict
     predicted_duration_s = 0.0
     cum = 0.0
     timeline_entries: list[dict[str, Any]] = []
+    clip_segments: list[tuple[Path, Path]] = []  # (segment, ltx clip) for repeat_detect
 
     for block in storyboard["blocks"]:
         block_dir = project_dir / "panels" / block["id"]
@@ -305,12 +396,17 @@ def run(project_dir: str | Path, config: PipelineConfig, scores: Scores) -> dict
             )
 
             seg_path = segments_dir / f"{shot_id}.mp4"
-            if not seg_path.exists():  # resume-safe
+            shot_clip_raw = (storyboard.get("shot_detail") or {}).get(shot_id, {}).get("clip_path")
+            shot_clip = (project_dir / shot_clip_raw) if shot_clip_raw else None
+            if _segment_stale(seg_path, [panel_path, shot_clip, *audio_paths]):
                 drift = _drift_for(shot_id, storyboard, config)
                 args = _build_segment_args(
                     panel_path if has_panel else None, seg_path, dur, fps, drift, audio_paths,
+                    clip_path=shot_clip,
                 )
                 _run([_FFMPEG_BIN, *args])
+            if shot_clip is not None and shot_clip.exists():
+                clip_segments.append((seg_path, shot_clip))
             total_segments += 1
 
             timeline_entries.append({
@@ -334,6 +430,43 @@ def run(project_dir: str | Path, config: PipelineConfig, scores: Scores) -> dict
             "".join(_concat_line(segments_dir / f"{sid}.mp4") for sid in block["shots"]), encoding="utf-8",
         )
         _run([_FFMPEG_BIN, "-y", "-f", "concat", "-safe", "0", "-i", str(list_path), "-c", "copy", str(clip_path)])
+
+    # ---- 2b. objective quality gates (no GPU) ------------------------------
+    # audio/visual alignment per segment + the P0 repeat-detection regression
+    # guard on every LTX clip segment (near-duplicate frames one clip period
+    # apart == the "same scene 3x" artifact).
+    seg_durations: list[tuple[float, float]] = []
+    for seg in sorted(segments_dir.glob("*.mp4")):
+        sd = _probe_stream_durations(seg)
+        if "video" in sd and "audio" in sd:
+            seg_durations.append((sd["video"], sd["audio"]))
+    audio_visual_align = segment_align_ratio(seg_durations)
+
+    repeat_events = 0
+    repeat_shots: list[str] = []
+    repeat_details: dict[str, Any] = {}
+    for seg_path, clip in clip_segments:
+        clip_dur = _probe_duration(clip)
+        if not clip_dur:
+            continue
+        res = repeat_detect(seg_path, clip_dur)
+        repeat_details[seg_path.stem] = res
+        if res.get("verdict") == "repeat":
+            repeat_events += res["repeat_events"]
+            repeat_shots.append(seg_path.stem)
+    if repeat_shots:
+        logger.warning(
+            "repeat-detection flagged %d shots for identical-loop artifacts: %s",
+            len(repeat_shots), ", ".join(repeat_shots),
+        )
+    (video_dir / "quality_metrics.json").write_text(
+        json.dumps({
+            "audio_visual_align": round(audio_visual_align, 3),
+            "repeat_detect": {"events": repeat_events, "shots": repeat_shots,
+                              "details": repeat_details},
+        }, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
 
     # ---- 3. final concat ----------------------------------------------------
     final_list_path = video_dir / "final.list.txt"
@@ -385,7 +518,7 @@ def run(project_dir: str | Path, config: PipelineConfig, scores: Scores) -> dict
     final_path = video_dir / "final.mp4"
     _run([
         _FFMPEG_BIN, "-y", "-i", str(working_path), "-i", str(chapters_path),
-        "-map_metadata", "1", "-codec", "copy", str(final_path),
+        "-map_metadata", "1", "-codec", "copy", "-movflags", "+faststart", str(final_path),
     ])
 
     # ---- 6. subtitles --------------------------------------------------------
@@ -428,18 +561,39 @@ def run(project_dir: str | Path, config: PipelineConfig, scores: Scores) -> dict
     scores.record("stage5", "global", "music_present", float(music_present))
     scores.record("stage5", "global", "predicted_vs_actual_duration_pct", predicted_vs_actual_pct)
     scores.record("stage5", "global", "av_sync_error_ms", av_sync_error_ms)
+    scores.record("stage5", "global", "audio_visual_align", audio_visual_align)
+    scores.record("stage5", "global", "repeat_detect_events", float(repeat_events))
+    scores.record("stage5", "global", "repeat_detect_shots", float(len(repeat_shots)))
     scores.stage_done("stage5")
 
     bp.stages["stage5"].status = "done"
-    bp.stages["stage5"].ts = _now_iso()
+    bp.stages["stage5"].ts = now_iso()
     bp.write(project_dir)
 
-    return {
+    result = {
         "stage": "stage5", "status": "done",
         "final": str(final_path),
         "duration_s": round(actual_duration_s, 3),
         "size_mb": round(size_mb, 2),
         "av_sync_error_ms": round(av_sync_error_ms, 1),
+        "audio_visual_align": round(audio_visual_align, 3),
+        "repeat_detect_events": repeat_events,
         "segments": total_segments,
         "missing_panels": missing_panels,
     }
+
+    # P0 hard gate (design 5.x): the identical-loop artifact is a reject, not a
+    # warning. The final file is already on disk for inspection; the stage is
+    # left marked "done" so the artifact stays reviewable, but the run reports
+    # FAILURE so automation (and the human) knows to re-render before shipping.
+    if repeat_events and config.animation.fail_on_repeat:
+        logger.error(
+            "repeat-detection found %d identical-loop events across %d shot(s) "
+            "(%s) - re-render with the ping-pong loop before shipping.",
+            repeat_events, len(repeat_shots), ", ".join(repeat_shots),
+        )
+        result["status"] = "blocked"
+        result["repeat_verdict"] = "repeat"
+    else:
+        result["repeat_verdict"] = "ok"
+    return result

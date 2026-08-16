@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .blueprint import STAGE_ORDER
+from ._util import now_iso
 
 # Sentinel row identifying a stage's "done" marker.
 _STAGE_UNIT = "_stage"
@@ -24,14 +25,16 @@ _DONE_METRIC = "done"
 # is blocked. Metric *names* are frozen here; the M1+ stage code records them.
 MANDATORY_METRICS: dict[str, list[str]] = {
     "stage0": ["structure_completeness"],
-    "stage1": ["bible_coverage"],
-    "stage1r": ["refs_per_character"],
-    "stage2": ["narration_avg_score"],
-    "stage3": ["block_count"],
-    "stage3b": ["prompt_adherence_avg"],
-    "stage4": ["alignment_coverage"],
-    "stage3c": ["lipsync_overlap_avg"],
-    "stage5": ["av_sync_error_ms"],
+    "stage1": ["bible_coverage"],           # M2a: characters
+    "stage1_world": ["world_coverage"],     # M2b: world enrichment
+    "stage1r": ["refs_per_character"],      # reference images
+    "stage3": ["block_count"],              # storyboard (w/ refs as context)
+    "stage2": ["narration_avg_score"],      # screenplay (w/ storyboard+refs)
+    "stage3b": ["prompt_adherence_avg"],    # panels (krea2 + refs)
+    "stage4": ["alignment_coverage"],       # audio
+    "stage3c": ["ltx_rendered"],            # animation (krea2 base)
+    "stage_vlm_review": ["review_coverage"], # VLM review (audio+visual)
+    "stage5": ["av_sync_error_ms"],         # assembly
 }
 
 
@@ -47,6 +50,7 @@ class Scores:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self.run_id = run_id or str(uuid.uuid4())
         self._conn = sqlite3.connect(str(self.db_path))
+        self._conn.execute("PRAGMA journal_mode=WAL")
         self._init_schema()
 
     def _init_schema(self) -> None:
@@ -61,6 +65,10 @@ class Scores:
                 run_id  TEXT NOT NULL
             )
             """
+        )
+        self._conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_scores_stage_metric "
+            "ON scores(stage, metric)"
         )
         self._conn.commit()
 
@@ -79,7 +87,17 @@ class Scores:
         self._conn.execute(
             "INSERT INTO scores (stage, unit, metric, value, ts, run_id) "
             "VALUES (?, ?, ?, ?, ?, ?)",
-            (stage, unit, metric, float(value), _now_iso(), self.run_id),
+            (stage, unit, metric, float(value), now_iso(), self.run_id),
+        )
+        self._conn.commit()
+
+    def record_globals(self, stage: str, metrics: dict[str, float]) -> None:
+        """Batch-record multiple global metrics for a stage."""
+        ts = now_iso()
+        rows = [(stage, "global", m, float(v), ts, self.run_id) for m, v in metrics.items()]
+        self._conn.executemany(
+            "INSERT INTO scores (stage, unit, metric, value, ts, run_id) VALUES (?,?,?,?,?,?)",
+            rows,
         )
         self._conn.commit()
 
@@ -154,5 +172,3 @@ class Scores:
         return {"db": str(self.db_path), "run_id": self.run_id, "stages": ledger}
 
 
-def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()

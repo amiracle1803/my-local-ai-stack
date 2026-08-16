@@ -27,6 +27,8 @@ concrete non-empty value (never "none"/"unknown"/blank):
 }}
 
 For fields already grounded in the passages, keep the existing value. For the
-missing fields, invent something ordinary and genre-appropriate that fits this
+missing fields, invent something vivid and genre-appropriate that fits this
 character's role and the world implied by the passages. Do not contradict any
-detail the passages state.
+detail the passages state. Prefer saturated, memorable colors (crimson,
+aqua, violet, emerald, gold) over plain "dark", "grey", or "black"; characters
+should read as clearly colored, not monochrome.

@@ -1,0 +1,126 @@
+# Local AI Stack — unified configuration
+# Single source of truth. Every service and script reads from this file.
+
+[stack]
+name = "my-local-ai-stack"
+version = "3.0.0"
+
+# ── Ollama ────────────────────────────────────────────────────────────────
+[ollama]
+host = "127.0.0.1"
+port = 11434
+url = "http://127.0.0.1:11434"
+timeout_seconds = 300
+
+# Model roles — change these to swap models without touching code
+[ollama.models]
+script    = "qwen3:8b"           # all screenplay / story LLM work
+vision    = "qwen3-vl:8b"       # panel vision analysis (was qwen2.5vl:7b — qwen2.5vl miscounted character counts on dense anime panels)
+review    = "qwen2.5vl:7b"       # stage_vlm_review 10-dim physics/logic gate (non-reasoning; reliable fast structured output — qwen3-vl:8b reasoning model returns empty content on some frames)
+default   = "llama3.1:8b"        # general fallback
+embed     = "nomic-embed-text"   # embeddings
+
+# Agent roles — maps kernel agent roles → Ollama models
+[ollama.agents]
+triage   = "llama3.2:3b"
+worker   = "qwen3:8b"
+planner  = "qwen3:8b"
+verifier = "llama3.2:3b"
+jarvis   = "qwen3:8b"
+
+# ── ComfyUI ───────────────────────────────────────────────────────────────
+[comfyui]
+host = "0.0.0.0"
+port = 8188
+url = "http://127.0.0.1:8188"
+
+# Image models (GGUF in ComfyUI/models/unet/)
+[comfyui.models]
+primary            = "krea2_turbo-Q4_K_S.gguf"       # best quality (OOMs on 8GB under load)
+fallback = "flux1-schnell-Q4_K_S.gguf" # 8GB-safe fallback (was krea2_turbo-Q4_K_M.gguf which OOMs on 8GB same as Q4_K_S)
+floor      = "flux1-schnell-Q4_K_S.gguf"     # acceptable quality
+panel               = "krea2_turbo-Q4_K_S.gguf" # krea2 panel (plate-lock img2img); was anima-base-v1.0.safetensors
+animation_primary = "ltx-2.3-22b-distilled-1.1-Q4_K_M.gguf"
+
+# Banned checkpoints — enforced at runtime by pipeline.config.resolve_image_model
+banned_checkpoints = [
+  "z-anime-distill-4step-fp8",
+  "wai-illustrious-v110",
+  "NoobAI-XL-v1.1",
+  "animagine-xl-4.0",
+  "FLUX.1-Krea-dev",
+]
+
+# ── Voice Studio ──────────────────────────────────────────────────────────
+[voice]
+host = "127.0.0.1"
+port = 5050
+url = "http://127.0.0.1:5050"
+
+# ── Olympus Kernel ────────────────────────────────────────────────────────
+[kernel]
+host = "0.0.0.0"
+port = 4600
+url = "http://127.0.0.1:4600"
+core_agents = ["jarvis", "archivist", "plutus", "conductor"]
+
+# ── OpenCode MCP ──────────────────────────────────────────────────────────
+[mcp]
+host = "127.0.0.1"
+port = 4720
+
+# ── Open WebUI ────────────────────────────────────────────────────────────
+[webui]
+host = "0.0.0.0"
+port = 8080
+url = "http://127.0.0.1:8080"
+
+# ── llama.cpp server (optional) ───────────────────────────────────────────
+[llamacpp]
+host = "127.0.0.1"
+port = 8081
+enabled = false
+
+# ── Pipeline ──────────────────────────────────────────────────────────────
+[pipeline]
+projects_dir = "olympus/engines/pipeline/projects"
+loras_dir    = "olympus/engines/pipeline/loras"
+workflows    = "olympus/engines/pipeline/workflows"
+comfyui_dir  = "ComfyUI"
+
+[animation]
+drift_axis = "vertical"
+max_animated_seconds_per_block = 60.0
+default_motion_tier = 1
+panel_max_attempts = 4          # stage3b regenerates failing panels until all pass (seed-per-attempt)
+ai_upscale = true              # Real-ESRGAN anime 2x on LTX clips (stage3c post-process)
+ai_upscale_scale = 2          # 768x448 -> 1536x896, so stage5 DOWNscales into 1280x720 (sharper)
+ai_upscale_model = "realesr-animevideov3-x2"
+
+[automation]
+auto_approve_blueprint = true
+auto_advance_stages = true
+allow_missing_loras = true   # kohya unavailable on Linux — scorecard-logged deviation
+
+# ── Paths ─────────────────────────────────────────────────────────────────
+[paths]
+vault       = "/home/amire/Documents/Obsidian Vault"
+output_dir  = "/home/amire/Documents/olympus-output"
+wiki_root   = "llm-wiki-workflow"
+
+# ── AGI script scorer (script-quality relationships) ─────────────────────
+# Sits on top of Ollama script work: scores semantic relationships between
+# script texts (fidelity to beats, causal flow, character consistency).
+# Device: "auto" (cuda if free VRAM >= 3GB, else cpu) | "cpu" | "cuda".
+# Checkpoint: vendored copy of the trained AGI Brain V3 (git-ignored *.pt).
+[agi]
+enabled = true
+checkpoint_path = "olympus/engines/pipeline/models/agi_checkpoint_v3_fixed_best.pt"
+device = "auto"
+sbert_model = "all-MiniLM-L6-v2"
+
+# ── GPU ───────────────────────────────────────────────────────────────────
+[gpu]
+name = "RTX 4070 Laptop"
+vram_gb = 8
+# Ollama and ComfyUI must never share GPU — stage transitions unload first

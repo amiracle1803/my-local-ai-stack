@@ -1,0 +1,135 @@
+{
+  "1": {
+    "class_type": "UnetLoaderGGUF",
+    "_meta": {
+      "title": "UNET",
+      "note": "Loads krea2 (Krea-2-Turbo), the design-mandated primary model (design 5.3b), from a Q4_K_M GGUF quant. image_router.pick_template() only routes here once this file exists on disk at its full size -- see pipeline/image_router.py. The ComfyClient ban-check reads unet_name here."
+    },
+    "inputs": {
+      "unet_name": "krea2_turbo-Q4_K_M.gguf"
+    }
+  },
+ "2": {
+  "class_type": "CLIPLoader",
+  "_meta": {
+   "title": "CLIP",
+   "note": "krea2 text encoder: Qwen3-VL-4B 'fp8_scaled' from the official Comfy-Org/Krea-2 repackaged repo (found 2026-07-11 via the community workflow's source URLs)."
+  },
+  "inputs": {
+   "clip_name": "qwen3vl_4b_fp8_scaled.safetensors",
+   "type": "krea2",
+   "device": "default"
+  }
+ },
+ "3": {
+  "class_type": "VAELoader",
+  "_meta": {
+   "title": "VAE",
+   "note": "Qwen-Image VAE (AutoencoderKLQwenImage, 16-channel latent) -- NOT flux's ae.safetensors. Feeds node 15's decode."
+  },
+  "inputs": {
+   "vae_name": "qwen_image_vae.safetensors"
+  }
+ },
+ "11": {
+  "class_type": "CLIPTextEncode",
+  "_meta": {
+   "title": "PROMPT_POS",
+   "note": "The assembled sd_prompt lands here (patched per shot by ComfyClient). Also feeds node 12's zero-out negative."
+  },
+  "inputs": {
+   "clip": [
+    "2",
+    0
+   ],
+   "text": "PATCH_PROMPT"
+  }
+ },
+ "12": {
+  "class_type": "ConditioningZeroOut",
+  "_meta": {
+   "title": "NEG_ZEROOUT",
+   "note": "krea2-Turbo is CFG-distilled (KSampler cfg=1.0), so a text negative has no effect -- per the model card and the validated panel_txt2img_krea.json graph, the negative conditioning is a zero-out of the positive instead of a second CLIPTextEncode. There is no PROMPT_NEG patch title on this template."
+  },
+  "inputs": {
+   "conditioning": [
+    "11",
+    0
+   ]
+  }
+ },
+ "13": {
+  "class_type": "EmptySD3LatentImage",
+  "_meta": {
+   "title": "LATENT",
+   "note": "16-channel latent canvas sized for the Qwen-Image VAE (NOT EmptyLatentImage). Patched to 1216x704 for panels/plates, 832x1216 portrait for character refs."
+  },
+  "inputs": {
+   "width": 1216,
+   "height": 704,
+   "batch_size": 1
+  }
+ },
+"14": {
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "SAMPLER",
+      "note": "krea2-Turbo's validated recipe (panel_txt2img_krea.json proof render, 2026-07-10): euler/simple, 12 steps, cfg 1.5, denoise 1.0 -- krea2 is not flux, do not change without a fresh model_lab proof render. SEED is patched per shot from hash(scene_id, shot_id, retry) so every panel is reproducible from its sidecar json."
+    },
+    "inputs": {
+      "model": [
+        "1",
+        0
+      ],
+      "positive": [
+        "11",
+        0
+      ],
+      "negative": [
+        "12",
+        0
+      ],
+      "latent_image": [
+        "13",
+        0
+      ],
+      "seed": 0,
+      "steps": 12,
+      "cfg": 1.5,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1.0
+    }
+  },
+ "15": {
+  "class_type": "VAEDecode",
+  "_meta": {
+   "title": "DECODE",
+   "note": "Latent -> RGB pixels via the Qwen-Image VAE from node 3."
+  },
+  "inputs": {
+   "samples": [
+    "14",
+    0
+   ],
+   "vae": [
+    "3",
+    0
+   ]
+  }
+ },
+ "16": {
+  "class_type": "SaveImage",
+  "_meta": {
+   "title": "SAVE",
+   "note": "Writes the PNG under ComfyUI/output/<SAVE_PREFIX>; ComfyClient then copies it into the project's panels/refs directory and renames it deterministically."
+  },
+  "inputs": {
+   "images": [
+    "15",
+    0
+   ],
+   "filename_prefix": "pipeline/out"
+  }
+ }
+}

@@ -25,7 +25,12 @@ REM their own secrets, set once via:
 REM   docker mcp secret set brave.api_key=<your Brave Search API key>
 REM   docker mcp secret set github.personal_access_token=<your PAT>
 REM   docker mcp secret set n8n.api_key=<your n8n API key>
-set MCP_GATEWAY_AUTH_TOKEN=agent-atlas-dev-fixed-token-12345
+REM Token must come from your environment (e.g. `set MCP_GATEWAY_AUTH_TOKEN=...` before running this script),
+REM or rotate and set it here locally. Never commit the real value.
+if "%MCP_GATEWAY_AUTH_TOKEN%"=="" (
+    echo ERROR: MCP_GATEWAY_AUTH_TOKEN env var not set. Set it before running this script.
+    exit /b 1
+)
 
 echo Starting MCP gateway (profile: amir_ai_agents) on port 8811...
 start "MCP Gateway" /min docker mcp gateway run --profile amir_ai_agents --transport sse --port 8811

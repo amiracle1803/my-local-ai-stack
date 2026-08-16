@@ -6,9 +6,9 @@ audition per character. Images run through :class:`~pipeline.comfy_client.ComfyC
 
 **Image model note (design 5.3b)**: krea2 is the mandated primary.
 ``pipeline.image_router.pick_template()`` is called ONCE at the top of
-``run()`` and routes to ``image_krea2.json`` when krea2's weights are fully
+``run()`` and routes to ``image_txt2img_krea2.json`` when krea2's weights are fully
 on disk, else the ONLY permitted fallback (flux1-schnell GGUF) via
-``image_flux_fallback.json`` -- never a banned model. ``model_used_fallback``
+``image_txt2img_flux_fallback.json`` -- never a banned model. ``model_used_fallback``
 in the scorecard reflects which one actually ran. flux has no IPAdapter/LoRA
 path, so consistency comes from the world-bible sd_prompt anchors +
 per-character fixed seeds (documented deviation until krea2 has an
@@ -39,6 +39,7 @@ from .comfy_client import ComfyClient, ComfyError, ContingencyStop
 from .config import PipelineConfig
 from .schemas.worldbible import WorldBible
 from .scores import Scores
+from ._util import now_iso
 
 logger = logging.getLogger(__name__)
 
@@ -67,8 +68,10 @@ _STYLE_REF_SUBJECTS = (
 )
 _STYLE_TAIL = "anime 2d illustration, manga panel style, high quality linework, cel shading"
 
-_REF_RESOLUTION = (832, 1216)  # portrait for character sheets
-_PLATE_RESOLUTION = (1216, 704)
+_REF_RESOLUTION = (512, 768)  # Flux character sheet resolution for 8GB VRAM safety
+_PLATE_RESOLUTION = (1024, 576)  # landscape plates; 1216x704 (~1.1M px) OOMs in
+# KSampler on the 8GB card's lowvram mode (same class as stage3b's documented
+# 1024x576-safe resolution). Refs are LoRA material, not the final video.
 
 _VOICE_STUDIO_URL = "http://127.0.0.1:5050"
 
@@ -121,8 +124,69 @@ def render_auditions(project_dir: Path, wb: WorldBible, voices: dict[str, Any]) 
     return done
 
 
-def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+def _write_aggregate_manifest(project_dir: Path, wb: WorldBible) -> None:
+    """Write ``references/references.json`` consumed by stage2/stage3.
+
+    Contract (see ``stage2_screenplay.segment_scenes``/``plan_shots`` and
+    ``stage3_storyboard.run``)::
+
+        {"characters": {id: {...}}, "locations": {id: {...}},
+         "style": [...paths...]}
+
+    Each character/location ref dir already carries a ``manifest.json``;
+    this folds them into one file so the screenplay and storyboard get the
+    visual context they previously logged as missing ("references/
+    references.json not found - running without visual context").
+    """
+    refs_root = project_dir / "worldbible" / "refs"
+
+    def _load_manifest(ref_dir: Path) -> dict:
+        mf = ref_dir / "manifest.json"
+        if mf.exists():
+            try:
+                return json.loads(mf.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as exc:
+                logger.warning("unreadable manifest %s: %s", mf, exc)
+        frames = sorted(ref_dir.glob("ref_*.png"))
+        return {"frames": [{"frame": i, "file": f.name} for i, f in enumerate(frames)]}
+
+    characters: dict[str, dict] = {}
+    for char in wb.characters:
+        ref_dir = refs_root / char.id
+        if not ref_dir.exists():
+            continue
+        characters[char.id] = {
+            "name": char.name,
+            "role": char.role or "",
+            "sd_prompt": char.sd_prompt,
+            "frames": _load_manifest(ref_dir).get("frames", []),
+        }
+
+    locations: dict[str, dict] = {}
+    for loc in wb.locations:
+        ref_dir = refs_root / loc.id
+        if not ref_dir.exists():
+            continue
+        locations[loc.id] = {
+            "name": loc.name,
+            "recurring": loc.recurring,
+            "sd_prompt": loc.sd_prompt,
+            "frames": _load_manifest(ref_dir).get("frames", []),
+        }
+
+    style_dir = refs_root / "_style"
+    style = sorted(str(p.relative_to(refs_root)) for p in style_dir.glob("*.png")) if style_dir.exists() else []
+
+    references = {"characters": characters, "locations": locations, "style": style}
+    out = project_dir / "references"
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "references.json").write_text(
+        json.dumps(references, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+    logger.info(
+        "references/references.json written: %d characters, %d locations, %d style refs",
+        len(characters), len(locations), len(style),
+    )
 
 
 def run(
@@ -145,8 +209,9 @@ def run(
 
     # Route once for the whole stage run (design 5.3b krea2 gate) and record
     # the decision honestly.
-    template, model_used = image_router.pick_template(config, comfy)
-    used_fallback = template != "image_krea2.json"
+    # Use flux-based character sheet template (lighter than krea2 for 8GB VRAM)
+    template, model_used = image_router.pick_character_template(config, comfy)
+    used_fallback = template == "image_txt2img_flux_fallback.json"
     scores.record("stage1r", "global", "model_used_fallback", 1.0 if used_fallback else 0.0)
 
     per_char_counts: dict[str, int] = {}
@@ -162,13 +227,13 @@ def run(
             if existing:  # resume-safe: skip already-rendered frames
                 manifest.append({"frame": i, "view": suffix, "file": existing[0].name})
                 continue
-            prompt = f"{char.sd_prompt}, {suffix}, plain background, {_STYLE_TAIL}"
+            prompt = f"{_STYLE_TAIL}, {char.sd_prompt}, {suffix}, plain background"
             try:
                 paths = comfy.generate(
                     template,
                     {
                         "PROMPT_POS": prompt,
-                        "WIDTH": _REF_RESOLUTION[0], "HEIGHT": _REF_RESOLUTION[1],
+                        "WIDTH": 512, "HEIGHT": 768,  # Flux character sheet resolution
                         "SEED": _seed_for(char.id, variant) + i,
                         "SAVE_PREFIX": fname_prefix,
                     },
@@ -183,41 +248,47 @@ def run(
             renamed = ref_dir / f"ref_{i:02d}_{paths[0].name}"
             paths[0].rename(renamed)
             manifest.append({"frame": i, "view": suffix, "file": renamed.name})
+            # Aggressive VRAM management: free after EACH frame
+            comfy.free()
         (ref_dir / "manifest.json").write_text(
             json.dumps({"character": char.id, "frames": manifest}, indent=2), encoding="utf-8"
         )
         per_char_counts[char.id] = len(frames)
         scores.record("stage1r", char.id, "refs", float(len(frames)))
+        # Free after each character (already freed per frame, but belt-and-suspenders)
+        comfy.free()
 
     # Recurring locations: 4 angles each.
     loc_count = 0
     for loc in wb.locations:
-        if not loc.get("recurring"):
+        if not loc.recurring:
             continue
-        loc_dir = project_dir / "worldbible" / "refs" / loc["id"]
+        loc_dir = project_dir / "worldbible" / "refs" / loc.id
         loc_dir.mkdir(parents=True, exist_ok=True)
         for i, angle in enumerate(("wide establishing view", "opposite side view",
                                    "interior or close detail view", "high angle overview")):
             if sorted(loc_dir.glob(f"ref_{i:02d}*.png")):
                 continue
-            prompt = f"{loc['sd_prompt']}, {angle}, {_STYLE_TAIL}"
+            prompt = f"{loc.sd_prompt}, {angle}, {_STYLE_TAIL}, no text, no letters, no subtitles, no captions, no signage"
             try:
                 paths = comfy.generate(
                     template,
                     {
                         "PROMPT_POS": prompt,
-                        "WIDTH": _PLATE_RESOLUTION[0], "HEIGHT": _PLATE_RESOLUTION[1],
-                        "SEED": _seed_for(loc["id"]) + i,
-                        "SAVE_PREFIX": f"pipeline/{project_dir.name}/refs/{loc['id']}/ref_{i:02d}",
+                        "WIDTH": 512, "HEIGHT": 512,  # Smaller for location refs
+                        "SEED": _seed_for(loc.id) + i,
+                        "SAVE_PREFIX": f"pipeline/{project_dir.name}/refs/{loc.id}/ref_{i:02d}",
                     },
                     dest=loc_dir,
                 )
             except ComfyError as exc:
-                logger.error("location ref %s/%d failed: %s", loc["id"], i, exc)
+                logger.error("location ref %s/%d failed: %s", loc.id, i, exc)
                 failed_generations += 1
                 continue
             paths[0].rename(loc_dir / f"ref_{i:02d}_{paths[0].name}")
+            comfy.free()  # Free after each location ref
         loc_count += 1
+        comfy.free()  # Free after all locations
 
     # Style lock: 10 style reference images (LoRA training itself is the
     # recorded contingency below).
@@ -244,21 +315,75 @@ def run(
         paths[0].rename(style_dir / f"style_{i:02d}_{paths[0].name}")
     comfy.free()
 
+    # Mouth sheets: 9 viseme frames per main character for lipsync (contingency
+    # Stage 3C). Requires a face close-up ref (frame 24 in the turnaround set =
+    # "face close-up portrait" from _DETAILS_MAIN). Uses the char_ref_mouth_visemes.json
+    # ComfyUI workflow with inpainting to produce mouth variants.
+    _VISEME_PROMPTS = (
+        "closed mouth neutral expression",
+        "slightly open mouth",
+        "open mouth speaking",
+        "wide open mouth",
+        "mouth showing teeth",
+        "pursed lips",
+        "smile with closed mouth",
+        "slight frown",
+        "tongue visible",
+    )
+    mouth_sheet_count = 0
+    for char in wb.characters:
+        if (char.role or "").lower() not in _MAIN_ROLES:
+            continue
+        ms_dir = project_dir / "worldbible" / "refs" / char.id / "mouth_sheets"
+        ms_dir.mkdir(parents=True, exist_ok=True)
+        if len(sorted(ms_dir.glob("viseme_*.png"))) >= len(_VISEME_PROMPTS):
+            mouth_sheet_count += 1
+            continue
+        # Use face close-up portrait (frame 24 in the 30-frame set).
+        face_ref = None
+        for f in sorted((project_dir / "worldbible" / "refs" / char.id).glob("ref_24_*.png")):
+            face_ref = f
+            break
+        if not face_ref:
+            logger.warning("no face close-up ref for %s, skipping mouth sheet", char.id)
+            continue
+        try:
+            uploaded = comfy.upload_image(face_ref, name=f"{char.id}_mouth_ref.png")
+            paths = comfy.generate(
+                "char_ref_mouth_visemes.json",
+                {"REF_IMAGE": uploaded},
+                dest=ms_dir,
+            )
+        except ComfyError as exc:
+            logger.warning("mouth sheet failed for %s: %s", char.id, exc)
+            continue
+        # ComfyUI returns one composite image; rename it.
+        if paths:
+            paths[0].rename(ms_dir / "mouth_sheet.png")
+        mouth_sheet_count += 1
+
     # LoRA training: contingency stop, recorded (see module docstring).
     scores.record("stage1r", "global", "lora_training_contingency", 1.0)
 
     auditions = render_auditions(project_dir, wb, voices)
+
+    # Aggregate manifest: stage2 (screenplay) and stage3 (storyboard) read
+    # ``references/references.json`` for visual context. Each ref dir already
+    # carries a per-character/per-location ``manifest.json``; fold them into
+    # the single top-level file those stages expect, keyed by id.
+    _write_aggregate_manifest(project_dir, wb)
 
     refs_min = min(per_char_counts.values()) if per_char_counts else 0
     scores.record("stage1r", "global", "refs_per_character", float(refs_min))
     scores.record("stage1r", "global", "style_refs", float(len(_STYLE_REF_SUBJECTS)))
     scores.record("stage1r", "global", "failed_generations", float(failed_generations))
     scores.record("stage1r", "global", "auditions", float(auditions))
+    scores.record("stage1r", "global", "mouth_sheets", float(mouth_sheet_count))
     scores.stage_done("stage1r")
 
     bp = Blueprint.load(project_dir)
     bp.stages["stage1r"].status = "done"
-    bp.stages["stage1r"].ts = _now_iso()
+    bp.stages["stage1r"].ts = now_iso()
     bp.write(project_dir)
 
     return {

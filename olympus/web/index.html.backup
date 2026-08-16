@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Olympus</title>
+<style>
+  :root {
+    --bg:#04060c; --panel:rgba(10,16,28,.85); --line:#123347; --line2:#1d4d66;
+    --cyan:#57c7e3; --cyan-dim:#2a7d99; --text:#dfe9f2; --dim:#5f7d93;
+    --purple:#8f7bff; --pink:#ff5ca8; --green:#3ddc84; --gold:#e8b84b; --red:#ef6b73;
+    color-scheme: dark;
+  }
+  * { box-sizing:border-box; margin:0; }
+  body { background:var(--bg); color:var(--text); font:14px/1.5 "Segoe UI",system-ui,sans-serif; height:100vh; display:flex; flex-direction:column; overflow:hidden; }
+  .mono { font-family:Consolas,"Cascadia Mono",monospace; }
+
+  header { display:flex; align-items:center; gap:2rem; padding:.65rem 1.5rem; border-bottom:1px solid var(--line); background:rgba(6,10,18,.9); z-index:5; }
+  .logo { display:flex; align-items:center; gap:.5rem; font-family:Consolas,monospace; font-weight:700; letter-spacing:.35em; font-size:1rem; }
+  .logo .orb { width:14px; height:14px; border-radius:50%; background:radial-gradient(circle at 35% 35%, #9ec9ff, #2b6bff 60%, #0a1e4a); box-shadow:0 0 8px #2b6bff88; }
+  header nav { display:flex; gap:1.4rem; }
+  header nav a { font-family:Consolas,monospace; font-size:.75rem; letter-spacing:.22em; color:var(--cyan-dim); text-decoration:none; cursor:pointer; padding:.25rem 0; border-bottom:2px solid transparent; }
+  header nav a:hover { color:var(--cyan); }
+  header nav a.active { color:#fff; border-bottom-color:var(--cyan); }
+  #hdr-right { margin-left:auto; font-family:Consolas,monospace; font-size:.72rem; letter-spacing:.15em; color:var(--dim); }
+  #hdr-right .ok { color:var(--green); }
+
+  main { flex:1; position:relative; overflow:hidden; }
+  .page { display:none; height:100%; overflow-y:auto; padding:1.25rem 1.5rem; }
+  .page.active { display:block; }
+  #page-home { display:none; padding:0; overflow:hidden; }
+  #page-home.active { display:block; }
+
+  .hud { background:var(--panel); border:1px solid var(--line); position:relative; backdrop-filter:blur(3px); }
+  .hud::before, .hud::after { content:""; position:absolute; width:10px; height:10px; border:1px solid var(--cyan-dim); pointer-events:none; }
+  .hud::before { top:-1px; left:-1px; border-right:none; border-bottom:none; }
+  .hud::after  { bottom:-1px; right:-1px; border-left:none; border-top:none; }
+  .hud-title { font-family:Consolas,monospace; font-size:.72rem; letter-spacing:.25em; color:var(--cyan); padding:.55rem .9rem; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:.5rem; }
+  .hud-title::before { content:"◤"; font-size:.6rem; color:var(--cyan-dim); }
+
+  /* home */
+  #cortex { position:absolute; inset:0; width:100%; height:100%; cursor:grab; }
+  #note-float { position:absolute; top:4.6rem; left:50%; transform:translateX(-50%); width:520px; max-height:62vh; z-index:6; display:none; flex-direction:column; }
+  #note-float.open { display:flex; }
+  #note-float .nf-body { overflow-y:auto; padding:1rem 1.2rem; font-size:.86rem; }
+  #note-float .nf-body pre { background:#060a12; padding:.7rem; overflow-x:auto; border:1px solid var(--line); }
+  #note-float .nf-body a { color:var(--cyan); }
+  #nf-close { margin-left:auto; cursor:pointer; color:var(--dim); }
+  #nf-close:hover { color:#fff; }
+  #search-wrap { position:absolute; top:1.1rem; left:50%; transform:translateX(-50%); width:340px; z-index:4; }
+  #cortex-search { width:100%; background:rgba(8,14,24,.85); border:1px solid var(--line2); color:var(--text); font-family:Consolas,monospace; font-size:.72rem; letter-spacing:.25em; text-align:center; padding:.55rem; outline:none; }
+  #cortex-search::placeholder { color:var(--cyan-dim); }
+  #search-results { margin-top:.35rem; max-height:300px; overflow-y:auto; display:none; }
+  #search-results div { padding:.4rem .8rem; font-size:.82rem; color:var(--dim); cursor:pointer; border-bottom:1px solid var(--line); }
+  #search-results div:hover { color:#fff; background:rgba(87,199,227,.08); }
+
+  #jarvis-panel { position:absolute; top:1.1rem; left:1.25rem; width:360px; bottom:3.4rem; z-index:4; display:flex; flex-direction:column; transition:width .25s; }
+  #jarvis-panel.collapsed { bottom:auto; width:220px; }
+  #jarvis-panel.collapsed #jarvis-log, #jarvis-panel.collapsed #jarvis-form, #jarvis-panel.collapsed #jarvis-opts { display:none; }
+  #jarvis-panel.collapsed .hud-title { border-bottom:none; }
+  #jarvis-log { flex:1; overflow-y:auto; padding:.75rem .9rem; display:flex; flex-direction:column; gap:.7rem; }
+  .jmsg { border-left:2px solid var(--line2); padding:.15rem 0 .15rem .7rem; font-size:.86rem; }
+  .jmsg .who { font-family:Consolas,monospace; font-size:.68rem; letter-spacing:.15em; margin-right:.45rem; }
+  .jmsg.you .who { color:var(--cyan); } .jmsg.you { border-left-color:var(--cyan-dim); }
+  .jmsg.bot .who { color:var(--purple); } .jmsg.bot { border-left-color:var(--purple); }
+  .jmsg .tlink { display:block; font-family:Consolas,monospace; font-size:.7rem; color:var(--cyan); margin-top:.2rem; }
+  #jarvis-form { display:flex; gap:.45rem; padding:.7rem .9rem .4rem; }
+  #jarvis-in { flex:1; background:rgba(8,14,24,.9); border:1px solid var(--line2); color:var(--text); padding:.5rem .7rem; font-size:.82rem; outline:none; }
+  .sq { width:38px; background:#13243a; border:1px solid var(--line2); color:var(--cyan); cursor:pointer; font-size:.9rem; }
+  .sq.send { background:linear-gradient(135deg,#3a6fd8,#7c5cff); color:#fff; border:none; }
+  #jarvis-opts { padding:.2rem .9rem .7rem; font-family:Consolas,monospace; font-size:.66rem; letter-spacing:.18em; color:var(--cyan-dim); }
+  #jstatus.online { color:var(--green); } #jstatus.processing { color:var(--gold); }
+  #jstatus { margin-left:auto; }
+
+  #rail { position:absolute; top:1.1rem; right:1.25rem; width:300px; bottom:3.4rem; z-index:4; display:flex; flex-direction:column; gap:.9rem; overflow-y:auto; }
+  .rail-body { padding:.6rem .8rem; font-size:.8rem; }
+  #briefing-body { font-family:Consolas,monospace; font-size:.72rem; color:var(--dim); white-space:pre-wrap; max-height:150px; overflow-y:auto; }
+  #briefing-body b { color:var(--text); }
+  #capture-row { display:flex; gap:.4rem; }
+  #capture-in { flex:1; background:rgba(8,14,24,.9); border:1px solid var(--line); color:var(--text); padding:.4rem .6rem; font-size:.8rem; outline:none; }
+  .act-row { display:flex; align-items:baseline; gap:.5rem; padding:.22rem 0; font-size:.78rem; border-bottom:1px dotted rgba(18,51,71,.6); }
+  .act-row .txt { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text); }
+  .act-row .agent { font-family:Consolas,monospace; font-size:.68rem; color:var(--green); }
+  .dot { display:inline-block; width:7px; height:7px; border-radius:50%; flex:none; }
+  .sys-row { display:flex; align-items:center; gap:.55rem; padding:.26rem 0; font-family:Consolas,monospace; font-size:.72rem; letter-spacing:.12em; }
+  .sys-row .nm { color:var(--text); flex:1; text-transform:uppercase; }
+  .sys-row .st { font-size:.66rem; }
+  .sys-row .st.up { color:var(--green); } .sys-row .st.down { color:var(--dim); }
+  .sys-row button { font-family:inherit; font-size:.62rem; background:none; border:1px solid var(--line2); color:var(--cyan); padding:.1rem .5rem; cursor:pointer; }
+
+  #home-foot { position:absolute; left:0; right:0; bottom:0; padding:.55rem 1.5rem; display:flex; justify-content:space-between; font-family:Consolas,monospace; font-size:.68rem; letter-spacing:.2em; color:var(--cyan-dim); border-top:1px solid var(--line); background:rgba(6,10,18,.85); z-index:4; }
+  #firing { color:var(--purple); }
+
+  /* shared page bits */
+  h1.pg { font-family:Consolas,monospace; font-size:.85rem; letter-spacing:.3em; color:var(--cyan); margin-bottom:1rem; }
+  h2.pg { font-family:Consolas,monospace; font-size:.72rem; letter-spacing:.25em; color:var(--cyan-dim); margin:1.2rem 0 .6rem; }
+  table { width:100%; border-collapse:collapse; font-size:.85rem; }
+  th,td { text-align:left; padding:.5rem .7rem; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { font-family:Consolas,monospace; font-size:.68rem; letter-spacing:.2em; color:var(--cyan-dim); }
+  .ok{color:var(--green)} .bad{color:var(--red)} .warn{color:var(--gold)}
+  button.primary { background:linear-gradient(135deg,#3a6fd8,#7c5cff); border:none; color:#fff; padding:.5rem 1.1rem; cursor:pointer; font:inherit; }
+  button.ghost { background:none; border:1px solid var(--line2); color:var(--cyan); padding:.15rem .6rem; cursor:pointer; font-size:.72rem; font-family:Consolas,monospace; }
+  textarea,select,input.txt { background:rgba(8,14,24,.9); border:1px solid var(--line2); color:var(--text); padding:.5rem .7rem; font:inherit; outline:none; }
+  .chip { display:inline-flex; align-items:center; gap:.5rem; border:1px solid var(--line); padding:.3rem .8rem; margin:0 .4rem .45rem 0; font-size:.82rem; background:var(--panel); }
+  .cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:.9rem; margin-bottom:1.2rem; }
+  .card { padding:.9rem 1.1rem; }
+  .card .big { font-size:1.3rem; font-weight:600; font-family:Consolas,monospace; }
+  .card .lbl { color:var(--dim); font-size:.72rem; font-family:Consolas,monospace; letter-spacing:.15em; text-transform:uppercase; }
+  .link-row a { color:var(--cyan); margin-right:1.4rem; line-height:2.1; font-size:.85rem; }
+
+  /* tasks kanban */
+  #orchestrate-bar { display:flex; gap:.6rem; margin-bottom:1rem; max-width:900px; }
+  #orchestrate-goal { flex:1; }
+  .kanban { display:grid; grid-template-columns:repeat(4,1fr); gap:.9rem; align-items:start; }
+  .kcol .hud-title .cnt { margin-left:auto; color:var(--dim); }
+  .kcards { padding:.6rem; display:flex; flex-direction:column; gap:.6rem; max-height:56vh; overflow-y:auto; }
+  .kcard { border:1px solid var(--line); background:rgba(8,14,24,.75); padding:.55rem .7rem; font-size:.8rem; }
+  .kcard .khead { display:flex; align-items:center; gap:.5rem; margin-bottom:.25rem; font-family:Consolas,monospace; font-size:.68rem; }
+  .kcard .kid { color:var(--dim); }
+  .kcard .kagent { color:var(--green); letter-spacing:.1em; }
+  .kcard .ktext { color:var(--text); }
+  .kcard .kres { color:var(--dim); font-size:.74rem; margin-top:.3rem; max-height:70px; overflow:hidden; white-space:pre-wrap; }
+  .kcard .kbtns { margin-top:.4rem; display:flex; gap:.4rem; }
+
+  /* wiki */
+  .browser { display:grid; grid-template-columns:300px 1fr; gap:1rem; height:calc(100% - 6.5rem); }
+  .filelist { overflow-y:auto; font-size:.85rem; padding:.5rem; }
+  .filelist div { padding:.3rem .5rem; cursor:pointer; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .filelist div:hover { color:#fff; background:rgba(87,199,227,.08); }
+  .notepane { overflow-y:auto; padding:1.1rem 1.4rem; }
+  .notepane pre { background:#060a12; padding:.7rem; overflow-x:auto; border:1px solid var(--line); }
+  .notepane a { color:var(--cyan); }
+  #wiki-crumb { font-family:Consolas,monospace; font-size:.72rem; color:var(--cyan-dim); margin-bottom:.5rem; letter-spacing:.1em; }
+  #wiki-filter { width:300px; margin-bottom:.6rem; }
+
+  /* voice */
+  #voice-grid { display:grid; grid-template-columns:340px 1fr; gap:1.2rem; max-width:1100px; }
+  #voice-list { display:flex; flex-direction:column; gap:.35rem; padding:.7rem; max-height:60vh; overflow-y:auto; }
+  .vrow { display:flex; align-items:center; gap:.6rem; padding:.4rem .6rem; cursor:pointer; border:1px solid transparent; font-size:.84rem; }
+  .vrow:hover { border-color:var(--line2); }
+  .vrow.sel { border-color:var(--cyan-dim); background:rgba(87,199,227,.07); }
+  .vrow .vico { width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:#13243a; font-size:.7rem; font-family:Consolas,monospace; color:var(--cyan); }
+  #clips { display:flex; flex-direction:column; gap:.6rem; margin-top:1rem; }
+  .clip { padding:.6rem .8rem; }
+  .clip .cmeta { font-family:Consolas,monospace; font-size:.7rem; color:var(--dim); margin-bottom:.35rem; display:flex; gap:1rem; }
+  .clip audio { width:100%; height:32px; }
+
+  /* studio */
+  .stages { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:.7rem; margin:1rem 0 1.2rem; }
+  .stage { padding:.7rem .8rem; text-align:center; position:relative; }
+  .stage .sic { font-size:1.3rem; }
+  .stage .snm { font-family:Consolas,monospace; font-size:.68rem; letter-spacing:.15em; color:var(--cyan); margin-top:.3rem; }
+  .stage .sst { font-size:.7rem; color:var(--dim); }
+  .stage .sdot { position:absolute; top:.55rem; right:.6rem; width:9px; height:9px; border-radius:50%; background:#2a3a4a; }
+  .stage .sdot.pending { background:#2a3a4a; }
+  .stage .sdot.not_built { background:#161f29; border:1px solid #2a3a4a; }
+  .stage .sdot.running { background:var(--cyan); box-shadow:0 0 6px var(--cyan); }
+  .stage .sdot.done { background:var(--green); box-shadow:0 0 6px var(--green); }
+  .stage .sdot.failed { background:var(--red); box-shadow:0 0 6px var(--red); }
+  .stage .sdot.awaiting_approval { background:var(--gold); box-shadow:0 0 6px var(--gold); }
+  .stage button.ghost { margin-top:.5rem; font-size:.66rem; padding:.15rem .55rem; }
+  .stage { cursor:pointer; transition:border-color .15s, transform .15s; }
+  .stage:hover { border-color:var(--cyan); transform:translateY(-1px); }
+  #comfy-frame { width:100%; height:calc(100vh - 21rem); border:1px solid var(--line2); background:#000; display:none; }
+  /* stage-artifact viewer modal */
+  #stage-modal { display:none; position:fixed; inset:0; background:rgba(4,8,14,.72); backdrop-filter:blur(4px); z-index:60; }
+  #stage-modal.open { display:flex; align-items:center; justify-content:center; padding:1.5rem; }
+  #stage-modal-box { width:min(1100px, 95vw); max-height:88vh; overflow:auto; background:var(--panel); border:1px solid var(--line2); position:relative; }
+  #stage-modal-head { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:.7rem .9rem; border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--panel); z-index:2; }
+  #stage-modal-title { font-family:Consolas,monospace; font-size:.74rem; letter-spacing:.22em; color:var(--cyan); }
+  #stage-modal-close { background:none; border:1px solid var(--line2); color:var(--dim); font-size:.7rem; padding:.2rem .6rem; cursor:pointer; }
+  #stage-modal-close:hover { color:#fff; border-color:var(--cyan); }
+  #stage-modal-body { padding:1rem 1.1rem; min-height:40vh; }
+  .sm-metrics { display:flex; flex-wrap:wrap; gap:.45rem; margin-bottom:1rem; }
+  .sm-metrics span { font-family:Consolas,monospace; font-size:.66rem; color:var(--dim); background:#101d2c; border:1px solid var(--line); padding:.2rem .5rem; }
+  .sm-metrics b { color:var(--cyan); font-weight:400; }
+  .sm-empty { color:var(--dim); font-size:.75rem; padding:2rem .5rem; text-align:center; }
+  .sm-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:.7rem; }
+  .sm-item { border:1px solid var(--line); background:#0e1a28; }
+  .sm-item img, .sm-item video { width:100%; max-height:260px; object-fit:cover; display:block; background:#000; }
+  .sm-item audio { width:100%; display:block; }
+  .sm-item .sm-cap { font-family:Consolas,monospace; font-size:.62rem; color:var(--dim); padding:.3rem .5rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .sm-doc { font-family:Consolas,monospace; font-size:.72rem; color:#cfe3f0; white-space:pre-wrap; word-break:break-word; max-height:55vh; overflow:auto; border:1px solid var(--line); background:#0b1522; padding:.8rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><span class="orb"></span>OLYMPUS</div>
+  <nav>
+    <a data-page="home" class="active">HOME</a>
+    <a data-page="tasks">TASKS</a>
+    <a data-page="wiki">WIKI</a>
+    <a data-page="commerce">COMMERCE</a>
+    <a data-page="automations">AUTOMATIONS</a>
+    <a data-page="voice">VOICE</a>
+    <a data-page="studio">STUDIO</a>
+    <a data-page="system">SYSTEM</a>
+  </nav>
+  <div id="hdr-right">● <span id="hdr-agents">…</span> AGENTS · OLLAMA <span id="hdr-ollama">…</span></div>
+</header>
+
+<main>
+
+<!-- ================= HOME ================= -->
+<div class="page active" id="page-home">
+  <canvas id="cortex"></canvas>
+  <div id="search-wrap">
+    <input id="cortex-search" class="mono" placeholder="✦ SEARCH THE CORTEX" autocomplete="off">
+    <div id="search-results" class="hud"></div>
+  </div>
+  <div id="jarvis-panel" class="hud">
+    <div class="hud-title" id="jarvis-title" style="cursor:pointer" title="click to collapse/expand">● JARVIS
+      <span id="jstatus" class="online mono">ONLINE</span>
+      <span id="jarvis-caret" style="color:var(--cyan-dim);margin-left:.6rem">▾</span></div>
+    <div id="jarvis-log">
+      <div class="jmsg bot"><span class="who">JARVIS ~</span>At your service, Amir. Questions answered, work routed.</div>
+    </div>
+    <form id="jarvis-form">
+      <input id="jarvis-in" placeholder="speak or type — questions answered, work routed · ctrl+enter" autocomplete="off">
+      <button type="button" class="sq" id="mic-btn" title="voice input">🎙</button>
+      <button type="submit" class="sq send" title="send">▶</button>
+    </form>
+    <div id="jarvis-opts"><label><input type="checkbox" id="speak-replies" checked> JARVIS SPEAKS REPLIES</label></div>
+  </div>
+  <div id="rail">
+    <div class="hud"><div class="hud-title">BRIEFING</div><div class="rail-body" id="briefing-body">no briefings yet</div></div>
+    <div class="hud"><div class="hud-title">CAPTURE</div><div class="rail-body"><div id="capture-row">
+      <input id="capture-in" placeholder="idea, task, link…"><button class="sq send" id="capture-btn">▶</button></div></div></div>
+    <div class="hud"><div class="hud-title">ACTIVITY</div><div class="rail-body" id="activity-body"></div></div>
+    <div class="hud"><div class="hud-title">SYSTEMS</div><div class="rail-body" id="systems-body"></div></div>
+  </div>
+  <div id="note-float" class="hud">
+    <div class="hud-title"><span id="nf-title">NOTE</span><span id="nf-close" title="close">✕</span></div>
+    <div class="nf-body" id="nf-body"></div>
+  </div>
+
+  <div id="home-foot">
+    <span id="cortex-stats">CORTEX · …</span>
+    <span id="firing">● ROUTING FIRING</span>
+    <span id="gpu-stat">GPU · …</span>
+  </div>
+</div>
+
+<!-- ================= TASKS ================= -->
+<div class="page" id="page-tasks">
+  <h1 class="pg">TASKS · AGENT WORK QUEUE</h1>
+  <div id="orchestrate-bar">
+    <input class="txt" id="orchestrate-goal" placeholder="Give the Conductor a goal — it plans the steps and agents pick them up…">
+    <button class="primary" id="orchestrate-btn">ORCHESTRATE</button>
+    <input class="txt" id="quick-task" placeholder="…or drop a single task (auto-routed)">
+    <button class="ghost" id="quick-btn" style="padding:.5rem .9rem">QUEUE</button>
+  </div>
+  <div class="kanban">
+    <div class="kcol hud"><div class="hud-title">QUEUED <span class="cnt" id="cnt-queued">0</span></div><div class="kcards" id="col-queued"></div></div>
+    <div class="kcol hud"><div class="hud-title">RUNNING <span class="cnt" id="cnt-running">0</span></div><div class="kcards" id="col-running"></div></div>
+    <div class="kcol hud"><div class="hud-title">DONE <span class="cnt" id="cnt-done">0</span></div><div class="kcards" id="col-done"></div></div>
+    <div class="kcol hud"><div class="hud-title">FAILED <span class="cnt" id="cnt-failed">0</span></div><div class="kcards" id="col-failed"></div></div>
+  </div>
+</div>
+
+<!-- ================= WIKI ================= -->
+<div class="page" id="page-wiki">
+  <h1 class="pg">WIKI · KNOWLEDGE CORPUS</h1>
+  <div id="wiki-crumb">/</div>
+  <input class="txt mono" id="wiki-filter" placeholder="filter notes…">
+  <div class="browser">
+    <div class="filelist hud" id="wiki-files"></div>
+    <div class="notepane hud" id="wiki-note">Select a note.</div>
+  </div>
+</div>
+
+<!-- ================= COMMERCE ================= -->
+<div class="page" id="page-commerce">
+  <h1 class="pg">COMMERCE · PLUTUS</h1>
+  <form class="task" id="plutus-form" style="display:flex;flex-direction:column;gap:.6rem;max-width:760px;margin-bottom:1.4rem">
+    <textarea id="plutus-text" rows="3" placeholder="Ask Plutus — listings, invoices, pricing, budgets…"></textarea>
+    <div><button class="primary">SEND TO PLUTUS</button></div>
+  </form>
+  <div class="hud"><table><thead><tr><th>#</th><th>STATUS</th><th>TASK</th><th>RESULT</th></tr></thead>
+  <tbody id="plutus-rows"></tbody></table></div>
+</div>
+
+<!-- ================= AUTOMATIONS ================= -->
+<div class="page" id="page-automations">
+  <h1 class="pg">AUTOMATIONS</h1>
+  <div id="auto-services" style="margin-bottom:1.2rem"></div>
+  <div class="link-row">
+    <a href="http://localhost:5678" target="_blank">n8n workflows :5678</a>
+    <a href="http://127.0.0.1:3030" target="_blank">Langfuse :3030</a>
+    <a href="https://127.0.0.1:9443" target="_blank">Portainer :9443</a>
+    <a href="http://127.0.0.1:6333/dashboard" target="_blank">Qdrant :6333</a>
+  </div>
+</div>
+
+<!-- ================= VOICE ================= -->
+<div class="page" id="page-voice">
+  <h1 class="pg">VOICE · SPEECH STUDIO</h1>
+  <div id="voice-status" style="margin-bottom:1rem"></div>
+  <div id="voice-grid">
+    <div class="hud"><div class="hud-title">VOICES</div><div id="voice-list"></div></div>
+    <div>
+      <div class="hud" style="padding:1rem">
+        <textarea id="voice-text" rows="5" style="width:100%" placeholder="Text to synthesize…">The Olympus cortex is live and all systems are connected.</textarea>
+        <div style="display:flex;align-items:center;gap:1rem;margin-top:.7rem">
+          <label class="mono" style="font-size:.72rem;color:var(--cyan-dim)">SPEED <span id="speed-val">1.0</span></label>
+          <input type="range" id="voice-speed" min="0.5" max="1.5" step="0.05" value="1.0" style="flex:1">
+          <button class="primary" id="voice-gen">GENERATE ▶</button>
+        </div>
+      </div>
+      <div id="clips"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= STUDIO ================= -->
+<div class="page" id="page-studio">
+  <h1 class="pg">STUDIO · ANIME / MANGA PIPELINE v2</h1>
+  <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:.4rem">
+    <span id="studio-status"></span>
+    <button class="primary" id="comfy-embed-btn">OPEN COMFYUI HERE ▼</button>
+    <a href="http://127.0.0.1:8188" target="_blank" style="color:var(--cyan);font-size:.82rem">open in new tab ↗</a>
+    <span class="mono" style="font-size:.7rem;color:var(--dim)">--novram --disable-cuda-malloc · RTX 4070 8GB</span>
+  </div>
+  <iframe id="comfy-frame" title="ComfyUI"></iframe>
+
+  <div class="hud" style="padding:.8rem 1rem;margin:.9rem 0">
+    <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+      <label class="mono" style="font-size:.7rem;color:var(--cyan-dim)">PROJECT</label>
+      <select id="studio-project-select" style="min-width:220px"></select>
+      <button class="ghost" id="studio-new-toggle">+ NEW PROJECT</button>
+      <span id="studio-project-meta" class="mono" style="font-size:.7rem;color:var(--dim)"></span>
+    </div>
+    <form id="studio-new-form" style="display:none;margin-top:.8rem">
+      <div style="display:flex;flex-wrap:wrap;gap:1rem;align-items:center;margin-bottom:.6rem">
+        <input class="txt" id="np-slug" placeholder="project-slug" style="width:200px">
+        <label class="mono" style="font-size:.72rem;color:var(--cyan-dim)">FPS <span id="np-fps-val">24</span></label>
+        <input type="range" id="np-fps" min="24" max="60" step="1" value="24" style="width:160px">
+        <label class="mono" style="font-size:.78rem"><input type="radio" name="np-mode" value="brief" checked> brief</label>
+        <label class="mono" style="font-size:.78rem"><input type="radio" name="np-mode" value="script"> full script</label>
+      </div>
+      <textarea id="np-text" rows="6" style="width:100%" placeholder="Creative brief (frontmatter: word_target: 600) — or full script text if 'full script' is selected…"></textarea>
+      <div style="margin-top:.6rem;display:flex;gap:.9rem;align-items:center">
+        <button class="primary" type="submit">CREATE PROJECT</button>
+        <span id="np-error" class="mono" style="font-size:.72rem;color:var(--red)"></span>
+      </div>
+    </form>
+  </div>
+
+  <div class="stages">
+    <div class="stage hud" data-stage="stage0"><div class="sdot" id="sdot-stage0"></div><div class="sic">📥</div><div class="snm">STAGE 0 · INTAKE</div><div class="sst">script.txt → project blueprint · FPS 24–60 · story-pollution guard</div><button class="ghost srun" data-stage="stage0">RUN ▶</button></div>
+    <div class="stage hud" data-stage="stage1"><div class="sdot" id="sdot-stage1"></div><div class="sic">🌍</div><div class="snm">STAGE 1 · WORLD BIBLE</div><div class="sst">chunked full-script character extraction · era/tech inference · relationship web · outfit specs · contradiction detection · creative expansion · sd_prompt anchors</div><button class="ghost srun" data-stage="stage1">RUN ▶</button></div>
+    <div class="stage hud" data-stage="stage1r"><div class="sdot" id="sdot-stage1r"></div><div class="sic">👤</div><div class="snm">STAGE 1R · REFERENCES</div><div class="sst">10+ refs per character (360° full body) · locations + assets · style pick → consistency LoRA · voice ID per character</div><button class="ghost srun" data-stage="stage1r">RUN ▶</button></div>
+    <div class="stage hud" data-stage="stage3"><div class="sdot" id="sdot-stage3"></div><div class="sic">🎞</div><div class="snm">STAGE 3 · STORYBOARD</div><div class="sst">scene blocks: first part → ending → in-betweens · last frame seeds next block · panel lock + regenerate · sets shot direction</div><button class="ghost srun" data-stage="stage3">RUN ▶</button></div>
+    <div class="stage hud" data-stage="stage2"><div class="sdot" id="sdot-stage2"></div><div class="sic">📝</div><div class="snm">STAGE 2 · SCREENPLAY</div><div class="sst">reads storyboard → adds narration + dialogue + SFX · composition prompts per shot · pacing pauses · quality audit (fix 3 weakest) · sequence-order check</div><button class="ghost srun" data-stage="stage2">RUN ▶</button></div>
+    <div class="stage hud" data-stage="stage3b"><div class="sdot" id="sdot-stage3b"></div><div class="sic">🎨</div><div class="snm">STAGE 3B · IMAGES</div><div class="sst">one krea2 image per shot · same anchors every time = consistent characters</div><button class="ghost srun" data-stage="stage3b">RUN ▶</button></div>
+    <div class="stage hud" data-stage="stage3c"><div class="sdot" id="sdot-stage3c"></div><div class="sic">🎞️</div><div class="snm">STAGE 3C · ANIMATION</div><div class="sst">LTX-Video motion per panel → clips · motion tiers · facial anchors</div><button class="ghost srun" data-stage="stage3c">RUN ▶</button></div>
+    <div class="stage hud" data-stage="stage_vlm_review"><div class="sdot" id="sdot-stage_vlm_review"></div><div class="sic">🔍</div><div class="snm">STAGE · VLM REVIEW</div><div class="sst">vision-model consistency check · prompt-adherence scoring · blunder gating</div><button class="ghost srun" data-stage="stage_vlm_review">RUN ▶</button></div>
+    <div class="stage hud" data-stage="stage4"><div class="sdot" id="sdot-stage4"></div><div class="sic">🎙</div><div class="snm">STAGE 4 · AUDIO</div><div class="sst">Kokoro TTS · narration + per-character dialogue voices · thinking pauses</div><button class="ghost srun" data-stage="stage4">RUN ▶</button></div>
+    <div class="stage hud" data-stage="stage5"><div class="sdot" id="sdot-stage5"></div><div class="sic">🎬</div><div class="snm">STAGE 5 · ASSEMBLY</div><div class="sst">audio→frame timing · clip chunking · subtle transitions · quiet generated music · copyright check · next-episode carryover · length/GB prediction</div><button class="ghost srun" data-stage="stage5">RUN ▶</button></div>
+  </div>
+
+  <div id="stage-modal" role="dialog" aria-modal="true">
+    <div id="stage-modal-box">
+      <div id="stage-modal-head">
+        <span id="stage-modal-title">STAGE</span>
+        <button id="stage-modal-close" aria-label="close">CLOSE ✕</button>
+      </div>
+      <div id="stage-modal-body"><div class="sm-empty">loading…</div></div>
+    </div>
+  </div>
+  <div style="display:flex;gap:1.5rem;flex-wrap:wrap">
+    <p class="mono" style="font-size:.72rem;color:var(--dim)">pipeline engine: olympus/engines/pipeline/ · kernel: olympus/kernel/</p>
+    <p class="mono" style="font-size:.72rem;color:var(--dim)">design: docs/planning/anime-pipeline-v2-design.md</p>
+    <p class="mono" style="font-size:.72rem;color:var(--dim)">tools: realesrgan · rife-ncnn-vulkan · anime-face-detector</p>
+  </div>
+</div>
+
+<!-- ================= SYSTEM ================= -->
+<div class="page" id="page-system">
+  <h1 class="pg">SYSTEM · OVERVIEW</h1>
+  <div class="cards" id="sys-cards"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;max-width:1200px">
+    <div>
+      <h2 class="pg">MODEL ROLES</h2>
+      <div class="hud"><table id="sys-models"><thead><tr><th>ROLE</th><th>MODEL</th></tr></thead><tbody></tbody></table></div>
+      <h2 class="pg">PATHS</h2>
+      <div class="hud"><table id="sys-paths"><tbody></tbody></table></div>
+      <h2 class="pg">SERVICES</h2>
+      <div id="sys-services"></div>
+    </div>
+    <div>
+      <h2 class="pg">AGENTS</h2>
+      <div class="hud"><table id="sys-agents-tbl"><thead><tr><th>AGENT</th><th>DOMAIN</th><th>ROLE</th><th>RESOLVED MODEL</th></tr></thead><tbody></tbody></table></div>
+      <h2 class="pg">TASK STATS</h2>
+      <div id="sys-taskstats"></div>
+      <p style="margin-top:1rem"><button class="primary" onclick="fetch('/api/agents/reload',{method:'POST'}).then(refreshAll)">RELOAD AGENT REGISTRY</button></p>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+async function j(url, opts) { const r = await fetch(url, opts); if (!r.ok) throw new Error(await r.text()); return r.json(); }
+function esc(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
+
+/* ============ nav ============ */
+document.querySelectorAll('header nav a').forEach(a => a.addEventListener('click', () => {
+  document.querySelectorAll('header nav a').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
+  a.classList.add('active'); $('page-' + a.dataset.page).classList.add('active');
+}));
+function goPage(name) { document.querySelector(`header nav a[data-page="${name}"]`).click(); }
+
+/* ============ CORTEX ============ */
+const AGENT_COLORS = ['#8f7bff','#c05cff','#ff5ca8','#ff9f45','#e8b84b','#4ade80','#37c9a2','#5cb8ff','#7bd4ff','#b08fff'];
+const HOME_ROT_X = 0.25, HOME_VEL = 0.0018;
+let cortex = { nodes:[], edges:[], nuclei:[], rotY:0, rotX:HOME_ROT_X, vel:HOME_VEL,
+               firing:-1, fireT:0, lastDrag:0,
+               zoom:1, zoomT:1, userZoom:1, userZoomT:1, offX:0, offY:0, focus:-1, hover:-1, proj:[] };
+
+function buildCortex(agents, notePaths) {
+  const R = 1, nodes = [];
+  agents.forEach((a, i) => {
+    const phi = Math.acos(1 - 2 * (i + .5) / agents.length), th = Math.PI * (1 + Math.sqrt(5)) * i;
+    nodes.push({ x:.55*R*Math.sin(phi)*Math.cos(th), y:.55*R*Math.cos(phi), z:.55*R*Math.sin(phi)*Math.sin(th),
+                 r:5.5, color:AGENT_COLORS[i % AGENT_COLORS.length], nucleus:true,
+                 name:a.name, label:a.name.toUpperCase(), desc:a.description });
+  });
+  const nNuc = nodes.length;
+  // satellites: one node per real vault/wiki note (fill with plain neurons if the vault is small)
+  const paths = (notePaths || []).slice(0, 240);
+  const N = Math.max(paths.length, 120);
+  for (let i = 0; i < N; i++) {
+    const phi = Math.acos(1 - 2 * (i + .5) / N), th = Math.PI * (1 + Math.sqrt(5)) * i;
+    const x = R*Math.sin(phi)*Math.cos(th)+(Math.random()-.5)*.25,
+          y = R*Math.cos(phi)+(Math.random()-.5)*.25,
+          z = R*Math.sin(phi)*Math.sin(th)+(Math.random()-.5)*.25;
+    let best = 0, bd = 9;
+    for (let k = 0; k < nNuc; k++) { const d = (x-nodes[k].x)**2+(y-nodes[k].y)**2+(z-nodes[k].z)**2; if (d < bd) { bd = d; best = k; } }
+    const path = paths[i] || null;
+    nodes.push({ x, y, z, r: path ? 2.4+Math.random()*1.6 : 1.6+Math.random()*1.4,
+                 color:(bd<.55 && Math.random()<.55) ? nodes[best].color : '#a8d4f2',
+                 nucleus:false, cluster:best, path,
+                 label: path ? path.split('/').pop().replace(/\.md$/,'') : null });
+  }
+  const edges = [];
+  for (let i = nNuc; i < nodes.length; i++) {
+    let bi = -1, bd = 9;
+    for (let k = nNuc; k < nodes.length; k++) { if (k === i) continue;
+      const d = (nodes[i].x-nodes[k].x)**2+(nodes[i].y-nodes[k].y)**2+(nodes[i].z-nodes[k].z)**2;
+      if (d < bd) { bd = d; bi = k; } }
+    if (bi >= 0 && bd < .5) edges.push([i, bi]);
+    if (Math.random() < .35) edges.push([i, nodes[i].cluster]);
+  }
+  cortex.nodes = nodes; cortex.edges = edges; cortex.nuclei = nodes.slice(0, nNuc);
+  const named = nodes.filter(n => n.path).length;
+  $('cortex-stats').textContent = `CORTEX · ${nodes.length} NODES (${named} NOTES) · ${edges.length} NERVES · ${nNuc} NUCLEI · LIVE`;
+}
+
+function drawCortex() {
+  const cv = $('cortex'), ctx = cv.getContext('2d');
+  const dpr = devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+  if (cv.width !== W*dpr || cv.height !== H*dpr) { cv.width = W*dpr; cv.height = H*dpr; }
+  ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,W,H);
+  // sphere dead-center of the entire page
+  const cx = W / 2, cy = H / 2;
+  const now = performance.now();
+  const focused = cortex.focus >= 0;
+  if (focused) {
+    // reading a node: stop the spin, zoom in
+    cortex.vel += (0 - cortex.vel) * .08;
+    cortex.zoomT = 1.85;
+  } else if (cortex.dragging || cortex.hover >= 0) {
+    // any interaction (grabbing, or hovering a node to click it) halts the spin
+    cortex.vel += (0 - cortex.vel) * .25;
+    cortex.zoomT = 1;
+  } else {
+    cortex.zoomT = 1;
+    // idle again: ease tilt + spin back to defaults after 3s
+    if (now - cortex.lastDrag > 3000) {
+      cortex.rotX += (HOME_ROT_X - cortex.rotX) * .03;
+      cortex.vel += (HOME_VEL - cortex.vel) * .03;
+    }
+  }
+  cortex.zoom += (cortex.zoomT - cortex.zoom) * .07;
+  cortex.userZoom += (cortex.userZoomT - cortex.userZoom) * .12;
+  cortex.rotY += cortex.vel;
+  const scale = Math.min(W * .62, H) * .42 * cortex.zoom * cortex.userZoom;
+  const sy = Math.sin(cortex.rotY), cyr = Math.cos(cortex.rotY);
+  const sx = Math.sin(cortex.rotX), cxr = Math.cos(cortex.rotX);
+  const raw = cortex.nodes.map(n => {
+    let x = n.x*cyr + n.z*sy, z = -n.x*sy + n.z*cyr, y = n.y;
+    let y2 = y*cxr - z*sx, z2 = y*sx + z*cxr;
+    const p = 1.6 / (1.6 + z2);
+    return { X: cx + x*scale*p, Y: cy + y2*scale*p, d: p, n };
+  });
+  // pan so the focused node eases to just below the note reader; otherwise ease back to center
+  if (focused) {
+    const f = raw[cortex.focus];
+    cortex.offX += ((cx - f.X) - cortex.offX) * .07;
+    cortex.offY += ((cy + H*.18 - f.Y) - cortex.offY) * .07;
+  } else {
+    cortex.offX += (0 - cortex.offX) * .07;
+    cortex.offY += (0 - cortex.offY) * .07;
+  }
+  const proj = raw.map(p => ({ X: p.X + cortex.offX, Y: p.Y + cortex.offY, d: p.d, n: p.n }));
+  cortex.proj = proj;
+  for (const [a,b] of cortex.edges) {
+    const A = proj[a], B = proj[b];
+    let alpha = .10 * Math.min(A.d, B.d), color = '150,190,220';
+    if (cortex.firing >= 0 && (cortex.nodes[a].cluster === cortex.firing || a === cortex.firing || b === cortex.firing)) {
+      alpha += .35 * Math.max(0, 1 - (now - cortex.fireT)/900); color = '190,160,255';
+    }
+    ctx.strokeStyle = `rgba(${color},${alpha})`;
+    ctx.beginPath(); ctx.moveTo(A.X, A.Y); ctx.lineTo(B.X, B.Y); ctx.stroke();
+  }
+  const order = proj.map((p,i) => i).sort((a,b) => proj[a].d - proj[b].d);
+  for (const i of order) {
+    const p = proj[i];
+    const hot = i === cortex.hover || i === cortex.focus;
+    const r = p.n.r * p.d * 1.15 * (hot ? 1.6 : 1);
+    ctx.beginPath(); ctx.arc(p.X, p.Y, r, 0, 7);
+    ctx.fillStyle = p.n.color;
+    ctx.globalAlpha = .35 + .65 * (p.d - .55) / .9;
+    if (p.n.nucleus || hot) { ctx.shadowColor = p.n.color; ctx.shadowBlur = hot ? 20 : 14; }
+    ctx.fill(); ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+  }
+  // hover / focus label
+  const lbl = cortex.hover >= 0 ? cortex.hover : cortex.focus;
+  if (lbl >= 0 && cortex.nodes[lbl].label) {
+    const p = proj[lbl], text = cortex.nodes[lbl].label;
+    ctx.font = '11px Consolas, monospace';
+    const w = ctx.measureText(text).width;
+    ctx.fillStyle = 'rgba(6,10,18,.9)';
+    ctx.fillRect(p.X + 10, p.Y - 18, w + 12, 18);
+    ctx.strokeStyle = 'rgba(87,199,227,.4)';
+    ctx.strokeRect(p.X + 10, p.Y - 18, w + 12, 18);
+    ctx.fillStyle = '#9fe3f7';
+    ctx.fillText(text, p.X + 16, p.Y - 5);
+  }
+  requestAnimationFrame(drawCortex);
+}
+
+setInterval(() => {
+  if (!cortex.nuclei.length || cortex.focus >= 0) return;
+  cortex.firing = Math.floor(Math.random() * cortex.nuclei.length);
+  cortex.fireT = performance.now();
+  const nuc = cortex.nuclei[cortex.firing];
+  $('firing').textContent = `● ${nuc.name.toUpperCase()} FIRING`;
+  $('firing').style.color = nuc.color;
+}, 1700);
+
+/* cortex interaction: drag to spin, hover to identify, click a note-node to read it */
+function cortexHit(x, y) {
+  let best = -1, bd = 14 * 14;
+  for (let i = 0; i < cortex.proj.length; i++) {
+    const p = cortex.proj[i];
+    const d = (p.X - x) ** 2 + (p.Y - y) ** 2;
+    if (d < bd && (cortex.nodes[i].path || cortex.nodes[i].nucleus)) { bd = d; best = i; }
+  }
+  return best;
+}
+async function focusCortexNode(i) {
+  const n = cortex.nodes[i];
+  cortex.focus = i;
+  $('note-float').classList.add('open');
+  if (n.nucleus) {
+    $('nf-title').textContent = 'AGENT · ' + n.label;
+    $('nf-body').innerHTML = `<p>${esc(n.desc || '')}</p><p class="mono" style="color:var(--dim);font-size:.74rem;margin-top:.6rem">click ✕ to release the cortex</p>`;
+    return;
+  }
+  $('nf-title').textContent = n.label;
+  $('nf-body').innerHTML = '<em style="color:var(--dim)">reading…</em>';
+  try {
+    const note = await j('/api/brain/note?path=' + encodeURIComponent(n.path));
+    $('nf-body').innerHTML = note.html || '<em>empty note</em>';
+  } catch { $('nf-body').innerHTML = '<em>could not load this note</em>'; }
+}
+function releaseCortex() {
+  cortex.focus = -1;                    // pan/zoom ease back to center automatically
+  cortex.lastDrag = 0;                  // resume default rotation immediately
+  $('note-float').classList.remove('open');
+}
+$('nf-close').addEventListener('click', releaseCortex);
+addEventListener('keydown', e => { if (e.key === 'Escape') releaseCortex(); });
+
+(() => { let drag = false, moved = 0, lx = 0, ly = 0;
+  const cv = $('cortex');
+  // scroll to zoom out (way out) or in; double-click empty space to snap back to default
+  cv.addEventListener('wheel', e => {
+    e.preventDefault();
+    cortex.userZoomT = Math.min(3, Math.max(0.25, cortex.userZoomT * (e.deltaY > 0 ? 0.88 : 1.14)));
+    cortex.lastDrag = performance.now();   // zooming counts as interaction: pause the spin
+  }, { passive: false });
+  cv.addEventListener('dblclick', e => {
+    const rect = cv.getBoundingClientRect();
+    if (cortexHit(e.clientX - rect.left, e.clientY - rect.top) < 0) cortex.userZoomT = 1;
+  });
+  cv.addEventListener('mousedown', e => { drag = true; cortex.dragging = true; moved = 0; lx = e.clientX; ly = e.clientY; cv.style.cursor='grabbing'; });
+  addEventListener('mouseup', e => {
+    if (drag && moved < 5 && e.target === cv) {
+      const rect = cv.getBoundingClientRect();
+      const hit = cortexHit(e.clientX - rect.left, e.clientY - rect.top);
+      if (hit >= 0) focusCortexNode(hit);
+      else if (cortex.focus >= 0) releaseCortex();
+    }
+    drag = false; cortex.dragging = false; cortex.lastDrag = performance.now(); cv.style.cursor='grab';
+  });
+  addEventListener('mousemove', e => {
+    if (drag) {
+      moved += Math.abs(e.clientX - lx) + Math.abs(e.clientY - ly);
+      cortex.rotY += (e.clientX - lx) * .005; cortex.rotX += (e.clientY - ly) * .003;
+      cortex.lastDrag = performance.now();
+    } else if (e.target === cv) {
+      const rect = cv.getBoundingClientRect();
+      const prev = cortex.hover;
+      cortex.hover = cortexHit(e.clientX - rect.left, e.clientY - rect.top);
+      if (prev >= 0 && cortex.hover < 0) cortex.lastDrag = performance.now(); // left a node: idle timer restarts
+      cv.style.cursor = cortex.hover >= 0 ? 'pointer' : 'grab';
+    } else if (cortex.hover >= 0) { cortex.hover = -1; cortex.lastDrag = performance.now(); }
+    lx = e.clientX; ly = e.clientY;
+  });
+})();
+
+/* ============ health / systems / activity ============ */
+async function refreshHealth() {
+  try {
+    const h = await j('/api/health');
+    window._health = h;
+    $('hdr-agents').textContent = h.agents;
+    $('hdr-ollama').innerHTML = h.ollama ? '<span class="ok">UP</span>' : '<span class="bad">DOWN</span>';
+    const g = h.gpu;
+    $('gpu-stat').textContent = g.available ? `GPU · ${(g.vram_used_mb/1024).toFixed(1)}/${(g.vram_total_mb/1024).toFixed(0)} GB` : 'GPU · FREE';
+  } catch { $('hdr-ollama').innerHTML = '<span class="bad">?</span>'; }
+}
+
+async function refreshSystems() {
+  const svcs = await j('/api/services');
+  const rows = [{name:'ollama', running: window._health ? window._health.ollama : false, noStart:true}, ...svcs];
+  $('systems-body').innerHTML = rows.map(s => `<div class="sys-row">
+      <span class="dot" style="background:${s.running ? 'var(--green)' : '#2a3a4a'}"></span>
+      <span class="nm">${esc(s.name)}</span>
+      ${s.running ? '<span class="st up">UP</span>'
+                  : `<span class="st down">DOWN</span>${s.noStart ? '' : `<button onclick="startSvc('${s.name}')">start</button>`}`}
+    </div>`).join('');
+  const chips = svcs.map(s => `<span class="chip"><span class="${s.running?'ok':'bad'}">●</span> ${esc(s.name)}
+      ${s.running ? '' : `<button class="ghost" onclick="startSvc('${s.name}')">start</button>`}</span>`).join('');
+  $('auto-services').innerHTML = chips; $('sys-services').innerHTML = chips;
+  const comfy = svcs.find(s => s.name === 'comfyui');
+  $('studio-status').innerHTML = `<span class="chip"><span class="${comfy.running?'ok':'bad'}">●</span> ComfyUI ${comfy.running?'UP':'DOWN'}
+     ${comfy.running ? '' : '<button class="ghost" onclick="startSvc(\'comfyui\')">start</button>'}</span>`;
+  window._comfyUp = comfy.running;
+  const voice = svcs.find(s => s.name === 'voice');
+  $('voice-status').innerHTML = `<span class="chip"><span class="${voice.running?'ok':'bad'}">●</span> Voice Studio ${voice.running?'UP':'DOWN'}
+     ${voice.running ? '' : '<button class="ghost" onclick="startSvc(\'voice\')">start</button>'}</span>`;
+  if (voice.running && !window._voicesLoaded) loadVoices();
+}
+async function startSvc(name) { await j(`/api/services/${encodeURIComponent(name)}/start`, {method:'POST'}); setTimeout(refreshSystems, 4000); }
+
+const STATUS_DOT = { done:'var(--green)', failed:'var(--pink)', running:'var(--cyan)', queued:'var(--gold)' };
+function kcard(t) {
+  return `<div class="kcard">
+    <div class="khead"><span class="dot" style="background:${STATUS_DOT[t.status]}"></span>
+      <span class="kid">#${t.id}</span><span class="kagent">${esc(t.agent).toUpperCase()}</span></div>
+    <div class="ktext">${esc(t.text).slice(0, 140)}</div>
+    ${t.result || t.error ? `<div class="kres">${esc((t.result || t.error)).slice(0, 220)}</div>` : ''}
+    <div class="kbtns">
+      <button class="ghost" onclick="rerunTask(${t.id})">rerun</button>
+      ${t.status === 'failed' ? `<button class="ghost" onclick="retryTask(${t.id})">retry</button>` : ''}
+    </div></div>`;
+}
+async function rerunTask(id) { await j(`/api/tasks/${id}/rerun`, {method:'POST'}); refreshTasks(); }
+async function retryTask(id) { await j(`/api/tasks/${id}/retry`, {method:'POST'}); refreshTasks(); }
+
+async function refreshTasks() {
+  const tasks = await j('/api/tasks');
+  $('activity-body').innerHTML = tasks.slice(0, 9).map(t => `<div class="act-row">
+      <span class="dot" style="background:${STATUS_DOT[t.status]}"></span>
+      <span class="txt">${esc(t.text)}</span><span class="agent">${esc(t.agent)}</span></div>`).join('') || '<span style="color:var(--dim)">no activity yet</span>';
+  for (const st of ['queued','running','done','failed']) {
+    const list = tasks.filter(t => t.status === st);
+    $('col-' + st).innerHTML = list.map(kcard).join('') || '<div style="color:var(--dim);font-size:.75rem;padding:.3rem">empty</div>';
+    $('cnt-' + st).textContent = list.length;
+  }
+  $('plutus-rows').innerHTML = tasks.filter(t => t.agent === 'plutus').map(t => `<tr><td>${t.id}</td>
+      <td class="${t.status==='done'?'ok':t.status==='failed'?'bad':'warn'}">${t.status}</td>
+      <td>${esc(t.text).slice(0,110)}</td><td style="white-space:pre-wrap;max-width:480px">${esc(t.result || t.error || '')}</td></tr>`).join('');
+  const brief = tasks.find(t => t.status === 'done' && /brief|wrap|summary|\[PLAN\]/i.test(t.text)) || tasks.find(t => t.status === 'done');
+  if (brief) $('briefing-body').innerHTML =
+    `<b># ${esc(brief.text.slice(0,80))}</b>\n&gt; 🤖 ${esc(brief.agent)} · Olympus · ${esc(brief.updated)}\n\n${esc((brief.result||'').slice(0,300))}`;
+}
+
+async function refreshAgents() {
+  window._agents = await j('/api/agents');
+  buildCortex(window._agents, noteIndex || []);
+  // once the vault index is loaded, rebuild so every neuron is a real note
+  buildNoteIndex().then(idx => buildCortex(window._agents, idx));
+}
+
+async function refreshSystemPage() {
+  try {
+    const s = await j('/api/system');
+    const h = window._health || { status:'?', ollama:false, gpu:{available:false} };
+    const total = Object.values(s.tasks).reduce((a,b) => a+b, 0);
+    $('sys-cards').innerHTML = `
+      <div class="card hud"><div class="big ${h.status==='ok'?'ok':'bad'}">${(h.status||'?').toUpperCase()}</div><div class="lbl">kernel v${esc(s.kernel.version)} :${s.kernel.port}</div></div>
+      <div class="card hud"><div class="big">${s.agents.length}</div><div class="lbl">agents</div></div>
+      <div class="card hud"><div class="big ${h.ollama?'ok':'bad'}">${h.ollama?'UP':'DOWN'}</div><div class="lbl">ollama :11434</div></div>
+      <div class="card hud"><div class="big">${h.gpu.available ? h.gpu.vram_used_mb+' MB' : 'FREE'}</div><div class="lbl">gpu vram used</div></div>
+      <div class="card hud"><div class="big">${total}</div><div class="lbl">tasks total</div></div>`;
+    $('sys-models').querySelector('tbody').innerHTML = Object.entries(s.models)
+      .map(([r,m]) => `<tr><td class="mono">${esc(r)}</td><td class="mono">${esc(m)}</td></tr>`).join('');
+    $('sys-paths').querySelector('tbody').innerHTML = Object.entries(s.paths)
+      .map(([k,v]) => `<tr><td class="mono" style="color:var(--cyan-dim)">${esc(k)}</td><td class="mono">${esc(v)}</td></tr>`).join('');
+    $('sys-agents-tbl').querySelector('tbody').innerHTML = s.agents.map((a,i) =>
+      `<tr><td><span style="color:${AGENT_COLORS[i % AGENT_COLORS.length]}">●</span> ${esc(a.name)}</td>
+       <td class="mono">${esc(a.domain)}</td><td class="mono">${esc(a.model)}</td><td class="mono">${esc(a.resolved_model)}</td></tr>`).join('');
+    $('sys-taskstats').innerHTML = ['queued','running','done','failed'].map(st =>
+      `<span class="chip"><span class="dot" style="background:${STATUS_DOT[st]}"></span> ${st.toUpperCase()} ${s.tasks[st] || 0}</span>`).join('');
+  } catch {}
+}
+
+/* ============ jarvis ============ */
+async function pollTask(id, onDone) {
+  for (let i = 0; i < 120; i++) {
+    const t = await j('/api/tasks/' + id);
+    if (t.status === 'done' || t.status === 'failed') return onDone(t);
+    await new Promise(r => setTimeout(r, 2000));
+  }
+  onDone({ status:'failed', error:'timed out' });
+}
+async function speak(text) {
+  if (!$('speak-replies').checked) return;
+  try {
+    const r = await fetch('/api/voice/tts', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ text: text.slice(0, 400) }) });
+    if (r.ok) { new Audio(URL.createObjectURL(await r.blob())).play(); return; }
+  } catch {}
+  try { speechSynthesis.speak(new SpeechSynthesisUtterance(text.slice(0, 400))); } catch {}
+}
+$('jarvis-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const text = $('jarvis-in').value.trim(); if (!text) return;
+  $('jarvis-in').value = '';
+  const log = $('jarvis-log');
+  log.insertAdjacentHTML('beforeend', `<div class="jmsg you"><span class="who">YOU ›</span>${esc(text)}</div>`);
+  const el = document.createElement('div');
+  el.className = 'jmsg bot'; el.innerHTML = '<span class="who">JARVIS ~</span><em style="color:var(--dim)">thinking…</em>';
+  log.appendChild(el); log.scrollTop = log.scrollHeight;
+  $('jstatus').textContent = 'PROCESSING'; $('jstatus').className = 'processing mono';
+  const t = await j('/api/tasks', { method:'POST', headers:{'Content-Type':'application/json'},
+                                    body: JSON.stringify({ text, agent:'jarvis' }) });
+  pollTask(t.id, done => {
+    const reply = done.result || ('⚠ ' + (done.error || 'failed'));
+    el.innerHTML = `<span class="who">JARVIS ~</span>${esc(reply)}<span class="tlink">→ task ${done.id ?? t.id}</span>`;
+    log.scrollTop = log.scrollHeight;
+    $('jstatus').textContent = 'ONLINE'; $('jstatus').className = 'online mono';
+    speak(reply); refreshTasks();
+  });
+});
+$('jarvis-title').addEventListener('click', e => {
+  if (e.target.tagName === 'INPUT') return;
+  const p = $('jarvis-panel');
+  p.classList.toggle('collapsed');
+  $('jarvis-caret').textContent = p.classList.contains('collapsed') ? '▸' : '▾';
+});
+$('mic-btn').addEventListener('click', () => {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { $('jarvis-in').placeholder = 'voice input not supported in this browser'; return; }
+  const rec = new SR(); rec.lang = 'en-US';
+  rec.onresult = e => { $('jarvis-in').value = e.results[0][0].transcript; };
+  rec.start();
+});
+
+/* ============ capture ============ */
+$('capture-btn').addEventListener('click', async () => {
+  const v = $('capture-in').value.trim(); if (!v) return;
+  $('capture-in').value = '';
+  await j('/api/tasks', { method:'POST', headers:{'Content-Type':'application/json'},
+                          body: JSON.stringify({ text: 'Capture this note for the inbox: ' + v, agent:'archivist' }) });
+  refreshTasks();
+});
+
+/* ============ cortex search ============ */
+let noteIndex = null;
+async function buildNoteIndex() {
+  if (noteIndex) return noteIndex;
+  noteIndex = [];
+  async function walk(folder, depth) {
+    let items; try { items = await j('/api/brain/notes?folder=' + encodeURIComponent(folder)); } catch { return; }
+    for (const it of items) {
+      const p = folder ? folder + '/' + it.name : it.name;
+      if (it.type === 'note') noteIndex.push(p);
+      else if (depth < 2) await walk(p, depth + 1);
+    }
+  }
+  await walk('', 0);
+  return noteIndex;
+}
+$('cortex-search').addEventListener('input', async e => {
+  const q = e.target.value.trim().toLowerCase(), box = $('search-results');
+  if (!q) { box.style.display = 'none'; return; }
+  const idx = await buildNoteIndex();
+  const hits = idx.filter(p => p.toLowerCase().includes(q)).slice(0, 12);
+  box.innerHTML = hits.map(p => `<div data-p="${esc(p)}">📄 ${esc(p)}</div>`).join('') || '<div>no matches — press Enter to ask Archivist</div>';
+  box.style.display = 'block';
+  box.querySelectorAll('[data-p]').forEach(el => el.addEventListener('click', async () => {
+    box.style.display = 'none'; goPage('wiki'); openWikiNote(el.dataset.p);
+  }));
+});
+$('cortex-search').addEventListener('keydown', async e => {
+  if (e.key !== 'Enter') return;
+  const q = e.target.value.trim(); if (!q) return;
+  e.target.value = ''; $('search-results').style.display = 'none';
+  await j('/api/tasks', { method:'POST', headers:{'Content-Type':'application/json'},
+                          body: JSON.stringify({ text: 'Search the vault/wiki for: ' + q, agent:'archivist' }) });
+  refreshTasks();
+});
+
+/* ============ wiki ============ */
+let wikiFolder = '', wikiItems = [];
+async function loadWiki(folder) {
+  try { wikiItems = await j('/api/brain/notes?folder=' + encodeURIComponent(folder)); }
+  catch { if (folder) return loadWiki(''); wikiItems = []; }
+  wikiFolder = folder;
+  $('wiki-crumb').textContent = '/ ' + (folder || 'vault root');
+  renderWiki();
+}
+function renderWiki() {
+  const f = $('wiki-filter').value.trim().toLowerCase();
+  const items = wikiItems.filter(it => !f || it.name.toLowerCase().includes(f));
+  const up = wikiFolder ? `<div data-dir="${esc(wikiFolder.split('/').slice(0,-1).join('/'))}">⬆ ..</div>` : '';
+  $('wiki-files').innerHTML = up + items.map(it => it.type === 'dir'
+    ? `<div data-dir="${esc(wikiFolder ? wikiFolder + '/' + it.name : it.name)}">📁 ${esc(it.name)}</div>`
+    : `<div data-note="${esc(wikiFolder ? wikiFolder + '/' + it.name : it.name)}">📄 ${esc(it.name)}</div>`).join('')
+    || '<div style="color:var(--dim)">nothing here</div>';
+  $('wiki-files').querySelectorAll('[data-dir]').forEach(el => el.addEventListener('click', () => loadWiki(el.dataset.dir)));
+  $('wiki-files').querySelectorAll('[data-note]').forEach(el => el.addEventListener('click', () => openWikiNote(el.dataset.note)));
+}
+async function openWikiNote(path) {
+  try {
+    const n = await j('/api/brain/note?path=' + encodeURIComponent(path));
+    $('wiki-note').innerHTML = `<div class="mono" style="color:var(--cyan-dim);font-size:.7rem;margin-bottom:.6rem">${esc(path)}</div>` + (n.html || '<em>empty note</em>');
+  } catch { $('wiki-note').innerHTML = '<em>could not load note</em>'; }
+}
+$('wiki-filter').addEventListener('input', renderWiki);
+
+/* ============ tasks page ============ */
+$('orchestrate-btn').addEventListener('click', async () => {
+  const goal = $('orchestrate-goal').value.trim(); if (!goal) return;
+  $('orchestrate-goal').value = '';
+  await j('/api/orchestrate', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ goal }) });
+  refreshTasks();
+});
+$('quick-btn').addEventListener('click', async () => {
+  const text = $('quick-task').value.trim(); if (!text) return;
+  $('quick-task').value = '';
+  await j('/api/tasks', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ text }) });
+  refreshTasks();
+});
+
+/* ============ commerce ============ */
+$('plutus-form').addEventListener('submit', async e => { e.preventDefault();
+  const text = $('plutus-text').value.trim(); if (!text) return;
+  await j('/api/tasks', { method:'POST', headers:{'Content-Type':'application/json'},
+                          body: JSON.stringify({ text, agent:'plutus' }) });
+  $('plutus-text').value = ''; refreshTasks(); });
+
+/* ============ voice page ============ */
+let selectedVoice = 'af_heart';
+async function loadVoices() {
+  try {
+    const vs = await j('/api/voice/voices');
+    window._voicesLoaded = true;
+    $('voice-list').innerHTML = vs.map(v => `<div class="vrow ${v===selectedVoice?'sel':''}" data-v="${v}">
+        <span class="vico">${v.split('_')[0].toUpperCase()}</span> ${esc(v)}</div>`).join('');
+    $('voice-list').querySelectorAll('.vrow').forEach(el => el.addEventListener('click', () => {
+      selectedVoice = el.dataset.v;
+      $('voice-list').querySelectorAll('.vrow').forEach(x => x.classList.toggle('sel', x.dataset.v === selectedVoice));
+    }));
+  } catch {}
+}
+$('voice-speed').addEventListener('input', e => $('speed-val').textContent = Number(e.target.value).toFixed(2));
+$('voice-gen').addEventListener('click', async () => {
+  const text = $('voice-text').value.trim(); if (!text) return;
+  $('voice-gen').disabled = true; $('voice-gen').textContent = 'GENERATING…';
+  try {
+    const r = await fetch('/api/voice/tts', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ text, voice: selectedVoice, speed: Number($('voice-speed').value) }) });
+    if (!r.ok) throw new Error(await r.text());
+    const url = URL.createObjectURL(await r.blob());
+    const div = document.createElement('div');
+    div.className = 'clip hud';
+    div.innerHTML = `<div class="cmeta"><span>${esc(selectedVoice)}</span><span>x${$('voice-speed').value}</span>
+        <span>${new Date().toLocaleTimeString()}</span><a href="${url}" download="tts.wav" style="color:var(--cyan)">download</a></div>
+      <div style="font-size:.78rem;color:var(--dim);margin-bottom:.3rem">${esc(text.slice(0,120))}</div>
+      <audio controls src="${url}"></audio>`;
+    $('clips').prepend(div);
+    div.querySelector('audio').play();
+  } catch (err) { alert('TTS failed: ' + err.message); }
+  $('voice-gen').disabled = false; $('voice-gen').textContent = 'GENERATE ▶';
+});
+
+/* ============ studio ============ */
+$('comfy-embed-btn').addEventListener('click', () => {
+  const f = $('comfy-frame');
+  if (f.style.display === 'block') { f.style.display = 'none'; $('comfy-embed-btn').textContent = 'OPEN COMFYUI HERE ▼'; return; }
+  if (!window._comfyUp) { alert('ComfyUI is not running — hit its start button first (takes ~30s to boot).'); return; }
+  f.src = 'http://127.0.0.1:8188'; f.style.display = 'block';
+  $('comfy-embed-btn').textContent = 'CLOSE COMFYUI ▲';
+  f.scrollIntoView({ behavior:'smooth' });
+});
+
+const PIPELINE_STAGES = ['stage0','stage1','stage1r','stage2','stage3','stage3b','stage3c','stage_vlm_review','stage4','stage5'];
+const DOT_CLASSES = new Set(['pending','running','done','failed','awaiting_approval','not_built']);
+let studioProject = localStorage.getItem('studio-project') || '';
+
+async function loadStudioProjects() {
+  let projects = [];
+  try { projects = await j('/api/pipeline/projects'); } catch { return projects; }
+  const sel = $('studio-project-select');
+  sel.innerHTML = projects.length
+    ? projects.map(p => `<option value="${esc(p.slug)}">${esc(p.slug)}</option>`).join('')
+    : '<option value="">(no projects yet)</option>';
+  if (!projects.find(p => p.slug === studioProject)) studioProject = projects.length ? projects[0].slug : '';
+  if (studioProject) { sel.value = studioProject; localStorage.setItem('studio-project', studioProject); }
+  return projects;
+}
+$('studio-project-select').addEventListener('change', e => {
+  studioProject = e.target.value;
+  localStorage.setItem('studio-project', studioProject);
+  pollStudioStatus();
+});
+
+$('studio-new-toggle').addEventListener('click', () => {
+  const f = $('studio-new-form');
+  f.style.display = f.style.display === 'none' ? 'block' : 'none';
+});
+$('np-fps').addEventListener('input', e => $('np-fps-val').textContent = e.target.value);
+
+$('studio-new-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  $('np-error').textContent = '';
+  const slug = $('np-slug').value.trim();
+  const fps = Number($('np-fps').value);
+  const mode = document.querySelector('input[name="np-mode"]:checked').value;
+  const text = $('np-text').value;
+  if (!slug || !text.trim()) { $('np-error').textContent = 'slug + brief/script text are required'; return; }
+  const body = { slug, fps };
+  if (mode === 'brief') body.brief_text = text; else body.script_text = text;
+  try {
+    await j('/api/pipeline/projects', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    $('np-slug').value = ''; $('np-text').value = '';
+    $('studio-new-form').style.display = 'none';
+    studioProject = slug; localStorage.setItem('studio-project', slug);
+    await loadStudioProjects();
+    pollStudioStatus();
+  } catch (err) { $('np-error').textContent = 'failed: ' + err.message.slice(0, 200); }
+});
+
+async function pollStudioStatus() {
+  if (!studioProject) {
+    PIPELINE_STAGES.forEach(s => { const d = $('sdot-' + s); if (d) d.className = 'sdot pending'; });
+    $('studio-project-meta').textContent = '';
+    return;
+  }
+  try {
+    const st = await j('/api/pipeline/' + encodeURIComponent(studioProject) + '/status');
+    $('studio-project-meta').textContent = `fps ${st.fps} · story_id ${st.story_id.slice(0, 8)}…`;
+    PIPELINE_STAGES.forEach(s => {
+      const d = $('sdot-' + s);
+      if (!d) return;
+      const info = st.stages[s] || {};
+      const status = DOT_CLASSES.has(info.status) ? info.status : 'pending';
+      d.className = 'sdot ' + status;
+      d.title = status + (info.error ? ': ' + info.error : '');
+    });
+  } catch { /* project may not exist yet / kernel hiccup — skip this tick */ }
+}
+document.querySelectorAll('.srun').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    if (!studioProject) { alert('create or select a project first'); return; }
+    const stage = btn.dataset.stage;
+    btn.disabled = true; btn.textContent = 'RUNNING…';
+    try {
+      await j('/api/pipeline/' + encodeURIComponent(studioProject) + '/run/' + stage, { method:'POST' });
+    } catch (err) { alert(stage + ' run failed: ' + (err.message || err).slice(0, 300)); }
+    btn.disabled = false; btn.textContent = 'RUN ▶';
+    pollStudioStatus();
+  });
+});
+
+/* ============ stage-artifact viewer ============ */
+const STAGE_TITLES = {
+  stage0: 'STAGE 0 · INTAKE', stage1: 'STAGE 1 · WORLD BIBLE', stage1r: 'STAGE 1R · REFERENCES',
+  stage2: 'STAGE 2 · SCREENPLAY', stage3: 'STAGE 3 · STORYBOARD', stage3b: 'STAGE 3B · IMAGES',
+  stage3c: 'STAGE 3C · ANIMATION', stage_vlm_review: 'VLM REVIEW', stage4: 'STAGE 4 · AUDIO',
+  stage5: 'STAGE 5 · ASSEMBLY',
+};
+const smModal = $('stage-modal'), smBody = $('stage-modal-body'), smTitle = $('stage-modal-title');
+
+function smTags(metrics) {
+  if (!metrics) return '';
+  const m = Object.entries(metrics).map(([k, v]) =>
+    `<span>${esc(k)} <b>${typeof v === 'number' ? v.toLocaleString() : esc(v)}</b></span>`).join('');
+  return m ? `<div class="sm-metrics">${m}</div>` : '';
+}
+function smFile(a) {
+  const src = '/api/pipeline/' + encodeURIComponent(studioProject) + '/file?path=' + encodeURIComponent(a.path);
+  if (a.kind === 'image') return `<div class="sm-item"><img loading="lazy" src="${src}" alt="${esc(a.name)}"><div class="sm-cap">${esc(a.name)}</div></div>`;
+  if (a.kind === 'video') return `<div class="sm-item"><video controls src="${src}"></video><div class="sm-cap">${esc(a.name)}</div></div>`;
+  if (a.kind === 'audio') return `<div class="sm-item"><audio controls src="${src}"></audio><div class="sm-cap">${esc(a.name)}</div></div>`;
+  return '';
+}
+function smRender(artifacts) {
+  if (!artifacts.length) return '<div class="sm-empty">no artifacts yet for this stage — run it first</div>';
+  const vis = artifacts.filter(a => a.kind !== 'text' && a.kind !== 'json');
+  const docs = artifacts.filter(a => a.kind === 'text' || a.kind === 'json');
+  let html = '';
+  if (vis.length) html += `<div class="sm-grid">${vis.map(smFile).join('')}</div>`;
+  if (docs.length) {
+    html += `<h2 class="pg" style="margin:1rem 0 .55rem">DOCUMENTS</h2>` + docs.map(a => {
+      const spec = { p: a.path, n: a.name };
+      // stash the doc path in the pre's data attribute via a placeholder token
+      return `<h3 class="mono" style="font-size:.68rem;color:var(--cyan)">${esc(a.name)}</h3><pre class="sm-doc" data-doc-path="${esc(a.path)}">loading…</pre>`;
+    }).join('');
+  }
+  return html || '<div class="sm-empty">no viewable artifacts</div>';
+}
+function smDocUrl(path) {
+  return '/api/pipeline/' + encodeURIComponent(studioProject) + '/file?path=' + encodeURIComponent(path);
+}
+async function loadStageArtifacts(stage, arts) {
+  const st = await j('/api/pipeline/' + encodeURIComponent(studioProject) + '/status');
+  smBody.innerHTML = smTags((st.stages[stage] || {}).metrics) + smRender(arts, stage);
+  await Promise.all([...smBody.querySelectorAll('[data-doc-path]')].map(async pre => {
+    try {
+      const r = await fetch(smDocUrl(pre.dataset.docPath));
+      if (!r.ok) throw new Error();
+      let t = await r.text();
+      if (t.length > 120000) t = t.slice(0, 120000) + '\n…(truncated)';
+      pre.textContent = t;
+    } catch { pre.textContent = '(unable to load document)'; }
+  }));
+}
+function openStageModal(stage) {
+  if (!studioProject) { alert('create or select a project first'); return; }
+  smTitle.textContent = STAGE_TITLES[stage] || 'STAGE';
+  smBody.innerHTML = '<div class="sm-empty">loading…</div>';
+  smModal.classList.add('open');
+  j('/api/pipeline/' + encodeURIComponent(studioProject) + '/artifacts')
+    .then(list => loadStageArtifacts(stage, list[stage] || []))
+    .catch(err => { smBody.innerHTML = '<div class="sm-empty">error: ' + esc(err.message) + '</div>'; });
+}
+$('stage-modal-close').addEventListener('click', () => smModal.classList.remove('open'));
+smModal.addEventListener('click', e => { if (e.target === smModal) smModal.classList.remove('open'); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') smModal.classList.remove('open'); });
+document.querySelectorAll('.stage').forEach(card => {
+  card.addEventListener('click', e => { if (e.target.closest('.srun')) return; openStageModal(card.dataset.stage); });
+});
+
+loadStudioProjects().then(pollStudioStatus);
+setInterval(pollStudioStatus, 8000);
+
+/* ============ boot ============ */
+async function refreshAll() {
+  await refreshHealth();
+  await Promise.all([refreshAgents(), refreshSystems(), refreshTasks(), refreshSystemPage()]);
+}
+refreshAll(); drawCortex(); loadWiki('LLM-Wiki');
+setInterval(refreshHealth, 10000); setInterval(refreshSystems, 15000);
+setInterval(refreshTasks, 5000); setInterval(refreshSystemPage, 20000);
+</script>
+</body>
+</html>

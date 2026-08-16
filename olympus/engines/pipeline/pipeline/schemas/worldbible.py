@@ -69,19 +69,66 @@ class WorldBibleMeta(BaseModel):
     scanned_names: list[str] = Field(default_factory=list)
 
 
+from pydantic import BaseModel, Field
+from typing import Literal
+
+
+class LocationConnection(BaseModel):
+    """Describes how this location connects to another location."""
+    target_location_id: str
+    connection_type: Literal["adjacent", "connected_by_path", "distant", "contained_within", "overlooks", "underground_link"]
+    distance_description: str = ""  # e.g., "5 minutes walk", "half day's journey"
+    travel_difficulty: Literal["easy", "moderate", "difficult", "impassable"] = "easy"
+    notes: str = ""  # e.g., "mountain pass", "river crossing", "hidden tunnel"
+
+
+class Location(BaseModel):
+    """Structured location with spatial relationships to other locations."""
+    id: str
+    name: str
+    description: str = ""
+    recurring: bool = False
+    evidence: str = ""
+    sd_prompt: str = ""
+    angles: list[str] = Field(default_factory=list)
+    connections: list[LocationConnection] = Field(default_factory=list)  # Spatial relationships to other locations
+
+
 class WorldBible(BaseModel):
     """``worldbible/world_bible.json``. M2a populates ``characters`` only --
     the fields below are optional slots M2b (Steps 3-5) fills in: locations,
     power_system, world_rules, lore_entries, and relationships/creative-depth
     data attached per-character in a later pass."""
-
+    
     story_id: str
     characters: list[Character] = Field(default_factory=list)
     world: dict | None = None  # M2b: era/tech/magic/government/daily_life/economy (design 3.2)
-    locations: list[dict] = Field(default_factory=list)
+    locations: list[Location] = Field(default_factory=list)  # Now uses structured Location model
     recurring_assets: list[dict] = Field(default_factory=list)  # M2b
     relationships: list[dict] = Field(default_factory=list)  # M2b: pairwise edges + evolution
     power_system: dict | None = None
     world_rules: list[str] = Field(default_factory=list)
     lore_entries: list[dict] = Field(default_factory=list)
     meta: WorldBibleMeta = Field(default_factory=WorldBibleMeta)
+
+    # Convenience: get a location by id with its angles (for stage3b plate keying)
+    def get_location(self, loc_id: str) -> Location | None:
+        for loc in self.locations:
+            if loc.id == loc_id:
+                return loc
+        return None
+
+    def get_location_angles(self, loc_id: str) -> list[str]:
+        loc = self.get_location(loc_id)
+        if loc:
+            return loc.angles or [
+                "wide_establishing", "medium_shot", "closeup_counter", "over_shoulder"
+            ]
+        return ["wide_establishing", "medium_shot", "closeup_counter", "over_shoulder"]
+
+    def get_location_connections(self, loc_id: str) -> list[LocationConnection]:
+        """Get all spatial connections for a location."""
+        loc = self.get_location(loc_id)
+        if loc:
+            return loc.connections
+        return []
