@@ -148,46 +148,47 @@
       "purpose": "Tier-1/2 primary: LTX-2 2B image-to-video (ltxv-2b-0.9.8-distilled-fp8-i2v, self-contained on 8GB VRAM). 768x448x81f@16fps.",
       "status": "ready",
       "notes": "The verified 2B LTX path (video_router._DEFAULT_TEMPLATE; proof render frames delta ~94 on 8GB, smoke gate .ltx_smoke_passed). Native graph: CheckpointLoaderSimple(ltxv-2b-0.9.8) -> LTXVScheduler(6) + CLIPLoader T5(2, type ltxv) -> CLIPTextEncode POS(4)/NEG(5) -> LTXVConditioning(53); LoadImage(50) START_FRAME -> LTXVImgToVideo(52) -> SamplerCustomAdvanced with RandomNoise(7, noise_seed) + CFGGuider(9); VAEDecode(11) -> VHS_VideoCombine(12) h264-mp4. FPS patched into LTXVConditioning.frame_rate (53) AND VHS_VideoCombine.frame_rate (12).",
-"patchable": {
-    "CKPT_LTX": "1.ckpt_name",
-    "T5_ENCODER": "2.clip_name",
-    "MOTION_PROMPT": "4.text",
-    "PROMPT_NEG": "5.text",
-    "START_FRAME": "50.image",
-    "WIDTH": "52.width",
-    "HEIGHT": "52.height",
-    "FRAMES": "52.length",
-    "STEPS": "6.steps",
-    "SEED": "7.noise_seed",
-    "CFG": "9.cfg",
-    "FPS": "53.frame_rate",
-    "SAVE_PREFIX": "12.filename_prefix",
-    "SAVE_FPS": "12.frame_rate"
-   }
-  },
-  "hunyuan_i2v.json": {
-   "purpose": "HunyuanVideo image-to-video (5B/13B, GGUF Q4_K_M 7.9GB on 8GB VRAM). 848x480x53f default.",
-   "status": "new",
-   "notes": "Native ComfyUI Hunyuan I2V graph: UnetLoaderGGUF(hunyuan-video-i2v-720p-Q4_K_M.gguf,1) -> DualCLIPLoader(clip_l+llava_llama3_fp8_scaled,2) + CLIPVisionLoader(llava_llama3_vision,3) -> CLIPVisionEncode(6); TextEncodeHunyuanVideo_ImageToVideo(7) -> HunyuanImageToVideo(8, v1 concat) -> ModelSamplingSD3(9, shift7) -> FluxGuidance(10, 6) -> BasicGuider(11); BasicScheduler(14, simple x20) + KSamplerSelect(13, euler) + RandomNoise(12); SamplerCustomAdvanced(15) -> VAEDecodeTiled(16) -> ImageFromBatch(17, skip 4 bad frames) -> SaveWEBM(18) vp9.",
-   "patchable": {
-    "HY_MODEL": "1.unet_name",
-    "MOTION_PROMPT": "7.prompt",
-    "START_FRAME": "5.image",
-    "WIDTH": "8.width",
-    "HEIGHT": "8.height",
-    "FRAMES": "8.length",
-    "STEPS": "14.steps",
-    "SEED": "12.noise_seed",
-    "GUIDANCE": "10.guidance",
-    "SHIFT": "9.shift",
-    "FPS": "18.fps",
-    "SAVE_PREFIX": "18.filename_prefix"
-   }
-  },
+      "patchable": {
+        "CKPT_LTX": "1.ckpt_name",
+        "T5_ENCODER": "2.clip_name",
+        "MOTION_PROMPT": "4.text",
+        "PROMPT_NEG": "5.text",
+        "START_FRAME": "50.image",
+        "WIDTH": "52.width",
+        "HEIGHT": "52.height",
+        "FRAMES": "52.length",
+        "STEPS": "6.steps",
+        "SEED": "7.noise_seed",
+        "CFG": "9.cfg",
+        "FPS": "53.frame_rate",
+        "SAVE_PREFIX": "12.filename_prefix",
+        "SAVE_FPS": "12.frame_rate",
+        "STRENGTH": "52.strength"
+      }
+    },
+    "hunyuan_i2v.json": {
+      "purpose": "HunyuanVideo image-to-video (5B/13B, GGUF Q4_K_M 7.9GB on 8GB VRAM). 848x480x53f default.",
+      "status": "new",
+      "notes": "Native ComfyUI Hunyuan I2V graph: UnetLoaderGGUF(hunyuan-video-i2v-720p-Q4_K_M.gguf,1) -> DualCLIPLoader(clip_l+llava_llama3_fp8_scaled,2) + CLIPVisionLoader(llava_llama3_vision,3) -> CLIPVisionEncode(6); TextEncodeHunyuanVideo_ImageToVideo(7) -> HunyuanImageToVideo(8, v1 concat) -> ModelSamplingSD3(9, shift7) -> FluxGuidance(10, 6) -> BasicGuider(11); BasicScheduler(14, simple x20) + KSamplerSelect(13, euler) + RandomNoise(12); SamplerCustomAdvanced(15) -> VAEDecodeTiled(16) -> ImageFromBatch(17, skip 4 bad frames) -> SaveWEBM(18) vp9.",
+      "patchable": {
+        "HY_MODEL": "1.unet_name",
+        "MOTION_PROMPT": "7.prompt",
+        "START_FRAME": "5.image",
+        "WIDTH": "8.width",
+        "HEIGHT": "8.height",
+        "FRAMES": "8.length",
+        "STEPS": "14.steps",
+        "SEED": "12.noise_seed",
+        "GUIDANCE": "10.guidance",
+        "SHIFT": "9.shift",
+        "FPS": "18.fps",
+        "SAVE_PREFIX": "18.filename_prefix"
+      }
+    },
     "wan_ti2v.json": {
-      "purpose": "Tier-2 alternate: Wan2.2-TI2V-5B fp8, 20 steps unipc, block-swap 20, cfg 5.0, 81f@16fps, image-to-video from START_FRAME",
-      "status": "ready",
-      "notes": "Built 2026-07-09 against the live WanVideoWrapper (kijai) install. Uses on-disk weights: WanVideoModelLoader model 'Wan2_2-TI2V-5B_fp8_e4m3fn_scaled_KJ.safetensors' (fp8_e4m3fn_scaled), umt5_xxl_fp8 T5, Wan2_2_VAE_bf16. Block-swap 20 via WanVideoBlockSwap -> loader.block_swap_args. Sampler: 20 steps, unipc, cfg 5.0, shift 5.0. FRAMES=num_frames on WanVideoImageToVideoEncode (81); output fps 16 lives on the SaveAnimatedWEBP node (Wan wrapper has no frame-rate conditioning). PROMPT_NEG shares the MOTION_PROMPT node (WanVideoTextEncode carries positive+negative on one node) so it is patched by node-id, not by a distinct title. fun_or_fl2v_model=false assumed for native TI2V-5B (unverified by a real run - flip if motion is wrong). WIDTH/HEIGHT default 1216x704 to match panel inputs.",
+      "purpose": "Tier-2 alternate: Wan2.2-TI2V-5B (Q4_K_M GGUF), 20 steps unipc, block-swap 20, cfg 5.0, 81f@16fps, image-to-video from START_FRAME",
+      "status": "experimental",
+      "notes": "Rebuilt 2026-08-20 after the channel-mismatch root cause: the Wan 2.2 5B is t2v (NO image cross-attention, model_type='t2v' in the loader) and the Wan 2.2 VAE is WanVideoVAE38 (48-ch latent, upsampling_factor=16). The old graph fed WanVideoImageToVideoEncode (channel-concat I2V path) which produced 48ch noise + 48ch image_cond = 96ch vs the 48-ch patch embed -> error. Correct wiring (matches official example_workflows/wanvideo_2_2_5B_I2V_example_WIP.json): LoadImage(6) -> ImageResizeKJv2(7, WIDTH/HEIGHT, stretch, divisible_by 16) -> WanVideoEncode(8, plain VAE encode) -> WanVideoEmptyEmbeds(12, num_frames=FRAMES, extra_latents from WanVideoEncode) -> WanVideoSampler(9, image_embeds from WanVideoEmptyEmbeds, t2v path, prefix-frame injection). On-disk weights: WanVideoModelLoader model 'Wan2.2-TI2V-5B-Q4_K_M.gguf', umt5-xxl-enc-bf16 T5, Wan2_2_VAE_bf16. Block-swap 20 via WanVideoBlockSwap -> loader.block_swap_args. PROMPT_NEG shares the MOTION_PROMPT node (WanVideoTextEncode carries positive+negative on one node) so it is patched by node-id. WIDTH/HEIGHT patch the resize node (7); FRAMES patches EmptyEmbeds.num_frames (12); output fps lives on VHS_VideoCombine (11). Gate: .wan_smoke_passed, must be earned by a real render.",
       "patchable": {
         "BLOCK_SWAP": "1.blocks_to_swap",
         "WAN_MODEL": "2.model",
@@ -196,9 +197,9 @@
         "PROMPT_NEG": "4.negative_prompt",
         "WAN_VAE": "5.model_name",
         "START_FRAME": "6.image",
-        "WIDTH": "8.width",
-        "HEIGHT": "8.height",
-        "FRAMES": "8.num_frames",
+        "WIDTH": "7.width",
+        "HEIGHT": "7.height",
+        "FRAMES": "12.num_frames",
         "SEED": "9.seed",
         "STEPS": "9.steps",
         "CFG": "9.cfg",
@@ -249,15 +250,47 @@
         "TAGGER_CHAR_THRESHOLD": "2.character_threshold"
       }
     },
-    "image_flux_fallback.json": {
-      "purpose": "Universal fallback image generation via flux1-schnell GGUF (design 5.3b fallback chain). Used for plates, refs, and panels while krea2 is absent. No IPAdapter/LoRA support on flux -- consistency comes from sd_prompt anchors + fixed seeds.",
+    "image_txt2img_flux_fallback.json": {
+      "purpose": "Universal fallback image generation via flux-2-klein-4b GGUF (design 5.3b fallback chain; 2026-08 swap from flux1-schnell). Used for plates, refs, and panels while krea2 is absent or its gate hasn't passed. klein recipe: UnetLoaderGGUF(flux-2-klein-4b-Q4_K_M.gguf) -> CLIPLoader(qwen_3_4b.safetensors, type flux2) -> CLIPTextEncode POS/NEG -> EmptyFlux2LatentImage + Flux2Scheduler(20 steps) -> KSamplerSelect(euler) + RandomNoise + CFGGuider(cfg 5) -> SamplerCustomAdvanced -> VAEDecode(flux2-vae) -> SaveImage. WIDTH/HEIGHT patch both the latent AND Flux2Scheduler (resolution-dependent sigma schedule).",
       "status": "ready",
       "patchable": {
         "PROMPT_POS": "11.text",
-        "WIDTH": "13.width",
-        "HEIGHT": "13.height",
-        "SEED": "14.seed",
-        "STEPS": "14.steps",
+        "PROMPT_NEG": "12.text",
+        "WIDTH": "13.width,15.width",
+        "HEIGHT": "13.height,15.height",
+        "SEED": "14.noise_seed",
+        "STEPS": "15.steps",
+        "CFG": "18.cfg",
+        "SAVE_PREFIX": "16.filename_prefix"
+      }
+    },
+    "char_ref_character_sheet_flux.json": {
+      "purpose": "Character sheet reference generation via flux-2-klein-4b GGUF (design 5.3b + AGENTS.md model table). 360-degree turnaround / expression / pose reference frames (Stage 1R); VIEW instruction goes inside PROMPT_POS.",
+      "status": "ready",
+      "notes": "Rebuilt 2026-08 for the FLUX.2 klein recipe (qwen_3_4b + flux2-vae); replaces the flux1 clip_l/t5xxl + ae.safetensors graph.",
+      "patchable": {
+        "PROMPT_POS": "4.text",
+        "PROMPT_NEG": "5.text",
+        "WIDTH": "6.width,8.width",
+        "HEIGHT": "6.height,8.height",
+        "SEED": "7.noise_seed",
+        "STEPS": "8.steps",
+        "CFG": "10.cfg",
+        "SAVE_PREFIX": "13.filename_prefix"
+      }
+    },
+    "image_flux_fallback.json": {
+      "purpose": "Universal fallback image generation via flux-2-klein-4b GGUF (design 5.3b fallback chain). Identical graph to image_txt2img_flux_fallback.json (kept as the registered alias).",
+      "status": "ready",
+      "notes": "2026-08: rebuilt for the FLUX.2 klein recipe (qwen_3_4b text encoder + flux2-vae + EmptyFlux2LatentImage + Flux2Scheduler + CFGGuider 5 + SamplerCustomAdvanced).",
+      "patchable": {
+        "PROMPT_POS": "11.text",
+        "PROMPT_NEG": "12.text",
+        "WIDTH": "13.width,15.width",
+        "HEIGHT": "13.height,15.height",
+        "SEED": "14.noise_seed",
+        "STEPS": "15.steps",
+        "CFG": "18.cfg",
         "SAVE_PREFIX": "16.filename_prefix"
       }
     },
@@ -273,6 +306,213 @@
         "STEPS": "14.steps",
         "CFG": "14.cfg",
         "SAVE_PREFIX": "16.filename_prefix"
+      }
+    },
+    "video_i2v_ltx_23b_tiled.json": {
+      "purpose": "LTX-2.3 22B distilled (Q4_K_M) i2v, tiled sampler + spatiotemporal tiled VAE decode. Tier-2 director path on 8GB VRAM.",
+      "status": "experimental",
+      "patchable": {
+        "CKPT_LTX": "1.unet_name",
+        "T5_ENCODER": "2.clip_name1",
+        "MOTION_PROMPT": "4.text",
+        "PROMPT_NEG": "4.text",
+        "START_FRAME": "50.image",
+        "WIDTH": "5.width,51.width",
+        "HEIGHT": "5.height,51.height",
+        "FRAMES": "5.length",
+        "STEPS": "6.steps",
+        "SEED": "7.noise_seed",
+        "STRENGTH": "52.strength",
+        "FPS": "12.frame_rate",
+        "SAVE_PREFIX": "12.filename_prefix",
+        "SAVE_FPS": "12.frame_rate"
+      }
+    },
+    "wan_i2v_21.json": {
+      "purpose": "Wan2.1-I2V-14B-480P (Q4_K_M GGUF), true i2v channel-concat path, 20 steps unipc, block-swap 16, cfg 5.0, 81f@16fps, image-to-video from START_FRAME",
+      "status": "experimental",
+      "notes": "Added 2026-08-20 for the I2V shootout. The 14B 480P is a TRUE i2v model (loader detects 'blocks.0.cross_attn.k_img.weight' -> model_type='i2v', 16-ch latent, out_dim=16), so it uses the channel-concat WanVideoImageToVideoEncode path (mask+encoded image+noise), NOT the 5B prefix-frame path. Wiring matches official example_workflows/wanvideo_2_1_14B_I2V_example_03.json: LoadImage(6) -> ImageResizeKJv2(7, WIDTH/HEIGHT, stretch, divisible_by 16) -> WanVideoImageToVideoEncode(8, FRAMES, start_image from resize, width/height from resize outputs, vae, fun_or_fl2v_model=false) -> WanVideoSampler(9, image_embeds from 8). VAE Wan2_1_VAE_bf16 (16ch, upsampling 8). On-disk: wan2.1-i2v-14b-480p-Q4_K_M.gguf (11.34GB, HF city96/Wan2.1-I2V-14B-480P-gguf), umt5_xxl_fp8_e4m3fn_scaled T5, Wan2_1_VAE_bf16. Block-swap 16 (14B has 40 layers; example set 10). PROMPT_NEG shares node 4. START_FRAME patches LoadImage.image; WIDTH/HEIGHT patch resize node 7; FRAMES patches node 8; output fps on VHS_VideoCombine (11). Gate: .wan21_smoke_passed.",
+      "patchable": {
+        "BLOCK_SWAP": "1.blocks_to_swap",
+        "WAN_MODEL": "2.model",
+        "WAN_T5": "3.model_name",
+        "MOTION_PROMPT": "4.positive_prompt",
+        "PROMPT_NEG": "4.negative_prompt",
+        "WAN_VAE": "5.model_name",
+        "START_FRAME": "6.image",
+        "WIDTH": "7.width",
+        "HEIGHT": "7.height",
+        "FRAMES": "8.num_frames",
+        "SEED": "9.seed",
+        "STEPS": "9.steps",
+        "CFG": "9.cfg",
+        "SCHEDULER": "9.scheduler",
+        "SAVE_PREFIX": "11.filename_prefix",
+        "FPS": "11.frame_rate"
+      }
+    },
+    "video_svd.json": {
+      "purpose": "SVD (Stable Video Diffusion) img2vid via ComfyUI-native nodes (ImageOnlyCheckpointLoader + SVD_img2vid_Conditioning + VideoLinearCFGGuidance), fp16 single-file from HF becausecurious/stable-video-diffusion-img2vid-fp16",
+      "status": "experimental",
+      "notes": "Added 2026-08-20 for the I2V shootout. SVD is NOT a WanVideoWrapper model - it uses ComfyUI core: ImageOnlyCheckpointLoader(1) -> MODEL/CLIP_VISION/VAE; LoadImage(2) -> ImageResizeKJv2(3, WIDTH/HEIGHT, stretch, divisible_by 8) -> SVD_img2vid_Conditioning(4, clip_vision from loader, init_image from resize, vae from loader, video_frames=FRAMES, motion_bucket_id, fps=6); VideoLinearCFGGuidance(5, min_cfg 1.0) -> KSampler(6, SEED/STEPS/CFG, euler/simple, denoise 1.0) -> VAEDecode(7) -> VHS_VideoCombine(8, frame_rate). Base fp16 = 14 frames (svd-fp16), XT = 25 frames (svd_xt-fp16). motion_bucket_id 127 = default moderate motion. Gate: .svd_smoke_passed.",
+      "patchable": {
+        "SVD_MODEL": "1.ckpt_name",
+        "START_FRAME": "2.image",
+        "WIDTH": "3.width",
+        "HEIGHT": "3.height",
+        "FRAMES": "4.video_frames",
+        "MOTION_BUCKET": "4.motion_bucket_id",
+        "SEED": "6.seed",
+        "STEPS": "6.steps",
+        "CFG": "6.cfg",
+        "SAVE_PREFIX": "8.filename_prefix",
+        "FPS": "8.frame_rate"
+      }
+    },
+    "wan_ti2v_2f.json": {
+      "purpose": "Wan2.2-TI2V-5B Q4_K_M with FIRST+LAST frame conditioning (2 high-quality keyframes). Start frame injected at latent index 0 (prefix), end frame injected at latent index -1 via WanVideoAddExtraLatent. Conservative 672x384, 33f, 14 steps, cfg 2.5 (2026-08-20 tuning for grain/shake reduction).",
+      "status": "experimental",
+      "notes": "Built 2026-08-20 in response to grainy/shaky single-frame Wan clips. Two-keyframe conditioning pins both endpoints so the model interpolates instead of drifting -> less grain, less jitter. Wiring: LoadImage(6 START_FRAME) -> ImageResizeKJv2(7 WIDTH/HEIGHT) -> WanVideoEncode(8) -> WanVideoEmptyEmbeds(12, FRAMES, extra_latents=start) -> WanVideoAddExtraLatent(13, END_INJECT, latent_index=-1, extra_latents=end) -> WanVideoSampler(14). End frame: LoadImage(9 END_FRAME) -> ImageResizeKJv2(10, width/height from 7) -> WanVideoEncode(11). Sampler resolves negative latent_index against noise length (last latent position = end frame). On-disk: Wan2.2-TI2V-5B-Q4_K_M.gguf, umt5-xxl-enc-bf16 T5, Wan2_2_VAE_bf16. PROMPT_NEG shares node 4. CFG on 14.cfg. Gate: .wan22_2f_smoke_passed.",
+      "patchable": {
+        "BLOCK_SWAP": "1.blocks_to_swap",
+        "WAN_MODEL": "2.model",
+        "WAN_T5": "3.model_name",
+        "MOTION_PROMPT": "4.positive_prompt",
+        "PROMPT_NEG": "4.negative_prompt",
+        "WAN_VAE": "5.model_name",
+        "START_FRAME": "6.image",
+        "WIDTH": "7.width",
+        "HEIGHT": "7.height",
+        "END_FRAME": "9.image",
+        "FRAMES": "12.num_frames",
+        "SEED": "14.seed",
+        "STEPS": "14.steps",
+        "CFG": "14.cfg",
+        "SCHEDULER": "14.scheduler",
+        "SAVE_PREFIX": "16.filename_prefix",
+        "FPS": "16.frame_rate"
+      }
+    },
+    "end_frame_flux_klein.json": {
+      "purpose": "Flux-2-Klein img2img END-FRAME generator: takes the START panel + motion prompt and produces a consistent next-moment frame for Wan 2.2 TI2V two-keyframe conditioning. Uses the flux2 klein recipe (qwen_3_4b text encoder, flux2-vae, KSampler denoise 0.55).",
+      "status": "experimental",
+      "notes": "Built 2026-08-20 for the Wan 2.2 first+last-frame workflow (wan_ti2v_2f.json). The END frame must be a high-quality Flux-2-Klein render consistent with the START frame (same character/outfit/scene, slightly progressed moment) so Wan interpolates between two pinned endpoints instead of drifting from one. Wiring: LoadImage(4 START_FRAME) -> ImageResizeKJv2(5 WIDTH/HEIGHT) -> VAEEncode(6) -> KSampler(9, SEED/STEPS/CFG/DENOISE, denoise 0.55) -> VAEDecode(10) -> SaveImage(11). Prompt PATCH_PROMPT drives the 'next moment'. Gate: .wan22_2f_smoke_passed.",
+      "patchable": {
+        "START_FRAME": "4.image",
+        "WIDTH": "5.width",
+        "HEIGHT": "5.height",
+        "PROMPT_POS": "7.text",
+        "PROMPT_NEG": "8.text",
+        "SEED": "9.seed",
+        "STEPS": "9.steps",
+        "CFG": "9.cfg",
+        "DENOISE": "9.denoise",
+        "SAVE_PREFIX": "11.filename_prefix"
+      }
+    },
+    "panel_i2i_flux_klein.json": {
+      "purpose": "Flux-2-Klein image-to-image panel edit (ReferenceLatent + KSampler denoise). Source panel is VAE-encoded and used both as the img2img latent and as ReferenceLatent conditioning so characters + background stay consistent while the prompt advances the moment. The i2i basis for the Wan 2.2 first+last-frame chained-panel workflow.",
+      "status": "experimental",
+      "notes": "Built 2026-08-20 for the consistent-panel Wan chaining logic (panel1 = first_shot1 -> final_shot1; panel2 = final_shot1 -> final_shot2). Uses core ReferenceLatent (available, unlike the imported workflow's custom ed29e010 node). Source image (previous panel) -> ImageResizeKJv2 -> VAEEncode -> ReferenceLatent(conditioning) + KSampler(denoise 0.55, same latent). Negative blocks character/background/count drift. On-disk: flux-2-klein-4b-Q4_K_M.gguf, qwen_3_4b text encoder, flux2-vae. Gate: .flux2_i2i_smoke_passed.",
+      "patchable": {
+        "SOURCE_IMAGE": "4.image",
+        "WIDTH": "5.width",
+        "HEIGHT": "5.height",
+        "PROMPT_POS": "7.text",
+        "PROMPT_NEG": "8.text",
+        "SEED": "10.seed",
+        "STEPS": "10.steps",
+        "CFG": "10.cfg",
+        "DENOISE": "10.denoise",
+        "SAVE_PREFIX": "12.filename_prefix"
+      }
+    },
+    "panel_ref_flux_klein.json": {
+      "purpose": "Flux-2-Klein per-panel character-reference conditioning. Renders a panel conditioned on BOTH the shot character's reference image (char_ref_character_sheet_flux output from stage1r) AND the scene plate, via two chained core ReferenceLatent nodes, so the character stays on-model and the background stays on-scene. Addresses LTX/Wan face + character-design distortion caused by under-conditioned source panels.",
+      "status": "experimental",
+      "notes": "Built 2026-08-20 for stage3b per-panel identity lock (test 1). Wiring: LoadImage(4 CHAR_REF) -> ImageResizeKJv2(5 WIDTH/HEIGHT) -> VAEEncode(6); LoadImage(20 PLATE) -> ImageResizeKJv2(21) -> VAEEncode(22); CLIPTextEncode(7 POS/8 NEG); ReferenceLatent(9 REF_CHAR on 6) -> ReferenceLatent(23 REF_PLATE on 22) -> KSampler(10, positive=23, latent_image=22 plate, denoise 0.62) -> VAEDecode(11) -> SaveImage(12). Denoise < 1 keeps the plate background while the char ref locks identity. Uses flux-2-klein-4b-Q4_K_M.gguf + qwen_3_4b + flux2-vae (all on disk, 8GB-safe). Gate: .flux2_ref_smoke_passed.",
+      "patchable": {
+        "CHAR_REF": "4.image",
+        "PLATE": "20.image",
+        "WIDTH": "5.width,21.width",
+        "HEIGHT": "5.height,21.height",
+        "PROMPT_POS": "7.text",
+        "PROMPT_NEG": "8.text",
+        "SEED": "10.seed",
+        "STEPS": "10.steps",
+        "CFG": "10.cfg",
+        "DENOISE": "10.denoise",
+        "SAVE_PREFIX": "12.filename_prefix"
+      }
+    },
+    "video_i2v_ltx_23b_8gb.json": {
+      "purpose": "LTX-2.3 22B (Q4_K_M GGUF) non-tiled sampler + TILED VAE decode for 8GB VRAM. Avoids the buggy LTXVTiledSampler (v2 custom-node calling SamplerCustomAdvanced().sample() which doesn't exist on the v3 core node -> None-latent crash). Uses core SamplerCustomAdvanced + LTXVImgToVideo + LTXVSpatioTemporalTiledVAEDecode. Per user recommendation: enable Tiled VAE Decode to prevent OOM on final render pass.",
+      "status": "experimental",
+      "notes": "Built 2026-08-20 (option 1 after option 2 confirmed dead end). LTXVTiledSampler crashes with 'NoneType has no attribute shape' because ComfyUI-LTXVideo/tiled_sampler.py:268 calls SamplerCustomAdvanced().sample() but SamplerCustomAdvanced is a v3 io.ComfyNode with only execute(). This 8GB template uses the working non-tiled path: UnetLoaderGGUF(1) -> DualCLIPLoaderGGUF(2 gemma-3 + ltx2.3 proj) -> VAELoaderKJ(3 LTX23 vae) -> CLIPTextEncode(4/5) -> LTXVConditioning(53) -> LTXVImgToVideo(52, WIDTH/HEIGHT/FRAMES/STRENGTH, img2video cond + latent) -> LTXVScheduler(6 STEPS) -> KSamplerSelect(8 euler_ancestral_cfg_pp) -> CFGGuider(9) -> SamplerCustomAdvanced(10) -> LTXVSpatioTemporalTiledVAEDecode(11, tiled decode to avoid OOM) -> VHS_VideoCombine(12). 768x448x97f@24fps, 8 steps distilled. Gate: .ltx23_8gb_smoke_passed.",
+      "patchable": {
+        "CKPT_LTX": "1.unet_name",
+        "T5_ENCODER": "2.clip_name1",
+        "MOTION_PROMPT": "4.text",
+        "PROMPT_NEG": "5.text",
+        "START_FRAME": "50.image",
+        "WIDTH": "52.width",
+        "HEIGHT": "52.height",
+        "FRAMES": "52.length",
+        "STEPS": "6.steps",
+        "SEED": "7.noise_seed",
+        "CFG": "9.cfg",
+        "STRENGTH": "52.strength",
+        "FPS": "53.frame_rate",
+        "SAVE_PREFIX": "12.filename_prefix",
+        "SAVE_FPS": "12.frame_rate"
+      }
+    },
+    "video_i2v_ltx_23b_8gb_flf.json": {
+      "purpose": "LTX-2.3 22B first+last-frame conditioning (non-tiled sampler + tiled VAE decode) for 8GB. Loads a 33-frame image sequence (first frame at 0, last at 32) via LoadImagesFromFolderKJ and feeds it to LTXVImgToVideo so motion interpolates between two consistent keyframes. steps=8, strength=0.06.",
+      "status": "experimental",
+      "notes": "Built 2026-08-20. Same working non-tiled path as video_i2v_ltx_23b_8gb.json but with a frame-sequence input for first+last-frame conditioning. LoadImagesFromFolderKJ(50 SEQ_FOLDER, stretch to WIDTHxHEIGHT) -> LTXVImgToVideo(52, image=sequence, strength 0.06) -> LTXVScheduler(6 steps 8) -> SamplerCustomAdvanced(10) -> LTXVSpatioTemporalTiledVAEDecode(11) -> VHS(12). Scheduler shifts 2.05/0.95 (LTX-2.3 correct). Gate: .ltx23_8gb_smoke_passed.",
+      "patchable": {
+        "CKPT_LTX": "1.unet_name",
+        "T5_ENCODER": "2.clip_name1",
+        "MOTION_PROMPT": "4.text",
+        "PROMPT_NEG": "5.text",
+        "SEQ_FOLDER": "50.folder",
+        "WIDTH": "50.width,52.width",
+        "HEIGHT": "50.height,52.height",
+        "FRAMES": "52.length",
+        "STEPS": "6.steps",
+        "SEED": "7.noise_seed",
+        "CFG": "9.cfg",
+        "STRENGTH": "52.strength",
+        "FPS": "53.frame_rate",
+        "SAVE_PREFIX": "12.filename_prefix",
+        "SAVE_FPS": "12.frame_rate"
+      }
+    },
+    "ltx_director_23.json": {
+      "purpose": "LTX-2.3 22B LTXDirector video-to-video director (timeline: image start frame + text beats + optional motion video segment + IC-LoRA) for 8GB. Reuses the proven 8GB model stack (UnetLoaderGGUF Q4_K_M + gemma-3 Q3_K_XL dual clip + LTX23 video VAE) with LTXVChunkFeedForward VRAM chunking, then LTXDirector -> ConditioningZeroOut/LTXVConditioning -> LTXDirectorGuide -> CFGGuider -> SamplerCustomAdvanced -> LTXVSpatioTemporalTiledVAEDecode -> VHS_VideoCombine. The panel is the timeline image guide (start keyframe), the shot motion prompt is the text beat, and an optional motion video segment + IC-LoRA can be added for true V2V/identity. Gate: .ltx_director_smoke_passed.",
+      "status": "experimental",
+      "notes": "Built 2026-08-20, mirroring aether-pipeline-v2 STAGE 3 (V2V Director, LTX Director 2.0) but grounded against the installed ComfyUI-LTXDirector node and the proven 8GB model/VAE stack from video_i2v_ltx_23b_8gb.json. timeline_data/local_prompts/segment_lengths/guide_strength are built per-shot (image start frame + text beat) exactly like the aether example. IC-LoRA is off by default (ic_lora_name=None); a character/style LoRA can be applied via IC_LORA/IC_LORA_STRENGTH. FRAMES patches end_frame+duration_frames together; seconds inputs are constants scaled to the default 33 frames @24fps (1.375s).",
+      "patchable": {
+        "CKPT_LTX": "1.unet_name",
+        "T5_ENCODER": "2.clip_name1",
+        "GLOBAL_PROMPT": "4.text",
+        "PROMPT_NEG": "5.text",
+        "TIMELINE_DATA": "100.timeline_data",
+        "LOCAL_PROMPTS": "100.local_prompts",
+        "SEGMENT_LENGTHS": "100.segment_lengths",
+        "GUIDE_STRENGTH": "100.guide_strength",
+        "WIDTH": "100.custom_width",
+        "HEIGHT": "100.custom_height",
+        "FRAMES": "100.end_frame,100.duration_frames",
+        "STEPS": "6.steps",
+        "SEED": "7.noise_seed",
+        "CFG": "9.cfg",
+        "IC_LORA": "104.ic_lora_name",
+        "IC_LORA_STRENGTH": "104.ic_lora_strength",
+        "FPS": "100.frame_rate",
+        "SAVE_PREFIX": "12.filename_prefix",
+        "SAVE_FPS": "12.frame_rate"
       }
     }
   }

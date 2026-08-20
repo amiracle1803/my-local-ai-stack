@@ -29,7 +29,7 @@ class OllamaModels(BaseModel):
     vision: str = "qwen2.5vl:7b"
     vision_fallback: str = "qwen3-vl:4b-instruct-q8_0"
     review: str = "qwen2.5vl:7b"
-    default: str = "llama3.1:8b"
+    default: str = "qwen3:8b"
     embed: str = "nomic-embed-text"
 
 
@@ -46,17 +46,18 @@ class OllamaConfig(BaseModel):
     port: int = 11434
     url: str = "http://127.0.0.1:11434"
     timeout_seconds: int = 300
+    num_ctx: int = 16384
     models: OllamaModels = Field(default_factory=OllamaModels)
     agents: OllamaAgentRoles = Field(default_factory=OllamaAgentRoles)
 
 
 class ComfyUIModels(BaseModel):
     primary: str = "krea2_turbo-Q4_K_S.gguf"
-    fallback: str = "krea2_turbo-Q4_K_M.gguf"
-    floor: str = "flux1-schnell-Q4_K_S.gguf"
+    fallback: str = "flux-2-klein-4b-Q4_K_M.gguf"
+    floor: str = "flux-2-klein-4b-Q4_K_M.gguf"
     animation_primary: str = "ltx-2.3-22b-distilled-1.1-Q4_K_M.gguf"
     panel: str = "anima-base-v1.0.safetensors"
-    character: str = "flux1-schnell-Q4_K_S.gguf"
+    character: str = "flux-2-klein-4b-Q4_K_M.gguf"
     banned_checkpoints: list[str] = Field(default_factory=list)
 
 
@@ -161,8 +162,8 @@ class PipelineAnimationConfig(BaseModel):
     ai_upscale_scale: int = 2
     ai_upscale_model: str = "realesr-animevideov3-x2"
 
-    # Animation engine selection: "ltx2b" | "hailuo23" | "ltx_director"
-    engine: str = "ltx2b"
+    # Animation engine selection: "ltx_director" (primary) | "ltx2b" | "hailuo23"
+    engine: str = "ltx_director"
     # Hailuo 2.3 i2v (if engine = "hailuo23")
     hailuo_api_endpoint: str = ""
     hailuo_model: str = "i2v-pro"
@@ -197,9 +198,29 @@ class PathsConfig(BaseModel):
     wiki_root: str = ""
 
 
+class ObsidianConfig(BaseModel):
+    url: str = "http://127.0.0.1:27123"
+    api_key: str = ""
+
 class GPUConfig(BaseModel):
     name: str = ""
     vram_gb: int = 8
+
+
+class NIMConfig(BaseModel):
+    """NVIDIA NIM (hosted, OpenAI-compatible) judge configuration.
+
+    Used as the primary output-quality judge (panel vision QC + clip review),
+    with the local Ollama models kept on standby as automatic fallback. The
+    API key is read from the ``NVIDIA_API_KEY`` / ``NVIDIA_NIM_API_KEY`` env
+    var first, then ``[nim] api_key`` in stack.toml -- never committed to a
+    tracked secret store.
+    """
+    enabled: bool = False
+    base_url: str = "https://integrate.api.nvidia.com/v1"
+    model: str = "nvidia/llama-3.1-nemotron-nano-vl-8b-v1"
+    api_key: str = ""
+    timeout_seconds: int = 120
 
 
 # ── top-level config ───────────────────────────────────────────────────────
@@ -217,6 +238,8 @@ class StackConfig(BaseModel):
     agi: AgiConfig = Field(default_factory=AgiConfig)
     paths: PathsConfig = Field(default_factory=PathsConfig)
     gpu: GPUConfig = Field(default_factory=GPUConfig)
+    obsidian: ObsidianConfig = Field(default_factory=ObsidianConfig)
+    nim: NIMConfig = Field(default_factory=NIMConfig)
 
     config_path: Path = Field(default=CONFIG_PATH, exclude=True)
 

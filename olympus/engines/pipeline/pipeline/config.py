@@ -109,8 +109,28 @@ class AnimationConfig(BaseModel):
     ai_upscale_scale: int = 2
     ai_upscale_model: str = "realesr-animevideov3-x2"
 
-    # Animation engine selection: "ltx2b" | "hailuo23" | "ltx_director"
-    engine: str = "ltx2b"
+    # Real-ESRGAN 2x on source PANELS before I2V (2026-08-20): under-detailed
+    # input panels cause LTX/Wan to distort faces & character design, so a
+    # higher-detail input reduces that distortion.
+    enhance_panels: bool = True
+
+    # Per-panel character-reference conditioning (stage3b): when a shot's
+    # character has a stage1r reference sheet on disk, re-render the panel
+    # through panel_ref_flux_klein.json conditioning on the character ref +
+    # the base panel, so the character stays on-model (fixes downstream
+    # LTX/Wan face + design drift).
+    panel_char_ref: bool = True
+    panel_char_ref_denoise: float = 0.55
+    panel_char_ref_steps: int = 24
+
+    # LTX-2B I2V identity/motion tradeoff. Lower strength pins the start frame
+    # harder (less face/design drift) at the cost of motion; higher gives more
+    # motion but drifts identity. 0.55 is the verified-passing default.
+    ltx_strength: float = 0.55
+
+    # Animation engine selection: "ltx_director" (primary, best quality) |
+    # "ltx2b" (LTX-2B I2V fallback) | "hailuo23" | "svd_xt" | "wan22" | "ltx23"
+    engine: str = "ltx_director"
     # Hailuo 2.3 i2v (if engine = "hailuo23")
     hailuo_api_endpoint: str = ""
     hailuo_model: str = "i2v-pro"
@@ -139,6 +159,21 @@ class AgiConfig(BaseModel):
     min_vram_free_mb: int = 3072
 
 
+class NimConfig(BaseModel):
+    """NVIDIA NIM hosted judge (OpenAI-compatible, from stack.toml ``[nim]``).
+
+    ``enabled`` + a resolved API key gate whether the judge uses NIM. The key
+    resolution (env var ``NVIDIA_API_KEY``/``NVIDIA_NIM_API_KEY`` then
+    ``api_key``) lives in the nim_client; this just carries the configured
+    values so stages can build the client.
+    """
+    enabled: bool = False
+    base_url: str = "https://integrate.api.nvidia.com/v1"
+    model: str = "nvidia/llama-3.1-nemotron-nano-vl-8b-v1"
+    api_key: str = ""
+    timeout_seconds: int = 120
+
+
 class PipelineConfig(BaseModel):
     """Top-level typed view of configuration — bridges legacy code to stack.toml."""
 
@@ -147,6 +182,8 @@ class PipelineConfig(BaseModel):
     animation: AnimationConfig = Field(default_factory=AnimationConfig)
     paths: PathsConfig = Field(default_factory=PathsConfig)
     agi: AgiConfig = Field(default_factory=AgiConfig)
+    nim: NimConfig = Field(default_factory=NimConfig)
+    num_ctx: int = 16384
 
     config_path: Path = Field(default=DEFAULT_CONFIG_PATH, exclude=True)
 
@@ -222,7 +259,12 @@ class PipelineConfig(BaseModel):
                 ai_upscale=getattr(_cfg.animation, "ai_upscale", True),
                 ai_upscale_scale=getattr(_cfg.animation, "ai_upscale_scale", 2),
                 ai_upscale_model=getattr(_cfg.animation, "ai_upscale_model", "realesr-animevideov3-x2"),
-                engine=getattr(_cfg.animation, "engine", "ltx2b"),
+                enhance_panels=getattr(_cfg.animation, "enhance_panels", True),
+                panel_char_ref=getattr(_cfg.animation, "panel_char_ref", True),
+                panel_char_ref_denoise=getattr(_cfg.animation, "panel_char_ref_denoise", 0.55),
+                panel_char_ref_steps=getattr(_cfg.animation, "panel_char_ref_steps", 24),
+                ltx_strength=getattr(_cfg.animation, "ltx_strength", 0.55),
+                engine=getattr(_cfg.animation, "engine", "ltx_director"),
                 hailuo_api_endpoint=getattr(_cfg.animation, "hailuo_api_endpoint", ""),
                 hailuo_model=getattr(_cfg.animation, "hailuo_model", "i2v-pro"),
                 hailuo_api_key=getattr(_cfg.animation, "hailuo_api_key", ""),
@@ -238,6 +280,14 @@ class PipelineConfig(BaseModel):
                 sbert_model=_cfg.agi.sbert_model,
                 min_vram_free_mb=_cfg.agi.min_vram_free_mb,
             ),
+            nim=NimConfig(
+                enabled=getattr(_cfg.nim, "enabled", False),
+                base_url=getattr(_cfg.nim, "base_url", "https://integrate.api.nvidia.com/v1"),
+                model=getattr(_cfg.nim, "model", "nvidia/llama-3.1-nemotron-nano-vl-8b-v1"),
+                api_key=getattr(_cfg.nim, "api_key", ""),
+                timeout_seconds=getattr(_cfg.nim, "timeout_seconds", 120),
+            ),
+            num_ctx=getattr(_cfg.ollama, "num_ctx", 16384),
         )
 
     def resolve_image_model(self, role: str = "primary") -> str:

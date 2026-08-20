@@ -35,16 +35,60 @@ _DRIFT_PX = 350.0
 _UPSCALE = 1.5
 # Default resolution / frames / FPS / steps for primary video engine (Wan2.2)
 # Wan2.2 TI2V: 1216x704, 81 frames @ 16fps, 20 steps unipc
-_WAN_RES = (1216, 704)
-_WAN_FRAMES = 81
+_WAN_RES = (672, 384)
+_WAN_FRAMES = 33
 _WAN_FPS = 16.0
-_WAN_STEPS = {1: 20, 2: 20}  # tier1 ambient, tier2 director -- Wan uses 20 steps
+_WAN_STEPS = {1: 14, 2: 16}  # tier1 ambient, tier2 director -- Wan conservative start (per 2026-08-20 tuning)
+_WAN_CFG = 2.5  # Wan 2.2 TI2V-5B starting CFG (low-vram conservative)
+# Wan 2.2 negative prompt: block identity/style drift and morphing (2026-08-20 tuning)
+_WAN_NEG = (
+    "character redesign, changing clothes, face distortion, extra arms, extra fingers, "
+    "duplicated subject, flicker, morphing, text, watermark, extreme camera shake, "
+    "sudden scene change, low-detail face"
+)
+# Wan 2.2 two-keyframe path: END frame generated via Flux-2-Klein img2img from the
+# START panel, injected at the end of the latent sequence (WanVideoAddExtraLatent -1).
+_WAN_2F_TEMPLATE = "wan_ti2v_2f.json"
+_END_FRAME_TEMPLATE = "panel_i2i_flux_klein.json"
+_END_FRAME_DENOISE = 0.55
+_END_FRAME_STEPS = 20
+_END_FRAME_CFG = 2.0
 
 # LTX-2B fallback (kept for reference)
 _LTX_RES = (768, 448)
 _LTX_FRAMES = 81
 _LTX_FPS = 16.0
-_LTX_STEPS = {1: 12, 2: 12}
+_LTX_STEPS = {1: 15, 2: 20}
+
+# LTX-2.3 22B 8GB (proven permanent stage3c engine, 2026-08-20):
+# non-tiled sampler + tiled VAE decode. 576x320x49f@24, 6 steps distilled,
+# strength 0.7, cfg 1.0, euler_ancestral_cfg_pp. Hair-physics motion focus.
+_LTX23_8GB_TEMPLATE = "video_i2v_ltx_23b_8gb.json"
+_LTX23_8GB_RES = (576, 320)
+_LTX23_8GB_FRAMES = 49
+_LTX23_8GB_FPS = 24.0
+_LTX23_8GB_STEPS = 6
+_LTX23_8GB_CFG = 1.0
+_LTX23_8GB_STRENGTH = 0.7
+
+# LTX Director (V2V director) -- LTXDirector node on the same 8GB stack.
+# Timeline image keyframe + text beat, LTXDirectorGuide keyframe guidance.
+# Verified 2026-08-20: 576x320x33f@24, 8 steps distilled, cfg 1.0 (smoke gate
+# .ltx_director_smoke_passed produced a 41-frame, motion-verified clip).
+_DIRECTOR_TEMPLATE = "ltx_director_23.json"
+_DIRECTOR_RES = (576, 320)
+_DIRECTOR_FRAMES = 33
+_DIRECTOR_FPS = 24.0
+_DIRECTOR_STEPS = 8
+_DIRECTOR_CFG = 1.0
+
+# SVD XT (Stable Video Diffusion, ComfyUI-native, 25f / 6fps native)
+_SVD_RES = (832, 480)
+_SVD_FRAMES = 25
+_SVD_FPS = 6
+_SVD_STEPS = 20
+_SVD_MODEL = "svd_xt-fp16.safetensors"
+_SVD_MOTION_BUCKET = 127
 
 # Quality thresholds
 _MAX_DRIFT_REUSE = 3  # max consecutive drift shots before forcing LTX retry
@@ -190,16 +234,103 @@ def verify_clip_motion(clip_path: Path) -> dict[str, Any]:
         return metrics
 
 
-def _motion_prompt(shot: dict[str, Any], tier: int) -> str:
+def _motion_prompt(shot: dict[str, Any], tier: int, template: str = "") -> str:
     base = shot.get("sd_prompt", "anime scene")
     comp = shot.get("composition", "medium shot")
     light = shot.get("lighting", "cinematic lighting")
+    # Wan 2.2 TI2V-5B prompting (2026-08-20 tuning): ONE subject + ONE action
+    # + ONE camera instruction, concise, stability phrasing to preserve the
+    # Flux keyframe identity. LTX keeps the fuller ambient phrasing.
+    if template == "wan_ti2v.json":
+        if tier == 1:
+            return (
+                f"{base}. {comp}. {light}. The character moves gently, hair and "
+                "clothes sway softly in the wind, subtle ambient motion, stable "
+                "anime illustration, consistent face and outfit."
+            )
+        cam = shot.get("camera_movement") or "slow push-in"
+        return (
+            f"{base}. {comp}. {light}. One controlled action, camera {cam}, "
+            "stable anime illustration, consistent face and outfit."
+        )
+    if template == _LTX23_8GB_TEMPLATE:
+        # LTX-2.3 22B 8GB (permanent engine): concise prompt with STRONG hair
+        # physics emphasis up front. The full sd_prompt is too long and buries
+        # the motion instruction, making the 22B distilled output static.
+        chars = shot.get("characters_in_frame", [])
+        hair = "long flowing hair" if chars else "hair"
+        if tier == 1:
+            return (
+                f"{comp}, anime illustration. The character's {hair} flows and "
+                "sways in the wind with soft physics, strands moving gently, "
+                "hair drifting naturally. Hair and scarf cloth sway and billow. "
+                "Subtle breathing, cinematic lighting."
+            )
+        cam = shot.get("camera_movement") or "slow push-in"
+        return (
+            f"{comp}, anime illustration. Hair and clothes flow with the motion, "
+            f"hair physics moving naturally in the wind. Camera {cam}. "
+            "Stable consistent character and outfit."
+        )
+    if template == "video_i2v_ltx_2b.json":
+        # LTX-2B (default engine): strong, explicit motion verbs. The char-ref +
+        # enhanced start frame is heavily identity-conditioned, so weak "subtle
+        # ambient" phrasing leaves it static. Explicit head turn / step / wind
+        # physics drives scene motion past the gate while the conditioned frame
+        # keeps the character on-model (verified: strength 0.55, 81f -> pass).
+        cam = shot.get("camera_movement") or "slow dolly in"
+        if tier == 1:
+            return (
+                f"{comp}, anime scene, {light}. The character turns their head and "
+                "breathes, hair and coat swaying with soft wind physics, fabric "
+                "billowing gently, subtle body motion, stable consistent character "
+                "and outfit, cinematic lighting."
+            )
+        return (
+            f"{comp}, anime scene, {light}. The character moves with one clear action, "
+            f"hair and clothes flowing with the motion, strong wind physics, camera "
+            f"{cam}, dynamic anime motion, stable consistent character and outfit."
+        )
     if tier == 1:
         return f"{comp} {base}. {light}. Subtle ambient motion: hair drifts, cloth sways, particles float. Shallow depth of field."
     if tier == 2:
         cam = shot.get("camera_movement") or "slow dolly in"
         return f"{comp} {base}. {light}. Camera {cam}, focused on subject. Dynamic anime scene with natural motion."
     return base
+
+
+def build_director_timeline(image_file: str, prompt: str, global_prompt: str, frames: int) -> dict[str, str]:
+    """Build the LTXDirector (V2V director) timeline inputs for one shot.
+
+    Mirrors the aether-pipeline-v2 STAGE 3 (V2V Director, LTX Director 2.0)
+    timeline format: an empty head text segment, the panel as an image start
+    keyframe, the shot's motion prompt as a text beat, and an empty tail.
+    Returns a dict of patch values for TIMELINE_DATA / LOCAL_PROMPTS /
+    SEGMENT_LENGTHS / GUIDE_STRENGTH."""
+    segments = [
+        {"id": "s_head", "start": 0, "length": 0, "type": "text", "prompt": "", "isEndFrame": False},
+        {"id": "s_img", "start": 0, "length": frames, "type": "image",
+         "imageFile": image_file, "isEndFrame": False},
+        {"id": "s_txt", "start": 0, "length": frames, "type": "text", "prompt": prompt, "isEndFrame": False},
+        {"id": "s_tail", "start": frames, "length": 0, "type": "text", "prompt": "", "isEndFrame": False},
+    ]
+    timeline = {
+        "mainTrackEnabled": True,
+        "audioTrackEnabled": False,
+        "motionTrackEnabled": False,
+        "global_prompt": global_prompt,
+        "normalStartFrame": 0,
+        "normalDurationFrames": frames,
+        "segments": segments,
+        "motionSegments": [],
+        "audioSegments": [],
+    }
+    return {
+        "TIMELINE_DATA": json.dumps(timeline),
+        "LOCAL_PROMPTS": f" | {prompt}\n | ",
+        "SEGMENT_LENGTHS": f"0,{frames},0",
+        "GUIDE_STRENGTH": "1.0",
+    }
 
 
 def _plate_key_for_scene(scene: dict[str, Any], shot: dict[str, Any] | None = None) -> str:
@@ -225,8 +356,15 @@ def _clip_cache_key(
     seed: int,
     *,
     ai_upscale: bool,
+    enhance_panels: bool = True,
+    strength: float = 0.55,
 ) -> str:
-    """Stable cache key: hash of all inputs that affect the rendered clip."""
+    """Stable cache key: hash of all inputs that affect the rendered clip.
+
+    Includes the panel bytes plus every render-affecting knob (motion prompt,
+    template, steps, seed, AI upscale, panel enhance, I2V strength) so tuning
+    ``ltx_strength`` / ``enhance_panels`` invalidates stale clips instead of
+    silently reusing them."""
     import hashlib
     h = hashlib.sha256()
     h.update(panel.read_bytes())
@@ -235,6 +373,8 @@ def _clip_cache_key(
     h.update(str(steps).encode())
     h.update(str(seed).encode())
     h.update(str(int(ai_upscale)).encode())
+    h.update(str(int(enhance_panels)).encode())
+    h.update(f"{strength:.4f}".encode())
     return h.hexdigest()[:16]
 
 
@@ -253,6 +393,93 @@ def _clip_cache_store(clips_dir: Path, key: str, clip_path: Path) -> None:
     cache = _clip_cache_load(clips_dir)
     cache[key] = str(clip_path.relative_to(clips_dir))
     cache_file.write_text(json.dumps(cache, indent=2), encoding="utf-8")
+
+
+def _enhance_panel(panel: Path, project_dir: Path, sid: str, *, scale: int = 2) -> Path:
+    """Real-ESRGAN upscale a source panel 2x before feeding it to the I2V
+    model. Under-detailed source panels cause the I2V models (LTX-2B, Wan)
+    to distort faces / character design, so a higher-detail input reduces
+    that distortion. Returns the enhanced path (falls back to the original
+    panel on any failure)."""
+    if not realesrgan_upscale.available():
+        return panel
+    out_dir = project_dir / "clips" / "_enhanced_panels"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out = out_dir / f"{sid}_enh.png"
+    if out.exists():
+        return out
+    import subprocess
+    try:
+        r = subprocess.run(
+            [str(realesrgan_upscale._BIN), "-i", str(panel), "-o", str(out),
+             "-s", str(scale), "-n", "realesr-animevideov3-x2",
+             "-m", str(realesrgan_upscale._MODELS_DIR),
+             "-t", "128", "-j", "4:4:2"],
+            capture_output=True, timeout=600,
+        )
+        if r.returncode == 0 and out.exists():
+            return out
+    except (subprocess.SubprocessError, OSError):
+        pass
+    logger.warning("panel enhance failed for %s; using original", sid)
+    return panel
+
+
+def _render_end_frame(
+    comfy: ComfyClient,
+    project_dir: Path,
+    start_panel: Path,
+    motion_prompt: str,
+    sid: str,
+    *,
+    res: tuple[int, int],
+    seed: int,
+) -> Path:
+    """Generate a high-quality END frame for the Wan 2.2 two-keyframe path.
+
+    Uses the Flux-2-Klein img2img template (panel_i2i_flux_klein.json): the
+    START panel is VAE-encoded and used both as the img2img latent (denoise
+    0.55) AND as ReferenceLatent conditioning, so characters + background
+    stay consistent while the motion prompt advances the moment. Returns the
+    path to the saved PNG.
+    """
+    from PIL import Image
+
+    img = Image.open(start_panel).convert("RGB")
+    w, h = img.size
+    crop_h = int(w * 9 / 16)
+    if crop_h > h:
+        crop_w = int(h * 16 / 9)
+        left = (w - crop_w) // 2
+        img = img.crop((left, 0, left + crop_w, h))
+    else:
+        top = (h - crop_h) // 2
+        img = img.crop((0, top, w, top + crop_h))
+    img = img.resize(res, Image.LANCZOS)
+
+    end_dir = project_dir / "clips" / "_end_frames"
+    end_dir.mkdir(parents=True, exist_ok=True)
+    end_path = end_dir / f"{sid}_end.png"
+    img.save(end_path)
+
+    try:
+        src_uploaded = comfy.upload_image(end_path, name=f"anim_{sid}_end_src.png")
+        paths = comfy.generate(_END_FRAME_TEMPLATE, {
+            "SOURCE_IMAGE": src_uploaded,
+            "WIDTH": res[0], "HEIGHT": res[1],
+            "PROMPT_POS": motion_prompt,
+            "PROMPT_NEG": _WAN_NEG,
+            "SEED": seed,
+            "STEPS": _END_FRAME_STEPS,
+            "CFG": _END_FRAME_CFG,
+            "DENOISE": _END_FRAME_DENOISE,
+            "SAVE_PREFIX": f"pipeline/{project_dir.name}/end_frames/{sid}",
+        }, dest=end_dir)
+        return Path(paths[0])
+    except (ComfyError, ContingencyStop):
+        # Fall back to the cropped start panel if the img2img pass fails
+        logger.warning("END frame img2img failed for %s; using cropped start panel", sid)
+        return end_path
 
 
 def _render_hailuo_shot(
@@ -323,9 +550,10 @@ def _render_ltx_phase(
 
     try:
         cache: dict[str, str] | None = None
+        consecutive_drift = 0
         for sid in shot_order:
             d = shot_detail[sid]
-            orig = d["planned_tier"]
+            orig = d.get("planned_tier", d.get("motion_tier", 1))
             if orig == 3:
                 tier3 += 1
                 continue
@@ -345,34 +573,67 @@ def _render_ltx_phase(
             steps = _WAN_STEPS.get(orig, 20)
             ltx_template = pick_ltx_template(config, orig, _WAN_FRAMES)
             if ltx_template is None:
-                logger.warning("Video template unavailable for %s, degrading to drift", sid)
-                d["motion_tier"] = 0
+                # No I2V engine available (weights/gate missing) -> controlled
+                # drift fallback. Track consecutive drift so a silent run of
+                # degraded shots is surfaced instead of hiding behind "success".
+                consecutive_drift += 1
+                if consecutive_drift > _MAX_DRIFT_REUSE:
+                    logger.warning(
+                        "stage3c: %d consecutive drift fallbacks exceed cap %d "
+                        "(shot %s) -- likely missing video weights or VRAM",
+                        consecutive_drift, _MAX_DRIFT_REUSE, sid,
+                    )
+                    scores.record("stage3c", "global", "drift_cap_exceeded", 1.0)
+                logger.info(
+                    "Drift mode active for %s (8GB VRAM safety, fallback): "
+                    "%d/%d shots using controlled motion fallback",
+                    sid, consecutive_drift, len(shot_order),
+                )
+                d["motion_tier"] = 0 if d.get("force_drift_fallback", False) else 1
                 if s := shots_by_id.get(sid):
-                    s["motion_tier"] = 0
-                tier0 += 1
+                    s["motion_tier"] = d["motion_tier"]
+                if d["motion_tier"] == 0:
+                    tier0 += 1
+                else:
+                    tier1 += 1
                 failed += 1
                 continue
 
             # Select engine-specific constants
-            if ltx_template == "wan_ti2v.json":
+            if ltx_template in ("wan_ti2v.json", "wan_ti2v_2f.json"):
                 res = _WAN_RES
                 frames = _WAN_FRAMES
                 fps = _WAN_FPS
+            elif ltx_template == "video_svd.json":
+                res = _SVD_RES
+                frames = _SVD_FRAMES
+                fps = _SVD_FPS
+                steps = _SVD_STEPS
+            elif ltx_template == _LTX23_8GB_TEMPLATE:
+                # LTX-2.3 22B 8GB proven config (permanent engine)
+                res = _LTX23_8GB_RES
+                frames = _LTX23_8GB_FRAMES
+                fps = _LTX23_8GB_FPS
+                steps = _LTX23_8GB_STEPS
             else:
                 # LTX fallback
                 res = _LTX_RES
                 frames = _LTX_FRAMES
                 fps = _LTX_FPS
-                steps = _LTX_STEPS.get(orig, 12)
+                steps = _LTX_STEPS.get(orig, 15)
 
             clips_dir = project_dir / "clips"
             clips_dir.mkdir(exist_ok=True)
-            motion_prompt = _motion_prompt(shots_by_id.get(sid, {}), orig)
+            motion_prompt = _motion_prompt(shots_by_id.get(sid, {}), orig, ltx_template)
 
             if cache is None:
                 cache = _clip_cache_load(clips_dir)
-            key = _clip_cache_key(panel, motion_prompt, ltx_template, steps, _seed_from_id(sid),
-                                  ai_upscale=config.animation.ai_upscale)
+            key = _clip_cache_key(
+                panel, motion_prompt, ltx_template, steps, _seed_from_id(sid),
+                ai_upscale=config.animation.ai_upscale,
+                enhance_panels=getattr(config.animation, "enhance_panels", True),
+                strength=getattr(config.animation, "ltx_strength", 0.55),
+            )
             cached_rel = cache.get(key)
             cached_clip = (clips_dir / cached_rel) if cached_rel else None
             if cached_clip is not None and cached_clip.exists():
@@ -389,19 +650,63 @@ def _render_ltx_phase(
                     tier2 += 1
                 rendered += 1
                 cache_hits += 1
+                consecutive_drift = 0  # a real (cached) clip breaks the drift streak
                 logger.info("LTX cache hit for %s", sid)
                 continue
 
             try:
-                uploaded = comfy.upload_image(panel, name=f"anim_{sid}.png")
-                paths = comfy.generate(ltx_template, {
-                    "MOTION_PROMPT": motion_prompt,
-                    "START_FRAME": uploaded,
-                    "WIDTH": res[0], "HEIGHT": res[1],
-                    "FRAMES": frames, "STEPS": steps,
-                    "SEED": _seed_from_id(sid), "FPS": fps,
-                    "SAVE_PREFIX": f"pipeline/{project_dir.name}/clips/{sid}",
-                }, dest=clips_dir)
+                render_panel = panel
+                if getattr(config.animation, "enhance_panels", True):
+                    render_panel = _enhance_panel(panel, project_dir, sid)
+                uploaded = comfy.upload_image(render_panel, name=f"anim_{sid}.png")
+                if ltx_template == "video_svd.json":
+                    # SVD is prompt-less: no MOTION_PROMPT/PROMPT_NEG patches.
+                    patch_set = {
+                        "START_FRAME": uploaded,
+                        "WIDTH": res[0], "HEIGHT": res[1],
+                        "FRAMES": frames, "STEPS": steps,
+                        "SEED": _seed_from_id(sid), "FPS": fps,
+                        "SVD_MODEL": _SVD_MODEL,
+                        "MOTION_BUCKET": _SVD_MOTION_BUCKET,
+                        "SAVE_PREFIX": f"pipeline/{project_dir.name}/clips/{sid}",
+                    }
+                else:
+                    patch_set = {
+                        "MOTION_PROMPT": motion_prompt,
+                        "START_FRAME": uploaded,
+                        "WIDTH": res[0], "HEIGHT": res[1],
+                        "FRAMES": frames, "STEPS": steps,
+                        "SEED": _seed_from_id(sid), "FPS": fps,
+                        "SAVE_PREFIX": f"pipeline/{project_dir.name}/clips/{sid}",
+                    }
+                    if ltx_template == "wan_ti2v.json":
+                        # Wan 2.2 TI2V-5B tuning: low CFG + identity-preserving negative
+                        patch_set["CFG"] = _WAN_CFG
+                        patch_set["PROMPT_NEG"] = _WAN_NEG
+                    if ltx_template == _WAN_2F_TEMPLATE:
+                        # Two-keyframe path: generate a high-quality END frame from the
+                        # START panel via Flux-2-Klein img2img, then inject it at the
+                        # end of the latent sequence (latent_index -1).
+                        end_path = _render_end_frame(
+                            comfy, project_dir, panel, motion_prompt, sid,
+                            res=res, seed=_seed_from_id(sid),
+                        )
+                        end_uploaded = comfy.upload_image(end_path, name=f"anim_{sid}_end.png")
+                        patch_set["END_FRAME"] = end_uploaded
+                        patch_set["CFG"] = _WAN_CFG
+                        patch_set["PROMPT_NEG"] = _WAN_NEG
+                    if ltx_template == _LTX23_8GB_TEMPLATE:
+                        # LTX-2.3 22B 8GB permanent engine: cfg 1.0 + strength 0.55
+                        patch_set["CFG"] = _LTX23_8GB_CFG
+                        patch_set["STRENGTH"] = _LTX23_8GB_STRENGTH
+                    elif ltx_template == "video_i2v_ltx_2b.json":
+                        # LTX-2B identity/motion tradeoff: configurable strength.
+                        # Lower pins the start frame harder (less face/design
+                        # drift), higher trades identity for motion. The enhanced
+                        # start frame (enhance_panels) + lower strength is the
+                        # 8GB-friendly antidote to 2B face distortion.
+                        patch_set["STRENGTH"] = config.animation.ltx_strength
+                paths = comfy.generate(ltx_template, patch_set, dest=clips_dir)
                 clip_path = _postprocess_clip(paths[0], skip_ffmpeg=config.animation.ai_upscale)
 
                 # Quality gate: optical-flow verification (camera + scene axes)
@@ -431,9 +736,156 @@ def _render_ltx_phase(
                 else:
                     tier2 += 1
                 rendered += 1
+                consecutive_drift = 0
                 _clip_cache_store(clips_dir, key, clip_path)
             except ComfyError as exc:
                 logger.error("LTX I2V render failed for %s: %s, falling back to drift", sid, exc)
+                d["motion_tier"] = 0
+                failed += 1
+    finally:
+        gpu_batch.release()
+
+    return tier0, tier1, tier2, tier3, rendered, failed, cache_hits
+
+
+def _render_director_phase(
+    shot_order: list[str],
+    shot_detail: dict[str, Any],
+    shots_by_id: dict[str, Any],
+    storyboard: dict[str, Any],
+    project_dir: Path,
+    config: PipelineConfig,
+    comfy: ComfyClient,
+    scores: Scores,
+    tier0: int,
+    tier1: int,
+    tier2: int,
+    tier3: int,
+    rendered: int,
+    failed: int,
+    cache_hits: int,
+) -> tuple[int, int, int, int, int, int, int]:
+    """LTX Director (V2V) render phase (GPU). Returns updated counters.
+
+    Uses the ``ltx_director_23.json`` template: the panel is the timeline image
+    start keyframe, the shot motion prompt is the text beat, and the LTXDirector
+    node composes a directed clip. Same GPU batch, post-process, cache, and
+    motion-gate discipline as the I2V phase."""
+    template = getattr(config.animation, "ltx_director_workflow", "ltx_director_23.json")
+    res = (_DIRECTOR_RES[0], _DIRECTOR_RES[1])
+    frames = _DIRECTOR_FRAMES
+    fps = _DIRECTOR_FPS
+    steps = _DIRECTOR_STEPS
+    cfg = _DIRECTOR_CFG
+
+    gpu_batch = GpuBatch("stage3c", comfy)
+    if not gpu_batch.acquire():
+        logger.error("GPU is owned by another stage - refusing to render LTX Director")
+        scores.record("stage3c", "global", "gpu_lock_contention", 1.0)
+        return tier0, tier1, tier2, tier3, rendered, failed, cache_hits
+
+    try:
+        cache: dict[str, str] | None = None
+        consecutive_drift = 0
+        for sid in shot_order:
+            d = shot_detail[sid]
+            orig = d.get("planned_tier", d.get("motion_tier", 1))
+            if orig == 3:
+                tier3 += 1
+                continue
+            if orig not in (1, 2):
+                continue
+
+            block_id = next((b["id"] for b in storyboard["blocks"] if sid in b["shots"]), None)
+            if not block_id:
+                continue
+            panel = project_dir / "panels" / block_id / f"{sid}.png"
+            if not panel.exists():
+                logger.warning("panel %s not found, skipping", sid)
+                failed += 1
+                tier0 += 1
+                continue
+
+            clips_dir = project_dir / "clips"
+            clips_dir.mkdir(exist_ok=True)
+            shot = shots_by_id.get(sid, {})
+            motion_prompt = _motion_prompt(shot, orig, template)
+            global_prompt = shot.get("style_global", "anime 2d illustration, cel shading, consistent character and background")
+
+            if cache is None:
+                cache = _clip_cache_load(clips_dir)
+            key = _clip_cache_key(
+                panel, motion_prompt, template, steps, _seed_from_id(sid),
+                ai_upscale=config.animation.ai_upscale,
+                enhance_panels=getattr(config.animation, "enhance_panels", True),
+                strength=getattr(config.animation, "ltx_strength", 0.55),
+            )
+            cached_rel = cache.get(key)
+            cached_clip = (clips_dir / cached_rel) if cached_rel else None
+            if cached_clip is not None and cached_clip.exists():
+                d["motion_tier"] = orig
+                d["clip_path"] = str(cached_clip.relative_to(project_dir))
+                d["ltx_template"] = template
+                d["cache_hit"] = True
+                if s := shots_by_id.get(sid):
+                    s["motion_tier"] = orig
+                    s["clip_path"] = d["clip_path"]
+                if orig == 1:
+                    tier1 += 1
+                else:
+                    tier2 += 1
+                rendered += 1
+                cache_hits += 1
+                consecutive_drift = 0
+                logger.info("LTX Director cache hit for %s", sid)
+                continue
+
+            try:
+                render_panel = panel
+                if getattr(config.animation, "enhance_panels", True):
+                    render_panel = _enhance_panel(panel, project_dir, sid)
+                uploaded = comfy.upload_image(render_panel, name=f"anim_director_{sid}.png")
+                timeline = build_director_timeline(uploaded, motion_prompt, global_prompt, frames)
+                patch_set = {
+                    **timeline,
+                    "GLOBAL_PROMPT": global_prompt,
+                    "WIDTH": res[0], "HEIGHT": res[1],
+                    "FRAMES": frames, "STEPS": steps,
+                    "CFG": cfg, "SEED": _seed_from_id(sid), "FPS": fps,
+                    "SAVE_PREFIX": f"pipeline/{project_dir.name}/clips/{sid}_director",
+                }
+                paths = comfy.generate(template, patch_set, dest=clips_dir)
+                clip_path = _postprocess_clip(paths[0], skip_ffmpeg=config.animation.ai_upscale)
+
+                motion = verify_clip_motion(clip_path)
+                if not motion["motion_verified"]:
+                    logger.warning(
+                        "LTX Director clip %s motion gate FAILED (axis=%s) -- treating as drift",
+                        sid, motion["motion_axis"],
+                    )
+                    d["motion_tier"] = 0
+                    failed += 1
+                    clip_path.unlink(missing_ok=True)
+                    continue
+
+                d["motion_tier"] = orig
+                d["clip_path"] = str(clip_path.relative_to(project_dir))
+                d["ltx_template"] = template
+                d["motion_verified"] = motion
+                d["director_render"] = True
+                if s := shots_by_id.get(sid):
+                    s["motion_tier"] = orig
+                    s["clip_path"] = d["clip_path"]
+                    s["motion_verified"] = motion
+                if orig == 1:
+                    tier1 += 1
+                else:
+                    tier2 += 1
+                rendered += 1
+                consecutive_drift = 0
+                _clip_cache_store(clips_dir, key, clip_path)
+            except ComfyError as exc:
+                logger.error("LTX Director render failed for %s: %s, falling back to drift", sid, exc)
                 d["motion_tier"] = 0
                 failed += 1
     finally:
@@ -461,7 +913,7 @@ def _render_hailuo_phase(
     """Hailuo 2.3 I2V render phase (GPU or API). Returns updated counters."""
     for sid in shot_order:
         d = shot_detail[sid]
-        orig = d["planned_tier"]
+        orig = d.get("planned_tier", d.get("motion_tier", 1))
         if orig == 3:
             tier3 += 1
             continue
@@ -532,11 +984,12 @@ def run(
     engine = getattr(config.animation, "engine", "ltx2b")
     hailuo = HailuoI2VClient(config) if engine == "hailuo23" else None
 
-    # Phase 1: Assign tiers, render Tier 0 (drift, no GPU)
+    # Phase 1: Assign tiers, render Tier 0 (drift, no GPU) - lower default tier
     consecutive_drift = 0
     for i, sid in enumerate(shot_order):
         d = shot_detail[sid]
-        orig = d.get("planned_tier", d["motion_tier"])
+        # Default to tier 1 (ambient motion) for animation; tier 0 (drift) as VRAM safety fallback
+        orig = d.get("planned_tier", d.get("motion_tier", 1))
         if orig == 0:
             # Planned as drift, stays drift -- consistent direction per shot (not ping-pong)
             shot_hash = int(hashlib.sha256(sid.encode()).hexdigest()[:8], 16)
@@ -546,16 +999,29 @@ def run(
                 s["motion_tier"] = 0
             tier0 += 1
             consecutive_drift += 1
-        else:
-            # Planned for LTX/Hailuo (1,2,3) -- initially mark drift, Phase 2 will upgrade
-            d["motion_tier"] = 0
-            d["planned_tier"] = orig
-            shot_hash = int(hashlib.sha256(sid.encode()).hexdigest()[:8], 16)
-            direction = 1 if (shot_hash % 2 == 0) else -1
-            d["drift"] = {"axis": axis, "direction": direction, "pixels": pixels, "consistent": True}
+        elif orig == 1:
+            # Tier 1: Ambient motion with LTX I2V
+            d["motion_tier"] = 1
+            d["drift"] = None
             if s := shots_by_id.get(sid):
-                s["motion_tier"] = 0
-                s["planned_tier"] = orig
+                s["motion_tier"] = 1
+            tier1 += 1
+            consecutive_drift = 0
+        elif orig == 2:
+            # Tier 2: Director motion with LTX I2V
+            d["motion_tier"] = 2
+            d["drift"] = None
+            if s := shots_by_id.get(sid):
+                s["motion_tier"] = 2
+            tier2 += 1
+            consecutive_drift = 0
+        elif orig == 3:
+            # Tier 3: Lip-sync motion with LTX I2V
+            d["motion_tier"] = 3
+            d["drift"] = None
+            if s := shots_by_id.get(sid):
+                s["motion_tier"] = 3
+            tier3 += 1
             consecutive_drift = 0
 
     # Phase 2: Render with selected engine
@@ -573,6 +1039,14 @@ def run(
             shot_order, shot_detail, shots_by_id, storyboard,
             project_dir, config, hailuo, scores,
             tier0, tier1, tier2, tier3, rendered, failed,
+        )
+    elif engine == "ltx_director":
+        # LTX Director (V2V) path: panel is the timeline image keyframe, the
+        # shot motion prompt is the text beat, composed by the LTXDirector node.
+        tier0, tier1, tier2, tier3, rendered, failed, cache_hits = _render_director_phase(
+            shot_order, shot_detail, shots_by_id, storyboard,
+            project_dir, config, comfy, scores,
+            tier0, tier1, tier2, tier3, rendered, failed, cache_hits,
         )
     else:
         # LTX or LTX Director path
@@ -622,8 +1096,8 @@ def run(
     write_json(project_dir / "screenplay" / "screenplay.json", screenplay)
 
     total_shots = len(shot_order)
-    planned_animated = sum(1 for d in shot_detail.values() if d.get("planned_tier") in (1, 2))
-    tier_degraded = sum(1 for d in shot_detail.values() if d.get("planned_tier") in (1, 2, 3) and d.get("motion_tier") == 0)
+    planned_animated = sum(1 for d in shot_detail.values() if d.get("planned_tier", d.get("motion_tier")) in (1, 2))
+    tier_degraded = sum(1 for d in shot_detail.values() if d.get("planned_tier", d.get("motion_tier")) in (1, 2, 3) and d.get("motion_tier") == 0)
     coverage = (planned_animated / total_shots) if total_shots else 0.0
 
     # Quality gates (movie-grade)
