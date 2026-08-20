@@ -13,6 +13,7 @@ vs pipeline.toml conflicts.
 from __future__ import annotations
 
 import tomllib
+import os
 from pathlib import Path
 from typing import Any
 
@@ -199,6 +200,12 @@ class PathsConfig(BaseModel):
 
 
 class ObsidianConfig(BaseModel):
+    """Obsidian Local REST API plugin config.
+
+    The API key is read from the ``OBSIDIAN_API_KEY`` env var (e.g. set in the
+    gitignored ``.env``) first, then ``[obsidian] api_key`` in stack.toml --
+    never commit a real token to the tracked config.
+    """
     url: str = "http://127.0.0.1:27123"
     api_key: str = ""
 
@@ -250,7 +257,14 @@ class StackConfig(BaseModel):
             raise FileNotFoundError(f"stack.toml not found: {path}")
         with path.open("rb") as f:
             raw = tomllib.load(f)
-        return cls.model_validate(raw)
+        cfg = cls.model_validate(raw)
+        # Resolve the Obsidian token from env (gitignored .env) before the
+        # (empty) toml value; never keep the real token in tracked config.
+        if not cfg.obsidian.api_key:
+            env_key = os.environ.get("OBSIDIAN_API_KEY", "")
+            if env_key:
+                cfg.obsidian.api_key = env_key
+        return cfg
 
     def banned_checkpoints(self) -> list[str]:
         return self.comfyui.models.banned_checkpoints

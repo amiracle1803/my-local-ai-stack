@@ -11,13 +11,17 @@ host = "127.0.0.1"
 port = 11434
 url = "http://127.0.0.1:11434"
 timeout_seconds = 300
+# Context window for pipeline LLM calls. Ollama's vram-based default (4096)
+# is too small for the stage 0-2 prompts + JSON output; 16k is a good balance
+# on 8GB VRAM (qwen3:8b offloads a few layers to CPU, still usable).
+num_ctx = 16384
 
 # Model roles — change these to swap models without touching code
 [ollama.models]
 script    = "qwen3:8b"           # all screenplay / story LLM work
-vision    = "qwen3-vl:8b"       # panel vision analysis (was qwen2.5vl:7b — qwen2.5vl miscounted character counts on dense anime panels)
+vision = "qwen3:8b"       # panel vision analysis (was qwen2.5vl:7b — qwen2.5vl miscounted character counts on dense anime panels)
 review    = "qwen2.5vl:7b"       # stage_vlm_review 10-dim physics/logic gate (non-reasoning; reliable fast structured output — qwen3-vl:8b reasoning model returns empty content on some frames)
-default   = "llama3.1:8b"        # general fallback
+default   = "qwen3:8b"        # general fallback (was llama3.1:8b — not pulled on this box)
 embed     = "nomic-embed-text"   # embeddings
 
 # Agent roles — maps kernel agent roles → Ollama models
@@ -36,10 +40,11 @@ url = "http://127.0.0.1:8188"
 
 # Image models (GGUF in ComfyUI/models/unet/)
 [comfyui.models]
-primary            = "krea2_turbo-Q4_K_S.gguf"       # best quality (OOMs on 8GB under load)
-fallback = "flux1-schnell-Q4_K_S.gguf" # 8GB-safe fallback (was krea2_turbo-Q4_K_M.gguf which OOMs on 8GB same as Q4_K_S)
-floor      = "flux1-schnell-Q4_K_S.gguf"     # acceptable quality
-panel               = "krea2_turbo-Q4_K_S.gguf" # krea2 panel (plate-lock img2img); was anima-base-v1.0.safetensors
+primary            = "flux-2-klein-4b-Q4_K_M.gguf" # 8GB-safe primary (was krea2_turbo-Q4_K_S.gguf — OOMs on 8GB under load; klein per user request 2026-08)
+fallback = "flux-2-klein-4b-Q4_K_M.gguf" # 8GB-safe fallback (was flux1-schnell-Q4_K_S.gguf — swapped per user request)
+floor      = "flux-2-klein-4b-Q4_K_M.gguf"     # acceptable quality
+panel               = "flux-2-klein-4b-Q4_K_M.gguf" # panel gen (was krea2_turbo-Q4_K_S.gguf — OOM; klein per user request 2026-08)
+character = "flux-2-klein-4b-Q4_K_M.gguf" # character sheets (flux-2-klein for 8GB VRAM)
 animation_primary = "ltx-2.3-22b-distilled-1.1-Q4_K_M.gguf"
 
 # Banned checkpoints — enforced at runtime by pipeline.config.resolve_image_model
@@ -89,6 +94,11 @@ workflows    = "olympus/engines/pipeline/workflows"
 comfyui_dir  = "ComfyUI"
 
 [animation]
+engine = "ltx_director"      # PRIMARY stage3c engine (LTXDirector V2V, best result). Fallbacks: "ltx2b" | "svd_xt" | "wan22" | "wan22_2f" | "ltx23"
+ltx_director_workflow = "ltx_director_23.json"   # LTXDirector V2V template (image-keyframe + text beat; IC-LoRA/video segments off for now)
+enhance_panels = true        # Real-ESRGAN 2x source panels before I2V (reduces face/char distortion)
+panel_char_ref = true        # stage3b: re-render panels conditioned on character ref (identity lock)
+ltx_strength = 0.55          # LTX-2B I2V strength: lower = less face drift, higher = more motion
 drift_axis = "vertical"
 max_animated_seconds_per_block = 60.0
 default_motion_tier = 1
@@ -124,3 +134,15 @@ sbert_model = "all-MiniLM-L6-v2"
 name = "RTX 4070 Laptop"
 vram_gb = 8
 # Ollama and ComfyUI must never share GPU — stage transitions unload first
+
+# ── NVIDIA NIM (hosted judge) ─────────────────────────────────────────────
+# Advanced hosted judge for output QC (panel vision + clip review). Local
+# Ollama models stay on standby as automatic fallback when NIM is disabled or
+# unreachable. API key: set NVIDIA_API_KEY / NVIDIA_NIM_API_KEY env var, or
+# fill api_key below (never commit it). Enabled only when a key resolves.
+[nim]
+enabled = true
+base_url = "https://integrate.api.nvidia.com/v1"
+model = "nvidia/llama-3.1-nemotron-nano-vl-8b-v1"
+api_key = ""
+timeout_seconds = 120
