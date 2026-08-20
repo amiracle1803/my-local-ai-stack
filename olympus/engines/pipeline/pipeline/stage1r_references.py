@@ -7,7 +7,7 @@ audition per character. Images run through :class:`~pipeline.comfy_client.ComfyC
 **Image model note (design 5.3b)**: krea2 is the mandated primary.
 ``pipeline.image_router.pick_template()`` is called ONCE at the top of
 ``run()`` and routes to ``image_txt2img_krea2.json`` when krea2's weights are fully
-on disk, else the ONLY permitted fallback (flux1-schnell GGUF) via
+on disk, else the ONLY permitted fallback (flux-2-klein-4b GGUF) via
 ``image_txt2img_flux_fallback.json`` -- never a banned model. ``model_used_fallback``
 in the scorecard reflects which one actually ran. flux has no IPAdapter/LoRA
 path, so consistency comes from the world-bible sd_prompt anchors +
@@ -316,7 +316,7 @@ def run(
     comfy.free()
 
     # Mouth sheets: 9 viseme frames per main character for lipsync (contingency
-    # Stage 3C). Requires a face close-up ref (frame 24 in the turnaround set =
+    # Stage 3C). Requires a face close-up ref (index 25 in the 30-frame set =
     # "face close-up portrait" from _DETAILS_MAIN). Uses the char_ref_mouth_visemes.json
     # ComfyUI workflow with inpainting to produce mouth variants.
     _VISEME_PROMPTS = (
@@ -339,9 +339,12 @@ def run(
         if len(sorted(ms_dir.glob("viseme_*.png"))) >= len(_VISEME_PROMPTS):
             mouth_sheet_count += 1
             continue
-        # Use face close-up portrait (frame 24 in the 30-frame set).
+        # Use face close-up portrait. The 30-frame main-role set is:
+        # turnarounds v0 (0-7) + v1 (8-15) + expressions (16-21) + poses
+        # (22-24) + details (25-29); "face close-up portrait" is details[0] at
+        # index 25 (NOT 24, which is "seated pose").
         face_ref = None
-        for f in sorted((project_dir / "worldbible" / "refs" / char.id).glob("ref_24_*.png")):
+        for f in sorted((project_dir / "worldbible" / "refs" / char.id).glob("ref_25_*.png")):
             face_ref = f
             break
         if not face_ref:

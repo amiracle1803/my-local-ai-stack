@@ -63,12 +63,13 @@ APPEARANCE RULES (important):
   the script did not state; set it to false only if every appearance field is
   directly grounded in the passages.
 
-VOICE TABLE (pick the single best-fitting id for `voice_id_suggestion`):
-- Male + formal/deep -> am_eric, am_onyx
-- Male + young/energetic -> am_adam, am_puck
-- Male + villain/grave -> am_michael, am_fenrir
-- Female + protagonist/warm -> af_heart, af_nova
-- Female + cool/analytical -> af_jessica, af_kore
+VOICE TABLE (pick the single best-fitting id for `voice_id_suggestion`; IDs must
+come from the installed Kokoro catalog only):
+- Male + formal/deep -> am_michael, bm_george
+- Male + young/energetic -> am_adam, bm_lewis
+- Male + villain/grave -> bm_george, am_michael
+- Female + protagonist/warm -> af_heart, af_sky
+- Female + cool/analytical -> af_sarah, af_nicole
 - Female + narrator-style -> af_bella, af_nicole
 - British male -> bm_george, bm_lewis
 - British female -> bf_emma, bf_isabella

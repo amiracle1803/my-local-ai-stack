@@ -54,13 +54,14 @@ _ANIMA_PREFIX = "anima"
 # Character sheet model prefix (flux-based for VRAM efficiency)
 _CHARACTER_PREFIX = "flux"
 
-# Character sheet flux workflow (flux-2-klein-4b for 8GB VRAM, higher quality)
+# Character sheet flux workflow (flux-2-klein-4b for 8GB VRAM, higher quality;
+# recipe: qwen_3_4b text encoder + flux2-vae, per the official klein template)
 _CHARACTER_TEMPLATE = "char_ref_character_sheet_flux.json"
 _CHARACTER_UNET_REL = "models/unet/flux-2-klein-4b-Q4_K_M.gguf"
-_CHARACTER_CLIP1_REL = "models/clip/clip_l.safetensors"
-_CHARACTER_CLIP2_REL = "models/clip/t5xxl_fp8_e4m3fn.safetensors"
-_CHARACTER_VAE_REL = "models/vae/ae.safetensors"
-_MIN_CHARACTER_UNET_BYTES = 5_000_000_000
+_CHARACTER_CLIP1_REL = "models/text_encoders/qwen_3_4b.safetensors"
+_CHARACTER_CLIP2_REL = ""
+_CHARACTER_VAE_REL = "models/vae/flux2-vae.safetensors"
+_MIN_CHARACTER_UNET_BYTES = 2_000_000_000  # klein GGUF is ~2.6 GB complete
 _MIN_CHARACTER_CLIP_BYTES = 200_000_000
 _MIN_CHARACTER_VAE_BYTES = 200_000_000
 
@@ -240,16 +241,16 @@ def _krea2_ref_lab_passed() -> bool:
 
 
 def _character_weights_ready(config: PipelineConfig) -> bool:
-    """True iff the flux character sheet unet, clip encoders, and vae are fully on disk."""
+    """True iff the flux character sheet unet, clip encoder, and vae are fully
+    on disk. klein needs a single text encoder (qwen_3_4b) -- not the flux1
+    clip_l/t5xxl pair."""
     c = config.comfyui_dir()
     unet = c / _CHARACTER_UNET_REL
     clip1 = c / _CHARACTER_CLIP1_REL
-    clip2 = c / _CHARACTER_CLIP2_REL
     vae = c / _CHARACTER_VAE_REL
     return (
         unet.exists() and unet.stat().st_size > _MIN_CHARACTER_UNET_BYTES
         and clip1.exists() and clip1.stat().st_size > _MIN_CHARACTER_CLIP_BYTES
-        and clip2.exists() and clip2.stat().st_size > _MIN_CHARACTER_CLIP_BYTES
         and vae.exists() and vae.stat().st_size > _MIN_CHARACTER_VAE_BYTES
     )
 

@@ -234,3 +234,101 @@ def test_stage3c_cache_repopulates_on_panel_mutation(stage3c_project):
     r2 = run(stage3c_project, config, Scores(str(db)), comfy=comfy)
     assert r2["ltx_rendered"] == 1
     assert comfy.generate.call_count == 1  # re-rendered because panel changed
+
+# --------------------------------------------------------------------------
+# Drift-fallback path (no I2V engine available) must not crash
+# Regression: _render_ltx_phase referenced a `consecutive_drift` variable that
+# only existed in run()'s Phase-1 scope -> NameError when pick_ltx_template
+# returned None. The local counter now makes the drift path safe + surfaces
+# the _MAX_DRIFT_REUSE cap.
+# --------------------------------------------------------------------------
+def test_ltx_drift_fallback_no_nameerror(stage3c_project, monkeypatch):
+    from pipeline.stage3c_animation import _render_ltx_phase, _MAX_DRIFT_REUSE
+    from pipeline.config import PipelineConfig
+    from pipeline.scores import Scores
+    import pipeline.stage3c_animation as m
+
+    config = PipelineConfig()
+    db = stage3c_project / "scores.db"
+    comfy = _fake_comfy()
+
+    storyboard = {
+        "blocks": [{"id": "blk-001", "shots": ["sh-001"]}],
+    }
+    shot_detail = {"sh-001": {"motion_tier": 1, "planned_tier": 1}}
+    shots_by_id = {"sh-001": {"id": "sh-001", "sd_prompt": "test",
+                              "composition": "medium", "lighting": "neutral"}}
+
+    # No I2V engine available -> drift fallback path
+    monkeypatch.setattr(m, "pick_ltx_template", lambda c, tier, frames: None)
+
+    result = _render_ltx_phase(
+        ["sh-001"], shot_detail, shots_by_id, storyboard,
+        stage3c_project, config, comfy, Scores(str(db)),
+        0, 0, 0, 0, 0, 0, 0,
+    )
+    # tier0, tier1, tier2, tier3, rendered, failed, cache_hits
+    assert result[5] == 1  # the shot was marked failed (drift fallback)
+    assert result[4] == 0  # nothing rendered
+    assert shot_detail["sh-001"]["motion_tier"] == 1
+    assert _MAX_DRIFT_REUSE > 0  # cap constant is meaningful
+
+
+def test_ltx_drift_cap_escalates(stage3c_project, monkeypatch):
+    from pipeline.stage3c_animation import _render_ltx_phase
+    from pipeline.config import PipelineConfig
+    from pipeline.scores import Scores
+    import pipeline.stage3c_animation as m
+
+    config = PipelineConfig()
+    db = stage3c_project / "scores.db"
+    comfy = _fake_comfy()
+
+    storyboard = {"blocks": [{"id": "blk-001", "shots": ["sh-001", "sh-002", "sh-003", "sh-004"]}]}
+    shot_detail = {
+        "sh-001": {"motion_tier": 1, "planned_tier": 1},
+        "sh-002": {"motion_tier": 1, "planned_tier": 1},
+        "sh-003": {"motion_tier": 1, "planned_tier": 1},
+        "sh-004": {"motion_tier": 1, "planned_tier": 1},
+    }
+    shots_by_id = {s: {"id": s, "sd_prompt": "t", "composition": "medium", "lighting": "n"}
+                   for s in shot_detail}
+    # panels must exist for each shot
+    panel_dir = stage3c_project / "panels" / "blk-001"
+    panel_dir.mkdir(parents=True, exist_ok=True)
+    for sid in shot_detail:
+        (panel_dir / f"{sid}.png").write_bytes(b"\x89PNG" + b"\x00" * 10)
+
+    monkeypatch.setattr(m, "pick_ltx_template", lambda c, tier, frames: None)
+    # force drift tier 0 so it increments the cap every shot
+    for d in shot_detail.values():
+        d["force_drift_fallback"] = True
+
+    result = _render_ltx_phase(
+        list(shot_detail), shot_detail, shots_by_id, storyboard,
+        stage3c_project, config, comfy, Scores(str(db)),
+        0, 0, 0, 0, 0, 0, 0,
+    )
+    # all 4 shots degraded to drift tier 0
+    assert result[0] == 4  # tier0
+    assert all(shot_detail[s]["motion_tier"] == 0 for s in shot_detail)
+
+
+def test_cache_key_changes_when_strength_changes(tmp_path):
+    panel = tmp_path / "sh-001.png"
+    panel.write_bytes(b"\x89PNG" + b"\x00" * 100)
+    k1 = _clip_cache_key(panel, "p", "video_i2v_ltx_2b.json", 15, 42,
+                         ai_upscale=False, strength=0.55)
+    k2 = _clip_cache_key(panel, "p", "video_i2v_ltx_2b.json", 15, 42,
+                         ai_upscale=False, strength=0.70)
+    assert k1 != k2, "tuning ltx_strength must invalidate the clip cache"
+
+
+def test_cache_key_changes_when_enhance_panels_changes(tmp_path):
+    panel = tmp_path / "sh-001.png"
+    panel.write_bytes(b"\x89PNG" + b"\x00" * 100)
+    k1 = _clip_cache_key(panel, "p", "video_i2v_ltx_2b.json", 15, 42,
+                         ai_upscale=False, enhance_panels=True)
+    k2 = _clip_cache_key(panel, "p", "video_i2v_ltx_2b.json", 15, 42,
+                         ai_upscale=False, enhance_panels=False)
+    assert k1 != k2, "toggling panel enhance must invalidate the clip cache"

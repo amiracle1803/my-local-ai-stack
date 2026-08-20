@@ -18,7 +18,8 @@ import requests
 
 from ._util import now_iso, read_json, write_json, load_screenplay, _shots_by_id
 from .blueprint import Blueprint
-from .config import PipelineConfig
+from .config import NimConfig, PipelineConfig
+from .nim_client import NIMClient
 from .scores import Scores
 
 logger = logging.getLogger(__name__)
@@ -132,8 +133,25 @@ def _image_to_base64(path: Path) -> str:
         return base64.b64encode(f.read()).decode("ascii")
 
 
-def _call_ollama(prompt: str, images: list[str], model: str = "qwen2.5vl:7b",
-                 system: str = "", temperature: float = 0.3, timeout: int = _DEFAULT_TIMEOUT) -> str:
+def _call_ollama(prompt: str, images: list[str], model: str = "qwen3:8b",
+                 system: str = "", temperature: float = 0.3, timeout: int = _DEFAULT_TIMEOUT,
+                 nim_cfg: NimConfig | None = None) -> str:
+    # Primary judge: NVIDIA NIM (local Ollama on standby as fallback).
+    if nim_cfg is not None:
+        nim = NIMClient(nim_cfg)
+        if nim.available():
+            img_bytes = [
+                base64.b64decode(b64) if isinstance(b64, str) else b64
+                for b64 in images
+            ]
+            raw = nim.judge_vision(
+                prompt, img_bytes,
+                system=system or _SYSTEM_PROMPT,
+                temperature=temperature, max_tokens=4096,
+            )
+            if raw:
+                return raw
+
     payload = {"model": model, "messages": [{"role": "user", "content": prompt, "images": images}],
                "stream": False, "options": {"temperature": temperature, "num_predict": 2048},
                "keep_alive": 0}
@@ -172,7 +190,8 @@ def _parse_scores(text: str) -> dict[str, Any]:
     return {"overall_score": overall, "verdict": verdict, "details": scores, "raw_response": text[:2000]}
 
 
-def review_clip(clip_path: Path, shot: dict[str, Any], config: dict[str, Any], audio_path: Any = None) -> dict[str, Any]:
+def review_clip(clip_path: Path, shot: dict[str, Any], config: dict[str, Any], audio_path: Any = None,
+                nim_cfg: NimConfig | None = None) -> dict[str, Any]:
     if not clip_path.exists():
         return {"error": f"clip not found: {clip_path}", "verdict": "REJECT", "overall_score": 0.0}
 
@@ -218,6 +237,7 @@ def review_clip(clip_path: Path, shot: dict[str, Any], config: dict[str, Any], a
         model=config.get("model", "qwen2.5vl:7b"),
         system=config.get("system_prompt", _SYSTEM_PROMPT),
         temperature=config.get("temperature", 0.3),
+        nim_cfg=nim_cfg,
     )
     if not raw:
         return {"error": "vlm call failed", "verdict": "REJECT", "overall_score": 0.0}
@@ -323,7 +343,7 @@ def run(project_dir: str | Path, config: PipelineConfig, scores: Scores, *, vlm_
                 audio_path = audio_files  # Pass list of (type, path) tuples
 
         logger.info("Reviewing %s (shot %s)...", clip_path.name, sid)
-        result = review_clip(clip_path, shot, vlm_config, audio_path=audio_path)
+        result = review_clip(clip_path, shot, vlm_config, audio_path=audio_path, nim_cfg=config.nim)
         reviews[sid] = result
         if "error" not in result:
             reviewed += 1

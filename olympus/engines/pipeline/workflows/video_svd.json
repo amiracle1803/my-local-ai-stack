@@ -1,0 +1,90 @@
+{
+  "1": {
+    "class_type": "ImageOnlyCheckpointLoader",
+    "_meta": {"title": "SVD_MODEL"},
+    "inputs": {
+      "ckpt_name": "svd-fp16.safetensors"
+    }
+  },
+  "2": {
+    "class_type": "LoadImage",
+    "_meta": {"title": "START_FRAME"},
+    "inputs": {
+      "image": "PATCH_START_FRAME.png"
+    }
+  },
+  "3": {
+    "class_type": "ImageResizeKJv2",
+    "_meta": {"title": "WIDTH"},
+    "inputs": {
+      "image": ["2", 0],
+      "width": 832,
+      "height": 480,
+      "upscale_method": "lanczos",
+      "keep_proportion": "stretch",
+      "pad_color": "0, 0, 0",
+      "crop_position": "center",
+      "divisible_by": 8
+    }
+  },
+  "4": {
+    "class_type": "SVD_img2vid_Conditioning",
+    "_meta": {"title": "FRAMES"},
+    "inputs": {
+      "clip_vision": ["1", 1],
+      "init_image": ["3", 0],
+      "vae": ["1", 2],
+      "width": ["3", 1],
+      "height": ["3", 2],
+      "video_frames": 25,
+      "motion_bucket_id": 127,
+      "fps": 6,
+      "augmentation_level": 0.0
+    }
+  },
+  "5": {
+    "class_type": "VideoLinearCFGGuidance",
+    "_meta": {"title": "CFG"},
+    "inputs": {
+      "model": ["1", 0],
+      "min_cfg": 1.0
+    }
+  },
+  "6": {
+    "class_type": "KSampler",
+    "_meta": {"title": "SEED"},
+    "inputs": {
+      "model": ["5", 0],
+      "seed": 0,
+      "steps": 20,
+      "cfg": 3.0,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "positive": ["4", 0],
+      "negative": ["4", 1],
+      "latent_image": ["4", 2],
+      "denoise": 1.0
+    }
+  },
+  "7": {
+    "class_type": "VAEDecode",
+    "_meta": {"title": "VAE_DECODE"},
+    "inputs": {
+      "samples": ["6", 0],
+      "vae": ["1", 2]
+    }
+  },
+  "8": {
+    "class_type": "VHS_VideoCombine",
+    "_meta": {"title": "SAVE_PREFIX"},
+    "inputs": {
+      "images": ["7", 0],
+      "frame_rate": 6,
+      "loop_count": 0,
+      "filename_prefix": "svd_clip",
+      "format": "video/h264-mp4",
+      "pingpong": false,
+      "save_output": true
+    }
+  }
+}

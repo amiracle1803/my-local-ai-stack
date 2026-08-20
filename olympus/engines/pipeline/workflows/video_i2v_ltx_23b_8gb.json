@@ -1,0 +1,252 @@
+{
+ "1": {
+  "class_type": "UnetLoaderGGUF",
+  "_meta": {
+   "title": "CKPT_LTX"
+  },
+  "inputs": {
+   "unet_name": "ltx-2.3-22b-distilled-1.1-Q4_K_M.gguf"
+  }
+ },
+ "2": {
+  "class_type": "DualCLIPLoaderGGUF",
+  "_meta": {
+   "title": "T5_ENCODER"
+  },
+  "inputs": {
+   "clip_name1": "gemma-3-12b-it-qat-UD-Q3_K_XL.gguf",
+   "clip_name2": "ltx-2.3_text_projection_bf16.safetensors",
+   "type": "ltxv"
+  }
+ },
+ "3": {
+  "class_type": "VAELoaderKJ",
+  "_meta": {
+   "title": "VAE"
+  },
+  "inputs": {
+   "vae_name": "ltx/LTX23_video_vae_bf16.safetensors",
+   "device": "main_device",
+   "weight_dtype": "bf16"
+  }
+ },
+ "4": {
+  "class_type": "CLIPTextEncode",
+  "_meta": {
+   "title": "MOTION_PROMPT"
+  },
+  "inputs": {
+   "text": "PATCH: anime scene, warm cinematic lighting, subtle motion, consistent character and background",
+   "clip": [
+    "2",
+    0
+   ]
+  }
+ },
+ "5": {
+  "class_type": "CLIPTextEncode",
+  "_meta": {
+   "title": "PROMPT_NEG"
+  },
+  "inputs": {
+   "text": "character redesign, changing clothes, changing number of people, face distortion, extra arms, extra fingers, duplicated subject, background change, flicker, morphing, text, watermark, extreme camera shake, sudden scene change, low-detail face",
+   "clip": [
+    "2",
+    0
+   ]
+  }
+ },
+ "6": {
+  "class_type": "LTXVScheduler",
+  "_meta": {
+   "title": "STEPS"
+  },
+  "inputs": {
+   "steps": 6,
+   "max_shift": 2.05,
+   "base_shift": 0.95,
+   "stretch": true,
+   "terminal": 0.1,
+   "latent": [
+    "52",
+    2
+   ]
+  }
+ },
+ "7": {
+  "class_type": "RandomNoise",
+  "_meta": {
+   "title": "SEED"
+  },
+  "inputs": {
+   "noise_seed": 42
+  }
+ },
+ "8": {
+  "class_type": "KSamplerSelect",
+  "_meta": {
+   "title": "SAMPLER"
+  },
+  "inputs": {
+   "sampler_name": "euler_ancestral_cfg_pp"
+  }
+ },
+ "9": {
+  "class_type": "CFGGuider",
+  "_meta": {
+   "title": "GUIDER"
+  },
+  "inputs": {
+   "model": [
+    "1",
+    0
+   ],
+   "positive": [
+    "53",
+    0
+   ],
+   "negative": [
+    "53",
+    1
+   ],
+   "cfg": 1.0
+  }
+ },
+ "10": {
+  "class_type": "SamplerCustomAdvanced",
+  "_meta": {
+   "title": "SAMPLER_ADV"
+  },
+  "inputs": {
+   "noise": [
+    "7",
+    0
+   ],
+   "guider": [
+    "9",
+    0
+   ],
+   "sampler": [
+    "8",
+    0
+   ],
+   "sigmas": [
+    "6",
+    0
+   ],
+   "latent_image": [
+    "52",
+    2
+   ]
+  }
+ },
+ "11": {
+  "class_type": "LTXVSpatioTemporalTiledVAEDecode",
+  "_meta": {
+   "title": "TILED_DECODE"
+  },
+  "inputs": {
+   "vae": [
+    "3",
+    0
+   ],
+   "latents": [
+    "10",
+    0
+   ],
+   "spatial_tiles": 2,
+   "spatial_overlap": 2,
+   "temporal_tile_length": 32,
+   "temporal_overlap": 4,
+   "last_frame_fix": false,
+   "working_device": "cpu",
+   "working_dtype": "float16"
+  }
+ },
+ "12": {
+  "class_type": "VHS_VideoCombine",
+  "_meta": {
+   "title": "SAVE_PREFIX"
+  },
+  "inputs": {
+   "images": [
+    "11",
+    0
+   ],
+   "frame_rate": 24,
+   "loop_count": 0,
+   "filename_prefix": "ltx23_8gb_out",
+   "format": "video/h264-mp4",
+   "pingpong": false,
+   "save_output": true
+  }
+ },
+ "50": {
+  "class_type": "LoadImage",
+  "_meta": {
+   "title": "START_FRAME"
+  },
+  "inputs": {
+   "image": "PATCH_START_FRAME.png"
+  }
+ },
+ "51": {
+  "class_type": "LTXVPreprocess",
+  "_meta": {
+   "title": "PREPROCESS"
+  },
+  "inputs": {
+   "image": [
+    "50",
+    0
+   ],
+   "img_compression": 0
+  }
+ },
+ "52": {
+  "class_type": "LTXVImgToVideo",
+  "_meta": {
+   "title": "IMG2VIDEO"
+  },
+  "inputs": {
+   "positive": [
+    "53",
+    0
+   ],
+   "negative": [
+    "53",
+    1
+   ],
+   "vae": [
+    "3",
+    0
+   ],
+   "image": [
+    "51",
+    0
+   ],
+   "width": 576,
+   "height": 320,
+   "length": 33,
+   "batch_size": 1,
+   "strength": 0.55
+  }
+ },
+ "53": {
+  "class_type": "LTXVConditioning",
+  "_meta": {
+   "title": "CONDITIONING"
+  },
+  "inputs": {
+   "positive": [
+    "4",
+    0
+   ],
+   "negative": [
+    "5",
+    0
+   ],
+   "frame_rate": 24.0
+  }
+ }
+}

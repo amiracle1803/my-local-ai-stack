@@ -12,9 +12,9 @@ def test_shot_duration_uses_real_duration_s():
     count estimate. ``real_duration_s`` is authoritative; missing/zero falls
     back to the default."""
     assert _shot_duration({"real_duration_s": 9.5}) == 9.5
-    assert _shot_duration({"real_duration_s": 0.0}) == 3.0  # default
-    assert _shot_duration({}) == 3.0
-    assert _shot_duration({"real_duration_s": "bad"}) == 3.0
+    assert _shot_duration({"real_duration_s": 0.0}) == 5.0  # default
+    assert _shot_duration({}) == 5.0
+    assert _shot_duration({"real_duration_s": "bad"}) == 5.0
 
 
 def test_clip_vf_pingpong_when_clip_shorter_than_shot(tmp_path):

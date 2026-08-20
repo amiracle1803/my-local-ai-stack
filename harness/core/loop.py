@@ -759,10 +759,12 @@ def _persist_step(task: Task, idx: int, report: dict, scorecard: dict, verdict: 
 
 def run_task(goal: str, *, max_loops: int = 3, port=None, registry: Optional[Registry] = None,
              runs_dir: Path = RUNS_DIR, wall_minutes: int = DEFAULT_WALL_MINUTES,
+             task_id: Optional[str] = None,
              emit: Optional[Callable[[str], None]] = None) -> Task:
     """Drive one goal through INTAKE->PLANNING->EXECUTION->VERIFICATION->DELIVERY.
 
-    Returns the Task in its terminal state (DELIVERY on success, FAILED on loud exit)."""
+    Returns the Task in its terminal state (DELIVERY on success, FAILED on loud exit).
+    task_id pins the run dir (daemon/background mode); otherwise one is minted."""
     emit = emit or _default_emit
     registry = registry or (getattr(port, "registry", None)) or load_registry()
     owns_port = port is None
@@ -771,6 +773,7 @@ def run_task(goal: str, *, max_loops: int = 3, port=None, registry: Optional[Reg
         port = ModelPort(registry, runs_dir=runs_dir, timeout=300.0)
 
     memory.ensure_memory()
+    snap_id = memory.snapshot_index()
     started = time.monotonic()
 
     def budget_check(where: str) -> None:
@@ -784,7 +787,8 @@ def run_task(goal: str, *, max_loops: int = 3, port=None, registry: Optional[Reg
         cls = classify_goal(goal, port, tmp_id, emit)
         route = route_for(cls, registry)
         budget = Budget(max_loops=max_loops, max_tokens=200_000, max_wall_minutes=wall_minutes)
-        task = create_task(goal, cls, route=route, budget=budget, runs_dir=runs_dir)
+        task = create_task(goal, cls, route=route, budget=budget, runs_dir=runs_dir,
+                           task_id=task_id)
         emit(f"[INTAKE] {task.id}")
         emit(f"  class: {cls.domain}/{cls.difficulty}/{cls.risk} -> route {route.tier} ({route.model})")
 
@@ -857,6 +861,12 @@ def run_task(goal: str, *, max_loops: int = 3, port=None, registry: Optional[Reg
             except Exception:  # noqa: BLE001
                 pass
             _writeback_episode(task, goal, [], f"failed: {exc}")
+            # restore recall state to the pre-task baseline: the failed task's
+            # index lines stop being recalled (files stay on disk as evidence).
+            try:
+                memory.rollback_index(snap_id)
+            except Exception:  # noqa: BLE001
+                pass
         return task if task is not None else _phantom_failed(goal, cls if 'cls' in dir() else None)
     finally:
         if owns_port:

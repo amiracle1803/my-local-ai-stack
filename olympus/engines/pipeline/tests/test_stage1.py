@@ -338,21 +338,21 @@ class _FakeProfile:
 
 
 def test_voice_for_honors_valid_free_suggestion():
-    vid, collided = voice_for("am_onyx", _FakeProfile(), "male", set())
-    assert vid == "am_onyx"
+    vid, collided = voice_for("am_adam", _FakeProfile(), "male", set())
+    assert vid == "am_adam"
     assert collided is False
 
 
 def test_voice_for_resolves_collision_when_suggestion_taken():
     taken = {"am_adam"}
     vid, collided = voice_for("am_adam", _FakeProfile(), "male", taken)
-    assert vid == "am_puck"  # same-category alternative
+    assert vid == "bm_lewis"  # same-category alternative (young_energetic)
     assert collided is True
 
 
 def test_voice_for_invalid_suggestion_falls_back_by_category():
     vid, collided = voice_for("not_a_voice", _FakeProfile(role="protagonist"), "male", set())
-    assert vid in ("am_adam", "am_puck")
+    assert vid in ("am_adam", "bm_lewis")
     assert collided is True
 
 
@@ -366,6 +366,8 @@ def test_voice_for_uniqueness_under_pressure():
         taken.add(vid)
         ids.append(vid)
     assert len(set(ids)) == 3
+    # villain_grave candidates: bm_george, am_michael; then fallback
+    assert all(v in {"bm_george", "am_michael", "bm_lewis", "am_adam"} for v in ids)
 
 
 def test_extract_profiles_unique_voice_ids(tmp_path):

@@ -50,8 +50,8 @@ _FFMPEG_BIN = shutil.which("ffmpeg") or "/home/amire/Downloads/my-local-ai-stack
 _FFPROBE_BIN = shutil.which("ffprobe") or "/home/amire/Downloads/my-local-ai-stack/ComfyUI/.venv/lib/python3.12/site-packages/imageio_ffmpeg/binaries/ffprobe-linux-x86_64-v7.0.2"
 
 _PANEL_SIZE = (1024, 576)  # design 3B generation resolution (reduced from 1216x704, see stage3b OOM note)
-_DEFAULT_DURATION_S = 3.0  # fallback when real_duration_s is missing
-_DEFAULT_DRIFT_PIXELS = 200  # Tier-0 drift fallback when stage3c has no detail yet
+_DEFAULT_DURATION_S = 5.0  # fallback when real_duration_s is missing (actual TTS durations are longer)
+_DEFAULT_DRIFT_PIXELS = 400  # Tier-0 drift fallback when stage3c has no detail yet (increased for 8GB VRAM safety)
 _MUSIC_DB = "-18dB"  # design Stage 5.3
 _BITRATE_MBPS = 4.0  # size_gb prediction basis
 _AV_SYNC_CAP_MS = 10000.0  # design Stage 5.11 reporting cap
@@ -110,7 +110,14 @@ def _drift_for(shot_id: str, storyboard: dict[str, Any], config: PipelineConfig)
     drift = detail.get("drift") or {}
     axis = drift.get("axis") or config.animation.drift_axis
     direction = int(drift.get("direction") or 1) or 1
-    pixels = max(0, int(drift.get("pixels") or _DEFAULT_DRIFT_PIXELS))
+    # Per-shot variance to prevent identical-loop artifacts
+    # Each shot gets unique drift parameters based on shot_id hash
+    variance = hash(shot_id) % 200  # 0-199 variance pixels
+    base_pixels = int(drift.get("pixels") or _DEFAULT_DRIFT_PIXELS)
+    pixels = max(0, base_pixels + (variance - 100))  # shift up or down by up to 100
+
+    # Enforce minimum drift pixels to reduce repetitive loop artifacts
+    pixels = max(pixels, 300)
     return {"axis": axis, "direction": direction, "pixels": pixels}
 
 
@@ -165,9 +172,11 @@ def _clip_vf(
 
 def _drift_filter(axis: str, direction: int, pixels: int, fps: int, dur: float) -> str:
     """scale up + linear crop (never zoom -- design 3C.1), then pad into the
-    1280x720 delivery timeline."""
+    1280x720 delivery timeline. Ensures minimum pixels for VRAM-safe drift."""
     w, h = _PANEL_SIZE
     tw, th = _TIMELINE_SIZE
+    # Enforce minimum drift pixels to reduce repetitive loop artifacts
+    pixels = max(pixels, 300)
     if axis == "horizontal":
         scale = f"{w + pixels}:{h}"
         expr = f"(iw-ow)*t/{dur:.3f}" if direction >= 0 else f"(iw-ow)*(1-t/{dur:.3f})"
@@ -366,8 +375,123 @@ def run(project_dir: str | Path, config: PipelineConfig, scores: Scores) -> dict
     narration_dir = project_dir / "audio" / "narration"
     dialogue_dir = project_dir / "audio" / "dialogue"
 
-    # ---- 1. per-shot segments (+ timeline entries built in the same pass) --
+# ---- Panel coverage guard (design 5.2) ----
+    # If panels are missing from a previous run, the assembly will use
+    # black frames for those shots. This is noted in the scorecard as
+    # missing_panels. Ensure stage3b has run successfully before stage5.
+    # ---------------------------------------------------
     missing_panels = 0
+
+# ---- Panel regeneration guard (design 5.3) ----
+    # If panels are missing, attempt to regenerate them using the same
+    # templates and settings as the original stage3b run. This helps ensure
+    # video quality is not compromised by missing black frames.
+    from pipeline import image_router
+    from pipeline.comfy_client import ComfyClient
+    
+    n_regen_attempted = 0
+    n_regen_succeeded = 0
+    
+    # Check which panels are missing
+    project_dir = Path(project_dir)
+    shot_to_block = {
+        sid: b["id"] for b in storyboard["blocks"] for sid in b["shots"]
+    }
+    panels_needed: set[str] = set()
+    for block in storyboard["blocks"]:
+        for shot_id in block["shots"]:
+            panels_needed.add(shot_id)
+    
+    panels_existing: set[str] = set()
+    for block in storyboard["blocks"]:
+        block_dir = project_dir / "panels" / block["id"]
+        if block_dir.exists():
+            for p in block_dir.glob("*.png"):
+                stem = p.stem
+                if stem.startswith("sh-"):
+                    panels_existing.add(stem)
+    
+    missing_now = panels_needed - panels_existing
+    n_missing = len(missing_now)
+    
+    if n_missing > 0:
+        logger.info("Panel regeneration guard: %d panels missing, attempting re-generation", n_missing)
+        
+        # Regenerate panels for affected blocks only
+        blocks_with_missing: set[str] = set()
+        for shot_id in missing_now:
+            block_id = shot_to_block.get(shot_id)
+            if block_id:
+                blocks_with_missing.add(block_id)
+        
+        # Use existing ComfyClient if healthy, otherwise create new one
+        comfy = ComfyClient(config) if config else None
+        
+        if comfy and not comfy.healthy():
+            logger.warning("ComfyUI not healthy — skipping panel regeneration")
+            comfy = None
+        
+        template, model_used = image_router.pick_template(config, comfy) if comfy else (None, None)
+        
+        resolution = (1024, 576)  # _PANEL_SIZE
+        
+        for block_id in sorted(blocks_with_missing):
+            block_dir = project_dir / "panels" / block_id
+            block_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Find shots for this block
+            block_shots = [
+                shot_id for b in storyboard["blocks"] 
+                for shot_id in b["shots"] 
+                if b["id"] == block_id
+            ]
+            
+            for shot_id in sorted(block_shots):
+                panel_path = block_dir / f"{shot_id}.png"
+                if panel_path.exists():
+                    continue  # already exists
+                
+                n_regen_attempted += 1
+                
+                try:
+                    # Generate panel using flux fallback template
+                    if template:
+                        comfy.generate(
+                            template,
+                            {
+                                "PROMPT_POS": f"anime 2d manga panel, {shot_id}, consistent character, facing front",
+                                "WIDTH": resolution[0], "HEIGHT": resolution[1],
+                                "SEED": hash(shot_id) % (2**31),
+                                "SAVE_PREFIX": f"pipeline/{project_dir.name}/panels/{shot_id}",
+                            },
+                            dest=block_dir,
+                        )
+                        n_regen_succeeded += 1
+                    else:
+                        logger.warning("No template available — cannot regenerate panel %s", shot_id)
+                except Exception as exc:
+                    logger.error("Panel regen failed for %s: %s", shot_id, exc)
+        
+        # Re-check how many are still missing
+        panels_after: set[str] = set()
+        for block in storyboard["blocks"]:
+            block_dir = project_dir / "panels" / block["id"]
+            if block_dir.exists():
+                for p in block_dir.glob("*.png"):
+                    stem = p.stem
+                    if stem.startswith("sh-"):
+                        panels_after.add(stem)
+        
+        still_missing = panels_needed - panels_after
+        n_still = len(still_missing)
+        
+        logger.info("Panel regeneration: %d attempted, %d succeeded, %d still missing", 
+                    n_regen_attempted, n_regen_succeeded, n_still)
+    else:
+        logger.info("All panels present — panel regeneration guard not triggered")
+        still_missing = 0
+
+# ---------------------------------------------------
     total_segments = 0
     predicted_duration_s = 0.0
     cum = 0.0

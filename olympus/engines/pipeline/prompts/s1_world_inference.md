@@ -29,7 +29,7 @@ Return ONLY a single JSON object with exactly this shape (no markdown fences):
 
 {{
   "era": {{"value": "modern|historical|fantasy-medieval|futuristic|industrial|other",
-          "evidence": ["short quote 1", "short quote 2"], "confidence": 0.0}},
+            "evidence": ["short quote 1", "short quote 2"], "confidence": 0.0}},
   "technology": ["notable technology 1", "notable technology 2"],
   "magic_system": {{"exists": false, "rules": "one-sentence summary or empty"}},
   "government": "one-sentence description",
@@ -45,3 +45,5 @@ Return ONLY a single JSON object with exactly this shape (no markdown fences):
   "recurring_assets": [{{"name": "Asset Name", "category": "weapon|prop|vehicle|emblem|other",
                          "description": "1 sentence", "evidence": "short quote"}}]
 }}
+
+// travel_difficulty must be one of: easy, moderate, difficult, impassable

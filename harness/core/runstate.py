@@ -100,11 +100,12 @@ def create_task(
     route: Optional[Route] = None,
     budget: Optional[Budget] = None,
     verification: Optional[Verification] = None,
+    task_id: Optional[str] = None,
     runs_dir: Path = RUNS_DIR,
 ) -> Task:
     now = _utcnow()
     task = Task(
-        id=mint_task_id(goal, now),
+        id=task_id or mint_task_id(goal, now),
         goal=goal,
         state=TaskState.INTAKE,
         **{"class": classification},

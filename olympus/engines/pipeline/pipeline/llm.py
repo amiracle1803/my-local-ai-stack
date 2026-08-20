@@ -100,6 +100,7 @@ class PipelineLLM:
         logs_dir: str | Path | None = None,
         base_url: str = DEFAULT_OLLAMA_URL,
         token_budget: int = DEFAULT_TOKEN_BUDGET,
+        num_ctx: int | None = None,
         request_timeout: float = 300.0,
         session: requests.Session | None = None,
     ) -> None:
@@ -108,6 +109,10 @@ class PipelineLLM:
         self.logs_dir = Path(logs_dir) if logs_dir is not None else None
         self.base_url = base_url.rstrip("/")
         self.token_budget = token_budget
+        # num_ctx: Ollama's vram-based default (4096) is too small for the
+        # stage 0-2 prompts + their JSON output -- the pipeline now passes an
+        # explicit context window (stack.toml [ollama] num_ctx, default 16384).
+        self.num_ctx = num_ctx if num_ctx is not None else getattr(config, "num_ctx", 16384)
         self.request_timeout = request_timeout
         self._session = session or requests.Session()
 
@@ -169,6 +174,24 @@ class PipelineLLM:
         format_json: bool,
         max_tokens: int | None,
     ) -> str:
+        options: dict[str, Any] = {"temperature": temperature}
+        if max_tokens:
+            options["num_predict"] = max_tokens
+        if self.num_ctx:
+            # Explicit context window (stack.toml [ollama] num_ctx) -- without
+            # this Ollama falls back to its vram-based default (4096 on 8GB),
+            # which is smaller than the prompt + output and either truncates the
+            # input or errors out ("context length too small"). Also clamp
+            # num_predict so the total never exceeds the window, regardless of
+            # what a prompt file requests.
+            options["num_ctx"] = self.num_ctx
+            est_input = sum(len(m.get("content", "")) // CHARS_PER_TOKEN + 1 for m in messages)
+            reserve = min(2048, max(256, self.num_ctx // 8))
+            avail = self.num_ctx - est_input - reserve
+            requested = options.get("num_predict")
+            if requested is None or requested > avail:
+                options["num_predict"] = max(16, avail)
+
         payload: dict[str, Any] = {
             "model": model,
             "messages": messages,
@@ -177,12 +200,10 @@ class PipelineLLM:
             "think": False,  # original spec: all stage 0-2 qwen3:8b calls run think:false;
             # harmless no-op for non-thinking models (llama3.1:8b) -- verified against
             # a live Ollama instance rather than assumed.
-            "options": {"temperature": temperature},
+            "options": options,
         }
         if format_json:
             payload["format"] = "json"
-        if max_tokens:
-            payload["options"]["num_predict"] = max_tokens
 
         resp = self._session.post(
             f"{self.base_url}/api/chat", json=payload, timeout=self.request_timeout

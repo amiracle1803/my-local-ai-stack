@@ -6,17 +6,28 @@ from pipeline.comfy_client import ComfyError, WorkflowTemplate, _banned_models_i
 
 
 def test_flux_template_loads_and_patches():
-    t = WorkflowTemplate.load("image_flux_fallback_txt2img.json")
+    """The klein fallback template (2026-08 swap from flux1-schnell) uses the
+    FLUX.2 recipe: SEED lives on RandomNoise (node 14, noise_seed), STEPS on
+    Flux2Scheduler (node 15), and WIDTH/HEIGHT patch BOTH the latent (13) and
+    the scheduler (15) so its resolution-dependent sigma schedule stays in sync."""
+    t = WorkflowTemplate.load("image_flux_fallback.json")
     g = t.patched({"PROMPT_POS": "a red fox", "SEED": 42, "WIDTH": 512, "HEIGHT": 512})
     assert g["11"]["inputs"]["text"] == "a red fox"
-    assert g["14"]["inputs"]["seed"] == 42
+    assert g["14"]["inputs"]["noise_seed"] == 42
     assert g["13"]["inputs"]["width"] == 512
+    assert g["15"]["inputs"]["width"] == 512
+    assert g["15"]["inputs"]["height"] == 512
+    # klein recipe node wiring
+    assert g["1"]["inputs"]["unet_name"] == "flux-2-klein-4b-Q4_K_M.gguf"
+    assert g["2"]["inputs"]["type"] == "flux2"
+    assert g["3"]["inputs"]["vae_name"] == "flux2-vae.safetensors"
+    assert g["19"]["class_type"] == "SamplerCustomAdvanced"
     # original template untouched (deep copy)
-    assert t.graph["14"]["inputs"]["seed"] == 0
+    assert t.graph["14"]["inputs"]["noise_seed"] == 0
 
 
 def test_unknown_patch_title_rejected():
-    t = WorkflowTemplate.load("image_flux_fallback_txt2img.json")
+    t = WorkflowTemplate.load("image_flux_fallback.json")
     with pytest.raises(ComfyError):
         t.patched({"NOT_A_TITLE": 1})
 
@@ -24,7 +35,7 @@ def test_unknown_patch_title_rejected():
 def test_ban_check_matches_with_and_without_extension():
     graph = {"1": {"inputs": {"ckpt_name": "NoobAI-XL-v1.1.safetensors"}}}
     assert _banned_models_in(graph, ["NoobAI-XL-v1.1"]) == ["NoobAI-XL-v1.1.safetensors"]
-    graph2 = {"1": {"inputs": {"unet_name": "flux1-schnell-Q4_K_S.gguf"}}}
+    graph2 = {"1": {"inputs": {"unet_name": "flux-2-klein-4b-Q4_K_M.gguf"}}}
     assert _banned_models_in(graph2, ["NoobAI-XL-v1.1"]) == []
 
 
@@ -51,9 +62,10 @@ def test_ltx2b_template_patches_and_routes():
     vr._ltx2b_weights_ready = lambda c: True
     vr._ltx2b_lab_passed = lambda: True
     vr._ltx23_weights_ready = lambda c: False
+    vr._ltx23_lab_passed = lambda: False
     config = MagicMock()
 
-    t = WorkflowTemplate.load("video_ltx2b_i2v.json")
+    t = WorkflowTemplate.load("video_i2v_ltx_2b.json")
     g = t.patched({
         "MOTION_PROMPT": "slow pan, hair drifts",
         "START_FRAME": "anim_sh-001-01.png",
@@ -76,13 +88,13 @@ def test_ltx2b_template_patches_and_routes():
     assert g["53"]["inputs"]["negative"] == ["5", 0]
     # VAE comes from the checkpoint's bundled VAE (port 2), not the broken LTX23 VAE
     assert g["11"]["inputs"]["vae"] == ["1", 2]
-    assert pick_ltx_template(config, 1, 81) == "video_ltx2b_i2v.json"
+    assert pick_ltx_template(config, 1, 81) == "video_i2v_ltx_2b.json"
 
 
 def test_wan_i2v_template_patches():
     """Wan 2.2 TI2V-5B I2V comparison template must load and patch so the
     same panel start frame drives both the LTX-2 2B and Wan paths."""
-    t = WorkflowTemplate.load("video_wan_i2v.json")
+    t = WorkflowTemplate.load("wan_ti2v.json")
     g = t.patched({
         "MOTION_PROMPT": "slow push-in, hair drifts",
         "START_FRAME": "anim_sh-001-01.png",
@@ -92,29 +104,26 @@ def test_wan_i2v_template_patches():
     })
     assert g["4"]["inputs"]["positive_prompt"] == "slow push-in, hair drifts"
     assert g["6"]["inputs"]["image"] == "anim_sh-001-01.png"
-    assert g["9"]["inputs"]["num_frames"] == 81
-    assert g["10"]["inputs"]["steps"] == 20
-    assert g["10"]["inputs"]["cfg"] == 4.0
-    assert g["13"]["inputs"]["filename_prefix"].endswith("wan")
+    assert g["12"]["inputs"]["num_frames"] == 81
+    assert g["9"]["inputs"]["steps"] == 20
+    assert g["9"]["inputs"]["cfg"] == 4.0
+    assert g["11"]["inputs"]["filename_prefix"].endswith("wan")
     # original untouched (deep copy)
-    assert t.graph["9"]["inputs"]["num_frames"] == 81
+    assert t.graph["12"]["inputs"]["num_frames"] == 33
 
 
-def test_collect_handles_vhs_video_output(tmp_path):
+def test_collect_handles_vhs_video_output(tmp_path, test_config):
     """`VHS_VideoCombine` (used by every LTX animation workflow) writes its
     produced file under the ``gifs`` UI key with a ``type`` field of
     ``output`` or ``temp`` -- not the ``images`` key that SaveImage uses.
     `_collect` must copy the right file from the right root or every
     animation job reports "produced no images" even though the clip was
     written successfully."""
-    import shutil
     from pipeline.comfy_client import ComfyClient
-    from pipeline.config import PipelineConfig
 
-    cfg = PipelineConfig.load()
-    client = ComfyClient(cfg)
+    client = ComfyClient(test_config)
 
-    # Fake ComfyUI layout: write the produced clip into ComfyUI/output/.
+    # Fake ComfyUI layout: write the produced clip into the temp ComfyUI/output/.
     out_root = client.config.comfyui_dir() / "output"
     sub = out_root / "anim"
     sub.mkdir(parents=True, exist_ok=True)
@@ -131,20 +140,15 @@ def test_collect_handles_vhs_video_output(tmp_path):
     assert len(paths) == 1
     assert paths[0].name == "sh-001-01.mp4"
     assert paths[0].read_bytes() == b"FAKE_MP4"
-    # cleanup the fixture we wrote into ComfyUI/output
-    shutil.rmtree(sub, ignore_errors=True)
 
 
-def test_collect_handles_vhs_temp_output(tmp_path):
+def test_collect_handles_vhs_temp_output(tmp_path, test_config):
     """VHS writes to ``ComfyUI/temp/`` when ``save_output=false`` --
     `_collect` must consult the ``type`` field and pull from ``temp`` not
     ``output`` (or it would raise "missing on disk" and abort the run)."""
-    import shutil
     from pipeline.comfy_client import ComfyClient, ComfyError
-    from pipeline.config import PipelineConfig
 
-    cfg = PipelineConfig.load()
-    client = ComfyClient(cfg)
+    client = ComfyClient(test_config)
 
     temp_root = client.config.comfyui_dir() / "temp"
     sub = temp_root / "preview"
@@ -157,7 +161,7 @@ def test_collect_handles_vhs_temp_output(tmp_path):
     }
     paths = client._collect(outputs, dest)
     assert paths[0].name == "clip.webm"
-    shutil.rmtree(sub, ignore_errors=True)
+    assert paths[0].read_bytes() == b"FAKE_WEBM"
 
 
 def test_collect_raises_when_image_missing(tmp_path):

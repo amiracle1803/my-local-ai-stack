@@ -89,6 +89,11 @@ ComfyUI.zip
 # weekly auto-commit log
 .weekly-commit.log
 
+# backup / scratch artifacts (not source)
+*.bak*
+*.current
+*.__trybackup
+
 # External large repos (cloned separately)
 TencentDB-Agent-Memory/
 harness-deepseek/

@@ -9,6 +9,7 @@ Files are the memory; vectors (Qdrant) come later. Phase 0 scope:
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -162,6 +163,61 @@ def _append_index(memory_dir: Path, type_: str, entry_id: str, hook: str) -> Non
     if f"] {entry_id} " in existing:  # idempotent
         return
     atomic_write(index, existing + line)
+
+
+# --- snapshots (refine/rollback, ported from prime-agent /refine) --------
+
+def snapshot_index(memory_dir: Path = MEMORY_DIR, now: Optional[datetime] = None) -> str:
+    """Copy MEMORY.md into snapshots/ and record it in the snapshot manifest.
+
+    A snapshot is the pre-task recall state: the immutable baseline that a later
+    rollback restores. Returns the snapshot id ("snap-<ts>").
+    """
+    ensure_memory(memory_dir)
+    now = now or _utcnow()
+    snap_id = f"snap-{now:%Y%m%d-%H%M%S}"
+    index_path = memory_dir / INDEX_NAME
+    content = index_path.read_text(encoding="utf-8") if index_path.exists() else ""
+    snap_dir = memory_dir / "snapshots"
+    snap_dir.mkdir(parents=True, exist_ok=True)
+    atomic_write(snap_dir / f"{snap_id}.md", content)
+    manifest = _load_snapshot_manifest(memory_dir)
+    manifest.append({
+        "id": snap_id,
+        "created": now.isoformat(),
+        "index_lines": content.count("\n") + (1 if content else 0),
+    })
+    atomic_write(snap_dir / "manifest.json", json.dumps(manifest, indent=2))
+    return snap_id
+
+
+def rollback_index(snapshot_id: str, memory_dir: Path = MEMORY_DIR) -> int:
+    """Restore MEMORY.md from a snapshot (the recall state a task started from).
+
+    Files written since the snapshot are left on disk; only the index returns to
+    the baseline, so a failed task's entries stop being recalled without data loss.
+    Returns the number of index lines that were reverted.
+    """
+    snap_dir = memory_dir / "snapshots"
+    snap_path = snap_dir / f"{snapshot_id}.md"
+    if not snap_path.exists():
+        raise FileNotFoundError(f"no snapshot {snapshot_id} in {snap_dir}")
+    current = (memory_dir / INDEX_NAME).read_text(encoding="utf-8") if (memory_dir / INDEX_NAME).exists() else ""
+    restored = snap_path.read_text(encoding="utf-8")
+    atomic_write(memory_dir / INDEX_NAME, restored)
+    return len([l for l in current.splitlines() if l not in restored.splitlines()])
+
+
+def list_snapshots(memory_dir: Path = MEMORY_DIR) -> list[dict]:
+    """Snapshot manifest entries, newest first (created DESC)."""
+    return list(reversed(_load_snapshot_manifest(memory_dir)))
+
+
+def _load_snapshot_manifest(memory_dir: Path) -> list[dict]:
+    path = memory_dir / "snapshots" / "manifest.json"
+    if not path.exists():
+        return []
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 # --- internals -----------------------------------------------------------

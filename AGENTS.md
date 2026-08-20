@@ -81,6 +81,42 @@ simultaneously — they will OOM each other. Rules:
 - Dashboard: `olympus/web/index.html`
 - Docs: `docs/`
 - AGENTS.md: This file.
+- DeepSeek Harness: `harness-deepseek/` (local clone of `deepseek-ai/deepseek-harness` v0.1, 80M) + `~/Documents/harness` (second copy)
+- Git history: `git log --oneline` (80 commits since 2026-07-02); `origin` at `github.com/amiracle1803/my-local-ai-stack`
+
+## DeepSeek Harness (dsh) — integration notes
+
+**What it is:** A plugin-based agent harness on Cordis (everything is a plugin — model adapter, tools, sandbox, LSP, permission system, session log, summarizer, subagent registry, web UI). Ships 4 presets: `standard` (full coding agent), `code` (PTC / programmatic tool calling), `minimal` (persistent shell + str-replace editor, RL-compatible), `cordis` (creation mode — self-modifying runtime).
+
+**Key architecture:** Append-only event log (source of truth); derived messages projected from log on every step (prefix-caching stable); immutable history enforced by invariant module. Persistence via JSONL or SQLite (monotonic `SCHEMA_VERSION`).
+
+**Run locally:**
+- Quick: `npx @deepseek-ai/dsh web` → Web UI at `http://127.0.0.1:3080`
+- From source (in `harness-deepseek/`): `pnpm install && pnpm run build && pnpm dsh web`
+- Headless task: `pnpm dsh --profile headless "your task"`
+
+**LLM endpoint config:** `packages/llm/llm-deepseek/` uses `DEEPSEEK_API_KEY` / `DEEPSEEK_BASE_URL` (OpenAI-compatible). Generic multi-provider via `packages/llm/llm-pi-ai/` (`baseURL`, `apiKeyEnv`, `models` overrides) — supports Ollama / any OpenAI-compatible gateway.
+
+**Subagent / external agent connection:**
+- Register a `SubagentProvider` plugin (see `packages/subagent/subagent-claude-code/`, `subagent-codex/`, `subagent-acp/`)
+- ACP server: `packages/acp/` + `examples/acp-agent/cordis.yml`
+- JSON-RPC: `packages/sdk/` + `examples/jsonrpc-agent/cordis.yml`
+- Subagent tools in presets (`tool-subagent-codex`, `tool-subagent-claude-code`) are `disabled: true` by default — copy preset, remove `disabled` to enable.
+
+**Agent/builder docs:**
+- `harness-deepseek/docs/architecture.md` — extension map (no privileged core; mount plugins beside others)
+- `harness-deepseek/docs/capability-seams.md` — seams for tools/agents/persistence
+- `harness-deepseek/examples/headless-agent/composition.md` — runnable headless composition
+- `harness-deepseek/docs/config-catalog.md` — all config keys
+- `harness-deepseek/.agents/notes/` — 684 design memos (proposed/implemented/rejected/archived) + validation gates
+
+**Git history view:** This repo has **80 commits** (first `5be9c2c` 2026-07-02). Full log: `git log --format="%h %ad %s" --date=short`. Key milestones:
+- 2026-07-09: Olympus rebuilt from recovered spec (Windows reinstall)
+- 2026-07-10: Full pipeline stages (M1–M7), Linux migration, ComfyUI update
+- 2026-07-11: Krea2 live, zero-error workflows, kornia pin
+- 2026-08-16: Skills library import, weekly-commit timer, Qwen3-30B default, harness-deepseek added
+
+The harness can "see" all changes via `git log` and GitHub remote; append-only log design means history is immutable and reconstructible — aligns with DeepSeek's "never edit past history" rule.
 
 
 Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.

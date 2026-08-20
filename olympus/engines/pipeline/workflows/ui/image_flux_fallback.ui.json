@@ -32,7 +32,7 @@
     "Node name for S&R": "UnetLoaderGGUF"
    },
    "widgets_values": [
-    "flux1-schnell-Q4_K_S.gguf"
+    "flux-2-klein-4b-Q4_K_M.gguf"
    ]
   },
   {
@@ -52,7 +52,7 @@
    "title": "note: UNET",
    "properties": {},
    "widgets_values": [
-    "Loads the flux1-schnell diffusion model from a 4-bit GGUF quant (fits 8GB VRAM). This is the design-permitted fallback while krea2 has no weights on disk. The ComfyClient ban-check reads unet_name here."
+    "Loads the flux-2-klein-4b diffusion model from a Q4_K_M GGUF quant (fits 8GB VRAM). This is the design-permitted fallback while krea2 has no weights on disk. The ComfyClient ban-check reads unet_name here."
    ],
    "color": "#432",
    "bgcolor": "#653"

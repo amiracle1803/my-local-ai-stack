@@ -427,6 +427,101 @@ python run.py all my-story --brief /tmp/my-brief.md
 python run.py report my-story
 ```
 
+### CLI Reference — `run.py all` (Self-Critique Loop)
+
+The self-critique runs **after each stage** in the pipeline, comparing the original script against stage artifacts. Use these flags to control it:
+
+| Command | Description |
+|---------|-------------|
+| `python run.py all <slug> --brief <brief.md>` | **Run all stages with critique (default)** — runs stage0→stage5 sequentially, runs critique after each stage, auto-retries failed stages |
+| `python run.py all <slug> --brief <brief.md> --no-critique` | **Disable critique** — runs all stages without the self-critique LLM call (faster, no intermediate validation) |
+| `python run.py all <slug> --brief <brief.md> --no-retry` | **Disable auto-retry** — runs critique after each stage but does NOT re-run failed stages |
+
+#### Visual Quick-Reference
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  DEFAULT: Full critique + auto-retry                                        │
+│  ─────────────────────────────────────────────────────────────────────────  │
+│  python run.py all my-story --brief /tmp/my-brief.md                        │
+│                                                                             │
+│  Stage0 → Critique → Stage1 → Critique → Stage2 → Critique → ... → Done    │
+│       │           │          │           │          │           │          │
+│       ▼           ▼          ▼           ▼          ▼           ▼          ▼
+│    (auto-retry on critique failure — re-runs stage, then re-critiques)      │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  --no-critique: Skip all LLM critique calls                                 │
+│  ─────────────────────────────────────────────────────────────────────────  │
+│  python run.py all my-story --brief /tmp/my-brief.md --no-critique          │
+│                                                                             │
+│  Stage0 → Stage1 → Stage2 → Stage3 → Stage3b → Stage4 → Stage3c → Stage5   │
+│       │          │          │          │          │          │          │  │
+│       ▼          ▼          ▼          ▼          ▼          ▼          ▼  ▼
+│    (fastest, no validation between stages)                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  --no-retry: Critique runs but NO auto-retry on failure                     │
+│  ─────────────────────────────────────────────────────────────────────────  │
+│  python run.py all my-story --brief /tmp/my-brief.md --no-retry             │
+│                                                                             │
+│  Stage0 → Critique → Stage1 → Critique → ... → (stops, reports failure)    │
+│       │           │          │          │                                   │
+│       ▼           ▼          ▼          ▼                                   │
+│    (manual intervention required on failure)                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### What the Critique Actually Does
+
+| Stage | Critique Checks | Typical Failure Triggers |
+|-------|----------------|--------------------------|
+| stage0 | Scenes/shots match brief; no plot holes | Missing scenes, wrong tone |
+| stage1 | Character profiles complete; voices unique | Duplicate voice IDs, missing appearance |
+| stage1_world | World bible consistent; no contradictions | Location missing, timeline conflict |
+| stage1r | Ref images match character/world bible | Wrong outfit in character sheet |
+| stage3 | Shots use refs; blocks have correct shots | Missing camera angles |
+| stage2 | Narration/dialogue matches storyboard | Character speaks out of character |
+| stage3b | Panels match plates + refs; vision judge passes | Wrong character in frame |
+| stage4 | Audio durations match shot timing | TTS too short/long |
+| stage3c | Animation clips match panels + prompts | Tier mismatch, wrong template |
+| stage5 | Final MP4 has chapters, SRT, av_sync | Missing chapters, sync drift |
+
+#### Critique Output Files
+
+Each critique writes to `projects/<slug>/logs/critique_<stage>_<timestamp>.json`:
+```json
+{
+  "stage_name": "stage3b",
+  "consistency_score": 0.72,
+  "critical_issues": [
+    {"type": "character", "description": "Rin's hair color changed from 'crimson' to 'brown'", "severity": "critical", "artifact_ref": "panels/sc-001-sh-003.png"}
+  ],
+  "warnings": [],
+  "suggested_fixes": [
+    {"stage": "stage3b", "action": "regenerate", "details": "Regenerate panel with correct hair color token in prompt"}
+  ],
+  "passes": false
+}
+```
+
+#### Configuration
+
+| Setting | Default | Where |
+|---------|---------|-------|
+| Retry threshold | `0.6` | `config.automation.critique_retry_threshold` |
+| Max critique retries per stage | `1` | Hardcoded in `run_all()` |
+
+Adjust in `stack.toml`:
+```toml
+[automation]
+critique_retry_threshold = 0.7  # stricter: retry if score < 0.7
+```
+
+---
+
 The finished video lands at `projects/my-story/video/final.mp4`, with
 `final.srt` subtitles and a `timeline.json` alongside it. A real example
 that ran this all the way through lives at

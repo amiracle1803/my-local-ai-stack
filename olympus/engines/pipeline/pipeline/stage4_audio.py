@@ -191,20 +191,21 @@ def _render_and_qc(
             flagged = True
 
     # Map emotion to delivery type
-        delivery = None
-        if audio_thought:
-            delivery = "inner_thought"
-        elif emotion in ("whispered", "whisper"):
-            delivery = "whispered"
-        elif emotion in ("shouted", "shout", "yell", "scream"):
-            delivery = "shouted"
-        elif emotion in ("trailing_off", "trail_off", "fade"):
-            delivery = "trailing_off"
-        elif emotion in ("cutting_in", "cut_in", "interrupt"):
-            delivery = "cutting_in"
+    emotion = "neutral"  # default; override if shot narration has emotion field
+    delivery = None
+    if audio_thought:
+        delivery = "inner_thought"
+    elif emotion in ("whispered", "whisper"):
+        delivery = "whispered"
+    elif emotion in ("shouted", "shout", "yell", "scream"):
+        delivery = "shouted"
+    elif emotion in ("trailing_off", "trail_off", "fade"):
+        delivery = "trailing_off"
+    elif emotion in ("cutting_in", "cut_in", "interrupt"):
+        delivery = "cutting_in"
 
-        total = _process_and_save(wav_bytes, out_path, pause_before_ms, audio_thought, delivery, emotion)
-        return total, flagged
+    total = _process_and_save(wav_bytes, out_path, pause_before_ms, audio_thought, delivery, emotion)
+    return total, flagged
 
 
 # --------------------------------------------------------------------------
@@ -220,33 +221,68 @@ def _viseme_for_word(word: str) -> str:
 
 
 class _Aligner:
-    """Lazy faster-whisper (tiny/CPU/int8) wrapper. Never raises -- any load
-    or transcription failure degrades to coverage 0.0 with a logged warning."""
+    """Lazy Whisper (tiny/CPU) wrapper with faster-whisper fallback.
+    Never raises -- any load or transcription failure degrades to coverage 0.0."""
 
     def __init__(self) -> None:
         self._model = None
+        self._fallback_model = None
         try:
             from faster_whisper import WhisperModel
             self._model = WhisperModel("tiny", device="cpu", compute_type="int8")
         except ImportError as exc:
-            logger.warning("faster_whisper not installed (%s) - alignment coverage forced to 0.0", exc)
+            logger.warning("faster_whisper not installed (%s) - trying whisper fallback", exc)
+            try:
+                import whisper
+                self._fallback_model = whisper.load_model("tiny")
+                logger.info("whisper fallback loaded successfully")
+            except ImportError:
+                logger.warning("whisper not installed either - alignment coverage forced to 0.0")
         except Exception as exc:  # model files missing, etc. -- never crash the stage
-            logger.warning("faster_whisper model load failed (%s) - alignment coverage forced to 0.0", exc)
+            logger.warning("faster_whisper model load failed (%s) - trying whisper fallback", exc)
+            try:
+                import whisper
+                self._fallback_model = whisper.load_model("tiny")
+                logger.info("whisper fallback loaded successfully after faster-whisper failure")
+            except ImportError:
+                logger.warning("whisper not installed either - alignment coverage forced to 0.0")
 
     def align(self, wav_path: Path, transcript: str) -> tuple[list[dict[str, Any]], float]:
         known_words = transcript.split()
-        if self._model is None:
-            return [], 0.0
-        try:
-            segments, _info = self._model.transcribe(str(wav_path), word_timestamps=True)
-            words = [
-                {"word": w.word.strip(), "start": float(w.start), "end": float(w.end)}
-                for seg in segments for w in (seg.words or [])
-            ]
-        except Exception as exc:
-            logger.warning("alignment failed for %s: %s", wav_path, exc)
-            return [], 0.0
-        coverage = min(1.0, len(words) / len(known_words)) if known_words else 1.0
+        words: list[dict[str, Any]] = []
+        coverage = 0.0
+        model_used = "none"
+
+        # Try faster-whisper first
+        if self._model is not None:
+            try:
+                segments, _info = self._model.transcribe(str(wav_path), word_timestamps=True)
+                words = [
+                    {"word": w.word.strip(), "start": float(w.start), "end": float(w.end)}
+                    for seg in segments for w in (seg.words or [])
+                ]
+                model_used = "faster-whisper"
+            except Exception as exc:
+                logger.warning("faster-whisper alignment failed for %s: %s", wav_path, exc)
+                self._model = None  # reset on failure
+
+        # Fallback to whisper if faster-whisper failed or unavailable
+        if not words and self._fallback_model is not None:
+            try:
+                result = self._fallback_model.transcribe(str(wav_path))
+                words = [
+                    {"word": w.word.strip(), "start": float(w.start), "end": float(w.end)}
+                    for w in result.get("words", [])
+                ]
+                model_used = "whisper-fallback"
+            except Exception as exc:
+                logger.warning("whisper fallback alignment failed for %s: %s", wav_path, exc)
+
+        if known_words:
+            coverage = min(1.0, len(words) / len(known_words))
+        else:
+            coverage = 1.0 if words else 0.0
+
         return words, coverage
 
 

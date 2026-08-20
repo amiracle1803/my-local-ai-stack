@@ -1,9 +1,12 @@
 """Harness CLI.
 
-  python -m harness models        — resolved registry vs. what Ollama actually has
-  python -m harness smoke         — end-to-end self-check against live Ollama
-  python -m harness run "<goal>"  — drive one goal through the full manager loop (live)
-  python -m harness golden        — run the 3 golden tasks; print a pass/fail table
+  python -m harness models            — resolved registry vs. what Ollama actually has
+  python -m harness smoke             — end-to-end self-check against live Ollama
+  python -m harness run "<goal>"      — drive one goal through the full manager loop (live)
+  python -m harness run --background "<goal>"  — same, in a detached daemon
+  python -m harness status <task-id>  — daemon task state + pid/alive
+  python -m harness attach <task-id>  — daemon status + live log tail
+  python -m harness golden            — run the 3 golden tasks; print a pass/fail table
 """
 
 from __future__ import annotations
@@ -148,13 +151,20 @@ def cmd_smoke() -> int:
 
 # --- run command ---------------------------------------------------------
 
-def cmd_run(goal: str) -> int:
+def cmd_run(goal: str, *, background: bool = False) -> int:
     from .core.loop import run_task
     from .core.models import TaskState
 
     if not goal.strip():
-        print("usage: python -m harness run \"<goal>\"", file=sys.stderr)
+        print('usage: python -m harness run [--background] "<goal>"', file=sys.stderr)
         return 2
+    if background:
+        from . import daemon
+        rec = daemon.spawn(goal)
+        print(f"launched background task {rec['task_id']} (pid {rec['pid']})")
+        print(f"  status: python -m harness status {rec['task_id']}")
+        print(f"  attach: python -m harness attach {rec['task_id']}")
+        return 0
     task = run_task(goal)
     d = runstate.run_dir(task.id)
     final = d / "reports" / "final-report.md"
@@ -164,6 +174,52 @@ def cmd_run(goal: str) -> int:
         print("\n--- final-report.md ---")
         print(final.read_text(encoding="utf-8"))
     return 0 if task.state is TaskState.DELIVERY else 1
+
+
+# --- daemon observation commands ----------------------------------------
+
+def cmd_status(task_id: str) -> int:
+    if not task_id:
+        print("usage: python -m harness status <task-id>", file=sys.stderr)
+        return 2
+    from . import daemon
+    info = daemon.status(task_id)
+    print(f"task {task_id}")
+    print(f"  state: {info['state']}")
+    print(f"  pid:   {info['pid']}  alive: {info['alive']}")
+    if info["last_line"]:
+        print(f"  last:  {info['last_line']}")
+    if info["log"] and info["log"].exists():
+        print(f"  log:   {len(info['log'].read_text(encoding='utf-8').splitlines())} lines")
+    return 0
+
+
+def cmd_attach(task_id: str) -> int:
+    if not task_id:
+        print("usage: python -m harness attach <task-id>", file=sys.stderr)
+        return 2
+    from . import daemon
+    return daemon.attach(task_id)
+
+
+def cmd_daemon_run(args: list[str]) -> int:
+    """Hidden child entrypoint: python -m harness daemon-run --task-id <id> --goal "<goal>"."""
+    task_id = goal = None
+    i = 0
+    while i < len(args):
+        if args[i] == "--task-id" and i + 1 < len(args):
+            task_id = args[i + 1]
+            i += 2
+        elif args[i] == "--goal" and i + 1 < len(args):
+            goal = args[i + 1]
+            i += 2
+        else:
+            i += 1
+    if not task_id or not goal:
+        print("daemon-run: missing --task-id/--goal", file=sys.stderr)
+        return 2
+    from . import daemon
+    return daemon.child_main(task_id, goal)
 
 
 # --- golden command ------------------------------------------------------
@@ -180,9 +236,20 @@ def main(argv: list[str]) -> int:
     if cmd == "smoke":
         return cmd_smoke()
     if cmd == "run":
-        return cmd_run(" ".join(argv[1:]))
+        rest = argv[1:]
+        background = bool(rest) and rest[0] == "--background"
+        if background:
+            rest = rest[1:]
+        return cmd_run(" ".join(rest), background=background)
     if cmd == "golden":
         return cmd_golden()
+    if cmd == "daemon-run":
+        return cmd_daemon_run(argv[1:])
+    if cmd == "status":
+        return cmd_status(argv[1] if len(argv) > 1 else "")
+    if cmd == "attach":
+        return cmd_attach(argv[1] if len(argv) > 1 else "")
     print(f"unknown command: {cmd}\n"
-          "usage: python -m harness [smoke|models|run \"<goal>\"|golden]", file=sys.stderr)
+          "usage: python -m harness [smoke|models|run [--background] \"<goal>\"|"
+          "status <task-id>|attach <task-id>|golden]", file=sys.stderr)
     return 2

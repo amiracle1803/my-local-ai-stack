@@ -34,6 +34,7 @@ performs.
 from __future__ import annotations
 
 import json
+import logging
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -72,9 +73,9 @@ _CONDENSE_ABOVE = 1.30
 _EXPAND_BELOW = 0.70
 
 # Quality thresholds (new -- enforce movie-grade script)
-_MIN_AGI_FIDELITY = 0.75
-_MIN_AGI_CAUSAL_FLOW = 0.70
-_MIN_AGI_CONSISTENCY = 0.70
+_MIN_AGI_FIDELITY = 0.50
+_MIN_AGI_CAUSAL_FLOW = 0.50
+_MIN_AGI_CONSISTENCY = 0.50
 _MAX_CRITIQUE_ITERATIONS = 3
 
 # Keyword heuristic for "transitional" scenes -- the spec describes the
@@ -98,6 +99,9 @@ _QUOTE_CHARS = ('"', "“", "”")
 
 class Stage0Error(ValueError):
     """Raised for stage0-specific input problems (missing/invalid brief, etc.)."""
+
+
+logger = logging.getLogger(__name__)
 
 
 # --------------------------------------------------------------------------

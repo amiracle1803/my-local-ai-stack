@@ -1,0 +1,110 @@
+{
+  "1": {
+    "class_type": "UnetLoaderGGUF",
+    "_meta": {"title": "UNET"},
+    "inputs": {
+      "unet_name": "flux-2-klein-4b-Q4_K_M.gguf"
+    }
+  },
+  "2": {
+    "class_type": "CLIPLoader",
+    "_meta": {"title": "CLIP"},
+    "inputs": {
+      "clip_name": "qwen_3_4b.safetensors",
+      "type": "flux2",
+      "device": "default"
+    }
+  },
+  "3": {
+    "class_type": "VAELoader",
+    "_meta": {"title": "VAE"},
+    "inputs": {
+      "vae_name": "flux2-vae.safetensors"
+    }
+  },
+  "4": {
+    "class_type": "LoadImage",
+    "_meta": {"title": "SOURCE_IMAGE"},
+    "inputs": {
+      "image": "PATCH_SOURCE_IMAGE.png"
+    }
+  },
+  "5": {
+    "class_type": "ImageResizeKJv2",
+    "_meta": {"title": "WIDTH"},
+    "inputs": {
+      "image": ["4", 0],
+      "width": 672,
+      "height": 384,
+      "upscale_method": "lanczos",
+      "keep_proportion": "stretch",
+      "pad_color": "0, 0, 0",
+      "crop_position": "center",
+      "divisible_by": 16
+    }
+  },
+  "6": {
+    "class_type": "VAEEncode",
+    "_meta": {"title": "ENCODE"},
+    "inputs": {
+      "pixels": ["5", 0],
+      "vae": ["3", 0]
+    }
+  },
+  "7": {
+    "class_type": "CLIPTextEncode",
+    "_meta": {"title": "PROMPT_POS"},
+    "inputs": {
+      "clip": ["2", 0],
+      "text": "PATCH_PROMPT"
+    }
+  },
+  "8": {
+    "class_type": "CLIPTextEncode",
+    "_meta": {"title": "PROMPT_NEG"},
+    "inputs": {
+      "clip": ["2", 0],
+      "text": "character redesign, changing clothes, changing number of people, adding or removing characters, face distortion, extra arms, extra fingers, duplicated subject, background change, scene change, flicker, morphing, text, watermark, extreme camera shake, sudden scene change, low-detail face"
+    }
+  },
+  "9": {
+    "class_type": "ReferenceLatent",
+    "_meta": {"title": "REF_LATENT"},
+    "inputs": {
+      "conditioning": ["7", 0],
+      "latent": ["6", 0]
+    }
+  },
+  "10": {
+    "class_type": "KSampler",
+    "_meta": {"title": "SEED"},
+    "inputs": {
+      "model": ["1", 0],
+      "seed": 0,
+      "steps": 20,
+      "cfg": 2.0,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "positive": ["9", 0],
+      "negative": ["8", 0],
+      "latent_image": ["6", 0],
+      "denoise": 0.55
+    }
+  },
+  "11": {
+    "class_type": "VAEDecode",
+    "_meta": {"title": "DECODE"},
+    "inputs": {
+      "samples": ["10", 0],
+      "vae": ["3", 0]
+    }
+  },
+  "12": {
+    "class_type": "SaveImage",
+    "_meta": {"title": "SAVE_PREFIX"},
+    "inputs": {
+      "images": ["11", 0],
+      "filename_prefix": "pipeline/out"
+    }
+  }
+}

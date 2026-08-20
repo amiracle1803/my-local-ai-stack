@@ -10,7 +10,7 @@ def _config(tmp_path, *, primary="krea2", banned=None):
     return PipelineConfig(
         models=ModelsConfig(
             llm_script="qwen3:8b", llm_vision="qwen2.5vl:7b", llm_default="llama3.1:8b",
-            image_primary=primary, image_fallback="flux1-schnell-Q4_K_S.gguf",
+            image_primary=primary, image_fallback="flux-2-klein-4b-Q4_K_M.gguf",
             banned=banned or [],
         ),
         paths=PathsConfig(comfyui=str(tmp_path)),
@@ -44,14 +44,14 @@ def test_falls_back_when_weights_missing(tmp_path, monkeypatch):
     monkeypatch.setattr(image_router, "_MIN_PRIMARY_BYTES", 100)
     # no weights file written at all
     template, model = image_router.pick_template(_config(tmp_path), comfy=None)
-    assert (template, model) == ("image_txt2img_flux_fallback.json", "flux1-schnell-Q4_K_S.gguf")
+    assert (template, model) == ("image_txt2img_flux_fallback.json", "flux-2-klein-4b-Q4_K_M.gguf")
 
 
 def test_falls_back_when_weights_partial(tmp_path, monkeypatch):
     monkeypatch.setattr(image_router, "_MIN_PRIMARY_BYTES", 100)
     _write_weights(tmp_path, 50)  # smaller than the threshold: partial download
     template, model = image_router.pick_template(_config(tmp_path), comfy=None)
-    assert (template, model) == ("image_txt2img_flux_fallback.json", "flux1-schnell-Q4_K_S.gguf")
+    assert (template, model) == ("image_txt2img_flux_fallback.json", "flux-2-klein-4b-Q4_K_M.gguf")
 
 
 def test_banned_primary_propagates(tmp_path, monkeypatch):

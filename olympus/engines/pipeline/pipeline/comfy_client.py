@@ -67,25 +67,35 @@ class WorkflowTemplate:
         graph = json.loads((WORKFLOWS_DIR / name).read_text(encoding="utf-8"))
         patchable = entry.get("patchable", {})
         # Validate on load (design 5.3b): every patchable target must exist.
-        for title, target in patchable.items():
-            node_id, field = target.split(".", 1)
-            if node_id not in graph:
-                raise ComfyError(f"{name}: patchable {title} -> missing node {node_id}")
-            if field not in graph[node_id].get("inputs", {}):
-                raise ComfyError(f"{name}: patchable {title} -> node {node_id} has no input {field}")
+        # A target may be comma-separated (e.g. "13.width,15.width") so one
+        # patch title can keep multiple nodes in sync -- used by the FLUX.2
+        # klein templates to keep Flux2Scheduler's resolution-dependent sigma
+        # schedule matched to the EmptyFlux2LatentImage canvas.
+        for title, targets in patchable.items():
+            for target in targets.split(","):
+                node_id, field = target.split(".", 1)
+                if node_id not in graph:
+                    raise ComfyError(f"{name}: patchable {title} -> missing node {node_id}")
+                if field not in graph[node_id].get("inputs", {}):
+                    raise ComfyError(f"{name}: patchable {title} -> node {node_id} has no input {field}")
         tmpl = cls(name, graph, patchable)
         cls._cache[name] = tmpl
         return tmpl
 
     def patched(self, patches: dict[str, Any]) -> dict[str, Any]:
-        """Deep-copy the graph with ``patches`` (title -> value) applied."""
+        """Deep-copy the graph with ``patches`` (title -> value) applied.
+
+        Each title resolves to one or more ``node_id.input_field`` targets
+        (comma-separated in the manifest) -- every target gets the value.
+        """
         graph = json.loads(json.dumps(self.graph))
         for title, value in patches.items():
-            target = self.patchable.get(title)
-            if target is None:
+            targets = self.patchable.get(title)
+            if targets is None:
                 raise ComfyError(f"{self.name}: unknown patch title {title!r}")
-            node_id, field = target.split(".", 1)
-            graph[node_id]["inputs"][field] = value
+            for target in targets.split(","):
+                node_id, field = target.split(".", 1)
+                graph[node_id]["inputs"][field] = value
         return graph
 
 

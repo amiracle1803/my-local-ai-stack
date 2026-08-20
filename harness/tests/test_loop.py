@@ -131,7 +131,8 @@ def _bind_memory_dir(orig, memdir):
 def env(tmp_path, monkeypatch):
     """Redirect memory + runs to tmp so tests never touch the repo tree."""
     mem = tmp_path / "memory"
-    for fn in ("ensure_memory", "write_error", "write_episode", "find_errors"):
+    for fn in ("ensure_memory", "write_error", "write_episode", "find_errors",
+               "snapshot_index", "rollback_index"):
         orig = getattr(memmod, fn)
         monkeypatch.setattr(loop.memory, fn, _bind_memory_dir(orig, mem))
     runs = tmp_path / "runs"

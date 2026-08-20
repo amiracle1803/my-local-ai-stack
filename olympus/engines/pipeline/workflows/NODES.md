@@ -13,20 +13,24 @@ strings readable in place.
 Used today for **everything image**: character reference sheets (Stage 1R),
 scene plates and shot panels (Stage 3B), style refs. Active because krea2
 (the mandated primary) has no weights on disk and every local SDXL anime
-checkpoint is on the MODEL BAN LIST — flux1-schnell is the design's only
-permitted fallback (§5.3b).
+checkpoint is on the MODEL BAN LIST — flux-2-klein is the design's only
+permitted fallback (§5.3b; swapped from flux1-schnell 2026-08).
 
 | Node | Class | What it does | Why it's configured this way |
 |---|---|---|---|
-| 1 UNET | `UnetLoaderGGUF` | Loads flux1-schnell from a Q4 GGUF quant | 4-bit quant is what fits alongside everything else in 8 GB VRAM; ComfyClient's ban-check reads `unet_name` here |
-| 2 CLIP | `DualCLIPLoader` | Loads clip_l + t5xxl-fp8 text encoders | Flux prompts flow through both: clip_l handles tag-style tokens, t5 the long natural-language part |
-| 3 VAE | `VAELoader` | Loads `ae.safetensors` | Flux's own autoencoder; decodes the finished latent at node 15 |
-| 11 PROMPT_POS | `CLIPTextEncode` | Encodes the shot's assembled sd_prompt | Patched per generation by ComfyClient; also wired into the sampler's *negative* slot because schnell runs CFG 1.0 where the negative is mathematically ignored — saves one encode node |
-| 12 GUIDANCE | `FluxGuidance` | Distilled-guidance strength 3.5 | Flux's replacement for classic CFG; 3.5 = standard adherence/stiffness trade-off |
-| 13 LATENT | `EmptySD3LatentImage` | Blank 16-channel latent canvas | Flux uses the SD3-family latent layout (plain `EmptyLatentImage` is 4-channel and would crash); patched to 1216×704 landscape (panels) or 832×1216 portrait (refs) |
-| 14 SAMPLER | `KSampler` | 4-step euler denoise, cfg 1.0 | schnell is step-distilled — 4 steps IS the recipe; per-shot SEED derives from `hash(scene_id, shot_id, retry)` so any panel can be regenerated bit-identically from its sidecar |
-| 15 DECODE | `VAEDecode` | Latent → pixels | — |
+| 1 UNET | `UnetLoaderGGUF` | Loads flux-2-klein-4b from a Q4_K_M GGUF quant | ~2.6 GB quant is what fits alongside everything else in 8 GB VRAM; ComfyClient's ban-check reads `unet_name` here |
+| 2 CLIP | `CLIPLoader` | Loads the qwen_3_4b text encoder (type `flux2`) | FLUX.2 klein's official recipe — a single Qwen3-4B encoder, NOT the flux1 clip_l/t5xxl pair |
+| 3 VAE | `VAELoader` | Loads `flux2-vae.safetensors` | FLUX.2's own autoencoder (128-channel latent); decodes the finished latent at node 20 |
+| 11 PROMPT_POS | `CLIPTextEncode` | Encodes the shot's assembled sd_prompt | Patched per generation by ComfyClient |
+| 12 PROMPT_NEG | `CLIPTextEncode` | Real negative conditioning | klein runs cfg 5.0 (unlike schnell's cfg 1.0) so the negative is honored |
+| 13 LATENT | `EmptyFlux2LatentImage` | Blank 128-channel FLUX.2 latent canvas | FLUX.2 latent layout (plain `EmptyLatentImage` is 4-channel and would crash); patched to 1216×704 landscape (panels) or 832×1216 portrait (refs) |
+| 14 NOISE | `RandomNoise` | Per-shot seed | seed derives from `hash(scene_id, shot_id, retry)` so any panel can be regenerated bit-identically from its sidecar |
+| 15 SCHED | `Flux2Scheduler` | 20-step resolution-aware sigma schedule | WIDTH/HEIGHT patch here too so the schedule matches the latent canvas |
 | 16 SAVE | `SaveImage` | PNG into ComfyUI/output/`SAVE_PREFIX` | ComfyClient copies the file into the project tree and renames deterministically |
+| 17 SAMPLER | `KSamplerSelect` | euler sampler | official klein recipe |
+| 18 GUIDER | `CFGGuider` | CFG 5.0 | official klein recipe |
+| 19 SAMPLER_ADV | `SamplerCustomAdvanced` | noise + guider + sampler + sigmas + latent | klein's recommended sampling graph |
+| 20 DECODE | `VAEDecode` | Latent → pixels | — |
 
 ## 2. SDXL templates (dormant until a permitted SDXL-family primary exists)
 

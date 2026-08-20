@@ -3,10 +3,10 @@
     "class_type": "UnetLoaderGGUF",
     "_meta": {
       "title": "UNET",
-      "note": "Flux1-schnell GGUF - lighter than krea2 for 8GB VRAM character reference generation."
+      "note": "FLUX.2 klein 4B GGUF - lighter than krea2 for 8GB VRAM character reference generation (2026-08 swap from flux1-schnell)."
     },
     "inputs": {
-      "unet_name": "flux1-schnell-Q4_K_S.gguf"
+      "unet_name": "flux-2-klein-4b-Q4_K_M.gguf"
     }
   },
   "2": {

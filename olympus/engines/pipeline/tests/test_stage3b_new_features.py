@@ -274,3 +274,166 @@ def test_patch_keys_disabled_by_default(tmp_path):
     assert not config.animation.character_mask_enabled
     # Color grade ENABLED by default
     assert config.animation.color_grade_enabled
+
+# --------------------------------------------------------------------------
+# Per-panel character-reference conditioning (test 1)
+# --------------------------------------------------------------------------
+import types as _types
+
+from pipeline.stage3b_images import _char_ref_path, _refine_panel_for_char
+
+
+def test_char_ref_path_finds_first_frame_and_skips_mouth(tmp_path):
+    ref_dir = tmp_path / "worldbible" / "refs" / "rin"
+    ref_dir.mkdir(parents=True)
+    (ref_dir / "ref_00_ref_00_00001_.png").write_bytes(b"a")
+    (ref_dir / "ref_01_ref_01_00001_.png").write_bytes(b"b")
+    # a mouth-named png in the char dir must be ignored
+    (ref_dir / "mouth_mouth_00001_.png").write_bytes(b"c")
+
+    path = _char_ref_path(tmp_path, "rin")
+    assert path is not None
+    assert path.name == "ref_00_ref_00_00001_.png"
+
+
+def test_char_ref_path_none_when_no_refs(tmp_path):
+    assert _char_ref_path(tmp_path, "nobody") is None
+
+
+def test_char_ref_path_ignores_mouth_pngs(tmp_path):
+    ref_dir = tmp_path / "worldbible" / "refs" / "kai"
+    ref_dir.mkdir(parents=True)
+    # only a mouth-named png should not be treated as a character ref
+    (ref_dir / "mouth_mouth_00001_.png").write_bytes(b"x")
+    assert _char_ref_path(tmp_path, "kai") is None
+
+
+def test_config_panel_char_ref_defaults():
+    config = _make_config()
+    assert config.animation.panel_char_ref is True
+    assert config.animation.panel_char_ref_denoise == 0.55
+    assert config.animation.panel_char_ref_steps == 24
+
+
+def test_refine_panel_for_char_calls_generate_and_returns_path(tmp_path, monkeypatch):
+    config = _make_config()
+    shot, scene = _make_shot_and_scene()
+    wb = WorldBible(story_id="test", characters=[{"id": "char-1", "name": "Char One"}])
+
+    block_dir = tmp_path / "panels" / "blk-001"
+    block_dir.mkdir(parents=True)
+    base_panel = block_dir / "sh-001.png"
+    base_panel.write_bytes(b"base")
+    # pre-existing sidecar so the refinement pass appends char_ref info
+    (block_dir / "sh-001.json").write_text(
+        json.dumps({"seed": 42, "prompt": "anime character in cafe", "model": "flux"}),
+        encoding="utf-8",
+    )
+
+    ref_dir = tmp_path / "worldbible" / "refs" / "char-1"
+    ref_dir.mkdir(parents=True)
+    char_ref = ref_dir / "ref_00.png"
+    char_ref.write_bytes(b"ref")
+
+    calls = {}
+
+    class FakeComfy:
+        def upload_image(self, src, name=None):
+            calls.setdefault("uploads", []).append((str(src), name))
+            return name
+        def generate(self, template_name, patches, *, dest):
+            calls["template"] = template_name
+            calls["patches"] = patches
+            out = Path(dest) / "refined.png"
+            out.write_bytes(b"refined")
+            return [out]
+        def free(self):
+            calls["freed"] = True
+
+    fake = FakeComfy()
+    result = _refine_panel_for_char(
+        fake, tmp_path, block_dir, base_panel, char_ref,
+        shot, scene, wb, config, seed=42, template="image_flux_fallback.json",
+        model_used="flux",
+    )
+
+    assert result is not None
+    assert calls["template"] == "panel_ref_flux_klein.json"
+    p = calls["patches"]
+    assert p["CHAR_REF"] == "charref_sh-001.png"
+    assert p["PLATE"] == "panel_sh-001_base.png"
+    assert p["SEED"] == 42
+    assert p["DENOISE"] == 0.55
+    assert calls.get("freed") is True
+    # sidecar written with char_ref
+    sidecar = json.loads((block_dir / "sh-001.json").read_text())
+    assert sidecar["refined"] is True
+    assert sidecar["char_ref"].endswith("char-1/ref_00.png")
+
+
+def test_refine_panel_for_char_keeps_base_on_failure(tmp_path):
+    config = _make_config()
+    shot, scene = _make_shot_and_scene()
+    wb = WorldBible(story_id="test")
+
+    block_dir = tmp_path / "panels" / "blk-001"
+    block_dir.mkdir(parents=True)
+    base_panel = block_dir / "sh-001.png"
+    base_panel.write_bytes(b"base")
+    ref_dir = tmp_path / "worldbible" / "refs" / "char-1"
+    ref_dir.mkdir(parents=True)
+    char_ref = ref_dir / "ref_00.png"
+    char_ref.write_bytes(b"ref")
+
+    class BoomComfy:
+        def upload_image(self, src, name=None):
+            return name
+        def generate(self, *a, **k):
+            from pipeline.comfy_client import ComfyError
+            raise ComfyError("boom")
+
+    result = _refine_panel_for_char(
+        BoomComfy(), tmp_path, block_dir, base_panel, char_ref,
+        shot, scene, wb, config, seed=1, template="t.json", model_used="m",
+    )
+    assert result is None
+    # base panel untouched
+    assert base_panel.read_bytes() == b"base"
+
+
+# --------------------------------------------------------------------------
+# LTX-2B identity/motion strength knob (test 3)
+# --------------------------------------------------------------------------
+def test_config_ltx_strength_default():
+    config = _make_config()
+    assert config.animation.ltx_strength == 0.55
+
+
+def test_ltx2b_manifest_supports_strength_patch():
+    from pipeline.comfy_client import WorkflowTemplate
+    t = WorkflowTemplate.load("video_i2v_ltx_2b.json")
+    assert "STRENGTH" in t.patchable
+    assert t.patchable["STRENGTH"] == "52.strength"
+    g = t.patched({
+        "STRENGTH": 0.45, "MOTION_PROMPT": "p", "START_FRAME": "f.png",
+        "WIDTH": 768, "HEIGHT": 448, "FRAMES": 33, "STEPS": 15,
+        "SEED": 1, "FPS": 16, "SAVE_PREFIX": "x",
+    })
+    assert g["52"]["inputs"]["strength"] == 0.45
+
+
+# --------------------------------------------------------------------------
+# LTX-2B motion prompt (strong verbs to defeat static dead-clips)
+# --------------------------------------------------------------------------
+def test_ltx2b_motion_prompt_has_explicit_motion():
+    from pipeline.stage3c_animation import _motion_prompt
+    shot = {"sd_prompt": "rin in cafe", "composition": "medium shot",
+            "lighting": "cinematic", "characters_in_frame": ["rin"]}
+    p1 = _motion_prompt(shot, 1, "video_i2v_ltx_2b.json")
+    assert "turns their head" in p1 and "breathing" in p1 or "breathes" in p1
+    assert "swaying" in p1 or "swaying with" in p1 or "wind physics" in p1
+    p2 = _motion_prompt(shot, 2, "video_i2v_ltx_2b.json")
+    assert "dynamic anime motion" in p2
+    # wan prompt must be untouched (different branch)
+    pw = _motion_prompt(shot, 1, "wan_ti2v.json")
+    assert "subtle ambient motion" in pw

@@ -35,6 +35,7 @@ from pipeline import (  # noqa: E402
     stage4_audio,
     stage5_assembly,
     stage_vlm_review,
+    stage_critique,
 )
 from pipeline.blueprint import (  # noqa: E402
     STAGE_ORDER,
@@ -224,11 +225,23 @@ def run_all(
     *,
     projects_dir: str | Path | None = None,
     brief_path: str | Path | None = None,
+    run_critique: bool = True,
+    retry_on_critique: bool = True,
 ) -> list[dict | None]:
     """``run.py all`` (design 0.2): run every stage in STAGE_ORDER unattended,
-    skipping stages the scorecard already proves complete (resume-safe)."""
+    skipping stages the scorecard already proves complete (resume-safe).
+
+    If run_critique=True, runs the self-critique loop after each stage.
+    If retry_on_critique=True, retries stages that fail the critique gate.
+    """
     project_dir = _projects_root(projects_dir) / slug
+    config = PipelineConfig.load()
     results: list[dict | None] = []
+
+    # Initialize LLM for critique
+    from pipeline.llm import PipelineLLM
+    llm = PipelineLLM(config, prompts_dir=_ENGINE_ROOT / "prompts", logs_dir=project_dir / "logs")
+
     for stage in STAGE_ORDER:
         scores = Scores(project_dir / "scores.sqlite")
         try:
@@ -237,16 +250,71 @@ def run_all(
             scores.close()
         if complete:
             print(f"[skip] {stage} already complete")
+            results.append({"skipped": True, "stage": stage})
             continue
+
+        # Run the stage
         print(f"[run ] {stage} ...")
-        results.append(
-            run_stage(slug, stage, projects_dir=projects_dir, brief_path=brief_path)
-        )
+        result = run_stage(slug, stage, projects_dir=projects_dir, brief_path=brief_path)
+        results.append(result)
+
+        # Run critique after stage completion (if enabled)
+        if run_critique:
+            print(f"[critique] {stage} ...")
+            critique_result = stage_critique.run_stage_critique(
+                project_dir=project_dir,
+                stage_name=stage,
+                llm=llm,
+                config=config,
+            )
+
+            # Record critique in results
+            results.append({"critique": stage_critique.asdict(critique_result)})
+
+            if not critique_result.passes:
+                print(f"  [WARN] Critique score: {critique_result.consistency_score:.2f} - {len(critique_result.critical_issues)} critical issues")
+                for issue in critique_result.critical_issues:
+                    print(f"    - {issue.type}: {issue.description}")
+                for fix in critique_result.suggested_fixes:
+                    print(f"    Suggestion: {fix.action} {fix.stage} - {fix.details}")
+
+                # Retry logic
+                if retry_on_critique and stage_critique.should_retry_stage(critique_result, config):
+                    print(f"  [retry] Critique below threshold, retrying {stage}...")
+                    actions = stage_critique.get_retry_actions(critique_result)
+                    for action in actions:
+                        print(f"    Action: {action}")
+
+                    # Re-run the stage
+                    print(f"[run ] {stage} (retry) ...")
+                    retry_result = run_stage(slug, stage, projects_dir=projects_dir, brief_path=brief_path)
+                    results.append({"retry": True, "stage": stage, "result": retry_result})
+
+                    # Run critique again on retry
+                    retry_critique = stage_critique.run_stage_critique(
+                        project_dir=project_dir,
+                        stage_name=stage,
+                        llm=llm,
+                        config=config,
+                    )
+                    results.append({"critique_retry": stage_critique.asdict(retry_critique)})
+                    if retry_critique.passes:
+                        print(f"  [ok] Retry passed critique")
+                    else:
+                        print(f"  [FAIL] Retry still failing: score={retry_critique.consistency_score:.2f}")
+            else:
+                print(f"  [ok] Critique passed: {critique_result.consistency_score:.2f}")
+
     return results
 
 
 def _cmd_all(args: argparse.Namespace) -> int:
-    run_all(args.slug, brief_path=args.brief)
+    run_all(
+        args.slug,
+        brief_path=args.brief,
+        run_critique=not args.no_critique,
+        retry_on_critique=not args.no_retry,
+    )
     print("[ok] all stages complete")
     return 0
 
@@ -287,6 +355,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_all = sub.add_parser("all", help="run every remaining stage in order (design 0.2)")
     p_all.add_argument("slug")
     p_all.add_argument("--brief", default=None, help="stage0 brief (first run only)")
+    p_all.add_argument("--no-critique", action="store_true", help="disable self-critique loop between stages")
+    p_all.add_argument("--no-retry", action="store_true", help="disable auto-retry on critique failure")
     p_all.set_defaults(func=_cmd_all)
 
     return parser

@@ -40,9 +40,35 @@ def _isolated_projects_root(tmp_path, monkeypatch):
     yield tmp_path / "engine" / "projects"
 
 
+def _csrf_client(base: TestClient) -> TestClient:
+    """Wrap TestClient to auto-send x-csrf-token header from the olympus_csrf cookie."""
+    orig_post = base.post
+    orig_put = base.put
+    orig_patch = base.patch
+    orig_delete = base.delete
+
+    def _add_csrf(method):
+        def wrapper(url, *args, **kwargs):
+            headers = kwargs.get("headers", {})
+            cookie = base.cookies.get("olympus_csrf", "")
+            if cookie:
+                headers["x-csrf-token"] = cookie
+            kwargs["headers"] = headers
+            return method(url, *args, **kwargs)
+        return wrapper
+
+    base.post = _add_csrf(orig_post)
+    base.put = _add_csrf(orig_put)
+    base.patch = _add_csrf(orig_patch)
+    base.delete = _add_csrf(orig_delete)
+    return base
+
+
 @pytest.fixture
 def client():
-    return TestClient(ka.app)
+    c = TestClient(ka.app)
+    c.get("/")  # prime CSRF cookie
+    return _csrf_client(c)
 
 
 def _wait_until_not_running(slug: str, stage: str, timeout: float = 5.0) -> None:

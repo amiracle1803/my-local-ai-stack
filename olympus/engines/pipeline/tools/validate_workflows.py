@@ -51,13 +51,18 @@ def validate_workflow(workflow_name: str, workflow: dict, patchable_map: dict) -
             for field, value in node["inputs"].items():
                 workflow_inputs.add(f"{node_id}.{field}")
 
-    # Check each patchable key
-    for patch_key, workflow_path in patchable_map.items():
-        if workflow_path not in workflow_inputs:
-            missing.append(f"{patch_key} -> {workflow_path}")
+    # Check each patchable key (targets may be comma-separated -- one title can
+    # patch multiple nodes, e.g. the FLUX.2 klein templates keep Flux2Scheduler
+    # width/height synced with the EmptyFlux2LatentImage canvas)
+    for patch_key, workflow_paths in patchable_map.items():
+        for workflow_path in workflow_paths.split(","):
+            if workflow_path not in workflow_inputs:
+                missing.append(f"{patch_key} -> {workflow_path}")
 
     # Check for extra workflow inputs not in patchable map (optional, warn only)
-    mapped = set(patchable_map.values())
+    mapped: set[str] = set()
+    for paths in patchable_map.values():
+        mapped.update(p.strip() for p in paths.split(","))
     unmapped = workflow_inputs - mapped
     if unmapped:
         extra = sorted(unmapped)

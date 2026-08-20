@@ -214,21 +214,23 @@ Agents defined in `olympus/agents/` as `.md` craft files. They communicate via t
 }
 ```
 
-### `olympus.toml` (Kernel + Pipeline)
-```toml
-[ollama.models]
-script    = "qwen3:8b"
-vision    = "qwen3-vl:8b"
-review    = "qwen2.5vl:7b"
-
-[animation]
-panel_denoise = 0.2
-krea2_ref_enabled = false
-controlnet_enabled = false
-```
-
 ### `stack.toml` (Unified Config Source)
 Single source of truth for all services. Loaded via `stack.config.cfg` (Pydantic v2).
+The `[ollama]` section sets `num_ctx` (default 16384) for the whole stack; the
+pipeline bridges it into `PipelineConfig.num_ctx` and clamps `num_predict` per
+call so prompts never overflow the context window. Model roles live under
+`[ollama.models]`:
+
+```toml
+[ollama]
+num_ctx = 16384
+
+[ollama.models]
+default = "qwen3:8b"   # general fallback (was llama3.1:8b — not pulled on this box)
+script  = "qwen3:8b"   # stage0/stage1 script+world parsing
+vision  = "qwen3:8b"   # panel vision analysis (was qwen2.5vl:7b — miscounted dense panels)
+review  = "qwen2.5vl:7b" # stage_vlm_review physics/logic gate (non-reasoning, fast structured output)
+```
 
 ---
 
@@ -243,7 +245,7 @@ Olympus, OpenCode, LifeOS, and LLM Wiki speak the **Model Context Protocol** for
 
 ## Design Philosophy
 
-- **Ollama-native** — works with any model; upgrade by editing `olympus.toml`
+- **Ollama-native** — works with any model; upgrade by editing `stack.toml`
 - **One Python venv** — everything shares `.venv`, no venv-per-project overhead
 - **MCP mesh** — Olympus, OpenCode, LifeOS, and LLM Wiki speak MCP for cross-tool delegation
 - **Lean by default** — Docker/n8n, ComfyUI, Langfuse are optional add-ons
@@ -257,7 +259,7 @@ Olympus, OpenCode, LifeOS, and LLM Wiki speak the **Model Context Protocol** for
 
 - **LLM work**: ComfyUI must be idle (unload models via `/free`)
 - **Image/video work**: Unload all Ollama models (`comfy.unload_ollama()`) before queuing ComfyUI
-- **Kernel agents** use `llama3.2:3b` (triage) to coexist with ComfyUI; heavy stages use `qwen3:8b` when ComfyUI is idle
+- **Kernel agents** use `qwen3:8b` by default to coexist with ComfyUI; heavy pipeline stages also use `qwen3:8b` when ComfyUI is idle
 - **GpuBatch** context manager enforces: file lease → `unload_ollama()` → GPU work → `comfy.free()` → release
 
 ---
@@ -267,7 +269,8 @@ Olympus, OpenCode, LifeOS, and LLM Wiki speak the **Model Context Protocol** for
 | Model | Time | Steps | VRAM | Status |
 |---|---|---|---|---|
 | `krea2_turbo-Q4_K_S` | 32s | 8 | ~5GB | Primary (panels) |
-| `flux1-schnell-Q4_K_S` | 20s | 4 | ~6GB | Fallback |
+| `krea2_turbo-Q4_K_M` | 28s | 8 | ~5GB | Primary fallback |
+| `flux-2-klein-4b-Q4_K_M` | ~41s | 20 | ~3GB | Design fallback (character refs + panels; swapped from flux1-schnell 2026-08) |
 | `ltx-2.3-22b-distilled-1.1-Q4_K_M` | 55s | 8 | ~5.8GB | Animation primary (LTX 2.3 22B) |
 | `ltxv-2b-0.9.8-distilled-fp8-i2v` | 29s | 8 | ~5GB | Animation fallback (LTX 2B) |
 
@@ -280,7 +283,7 @@ Banned checkpoints enforced at runtime: `z-anime-distill-4step-fp8`, `wai-illust
 ```bash
 cd olympus/engines/pipeline
 python -m pytest tests/ -v
-# 192 passing (2 pre-existing failures in test_stage1.py voice assignment)
+# 195 passing (4 pre-existing failures: stage3c cache 'planned_tier', stage5 shot-duration default)
 ```
 
 Key test modules:

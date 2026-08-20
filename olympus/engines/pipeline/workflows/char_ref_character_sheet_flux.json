@@ -1,121 +1,41 @@
 {
-  "1": {
-    "class_type": "UnetLoaderGGUF",
-    "_meta": {
-      "title": "UNET",
-      "note": "Flux1-schnell GGUF - lighter than krea2 for 8GB VRAM character reference generation."
-    },
-    "inputs": {
-      "unet_name": "flux1-schnell-Q4_K_S.gguf"
-    }
-  },
-  "2": {
-    "class_type": "DualCLIPLoader",
-    "_meta": {
-      "title": "CLIP",
-      "note": "Flux needs two text encoders: clip_l (short tags) + t5xxl fp8 (long natural-language prompts)."
-    },
-    "inputs": {
-      "clip_name1": "clip_l.safetensors",
-      "clip_name2": "t5xxl_fp8_e4m3fn.safetensors",
-      "type": "flux",
-      "device": "default"
-    }
-  },
-  "3": {
-    "class_type": "VAELoader",
-    "_meta": {
-      "title": "VAE",
-      "note": "Flux autoencoder (ae.safetensors) for encode/decode."
-    },
-    "inputs": {
-      "vae_name": "ae.safetensors"
-    }
-  },
-  "4": {
-    "class_type": "CLIPTextEncode",
-    "_meta": {
-      "title": "PROMPT_POS",
-      "note": "Character description + pose details. Assembled from world bible specs."
-    },
-    "inputs": {
-      "clip": ["2", 0],
-      "text": "PATCH_PROMPT"
-    }
-  },
-  "5": {
-    "class_type": "CLIPTextEncode",
-    "_meta": {
-      "title": "PROMPT_NEG",
-      "note": "Negative prompt for flux guidance."
-    },
-    "inputs": {
-      "clip": ["2", 0],
-      "text": "blurry, low quality, low contrast, flat, washed out, dark, underexposed, noise, grain, oversaturated, cartoon, childish, ugly, text, watermark, signature, extra limbs, deformed"
-    }
-  },
-  "6": {
-    "class_type": "EmptySD3LatentImage",
-    "_meta": {
-      "title": "LATENT",
-      "note": "16-channel latent. Portrait orientation 512x768 for character refs."
-    },
-    "inputs": {
-      "width": 512,
-      "height": 768,
-      "batch_size": 1
-    }
-  },
-  "7": {
-    "class_type": "FluxGuidance",
-    "_meta": {
-      "title": "GUIDANCE",
-      "note": "Flux's distilled-guidance knob (not classic CFG). 3.5 is standard."
-    },
-    "inputs": {
-      "conditioning": ["4", 0],
-      "guidance": 3.5
-    }
-  },
-  "8": {
-    "class_type": "KSampler",
-    "_meta": {
-      "title": "SAMPLER",
-      "note": "Flux schnell recipe: euler, 4 steps, cfg 1.0, guidance 3.5."
-    },
-    "inputs": {
-      "model": ["1", 0],
-      "positive": ["7", 0],
-      "negative": ["5", 0],
-      "latent_image": ["6", 0],
-      "seed": 0,
-      "steps": 4,
-      "cfg": 1.0,
-      "sampler_name": "euler",
-      "scheduler": "simple",
-      "denoise": 1.0
-    }
-  },
-  "9": {
-    "class_type": "VAEDecode",
-    "_meta": {
-      "title": "DECODE",
-      "note": "Decodes the latent back to RGB via Flux VAE."
-    },
-    "inputs": {
-      "samples": ["8", 0],
-      "vae": ["3", 0]
-    }
-  },
-  "10": {
-    "class_type": "SaveImage",
-    "_meta": {
-      "title": "SAVE",
-      "note": "Writes character ref PNG."
-    },
-    "inputs": {
-      "images": ["9", 0],
-      "filename_prefix": "pipeline/char_ref"
-    }
-  }
+  "1": {"class_type": "UnetLoaderGGUF", "_meta": {"title": "UNET",
+        "note": "FLUX.2 klein 4B GGUF Q4_K_M (~2.6GB) - the 8GB-VRAM character-sheet model (flux-2-klein per the 2026-08 swap; replaces flux1-schnell)."},
+        "inputs": {"unet_name": "flux-2-klein-4b-Q4_K_M.gguf"}},
+  "2": {"class_type": "CLIPLoader", "_meta": {"title": "CLIP",
+        "note": "FLUX.2 klein text encoder: qwen_3_4b.safetensors via CLIPLoader type 'flux2' (official klein recipe; NOT clip_l/t5xxl)."},
+        "inputs": {"clip_name": "qwen_3_4b.safetensors", "type": "flux2", "device": "default"}},
+  "3": {"class_type": "VAELoader", "_meta": {"title": "VAE",
+        "note": "FLUX.2 VAE (flux2-vae.safetensors) for the 128-channel klein latent."},
+        "inputs": {"vae_name": "flux2-vae.safetensors"}},
+  "4": {"class_type": "CLIPTextEncode", "_meta": {"title": "PROMPT_POS",
+        "note": "Character description + pose details. Assembled from world bible specs; VIEW instruction goes in here."},
+        "inputs": {"clip": ["2", 0], "text": "PATCH_PROMPT"}},
+  "5": {"class_type": "CLIPTextEncode", "_meta": {"title": "PROMPT_NEG",
+        "note": "Negative conditioning for the CFGGuider."},
+        "inputs": {"clip": ["2", 0], "text": "blurry, low quality, low contrast, flat, washed out, dark, underexposed, noise, grain, oversaturated, cartoon, childish, ugly, text, watermark, signature, extra limbs, deformed"}},
+  "6": {"class_type": "EmptyFlux2LatentImage", "_meta": {"title": "LATENT",
+        "note": "128-channel FLUX.2 latent. Portrait orientation 512x768 for character refs. WIDTH/HEIGHT also patch Flux2Scheduler (8) to keep its resolution-dependent sigma schedule in sync."},
+        "inputs": {"width": 512, "height": 768, "batch_size": 1}},
+  "7": {"class_type": "RandomNoise", "_meta": {"title": "NOISE",
+        "note": "Deterministic seed per character/variant."},
+        "inputs": {"noise_seed": 0}},
+  "8": {"class_type": "Flux2Scheduler", "_meta": {"title": "SCHED",
+        "note": "FLUX.2 resolution-dependent sigma schedule; 20 steps per the official klein recipe."},
+        "inputs": {"steps": 20, "width": 512, "height": 768}},
+  "9": {"class_type": "KSamplerSelect", "_meta": {"title": "SAMPLER",
+        "note": "euler sampler for the klein recipe."},
+        "inputs": {"sampler_name": "euler"}},
+  "10": {"class_type": "CFGGuider", "_meta": {"title": "GUIDER",
+        "note": "CFG 5.0 per the official klein template."},
+        "inputs": {"model": ["1", 0], "positive": ["4", 0], "negative": ["5", 0], "cfg": 5.0}},
+  "11": {"class_type": "SamplerCustomAdvanced", "_meta": {"title": "SAMPLER_ADV",
+        "note": "Denoising loop: noise + guider + sampler + sigmas + latent."},
+        "inputs": {"noise": ["7", 0], "guider": ["10", 0], "sampler": ["9", 0], "sigmas": ["8", 0], "latent_image": ["6", 0]}},
+  "12": {"class_type": "VAEDecode", "_meta": {"title": "DECODE",
+        "note": "128-channel latent -> RGB via the FLUX.2 VAE from node 3."},
+        "inputs": {"samples": ["11", 0], "vae": ["3", 0]}},
+  "13": {"class_type": "SaveImage", "_meta": {"title": "SAVE",
+        "note": "Writes the character ref PNG."},
+        "inputs": {"images": ["12", 0], "filename_prefix": "pipeline/char_ref"}}
 }

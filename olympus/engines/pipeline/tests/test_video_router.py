@@ -20,6 +20,10 @@ def _mock_config(ltx2b_ready=True, ltx2b_gate=True, ltx23_ready=True, ltx23_gate
         return MagicMock()
 
     config.comfyui_dir = mock_comfyui_dir
+    # The router reads config.animation.engine first (engine override); the
+    # default engine leaves the tiered LTX routing logic untouched.
+    config.animation = MagicMock()
+    config.animation.engine = "ltx2b"
     return config
 
 
@@ -100,6 +104,7 @@ def test_degrades_to_tier0_when_no_ltx_available():
     import pipeline.video_router as vr
     vr._ltx2b_weights_ready = lambda c: False
     vr._ltx23_weights_ready = lambda c: False
+    vr._wan_weights_ready = lambda c: False
     try:
         assert pick_ltx_template(config, 1, 81) is None
         assert pick_ltx_template(config, 2, 81) is None

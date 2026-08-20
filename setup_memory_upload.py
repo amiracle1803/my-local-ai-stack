@@ -9,10 +9,14 @@ import requests
 from pathlib import Path
 
 # === CONFIGURATION ===
-BASE_URL = "http://localhost:8125"
-TEAM_ID = "team-5y6i0ygta4"
-API_KEY = "sk-mem-oCYugI53X1cwLxgxL9kknGbywSa0Fplw"
-WIKI_ID = "wiki-b19fl90z"  # Already created
+BASE_URL = "http://localhost:8424/v3"
+TEAM_ID = "team-6ef2zvnu7i"
+# API key is read from the MEMORY_API_KEY env var (set in the gitignored .env).
+# Never hardcode the token in this tracked file.
+API_KEY = os.environ.get("MEMORY_API_KEY", "")
+if not API_KEY:
+    raise SystemExit("MEMORY_API_KEY is not set (see .env).")
+WIKI_ID = "wiki-rgmz1nsf"  # Already created
 
 # === FILE MAPPING ===
 ROOT = Path(__file__).parent
@@ -36,7 +40,7 @@ def upload_file(filename, file_path):
         return False
 
     # Use raw/write endpoint (works for multiple files)
-    url = f"{BASE_URL}/api/v1/knowledge/wiki/raw/write"
+    url = f"{BASE_URL}/wiki/raw/write"
     payload = {
         "team_id": TEAM_ID,
         "wiki_id": WIKI_ID,
@@ -58,7 +62,7 @@ def upload_file(filename, file_path):
 
 def ingest_wiki():
     """Trigger wiki ingestion to make content searchable"""
-    url = f"{BASE_URL}/api/v1/knowledge/wiki/ingest"
+    url = f"{BASE_URL}/wiki/ingest"
     payload = {"wiki_id": WIKI_ID}
     try:
         print(f"🔄 Starting wiki ingestion...")

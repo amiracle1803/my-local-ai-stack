@@ -64,6 +64,10 @@ def main() -> int:
         marker = ENGINE_ROOT / "workflows" / ".anima_smoke_passed"
         marker.write_text(f"passed {elapsed:.1f}s seed={_SEED}\n", encoding="utf-8")
         print(f"lab gate marker written: {marker}")
+    elif args.template == "char_ref_character_sheet_flux.json":
+        marker = ENGINE_ROOT / "workflows" / ".character_smoke_passed"
+        marker.write_text(f"passed {elapsed:.1f}s seed={_SEED}\n", encoding="utf-8")
+        print(f"lab gate marker written: {marker}")
 
     print(f"template={args.template} seconds={elapsed:.1f} output={paths[0]}")
     return 0

@@ -347,7 +347,19 @@ cd /home/amire/Downloads/my-local-ai-stack
 # Pipeline CLI
 .venv/bin/python olympus/engines/pipeline/run.py --help
 
-# Pipeline tests (expect ~192 passing)
+# Pipeline CLI — run.py all (Self-Critique Loop)
+# ┌─────────────────────────────────────────────────────────────────────────────┐
+# │ DEFAULT: Full critique + auto-retry                                          │
+# │ python run.py all my-story --brief /tmp/my-brief.md                          │
+# │                                                                              │
+# │ --no-critique: Skip all LLM critique calls                                  │
+# │ python run.py all my-story --brief /tmp/my-brief.md --no-critique            │
+# │                                                                              │
+# │ --no-retry: Critique runs but NO auto-retry on failure                      │
+# │ python run.py all my-story --brief /tmp/my-brief.md --no-retry               │
+# └─────────────────────────────────────────────────────────────────────────────┘
+
+# Pipeline tests (expect ~199 passing)
 cd olympus/engines/pipeline && ../../.venv/bin/python -m pytest tests/ -q
 
 # Harness CLI
