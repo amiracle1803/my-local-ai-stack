@@ -1,0 +1,1190 @@
+{
+  "id": "0139d433-d1e0-4766-bdd8-59b45302e3e3",
+  "extra": {
+    "ds": {
+      "scale": 0.5847174256090725,
+      "offset": [
+        -355.2846130133106,
+        350.637342588758
+      ]
+    },
+    "reroutes": null,
+    "ue_links": [],
+    "0246.VERSION": [
+      0,
+      0,
+      4
+    ],
+    "frontendVersion": "1.44.19",
+    "VHS_MetadataImage": true,
+    "VHS_latentpreview": false,
+    "links_added_by_ue": [],
+    "VHS_KeepIntermediate": true,
+    "VHS_latentpreviewrate": 0
+  },
+  "links": [
+    [
+      12,
+      14,
+      0,
+      12,
+      1,
+      "STRING"
+    ],
+    [
+      14,
+      12,
+      0,
+      17,
+      0,
+      "AUDIO"
+    ],
+    [
+      32,
+      13,
+      0,
+      37,
+      0,
+      "AUDIO"
+    ],
+    [
+      33,
+      37,
+      0,
+      12,
+      0,
+      "AUDIO"
+    ],
+    [
+      34,
+      15,
+      0,
+      38,
+      0,
+      "AUDIO"
+    ],
+    [
+      35,
+      38,
+      0,
+      12,
+      3,
+      "AUDIO"
+    ],
+    [
+      38,
+      12,
+      0,
+      39,
+      0,
+      "AUDIO"
+    ]
+  ],
+  "nodes": [
+    {
+      "id": 14,
+      "pos": [
+        875.55517578125,
+        451.78997802734375
+      ],
+      "mode": 0,
+      "size": [
+        343.6363525390625,
+        153.63636779785156
+      ],
+      "type": "PrimitiveStringMultiline",
+      "flags": {},
+      "order": 0,
+      "inputs": [
+        {
+          "dir": null,
+          "link": null,
+          "name": "value",
+          "type": "STRING",
+          "label": "value",
+          "shape": null,
+          "locked": null,
+          "widget": {
+            "name": "value"
+          },
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        }
+      ],
+      "outputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "name": "STRING",
+          "type": "STRING",
+          "label": "STRING",
+          "links": [
+            12
+          ],
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "slot_index": null
+        }
+      ],
+      "properties": {
+        "ver": "0.24.0",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "PrimitiveStringMultiline",
+        "widget_ue_connectable": {}
+      },
+      "showAdvanced": null,
+      "widgets_values": [
+        "I am already invincible in this world; if I do not battle heaven, who would I stand against?"
+      ]
+    },
+    {
+      "id": 15,
+      "pos": [
+        878.6165771484375,
+        718.5718383789062
+      ],
+      "mode": 0,
+      "size": [
+        270,
+        136
+      ],
+      "type": "LoadAudio",
+      "flags": {},
+      "order": 1,
+      "inputs": [
+        {
+          "dir": null,
+          "link": null,
+          "name": "audio",
+          "type": "COMBO",
+          "label": null,
+          "shape": null,
+          "locked": null,
+          "widget": {
+            "name": "audio"
+          },
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        },
+        {
+          "dir": null,
+          "link": null,
+          "name": "audioUI",
+          "type": "AUDIO_UI",
+          "label": null,
+          "shape": null,
+          "locked": null,
+          "widget": {
+            "name": "audioUI"
+          },
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        },
+        {
+          "dir": null,
+          "link": null,
+          "name": "upload",
+          "type": "AUDIOUPLOAD",
+          "label": null,
+          "shape": null,
+          "locked": null,
+          "widget": {
+            "name": "upload"
+          },
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        }
+      ],
+      "outputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "name": "AUDIO",
+          "type": "AUDIO",
+          "label": "Audio",
+          "links": [
+            34
+          ],
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "slot_index": null
+        }
+      ],
+      "properties": {
+        "ver": "0.24.0",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "LoadAudio",
+        "widget_ue_connectable": {}
+      },
+      "showAdvanced": null,
+      "widgets_values": [
+        "RunComfy_examples_1447_reference.mp3",
+        null,
+        null
+      ]
+    },
+    {
+      "id": 17,
+      "pos": [
+        1968.42578125,
+        156.40988159179688
+      ],
+      "mode": 0,
+      "size": [
+        270,
+        112
+      ],
+      "type": "SaveAudio",
+      "flags": {},
+      "order": 6,
+      "inputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "link": 14,
+          "name": "audio",
+          "type": "AUDIO",
+          "label": null,
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        },
+        {
+          "dir": null,
+          "link": null,
+          "name": "filename_prefix",
+          "type": "STRING",
+          "label": null,
+          "shape": null,
+          "locked": null,
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        },
+        {
+          "dir": null,
+          "link": null,
+          "name": "audioUI",
+          "type": "AUDIO_UI",
+          "label": null,
+          "shape": null,
+          "locked": null,
+          "widget": {
+            "name": "audioUI"
+          },
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "ver": "0.24.0",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "SaveAudio",
+        "widget_ue_connectable": {}
+      },
+      "showAdvanced": null,
+      "widgets_values": [
+        "RunComfy_examples_1447_output_flac"
+      ]
+    },
+    {
+      "id": 12,
+      "pos": [
+        1536.8294677734375,
+        155.6863250732422
+      ],
+      "mode": 0,
+      "size": [
+        400,
+        630
+      ],
+      "type": "IndexTTS2Run",
+      "flags": {},
+      "order": 5,
+      "inputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "link": 33,
+          "name": "audio",
+          "type": "AUDIO",
+          "label": "audio",
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        },
+        {
+          "dir": null,
+          "pos": null,
+          "link": 12,
+          "name": "text",
+          "type": "STRING",
+          "label": "text",
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        },
+        {
+          "dir": null,
+          "pos": null,
+          "link": null,
+          "name": "dialogue_audio_s2",
+          "type": "AUDIO",
+          "label": "dialogue_audio_s2",
+          "shape": 7,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        },
+        {
+          "dir": null,
+          "pos": null,
+          "link": 35,
+          "name": "emo_audio_prompt",
+          "type": "AUDIO",
+          "label": "emo_audio_prompt",
+          "shape": 7,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        },
+        {
+          "dir": null,
+          "pos": null,
+          "link": null,
+          "name": "emo_audio_prompt_s2",
+          "type": "AUDIO",
+          "label": "emo_audio_prompt_s2",
+          "shape": 7,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        },
+        {
+          "dir": null,
+          "link": null,
+          "name": "top_k",
+          "type": "INT",
+          "label": "top_k",
+          "shape": null,
+          "locked": null,
+          "widget": {
+            "name": "top_k"
+          },
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        },
+        {
+          "dir": null,
+          "link": null,
+          "name": "top_p",
+          "type": "FLOAT",
+          "label": "top_p",
+          "shape": null,
+          "locked": null,
+          "widget": {
+            "name": "top_p"
+          },
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        },
+        {
+          "dir": null,
+          "link": null,
+          "name": "temperature",
+          "type": "FLOAT",
+          "label": "temperature",
+          "shape": null,
+          "locked": null,
+          "widget": {
+            "name": "temperature"
+          },
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        },
+        {
+          "dir": null,
+          "link": null,
+          "name": "num_beams",
+          "type": "INT",
+          "label": "num_beams",
+          "shape": null,
+          "locked": null,
+          "widget": {
+            "name": "num_beams"
+          },
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        },
+        {
+          "dir": null,
+          "link": null,
+          "name": "max_mel_tokens",
+          "type": "INT",
+          "label": "max_mel_tokens",
+          "shape": null,
+          "locked": null,
+          "widget": {
+            "name": "max_mel_tokens"
+          },
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        },
+        {
+          "dir": null,
+          "link": null,
+          "name": "max_text_tokens_per_sentence",
+          "type": "INT",
+          "label": "max_text_tokens_per_sentence",
+          "shape": null,
+          "locked": null,
+          "widget": {
+            "name": "max_text_tokens_per_sentence"
+          },
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        },
+        {
+          "dir": null,
+          "link": null,
+          "name": "custom_cuda_kernel",
+          "type": "BOOLEAN",
+          "label": "custom_cuda_kernel",
+          "shape": null,
+          "locked": null,
+          "widget": {
+            "name": "custom_cuda_kernel"
+          },
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        },
+        {
+          "dir": null,
+          "link": null,
+          "name": "deepspeed",
+          "type": "BOOLEAN",
+          "label": "deepspeed",
+          "shape": null,
+          "locked": null,
+          "widget": {
+            "name": "deepspeed"
+          },
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        },
+        {
+          "dir": null,
+          "link": null,
+          "name": "unload_model",
+          "type": "BOOLEAN",
+          "label": "unload_model",
+          "shape": null,
+          "locked": null,
+          "widget": {
+            "name": "unload_model"
+          },
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        },
+        {
+          "dir": null,
+          "link": null,
+          "name": "emo_alpha",
+          "type": "FLOAT",
+          "label": "emo_alpha",
+          "shape": 7,
+          "locked": null,
+          "widget": {
+            "name": "emo_alpha"
+          },
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        },
+        {
+          "dir": null,
+          "link": null,
+          "name": "emo_vector",
+          "type": "STRING",
+          "label": "emo_vector",
+          "shape": 7,
+          "locked": null,
+          "widget": {
+            "name": "emo_vector"
+          },
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        },
+        {
+          "dir": null,
+          "link": null,
+          "name": "use_emo_text",
+          "type": "BOOLEAN",
+          "label": "use_emo_text",
+          "shape": 7,
+          "locked": null,
+          "widget": {
+            "name": "use_emo_text"
+          },
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        },
+        {
+          "dir": null,
+          "link": null,
+          "name": "emo_text",
+          "type": "STRING",
+          "label": "emo_text",
+          "shape": 7,
+          "locked": null,
+          "widget": {
+            "name": "emo_text"
+          },
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        },
+        {
+          "dir": null,
+          "link": null,
+          "name": "use_random",
+          "type": "BOOLEAN",
+          "label": "use_random",
+          "shape": 7,
+          "locked": null,
+          "widget": {
+            "name": "use_random"
+          },
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        },
+        {
+          "dir": null,
+          "link": null,
+          "name": "emo_alpha_s2",
+          "type": "FLOAT",
+          "label": "emo_alpha_s2",
+          "shape": 7,
+          "locked": null,
+          "widget": {
+            "name": "emo_alpha_s2"
+          },
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        },
+        {
+          "dir": null,
+          "link": null,
+          "name": "emo_vector_s2",
+          "type": "STRING",
+          "label": "emo_vector_s2",
+          "shape": 7,
+          "locked": null,
+          "widget": {
+            "name": "emo_vector_s2"
+          },
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        },
+        {
+          "dir": null,
+          "link": null,
+          "name": "use_emo_text_s2",
+          "type": "BOOLEAN",
+          "label": "use_emo_text_s2",
+          "shape": 7,
+          "locked": null,
+          "widget": {
+            "name": "use_emo_text_s2"
+          },
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        },
+        {
+          "dir": null,
+          "link": null,
+          "name": "emo_text_s2",
+          "type": "STRING",
+          "label": "emo_text_s2",
+          "shape": 7,
+          "locked": null,
+          "widget": {
+            "name": "emo_text_s2"
+          },
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        },
+        {
+          "dir": null,
+          "link": null,
+          "name": "use_random_s2",
+          "type": "BOOLEAN",
+          "label": "use_random_s2",
+          "shape": 7,
+          "locked": null,
+          "widget": {
+            "name": "use_random_s2"
+          },
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        }
+      ],
+      "outputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "name": "audio",
+          "type": "AUDIO",
+          "label": "audio",
+          "links": [
+            14,
+            38
+          ],
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "slot_index": null
+        }
+      ],
+      "properties": {
+        "ver": "e88d59465f40f6bb3fce2590fad785faab1098de",
+        "cnr_id": "indextts-mw",
+        "Node name for S&R": "IndexTTS2Run",
+        "widget_ue_connectable": {}
+      },
+      "showAdvanced": null,
+      "widgets_values": [
+        30,
+        0.8,
+        0.8,
+        3,
+        1500,
+        120,
+        false,
+        false,
+        true,
+        1,
+        "",
+        false,
+        "",
+        false,
+        1,
+        "",
+        false,
+        "",
+        false
+      ]
+    },
+    {
+      "id": 39,
+      "pos": [
+        1971.117431640625,
+        337.1947326660156
+      ],
+      "mode": 0,
+      "size": [
+        270,
+        136
+      ],
+      "type": "SaveAudioMP3",
+      "flags": {},
+      "order": 7,
+      "inputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "link": 38,
+          "name": "audio",
+          "type": "AUDIO",
+          "label": "audio",
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        },
+        {
+          "dir": null,
+          "link": null,
+          "name": "filename_prefix",
+          "type": "STRING",
+          "label": "filename_prefix",
+          "shape": null,
+          "locked": null,
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        },
+        {
+          "dir": null,
+          "link": null,
+          "name": "quality",
+          "type": "COMBO",
+          "label": "quality",
+          "shape": null,
+          "locked": null,
+          "widget": {
+            "name": "quality"
+          },
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        },
+        {
+          "dir": null,
+          "link": null,
+          "name": "audioUI",
+          "type": "AUDIO_UI",
+          "label": "audioUI",
+          "shape": null,
+          "locked": null,
+          "widget": {
+            "name": "audioUI"
+          },
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "ver": "0.24.0",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "SaveAudioMP3",
+        "widget_ue_connectable": {}
+      },
+      "showAdvanced": null,
+      "widgets_values": [
+        "RunComfy_examples_1447_output_mp3",
+        "V0"
+      ]
+    },
+    {
+      "id": 38,
+      "pos": [
+        1215.939453125,
+        664.455810546875
+      ],
+      "mode": 0,
+      "size": [
+        270,
+        82
+      ],
+      "type": "AudioCrop",
+      "color": "#222",
+      "flags": {},
+      "order": 3,
+      "inputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "link": 34,
+          "name": "audio",
+          "type": "AUDIO",
+          "label": "audio",
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        },
+        {
+          "dir": null,
+          "link": null,
+          "name": "start_time",
+          "type": "STRING",
+          "label": "start_time",
+          "shape": null,
+          "locked": null,
+          "widget": {
+            "name": "start_time"
+          },
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        },
+        {
+          "dir": null,
+          "link": null,
+          "name": "end_time",
+          "type": "STRING",
+          "label": "end_time",
+          "shape": null,
+          "locked": null,
+          "widget": {
+            "name": "end_time"
+          },
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        }
+      ],
+      "bgcolor": "#000",
+      "outputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "name": "AUDIO",
+          "type": "AUDIO",
+          "label": "AUDIO",
+          "links": [
+            35
+          ],
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "slot_index": null
+        }
+      ],
+      "properties": {
+        "ver": "ac339561973f0c1e56db2f9d40f11b0fddda6763",
+        "cnr_id": "audio-separation-nodes-comfyui",
+        "Node name for S&R": "AudioCrop",
+        "widget_ue_connectable": {}
+      },
+      "showAdvanced": null,
+      "widgets_values": [
+        "0:00",
+        "0:12"
+      ]
+    },
+    {
+      "id": 37,
+      "pos": [
+        1242.441162109375,
+        182.95523071289062
+      ],
+      "mode": 0,
+      "size": [
+        270,
+        82
+      ],
+      "type": "AudioCrop",
+      "color": "#222",
+      "flags": {},
+      "order": 4,
+      "inputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "link": 32,
+          "name": "audio",
+          "type": "AUDIO",
+          "label": "audio",
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        },
+        {
+          "dir": null,
+          "link": null,
+          "name": "start_time",
+          "type": "STRING",
+          "label": "start_time",
+          "shape": null,
+          "locked": null,
+          "widget": {
+            "name": "start_time"
+          },
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        },
+        {
+          "dir": null,
+          "link": null,
+          "name": "end_time",
+          "type": "STRING",
+          "label": "end_time",
+          "shape": null,
+          "locked": null,
+          "widget": {
+            "name": "end_time"
+          },
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        }
+      ],
+      "bgcolor": "#000",
+      "outputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "name": "AUDIO",
+          "type": "AUDIO",
+          "label": "AUDIO",
+          "links": [
+            33
+          ],
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "slot_index": null
+        }
+      ],
+      "properties": {
+        "ver": "ac339561973f0c1e56db2f9d40f11b0fddda6763",
+        "cnr_id": "audio-separation-nodes-comfyui",
+        "Node name for S&R": "AudioCrop",
+        "widget_ue_connectable": {}
+      },
+      "showAdvanced": null,
+      "widgets_values": [
+        "0:00",
+        "0:12"
+      ]
+    },
+    {
+      "id": 13,
+      "pos": [
+        860.6049194335938,
+        201.37646484375
+      ],
+      "mode": 0,
+      "size": [
+        331.81622314453125,
+        143.72703552246094
+      ],
+      "type": "LoadAudio",
+      "flags": {},
+      "order": 2,
+      "inputs": [
+        {
+          "dir": null,
+          "link": null,
+          "name": "audio",
+          "type": "COMBO",
+          "label": null,
+          "shape": null,
+          "locked": null,
+          "widget": {
+            "name": "audio"
+          },
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        },
+        {
+          "dir": null,
+          "link": null,
+          "name": "audioUI",
+          "type": "AUDIO_UI",
+          "label": null,
+          "shape": null,
+          "locked": null,
+          "widget": {
+            "name": "audioUI"
+          },
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        },
+        {
+          "dir": null,
+          "link": null,
+          "name": "upload",
+          "type": "AUDIOUPLOAD",
+          "label": null,
+          "shape": null,
+          "locked": null,
+          "widget": {
+            "name": "upload"
+          },
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        }
+      ],
+      "outputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "name": "AUDIO",
+          "type": "AUDIO",
+          "label": "Audio",
+          "links": [
+            32
+          ],
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "slot_index": null
+        }
+      ],
+      "properties": {
+        "ver": "0.24.0",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "LoadAudio",
+        "widget_ue_connectable": {}
+      },
+      "showAdvanced": null,
+      "widgets_values": [
+        "RunComfy_examples_1447_reference.mp3",
+        null,
+        null
+      ]
+    }
+  ],
+  "config": {},
+  "groups": [
+    {
+      "id": 7,
+      "color": "#3f789e",
+      "flags": {},
+      "title": "Emotion Control: Use Emotion Reference Audio",
+      "bounding": [
+        811.315185546875,
+        60.278106689453125,
+        1294.4844970703125,
+        827.7997436523438
+      ]
+    },
+    {
+      "id": 4,
+      "color": "#3f789e",
+      "flags": {},
+      "title": "Upload Voice Reference Audio",
+      "bounding": [
+        850.6050415039062,
+        127.77696990966797,
+        366.16632080078125,
+        230.63861083984375
+      ]
+    },
+    {
+      "id": 5,
+      "color": "#3f789e",
+      "flags": {},
+      "title": "Upload Text",
+      "bounding": [
+        865.5551147460938,
+        378.1901550292969,
+        363.6363525390625,
+        237.23635864257812
+      ]
+    },
+    {
+      "id": 6,
+      "color": "#3f789e",
+      "flags": {},
+      "title": "Upload Emotion Reference Audio",
+      "bounding": [
+        868.6166381835938,
+        644.9718017578125,
+        363.9586486816406,
+        225.1193084716797
+      ]
+    }
+  ],
+  "version": 0.4,
+  "revision": 0,
+  "definitions": null,
+  "last_link_id": 38,
+  "last_node_id": 39,
+  "floatingLinks": null
+}

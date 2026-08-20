@@ -1,0 +1,1061 @@
+{
+  "id": "cf673cd9-db9b-4ca8-a4a2-fe1d993db0c9",
+  "extra": {
+    "ds": {
+      "scale": 0.7513148009015777,
+      "offset": [
+        89.51370727108673,
+        -23.344998885642497
+      ]
+    },
+    "reroutes": null,
+    "frontendVersion": "1.42.12"
+  },
+  "links": [
+    [
+      1,
+      1,
+      0,
+      2,
+      0,
+      "MOSS_TTS_PIPE"
+    ],
+    [
+      2,
+      2,
+      0,
+      3,
+      0,
+      "AUDIO"
+    ],
+    [
+      3,
+      6,
+      0,
+      7,
+      0,
+      "AUDIO"
+    ],
+    [
+      4,
+      4,
+      0,
+      6,
+      1,
+      "AUDIO"
+    ],
+    [
+      5,
+      5,
+      0,
+      6,
+      0,
+      "MOSS_TTS_PIPE"
+    ],
+    [
+      6,
+      8,
+      0,
+      9,
+      0,
+      "MOSS_TTS_PIPE"
+    ],
+    [
+      7,
+      9,
+      0,
+      10,
+      0,
+      "AUDIO"
+    ],
+    [
+      8,
+      11,
+      0,
+      12,
+      0,
+      "MOSS_TTS_PIPE"
+    ],
+    [
+      9,
+      12,
+      0,
+      13,
+      0,
+      "AUDIO"
+    ],
+    [
+      10,
+      14,
+      0,
+      15,
+      0,
+      "MOSS_TTS_PIPE"
+    ],
+    [
+      11,
+      15,
+      0,
+      16,
+      0,
+      "AUDIO"
+    ]
+  ],
+  "nodes": [
+    {
+      "id": 11,
+      "pos": [
+        2202.5535191864146,
+        1415.5843192563182
+      ],
+      "mode": 2,
+      "size": [
+        270,
+        106
+      ],
+      "type": "MossTTSModelLoader",
+      "flags": {},
+      "order": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "name": "MOSS_TTS_PIPE",
+          "type": "MOSS_TTS_PIPE",
+          "label": null,
+          "links": [
+            8
+          ],
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "slot_index": null
+        }
+      ],
+      "properties": {
+        "ver": "84d097e1fd52155f6c54affbcdc6900648254988",
+        "aux_id": "richservo/comfyui-moss-tts",
+        "Node name for S&R": "MossTTSModelLoader"
+      },
+      "showAdvanced": null,
+      "widgets_values": [
+        "MOSS-SoundEffect",
+        "",
+        ""
+      ]
+    },
+    {
+      "id": 1,
+      "pos": [
+        364.33343505859375,
+        490.33331298828125
+      ],
+      "mode": 0,
+      "size": [
+        377.33331298828125,
+        119.33331298828125
+      ],
+      "type": "MossTTSModelLoader",
+      "flags": {},
+      "order": 1,
+      "inputs": [],
+      "outputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "name": "MOSS_TTS_PIPE",
+          "type": "MOSS_TTS_PIPE",
+          "label": null,
+          "links": [
+            1
+          ],
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "slot_index": null
+        }
+      ],
+      "properties": {
+        "ver": "84d097e1fd52155f6c54affbcdc6900648254988",
+        "aux_id": "richservo/comfyui-moss-tts",
+        "Node name for S&R": "MossTTSModelLoader"
+      },
+      "showAdvanced": null,
+      "widgets_values": [
+        "MOSS-TTS (Local 1.7B)",
+        "",
+        ""
+      ]
+    },
+    {
+      "id": 14,
+      "pos": [
+        414.62132699897046,
+        2218.8737963936583
+      ],
+      "mode": 2,
+      "size": [
+        270,
+        106
+      ],
+      "type": "MossTTSModelLoader",
+      "flags": {},
+      "order": 2,
+      "inputs": [],
+      "outputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "name": "MOSS_TTS_PIPE",
+          "type": "MOSS_TTS_PIPE",
+          "label": null,
+          "links": [
+            10
+          ],
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "slot_index": null
+        }
+      ],
+      "properties": {
+        "ver": "84d097e1fd52155f6c54affbcdc6900648254988",
+        "aux_id": "richservo/comfyui-moss-tts",
+        "Node name for S&R": "MossTTSModelLoader"
+      },
+      "showAdvanced": null,
+      "widgets_values": [
+        "MOSS-TTSD v1.0",
+        "",
+        ""
+      ]
+    },
+    {
+      "id": 8,
+      "pos": [
+        368.80890382262373,
+        1578.5709499852305
+      ],
+      "mode": 2,
+      "size": [
+        270,
+        106
+      ],
+      "type": "MossTTSModelLoader",
+      "flags": {},
+      "order": 3,
+      "inputs": [],
+      "outputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "name": "MOSS_TTS_PIPE",
+          "type": "MOSS_TTS_PIPE",
+          "label": null,
+          "links": [
+            6
+          ],
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "slot_index": null
+        }
+      ],
+      "properties": {
+        "ver": "84d097e1fd52155f6c54affbcdc6900648254988",
+        "aux_id": "richservo/comfyui-moss-tts",
+        "Node name for S&R": "MossTTSModelLoader"
+      },
+      "showAdvanced": null,
+      "widgets_values": [
+        "MOSS-VoiceGenerator",
+        "",
+        ""
+      ]
+    },
+    {
+      "id": 5,
+      "pos": [
+        2156.0876997157015,
+        713.1601347565136
+      ],
+      "mode": 2,
+      "size": [
+        270,
+        106
+      ],
+      "type": "MossTTSModelLoader",
+      "flags": {},
+      "order": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "name": "MOSS_TTS_PIPE",
+          "type": "MOSS_TTS_PIPE",
+          "label": null,
+          "links": [
+            5
+          ],
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "slot_index": null
+        }
+      ],
+      "properties": {
+        "ver": "84d097e1fd52155f6c54affbcdc6900648254988",
+        "aux_id": "richservo/comfyui-moss-tts",
+        "Node name for S&R": "MossTTSModelLoader"
+      },
+      "showAdvanced": null,
+      "widgets_values": [
+        "MOSS-TTS (Local 1.7B)",
+        "",
+        ""
+      ]
+    },
+    {
+      "id": 9,
+      "pos": [
+        858.7603337642742,
+        1420.5616451758438
+      ],
+      "mode": 2,
+      "size": [
+        400,
+        382
+      ],
+      "type": "MossTTSVoiceDesign",
+      "flags": {},
+      "order": 9,
+      "inputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "link": 6,
+          "name": "moss_pipe",
+          "type": "MOSS_TTS_PIPE",
+          "label": null,
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        }
+      ],
+      "outputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "name": "audio",
+          "type": "AUDIO",
+          "label": null,
+          "links": [
+            7
+          ],
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "slot_index": null
+        }
+      ],
+      "properties": {
+        "ver": "84d097e1fd52155f6c54affbcdc6900648254988",
+        "aux_id": "richservo/comfyui-moss-tts",
+        "Node name for S&R": "MossTTSVoiceDesign"
+      },
+      "showAdvanced": null,
+      "widgets_values": [
+        "auto",
+        "Hi, everyone. This is just a test.",
+        "A warm, deep male voice with a slight British accent",
+        2,
+        "fixed",
+        1.5,
+        0.6,
+        50,
+        1.1,
+        4096,
+        0,
+        0
+      ]
+    },
+    {
+      "id": 10,
+      "pos": [
+        1448.2361898492356,
+        1544.6908418577286
+      ],
+      "mode": 2,
+      "size": [
+        270,
+        88
+      ],
+      "type": "PreviewAudio",
+      "flags": {},
+      "order": 14,
+      "inputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "link": 7,
+          "name": "audio",
+          "type": "AUDIO",
+          "label": null,
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "ver": "0.19.3",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "PreviewAudio"
+      },
+      "showAdvanced": null,
+      "widgets_values": []
+    },
+    {
+      "id": 15,
+      "pos": [
+        877.4594251740189,
+        2199.2883185921464
+      ],
+      "mode": 2,
+      "size": [
+        400,
+        464
+      ],
+      "type": "MossTTSDialogue",
+      "flags": {},
+      "order": 8,
+      "inputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "link": 10,
+          "name": "moss_pipe",
+          "type": "MOSS_TTS_PIPE",
+          "label": null,
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        },
+        {
+          "dir": null,
+          "pos": null,
+          "link": null,
+          "name": "s1_reference_audio",
+          "type": "AUDIO",
+          "label": null,
+          "shape": 7,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        },
+        {
+          "dir": null,
+          "pos": null,
+          "link": null,
+          "name": "s2_reference_audio",
+          "type": "AUDIO",
+          "label": null,
+          "shape": 7,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        }
+      ],
+      "outputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "name": "audio",
+          "type": "AUDIO",
+          "label": null,
+          "links": [
+            11
+          ],
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "slot_index": null
+        }
+      ],
+      "properties": {
+        "ver": "84d097e1fd52155f6c54affbcdc6900648254988",
+        "aux_id": "richservo/comfyui-moss-tts",
+        "Node name for S&R": "MossTTSDialogue"
+      },
+      "showAdvanced": null,
+      "widgets_values": [
+        "auto",
+        "[S1] Hello, how are you today?\n[S2] I'm doing great, thanks for asking!\n[S1] That's wonderful to hear.",
+        2,
+        true,
+        5,
+        "fixed",
+        1.1,
+        0.9,
+        50,
+        1.1,
+        4096,
+        0,
+        0,
+        "",
+        ""
+      ]
+    },
+    {
+      "id": 16,
+      "pos": [
+        1525.4640451740204,
+        2243.308794195173
+      ],
+      "mode": 2,
+      "size": [
+        270,
+        88
+      ],
+      "type": "PreviewAudio",
+      "flags": {},
+      "order": 13,
+      "inputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "link": 11,
+          "name": "audio",
+          "type": "AUDIO",
+          "label": null,
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "ver": "0.19.3",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "PreviewAudio"
+      },
+      "showAdvanced": null,
+      "widgets_values": []
+    },
+    {
+      "id": 2,
+      "pos": [
+        842.0001220703125,
+        478.3333740234375
+      ],
+      "mode": 0,
+      "size": [
+        400,
+        396
+      ],
+      "type": "MossTTSGenerate",
+      "flags": {},
+      "order": 7,
+      "inputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "link": 1,
+          "name": "moss_pipe",
+          "type": "MOSS_TTS_PIPE",
+          "label": null,
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        },
+        {
+          "dir": null,
+          "pos": null,
+          "link": null,
+          "name": "reference_audio",
+          "type": "AUDIO",
+          "label": null,
+          "shape": 7,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        }
+      ],
+      "outputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "name": "audio",
+          "type": "AUDIO",
+          "label": null,
+          "links": [
+            2
+          ],
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "slot_index": null
+        }
+      ],
+      "properties": {
+        "ver": "84d097e1fd52155f6c54affbcdc6900648254988",
+        "aux_id": "richservo/comfyui-moss-tts",
+        "Node name for S&R": "MossTTSGenerate"
+      },
+      "showAdvanced": null,
+      "widgets_values": [
+        "auto",
+        "Hi, everyone. This is just a test.",
+        2,
+        "fixed",
+        1.7,
+        0.8,
+        25,
+        1,
+        4096,
+        false,
+        325,
+        0,
+        0
+      ]
+    },
+    {
+      "id": 3,
+      "pos": [
+        1377.666748046875,
+        492.3333740234375
+      ],
+      "mode": 0,
+      "size": [
+        270,
+        88
+      ],
+      "type": "PreviewAudio",
+      "flags": {},
+      "order": 12,
+      "inputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "link": 2,
+          "name": "audio",
+          "type": "AUDIO",
+          "label": null,
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "ver": "0.19.3",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "PreviewAudio"
+      },
+      "showAdvanced": null,
+      "widgets_values": []
+    },
+    {
+      "id": 6,
+      "pos": [
+        2655.9361660686855,
+        457.40252200793475
+      ],
+      "mode": 2,
+      "size": [
+        400,
+        396
+      ],
+      "type": "MossTTSGenerate",
+      "flags": {},
+      "order": 10,
+      "inputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "link": 5,
+          "name": "moss_pipe",
+          "type": "MOSS_TTS_PIPE",
+          "label": null,
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        },
+        {
+          "dir": null,
+          "pos": null,
+          "link": 4,
+          "name": "reference_audio",
+          "type": "AUDIO",
+          "label": null,
+          "shape": 7,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        }
+      ],
+      "outputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "name": "audio",
+          "type": "AUDIO",
+          "label": null,
+          "links": [
+            3
+          ],
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "slot_index": null
+        }
+      ],
+      "properties": {
+        "ver": "84d097e1fd52155f6c54affbcdc6900648254988",
+        "aux_id": "richservo/comfyui-moss-tts",
+        "Node name for S&R": "MossTTSGenerate"
+      },
+      "showAdvanced": null,
+      "widgets_values": [
+        "auto",
+        "Hi, everyone. This is just a test.",
+        609141229659846,
+        "fixed",
+        1.7,
+        0.8,
+        25,
+        1,
+        4096,
+        false,
+        325,
+        0,
+        0
+      ]
+    },
+    {
+      "id": 7,
+      "pos": [
+        3160.330031480618,
+        475.58434018975197
+      ],
+      "mode": 2,
+      "size": [
+        270,
+        88
+      ],
+      "type": "PreviewAudio",
+      "flags": {},
+      "order": 15,
+      "inputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "link": 3,
+          "name": "audio",
+          "type": "AUDIO",
+          "label": null,
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "ver": "0.19.3",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "PreviewAudio"
+      },
+      "showAdvanced": null,
+      "widgets_values": []
+    },
+    {
+      "id": 12,
+      "pos": [
+        2613.518401861443,
+        1395.6772334594698
+      ],
+      "mode": 2,
+      "size": [
+        400,
+        328
+      ],
+      "type": "MossTTSSoundEffect",
+      "flags": {},
+      "order": 6,
+      "inputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "link": 8,
+          "name": "moss_pipe",
+          "type": "MOSS_TTS_PIPE",
+          "label": null,
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        }
+      ],
+      "outputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "name": "audio",
+          "type": "AUDIO",
+          "label": null,
+          "links": [
+            9
+          ],
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "slot_index": null
+        }
+      ],
+      "properties": {
+        "ver": "84d097e1fd52155f6c54affbcdc6900648254988",
+        "aux_id": "richservo/comfyui-moss-tts",
+        "Node name for S&R": "MossTTSSoundEffect"
+      },
+      "showAdvanced": null,
+      "widgets_values": [
+        "Heavy rain on a tin roof with distant thunder",
+        5,
+        6,
+        "fixed",
+        1.5,
+        0.6,
+        50,
+        1.2,
+        4096,
+        0,
+        0
+      ]
+    },
+    {
+      "id": 13,
+      "pos": [
+        3168.1651669981607,
+        1410.1971596069293
+      ],
+      "mode": 2,
+      "size": [
+        270,
+        88
+      ],
+      "type": "PreviewAudio",
+      "flags": {},
+      "order": 11,
+      "inputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "link": 9,
+          "name": "audio",
+          "type": "AUDIO",
+          "label": null,
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "ver": "0.19.3",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "PreviewAudio"
+      },
+      "showAdvanced": null,
+      "widgets_values": []
+    },
+    {
+      "id": 4,
+      "pos": [
+        2170.2942260385,
+        460.37224302178333
+      ],
+      "mode": 2,
+      "size": [
+        282.798828125,
+        136
+      ],
+      "type": "LoadAudio",
+      "flags": {},
+      "order": 5,
+      "inputs": [],
+      "outputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "name": "AUDIO",
+          "type": "AUDIO",
+          "label": null,
+          "links": [
+            4
+          ],
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "slot_index": null
+        }
+      ],
+      "properties": {
+        "ver": "0.19.3",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "LoadAudio"
+      },
+      "showAdvanced": null,
+      "widgets_values": [
+        "RunComfy_examples_1401_1.mp3",
+        null,
+        null
+      ]
+    }
+  ],
+  "config": {},
+  "groups": [
+    {
+      "id": 1,
+      "color": "#3f789e",
+      "flags": {},
+      "title": "Basic TTS",
+      "bounding": [
+        334.7793727848691,
+        329.9249420932188,
+        1420.5994070922852,
+        579.7461929077151
+      ],
+      "font_size": 24
+    },
+    {
+      "id": 2,
+      "color": "#3f789e",
+      "flags": {},
+      "title": "Voice Cloning",
+      "bounding": [
+        2093.757364838995,
+        315.5361018294795,
+        1398.1499929077152,
+        617.8127035461425
+      ],
+      "font_size": 24
+    },
+    {
+      "id": 3,
+      "color": "#3f789e",
+      "flags": {},
+      "title": "Voice Design",
+      "bounding": [
+        305.45384382986066,
+        1277.4038853641505,
+        1492,
+        595.3333740234375
+      ],
+      "font_size": 24
+    },
+    {
+      "id": 4,
+      "color": "#3f789e",
+      "flags": {},
+      "title": "Sound Effects",
+      "bounding": [
+        2095.8382541815886,
+        1275.5922955425233,
+        1414.4501156030274,
+        625.4259878015139
+      ],
+      "font_size": 24
+    },
+    {
+      "id": 5,
+      "color": "#3f789e",
+      "flags": {},
+      "title": "Multi-Speaker Dialogue",
+      "bounding": [
+        292.7630955230342,
+        2077.98922269388,
+        1584.7788579400003,
+        630.1877073438145
+      ],
+      "font_size": 24
+    }
+  ],
+  "version": 0.4,
+  "revision": 0,
+  "definitions": null,
+  "last_link_id": 11,
+  "last_node_id": 16,
+  "floatingLinks": null
+}
