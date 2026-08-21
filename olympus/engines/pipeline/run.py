@@ -36,6 +36,7 @@ from pipeline import (  # noqa: E402
     stage5_assembly,
     stage_vlm_review,
     stage_critique,
+    labeling,
 )
 from pipeline.blueprint import (  # noqa: E402
     STAGE_ORDER,
@@ -161,10 +162,17 @@ def run_stage(
             "stage5": stage5_assembly.run,
         }
         if stage == "stage3b":
-            return dispatch[stage](project_dir, cfg, scores)
+            result = dispatch[stage](project_dir, cfg, scores)
+            # Panels produced -> refresh the human-readable labels index.
+            labeling.write_labels(project_dir)
+            return result
         if stage == "stage4":
             return dispatch[stage](project_dir, cfg, scores, force=bool(force))
-        return dispatch[stage](project_dir, cfg, scores)
+        result = dispatch[stage](project_dir, cfg, scores)
+        if stage in ("stage3c", "stage_vlm_review"):
+            # Clips produced/edited -> refresh the labels index (panels + clips).
+            labeling.write_labels(project_dir)
+        return result
     finally:
         scores.close()
 
