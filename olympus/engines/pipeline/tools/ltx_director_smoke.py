@@ -22,7 +22,7 @@ sys.path.insert(0, str(ENGINE_ROOT))
 from pipeline.comfy_client import ComfyClient, ComfyError, ContingencyStop  # noqa: E402
 from pipeline.config import PipelineConfig  # noqa: E402
 
-_FRAMES = 33
+_FRAMES = 97  # 4s @24fps (LTX 8n+1 latent rule) -- matches stage3c _DIRECTOR_FRAMES
 _FPS = 24
 _STEPS = 8
 _CFG = 1.0

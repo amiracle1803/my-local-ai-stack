@@ -57,8 +57,15 @@ segment_lengths = "0,<F>,0"
 guide_strength  = "1.0"
 ```
 This matches the aether-pipeline-v2 STAGE 3 (V2V Director) format exactly.
-`F = _DIRECTOR_FRAMES = 33`; `duration_frames`/`end_frame` patched together via
-the `FRAMES` patchable so the auto-generated latent is `33` pixel frames.
+`F = _DIRECTOR_FRAMES = 97`; `duration_frames`/`end_frame` patched together via
+the `FRAMES` patchable so the auto-generated latent is `97` pixel frames
+(`97f @24fps = 4s`, LTX `8n+1` latent rule).
+
+End-of-clip blur is handled **natively** by the tiled decode node's
+`last_frame_fix` (set `true` in `ltx_director_23.json`), which repeats the last
+latent frame through the VAE — zero extra GPU render. A separate img2img END
+keyframe was trialed but reverted (doubles GPU cost per shot on 8GB and breaks
+the one-render-per-shot stage3c contract).
 
 ## Template graph (ltx_director_23.json) — grounded in live /object_info
 Reuses the proven 8GB LTX-2.3 22B stack from `video_i2v_ltx_23b_8gb.json`:
@@ -79,10 +86,12 @@ LTXVSpatioTemporalTiledVAEDecode(11) -> VHS_VideoCombine(12)
 Outputs are collected via the standard `ComfyClient._collect` (VHS `gifs`).
 
 ## Verified result
-Fresh render (sh-001-02, seed 12345): **544x320, 41 frames @24fps, 1.7s,
-~44s wall**, `motion_verified=True` (axis=scene). First-ever director clip to
-pass the pipeline's optical-flow motion gate. The earlier 33-frame seed-42 run
-also passed (scene axis).
+Re-validated 2026-08-21 with the 97-frame (4s) + `last_frame_fix` config:
+**576x320, 97 frames @24fps, 4.0s, ~168s wall, `motion_verified=True`
+(axis=scene, scene_speed 1.79px)**, re-render of `sh-001-02` seed 12345. The
+original 33-frame run (41 frames, 1.7s, ~44s wall) also passed the optical-flow
+gate — the 97f config keeps motion while eliminating end-of-clip blur via
+`last_frame_fix`. Gate marker `.ltx_director_smoke_passed` refreshed.
 
 ## Deferred / not wired (by decision)
 - **IC-LoRA (LoRA) step skipped for now.** The `LTXDirectorGuide` `ic_lora_name`

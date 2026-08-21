@@ -85,11 +85,11 @@
     0
    ],
    "start_second": 0.0,
-   "end_second": 1.375,
-   "duration_seconds": 1.375,
+   "end_second": 4.042,
+   "duration_seconds": 4.042,
    "start_frame": 0,
-   "end_frame": 33,
-   "duration_frames": 33,
+   "end_frame": 97,
+   "duration_frames": 97,
    "timeline_data": "PATCH_TIMELINE",
    "local_prompts": "PATCH_LOCAL_PROMPTS",
    "segment_lengths": "PATCH_SEGMENT_LENGTHS",
@@ -277,7 +277,7 @@
    "spatial_overlap": 2,
    "temporal_tile_length": 32,
    "temporal_overlap": 4,
-   "last_frame_fix": false,
+   "last_frame_fix": true,
    "working_device": "cpu",
    "working_dtype": "float16"
   }

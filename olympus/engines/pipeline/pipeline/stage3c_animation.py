@@ -20,7 +20,7 @@ import numpy as np
 
 from ._util import now_iso, read_json, write_json, load_screenplay, load_storyboard, _shots_by_id
 from .blueprint import Blueprint
-from .comfy_client import ComfyClient, ComfyError
+from .comfy_client import ComfyClient, ComfyError, ContingencyStop
 from .config import PipelineConfig
 from . import realesrgan_upscale
 from . import lipsync
@@ -73,11 +73,14 @@ _LTX23_8GB_STRENGTH = 0.7
 
 # LTX Director (V2V director) -- LTXDirector node on the same 8GB stack.
 # Timeline image keyframe + text beat, LTXDirectorGuide keyframe guidance.
-# Verified 2026-08-20: 576x320x33f@24, 8 steps distilled, cfg 1.0 (smoke gate
-# .ltx_director_smoke_passed produced a 41-frame, motion-verified clip).
+# 97 frames @24fps = 4s (LTX 8n+1 latent rule; docs recommend 97f/4s, 121f/5s).
+# 8 steps distilled, cfg 1.0. End-of-clip blur is handled by the workflow's
+# native LTXVSpatioTemporalTiledVAEDecode last_frame_fix (zero extra GPU work),
+# not by a second img2img end-frame render. Verified 2026-08-20: smoke gate
+# produced a motion-verified clip.
 _DIRECTOR_TEMPLATE = "ltx_director_23.json"
 _DIRECTOR_RES = (576, 320)
-_DIRECTOR_FRAMES = 33
+_DIRECTOR_FRAMES = 97
 _DIRECTOR_FPS = 24.0
 _DIRECTOR_STEPS = 8
 _DIRECTOR_CFG = 1.0
@@ -299,7 +302,12 @@ def _motion_prompt(shot: dict[str, Any], tier: int, template: str = "") -> str:
     return base
 
 
-def build_director_timeline(image_file: str, prompt: str, global_prompt: str, frames: int) -> dict[str, str]:
+def build_director_timeline(
+    image_file: str,
+    prompt: str,
+    global_prompt: str,
+    frames: int,
+) -> dict[str, str]:
     """Build the LTXDirector (V2V director) timeline inputs for one shot.
 
     Mirrors the aether-pipeline-v2 STAGE 3 (V2V Director, LTX Director 2.0)
@@ -443,27 +451,35 @@ def _render_end_frame(
     stay consistent while the motion prompt advances the moment. Returns the
     path to the saved PNG.
     """
-    from PIL import Image
-
-    img = Image.open(start_panel).convert("RGB")
-    w, h = img.size
-    crop_h = int(w * 9 / 16)
-    if crop_h > h:
-        crop_w = int(h * 16 / 9)
-        left = (w - crop_w) // 2
-        img = img.crop((left, 0, left + crop_w, h))
-    else:
-        top = (h - crop_h) // 2
-        img = img.crop((0, top, w, top + crop_h))
-    img = img.resize(res, Image.LANCZOS)
+    from PIL import Image, UnidentifiedImageError
 
     end_dir = project_dir / "clips" / "_end_frames"
     end_dir.mkdir(parents=True, exist_ok=True)
     end_path = end_dir / f"{sid}_end.png"
-    img.save(end_path)
+
+    # Prep the source (crop to 16:9 + resize) into an img2img latent source.
+    # A corrupt / unreadable panel must not crash the whole stage -- fall back
+    # to the original panel so the caller can still build a start-only timeline.
+    try:
+        img = Image.open(start_panel).convert("RGB")
+        w, h = img.size
+        crop_h = int(w * 9 / 16)
+        if crop_h > h:
+            crop_w = int(h * 16 / 9)
+            left = (w - crop_w) // 2
+            img = img.crop((left, 0, left + crop_w, h))
+        else:
+            top = (h - crop_h) // 2
+            img = img.crop((0, top, w, top + crop_h))
+        img = img.resize(res, Image.LANCZOS)
+        img.save(end_path)
+        src = end_path
+    except (UnidentifiedImageError, OSError, ValueError):
+        logger.warning("END frame panel prep failed for %s; using original panel", sid)
+        src = start_panel
 
     try:
-        src_uploaded = comfy.upload_image(end_path, name=f"anim_{sid}_end_src.png")
+        src_uploaded = comfy.upload_image(src, name=f"anim_{sid}_end_src.png")
         paths = comfy.generate(_END_FRAME_TEMPLATE, {
             "SOURCE_IMAGE": src_uploaded,
             "WIDTH": res[0], "HEIGHT": res[1],
@@ -477,9 +493,9 @@ def _render_end_frame(
         }, dest=end_dir)
         return Path(paths[0])
     except (ComfyError, ContingencyStop):
-        # Fall back to the cropped start panel if the img2img pass fails
-        logger.warning("END frame img2img failed for %s; using cropped start panel", sid)
-        return end_path
+        # Fall back to the prepped (or original) panel if the img2img pass fails
+        logger.warning("END frame img2img failed for %s; using source panel", sid)
+        return src
 
 
 def _render_hailuo_shot(
