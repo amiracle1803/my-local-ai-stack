@@ -159,6 +159,50 @@ def test_unique_preserving_order():
     ]
 
 
+def test_extract_quoted_spans():
+    text = 'Rei said "Stay behind me." Then she ran, whispering "go".'
+    assert stage0_dossier._extract_quoted_spans(text) == ["Stay behind me.", "go"]
+
+
+def test_norm_dialogue_strips_punctuation():
+    assert stage0_dossier._norm_dialogue("Tell her… I'm sorry.") == "tell her im sorry"
+
+
+def test_extract_dialogue_filters_narration(monkeypatch):
+    """Lines whose text is not inside quotes in the scene are narration leakage
+    and must be dropped."""
+    script = '--- [SCENE 1: Arrival] ---\n\nRei said "Stay behind me." Her breath hitched.\n'
+
+    class FakeLLM:
+        def complete_json(self, prompt_file, context, schema, **kwargs):
+            assert prompt_file == "s0d_dialogue.md"
+            return stage0_dossier._DialogueLines(
+                lines=[
+                    DialogueEntry(speaker="Rei", text="Stay behind me."),
+                    DialogueEntry(speaker="Rei", text="Her breath hitched."),
+                ]
+            )
+
+    lines = stage0_dossier.extract_dialogue(Path("/unused"), FakeLLM(), script)
+    assert [l.text for l in lines] == ["Stay behind me."]
+    assert all(l.scene_number == 1 for l in lines)
+
+
+def test_extract_dialogue_empty_when_no_quotes(monkeypatch):
+    """A scene with no quoted dialogue yields zero lines (no hallucinated
+    narrator/narration lines)."""
+    script = "--- [SCENE 1: Arrival] ---\n\nRei walked in silence.\n"
+
+    class FakeLLM:
+        def complete_json(self, prompt_file, context, schema, **kwargs):
+            return stage0_dossier._DialogueLines(
+                lines=[DialogueEntry(speaker="narrator", text="Something.")]
+            )
+
+    lines = stage0_dossier.extract_dialogue(Path("/unused"), FakeLLM(), script)
+    assert lines == []
+
+
 def test_script_hash_is_stable():
     a = stage0_dossier._script_hash("hello")
     b = stage0_dossier._script_hash("hello")
@@ -193,13 +237,16 @@ class _FakeLLM:
             )
         if prompt_file == "s0d_dialogue.md":
             return stage0_dossier._DialogueLines(
-                lines=[DialogueEntry(speaker="Rei", addressee="Mika", text="Hi.")]
+                lines=[DialogueEntry(speaker="Rei", addressee="Mika", text="Stay behind me.")]
             )
         raise AssertionError(f"unexpected prompt file: {prompt_file}")
 
 
 def _make_project(tmp_path: Path) -> Path:
-    script = "--- [SCENE 1: Arrival] ---\n\nRei and Mika walked into the Misty Forest.\n"
+    script = (
+        "--- [SCENE 1: Arrival] ---\n\n"
+        "Rei and Mika walked into the Misty Forest. Rei said \"Stay behind me.\"\n"
+    )
     project_dir = tmp_path / "proj"
     (project_dir / "input").mkdir(parents=True)
     (project_dir / "input" / "script.txt").write_text(script, encoding="utf-8")

@@ -80,8 +80,18 @@ def _seed_for(unit: str, variant: int = 0) -> int:
     return int(hashlib.sha256(f"{unit}:{variant}".encode()).hexdigest()[:12], 16)
 
 
-def _char_frames(role: str) -> list[tuple[str, int]]:
-    """(prompt_suffix, seed_variant) list -- 30 frames for mains, 10 for minors."""
+def _char_frames(char: Any) -> list[tuple[str, int]]:
+    """(prompt_suffix, seed_variant) list -- 30 frames for mains, 10 for minors.
+
+    Prefers the character's dossier-derived ``views`` (pose/expression/360
+    turnaround extracted at intake and merged into the world bible); falls back
+    to the role-based fixed set when the dossier provided none."""
+    if getattr(char, "views", None):
+        return [
+            (v.get("description") or v.get("angle") or "full body", 0)
+            for v in char.views
+        ]
+    role = char.role
     if (role or "").lower() in _MAIN_ROLES:
         frames = [(v, 0) for v in _TURNAROUND_VIEWS] + [(v, 1) for v in _TURNAROUND_VIEWS]
         frames += [(e, 0) for e in _EXPRESSIONS_MAIN]
@@ -244,7 +254,7 @@ def run(
     for char in wb.characters:
         ref_dir = project_dir / "worldbible" / "refs" / char.id
         ref_dir.mkdir(parents=True, exist_ok=True)
-        frames = _char_frames(char.role)
+        frames = _char_frames(char)
         manifest = []
         for i, (suffix, variant) in enumerate(frames):
             fname_prefix = f"pipeline/{project_dir.name}/refs/{char.id}/ref_{i:02d}"

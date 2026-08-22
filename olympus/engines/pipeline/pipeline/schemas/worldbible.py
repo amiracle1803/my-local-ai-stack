@@ -46,6 +46,21 @@ class Provenance(BaseModel):
     chunk_index: int
 
 
+class FamilyMember(BaseModel):
+    """One relative: name + relation (merged from the stage0 dossier)."""
+
+    name: str = ""
+    relation: str = ""  # e.g. "mother", "older brother", "adoptive father"
+
+
+class CharacterRelationship(BaseModel):
+    """One directed relationship edge to another character (from the dossier)."""
+
+    other_name: str = ""
+    type: str = ""  # e.g. "friend", "rival", "mentor", "romantic interest"
+    description: str = ""
+
+
 class Character(BaseModel):
     """Original spec Step 2 output schema (verbatim key fields)."""
 
@@ -72,6 +87,9 @@ class Character(BaseModel):
     family_background: str = ""
     general_background: str = ""
     friends: list[str] = Field(default_factory=list)
+    family: list[FamilyMember] = Field(default_factory=list)
+    relationships: list[CharacterRelationship] = Field(default_factory=list)
+    views: list[dict] = Field(default_factory=list)  # character pose/expression views [{angle, description}]
 
 
 class WorldBibleMeta(BaseModel):

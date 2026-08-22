@@ -7,10 +7,13 @@ from pathlib import Path
 
 from pipeline.schemas.dossier import (
     CharacterDossier,
+    CharacterView,
     DialogueEntry,
+    FamilyMember,
     Hair,
     LocationDossier,
     LocationView,
+    Relationship,
     SceneDossier,
     StoryDossier,
     StoryDossierMeta,
@@ -24,9 +27,9 @@ from pipeline.schemas.worldbible import (
     WorldBibleMeta,
 )
 from pipeline.stage1_worldbible import merge_dossier_characters
-from pipeline.stage1_world import merge_dossier_locations
+from pipeline.stage1_world import merge_dossier_locations, merge_dossier_relationships
 from pipeline.stage2_screenplay import _dossier_context
-from pipeline.stage1r_references import _location_views
+from pipeline.stage1r_references import _location_views, _char_frames
 
 
 def _write_dossier(project_dir: Path, dossier: StoryDossier) -> None:
@@ -123,6 +126,36 @@ def test_load_dossier_returns_none_when_missing(tmp_path):
     assert load_dossier(tmp_path) is None
 
 
+def test_merge_dossier_locations_matches_scene_title(tmp_path):
+    """A world-bible location named by scene title ("The Frozen Market") is
+    matched to the dossier location whose name is a prose description
+    ("winter market of Vrenhold") via the scene title -> location map."""
+    _write_dossier(
+        tmp_path,
+        StoryDossier(
+            scenes=[
+                SceneDossier(number=1, title="The Frozen Market", location="winter market of Vrenhold"),
+            ],
+            locations=[
+                LocationDossier(
+                    id="frozen", name="winter market of Vrenhold", season="winter",
+                    views_360=[LocationView(angle="north", description="snowy stalls")],
+                ),
+            ],
+            meta=StoryDossierMeta(),
+        ),
+    )
+    wb = WorldBible(
+        story_id="s",
+        locations=[Location(id="loc-x", name="The Frozen Market")],
+        meta=WorldBibleMeta(),
+    )
+    assert merge_dossier_locations(wb, tmp_path) == 1
+    loc = wb.locations[0]
+    assert loc.season == "winter"
+    assert loc.views and loc.angles
+
+
 # --------------------------------------------------------------------------
 # increment 2 -- 360-view asset node
 # --------------------------------------------------------------------------
@@ -176,3 +209,111 @@ def test_dossier_context_formats_scenes_and_dialogue():
 
 def test_dossier_context_none_placeholders():
     assert _dossier_context(StoryDossier()) == ("(none)", "(none)")
+
+
+# --------------------------------------------------------------------------
+# A/C -- family / relationships / character views
+# --------------------------------------------------------------------------
+
+
+def test_merge_dossier_characters_family_relationships_views(tmp_path):
+    _write_dossier(
+        tmp_path,
+        StoryDossier(
+            characters=[
+                CharacterDossier(
+                    name="Rei",
+                    family=[FamilyMember(name="Yuki", relation="sister")],
+                    relationships=[
+                        Relationship(other_name="Mika", type="friend", description="childhood friend"),
+                    ],
+                    views=[
+                        CharacterView(angle="front view", description="crimson hair front"),
+                        CharacterView(angle="back view", description="crimson hair back"),
+                    ],
+                ),
+            ],
+            meta=StoryDossierMeta(),
+        ),
+    )
+    wb = WorldBible(
+        story_id="s",
+        characters=[Character(id="rei", name="Rei"), Character(id="mika", name="Mika")],
+        meta=WorldBibleMeta(),
+    )
+    merge_dossier_characters(wb, tmp_path)
+    rei = wb.characters[0]
+    assert rei.family[0].name == "Yuki" and rei.family[0].relation == "sister"
+    assert rei.relationships[0].other_name == "Mika" and rei.relationships[0].type == "friend"
+    assert rei.views == [
+        {"angle": "front view", "description": "crimson hair front"},
+        {"angle": "back view", "description": "crimson hair back"},
+    ]
+
+
+def test_merge_dossier_relationships_seeds_web(tmp_path):
+    _write_dossier(
+        tmp_path,
+        StoryDossier(
+            characters=[
+                CharacterDossier(
+                    name="Rei",
+                    relationships=[
+                        Relationship(other_name="Mika", type="friend", description="childhood friend"),
+                    ],
+                ),
+            ],
+            meta=StoryDossierMeta(),
+        ),
+    )
+    wb = WorldBible(
+        story_id="s",
+        characters=[Character(id="rei", name="Rei"), Character(id="mika", name="Mika")],
+        meta=WorldBibleMeta(),
+    )
+    applied = merge_dossier_relationships(wb, tmp_path)
+    assert applied == 1
+    assert len(wb.relationships) == 1
+    edge = wb.relationships[0]
+    assert {edge["a"], edge["b"]} == {"rei", "mika"}
+    assert edge["type"] == "friend"
+    assert edge["notes"] == "childhood friend"
+    assert edge["provenance"] == {"source": "dossier"}
+
+
+def test_merge_dossier_relationships_skips_unresolved_names(tmp_path):
+    _write_dossier(
+        tmp_path,
+        StoryDossier(
+            characters=[
+                CharacterDossier(name="Rei", relationships=[Relationship(other_name="Ghost")]),
+            ],
+            meta=StoryDossierMeta(),
+        ),
+    )
+    wb = WorldBible(
+        story_id="s",
+        characters=[Character(id="rei", name="Rei")],
+        meta=WorldBibleMeta(),
+    )
+    assert merge_dossier_relationships(wb, tmp_path) == 0
+    assert wb.relationships == []
+
+
+def test_char_frames_prefers_dossier_views():
+    char = Character(
+        id="rei", name="Rei", role="protagonist",
+        views=[
+            {"angle": "front view", "description": "crimson hair front"},
+            {"angle": "resolute expression", "description": "resolute, blade raised"},
+        ],
+    )
+    frames = _char_frames(char)
+    assert [f[0] for f in frames] == ["crimson hair front", "resolute, blade raised"]
+
+
+def test_char_frames_falls_back_to_role_set():
+    minor = Character(id="m", name="M", role="ally")
+    assert len(_char_frames(minor)) == 10  # 8 turnaround + 2 expressions
+    main = Character(id="p", name="P", role="protagonist")
+    assert len(_char_frames(main)) == 30

@@ -138,6 +138,31 @@ def _unique_preserving_order(items: list[str]) -> list[str]:
     return out
 
 
+_QUOTE_PAIRS = (('"', '"'), ("“", "”"))
+
+
+def _extract_quoted_spans(text: str) -> list[str]:
+    """Every dialogue span wrapped in straight or curly quotes."""
+    spans: list[str] = []
+    for open_q, close_q in _QUOTE_PAIRS:
+        start = 0
+        while True:
+            i = text.find(open_q, start)
+            if i == -1:
+                break
+            j = text.find(close_q, i + 1)
+            if j == -1:
+                break
+            spans.append(text[i + 1 : j])
+            start = j + 1
+    return spans
+
+
+def _norm_dialogue(s: str) -> str:
+    """Lowercase, drop punctuation, collapse whitespace -- for quote matching."""
+    return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9 ]", "", s.lower())).strip()
+
+
 def _title_logline(project_dir: Path) -> tuple[str, str]:
     """Pull title/logline from the stage0 blueprint if it exists."""
     bp_path = project_dir / "stage0_blueprint.json"
@@ -226,7 +251,19 @@ def extract_dialogue(
             role="script",
             stage_hint=f"stage0d_dialogue{number}",
         )
+        # Post-filter: only keep lines whose text is actually inside quotes in
+        # the scene. The LLM otherwise reports narration ("Her breath hitched",
+        # "She dropped to her knees") -- and pure-narration scenes with no
+        # quoted dialogue produce zero lines, never hallucinated "narrator"
+        # lines. Dialogue == quoted spoken words only.
+        quoted = [q for q in _extract_quoted_spans(text) if q.strip()]
+        if not quoted:
+            continue  # no quoted dialogue in this scene -> no dialogue lines
+        quoted_norms = [_norm_dialogue(q) for q in quoted]
         for line in result.lines:
+            norm = _norm_dialogue(line.text)
+            if norm and not any(norm in qn for qn in quoted_norms if qn):
+                continue  # narration leakage, not a quoted line
             line.scene_number = number  # trust the marker, not the model
             lines.append(line)
     return lines

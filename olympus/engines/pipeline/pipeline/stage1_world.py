@@ -379,22 +379,39 @@ def merge_dossier_locations(wb: WorldBible, project_dir: Path) -> int:
     """Merge rich location fields (360 views, season, environment) from
     ``intake/dossier.json`` into the world bible's :class:`Location` records.
 
-    Matching is best-effort (case-insensitive exact, then substring) because
-    the dossier derives location names from scene dossiers while the world
-    bible infers them from the script + stage0 scene plan. Returns the number
+    Matching is best-effort: case-insensitive exact/substring on the location
+    name, then the dossier's scene TITLES (scene titles are often the location
+    name, e.g. "The Frozen Market", while the model may have written a prose
+    description as the location), then a fuzzy ratio >= 0.7. Returns the number
     of locations enriched.
     """
+    from difflib import SequenceMatcher
+
     from .schemas.dossier import load_dossier
 
     dossier = load_dossier(project_dir)
     if dossier is None:
         return 0
 
+    # Scene title -> location name (scene titles usually ARE the location).
+    title_to_loc = {
+        s.title.lower(): s.location.lower()
+        for s in dossier.scenes if s.title and s.location
+    }
+
     def match(name: str):
         n = name.lower()
         for d in dossier.locations:
             dn = d.name.lower()
             if dn == n or dn in n or n in dn:
+                return d
+        loc_name = title_to_loc.get(n)
+        if loc_name:
+            for d in dossier.locations:
+                if d.name.lower() == loc_name:
+                    return d
+        for d in dossier.locations:
+            if SequenceMatcher(None, d.name.lower(), n).ratio() >= 0.7:
                 return d
         return None
 
@@ -421,6 +438,55 @@ def merge_dossier_locations(wb: WorldBible, project_dir: Path) -> int:
         if changed:
             merged += 1
     return merged
+
+
+def merge_dossier_relationships(wb: WorldBible, project_dir: Path) -> int:
+    """Seed/enrich the world bible relationship web from the dossier's extracted
+    directed edges (``character.relationships``), resolved to ids by name.
+
+    Runs after :func:`build_relationships` (co-occurrence + LLM). A dossier
+    edge whose (id, id) pair is absent is appended (provenance ``source=dossier``);
+    an existing edge with an empty type/notes is enriched from the dossier.
+    Returns the number of dossier edges applied.
+    """
+    from .schemas.dossier import load_dossier
+
+    dossier = load_dossier(project_dir)
+    if dossier is None:
+        return 0
+    id_by_name = {c.name.lower(): c.id for c in wb.characters}
+
+    existing: dict[tuple[str, str], dict[str, Any]] = {}
+    for e in wb.relationships:
+        key = tuple(sorted((e.get("a", ""), e.get("b", ""))))
+        if "" not in key:
+            existing[key] = e
+
+    applied = 0
+    for dc in dossier.characters:
+        a_id = id_by_name.get(dc.name.lower())
+        if not a_id:
+            continue
+        for r in dc.relationships:
+            b_id = id_by_name.get(r.other_name.lower())
+            if not b_id or b_id == a_id:
+                continue
+            key = tuple(sorted((a_id, b_id)))
+            edge = existing.get(key)
+            if edge is None:
+                wb.relationships.append({
+                    "a": a_id, "b": b_id, "type": r.type, "notes": r.description,
+                    "evolves": [], "provenance": {"source": "dossier"},
+                })
+                existing[key] = wb.relationships[-1]
+                applied += 1
+            else:
+                if not edge.get("type") and r.type:
+                    edge["type"] = r.type
+                    applied += 1
+                if not edge.get("notes") and r.description:
+                    edge["notes"] = r.description
+    return applied
 
 
 def run(
@@ -491,6 +557,9 @@ def run(
 
     # v2 delta: relationship web.
     wb.relationships = build_relationships(script_text, wb, llm)
+    merged_rels = merge_dossier_relationships(wb, project_dir)
+    if merged_rels:
+        logger.info("[stage1_world] seeded %d relationships from the dossier", merged_rels)
 
     # Step 4: contradictions (+ auto-resolution per [automation]).
     findings = detect_contradictions(

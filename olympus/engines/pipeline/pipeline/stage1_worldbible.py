@@ -51,6 +51,8 @@ from .schemas.worldbible import (
     ArcThisEpisode,
     Appearance,
     Character,
+    CharacterRelationship,
+    FamilyMember,
     Personality,
     Provenance,
     SpeechStyle,
@@ -590,10 +592,10 @@ def merge_dossier_characters(wb: WorldBible, project_dir: Path) -> int:
     bible's :class:`Character` profiles (matched by name, case-insensitive).
 
     The dossier is the stage0 rich extraction (race, age, height, gender, key
-    skills, family/general background, friends). It grounds the world bible
-    with facts that the M2a profile call does not ask for, so downstream
-    character design and prompt assembly see the full dossier. Returns the
-    number of characters enriched.
+    skills, family/general background, friends, family, relationships, pose/
+    expression views). It grounds the world bible with facts that the M2a
+    profile call does not ask for, so downstream character design and prompt
+    assembly see the full dossier. Returns the number of characters enriched.
     """
     from .schemas.dossier import load_dossier
 
@@ -617,6 +619,19 @@ def merge_dossier_characters(wb: WorldBible, project_dir: Path) -> int:
             changed = True
         if d.friends and not char.friends:
             char.friends = list(d.friends)
+            changed = True
+        if d.family and not char.family:
+            char.family = [FamilyMember(name=f.name, relation=f.relation) for f in d.family]
+            changed = True
+        if d.relationships and not char.relationships:
+            char.relationships = [
+                CharacterRelationship(other_name=r.other_name, type=r.type, description=r.description)
+                for r in d.relationships
+            ]
+            changed = True
+        views = [v.model_dump() for v in d.views if v.angle]
+        if views and not char.views:
+            char.views = views
             changed = True
         if changed:
             merged += 1

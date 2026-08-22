@@ -65,6 +65,13 @@ class Relationship(BaseModel):
     description: str = ""
 
 
+class CharacterView(BaseModel):
+    """One pose/expression view for a character's turnaround/360 coverage."""
+
+    angle: str = ""  # e.g. "front view", "three-quarter view", "standing pose"
+    description: str = ""  # self-contained prompt fragment for that view
+
+
 class CharacterDossier(BaseModel):
     """Rich per-character intake profile."""
 
@@ -91,6 +98,8 @@ class CharacterDossier(BaseModel):
     friends: list[str] = Field(default_factory=list)
     family: list[FamilyMember] = Field(default_factory=list)
     relationships: list[Relationship] = Field(default_factory=list)
+
+    views: list[CharacterView] = Field(default_factory=list)  # pose/expression turnaround views
 
     wants: str = ""
     fears: str = ""

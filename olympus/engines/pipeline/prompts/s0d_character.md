@@ -43,6 +43,10 @@ fences, no commentary before or after):
   "relationships": [
     {{ "other_name": "other character's name", "type": "friend | rival | mentor | romantic interest | enemy | ...", "description": "how they feel about / interact with that person" }}
   ],
+  "views": [
+    {{ "angle": "a turnaround/pose/expression label", "description": "a self-contained prompt fragment describing that view" }},
+    ...
+  ],
   "wants": "what they want this episode/story",
   "fears": "what they are most afraid of",
   "arc_end": "where they end up emotionally/situationally by the end of the passages"
@@ -57,3 +61,9 @@ RULES (important):
   grey. Do this ONLY for hair.color / eyes / skin when those are missing.
 - Friends / family / relationships: only list people who appear or are clearly
   referenced in the passages. Do not fabricate relatives.
+- ``views``: provide 4-6 views covering the character's full turnaround (front
+  view, three-quarter view, side profile, back view) plus 1-2 signature
+  expressions or poses that fit their personality/role. Each description must
+  be a self-contained prompt fragment reusing the exact appearance adjectives
+  above (hair color, eyes, outfit, distinguishing feature) so an image model
+  can render the character on-model from every angle.
