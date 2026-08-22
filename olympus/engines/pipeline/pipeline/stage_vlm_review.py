@@ -55,12 +55,13 @@ _REVIEW_PROMPT_TEMPLATE = (
     "Review these {n} keyframes from an anime video clip.\n\n"
     "Shot: {shot_description}\n"
     "Motion tier: {motion_tier}\n"
-    "Scripted motion intent: {motion_intent}\n\n"
+    "Scripted motion intent: {motion_intent}\n"
+    "Canonical character appearance (verify the clip matches this): {appearance_spec}\n\n"
     "Score each dimension 1-10 (10 = perfect, 5 = borderline, 1 = broken):\n"
     "1. Visual quality\n"
     "2. Motion smoothness (no stutter/jitter; temporal coherence of the motion)\n"
     "3. Color consistency (palette holds across the {n} frames)\n"
-    "4. Character consistency (same design across frames - face, hair, outfit)\n"
+    "4. Character consistency (same design across frames AND matches the canonical appearance above - face, hair, eyes, outfit)\n"
     "5. Cinematic composition\n"
     "6. Physics plausibility (no objects passing through each other, no gravity violations, no impossible deformation)\n"
     "7. Limb continuity (hands/arms/legs stay attached and anatomically valid across frames)\n"
@@ -191,7 +192,7 @@ def _parse_scores(text: str) -> dict[str, Any]:
 
 
 def review_clip(clip_path: Path, shot: dict[str, Any], config: dict[str, Any], audio_path: Any = None,
-                nim_cfg: NimConfig | None = None) -> dict[str, Any]:
+                nim_cfg: NimConfig | None = None, appearance_spec: str = "") -> dict[str, Any]:
     if not clip_path.exists():
         return {"error": f"clip not found: {clip_path}", "verdict": "REJECT", "overall_score": 0.0}
 
@@ -214,12 +215,14 @@ def review_clip(clip_path: Path, shot: dict[str, Any], config: dict[str, Any], a
             shot_description=shot.get("sd_prompt", "anime scene"),
             motion_tier=f"Tier {tier}",
             motion_intent=motion_intent,
+            appearance_spec=appearance_spec or "(no canonical appearance provided)",
         )
     except KeyError:
         # Backward-compat: templates that don't use {n}/{motion_intent}.
         prompt = template.format(
             shot_description=shot.get("sd_prompt", "anime scene"),
             motion_tier=f"Tier {tier}",
+            appearance_spec=appearance_spec or "(no canonical appearance provided)",
         )
 
     # Add audio context to prompt if audio_path provided
@@ -289,6 +292,18 @@ def run(project_dir: str | Path, config: PipelineConfig, scores: Scores, *, vlm_
     screenplay = load_screenplay(project_dir)
     shots_by_id = _shots_by_id(screenplay)
 
+    # Canonical appearance per character (on-model clip gate).
+    char_specs: dict[str, str] = {}
+    wb_path = project_dir / "worldbible" / "world_bible.json"
+    if wb_path.exists():
+        try:
+            from .schemas.worldbible import WorldBible
+
+            wb = WorldBible.model_validate_json(wb_path.read_text(encoding="utf-8"))
+            char_specs = {c.id: c.appearance_spec() for c in wb.characters}
+        except (OSError, ValueError) as exc:
+            logger.warning("could not load world bible for appearance specs: %s", exc)
+
     # Load audio info for audio+visual review
     audio_dir = project_dir / "audio"
     has_audio = audio_dir.exists() and any(audio_dir.glob("*.wav"))
@@ -343,7 +358,13 @@ def run(project_dir: str | Path, config: PipelineConfig, scores: Scores, *, vlm_
                 audio_path = audio_files  # Pass list of (type, path) tuples
 
         logger.info("Reviewing %s (shot %s)...", clip_path.name, sid)
-        result = review_clip(clip_path, shot, vlm_config, audio_path=audio_path, nim_cfg=config.nim)
+        appearance_spec = " | ".join(
+            char_specs[cid] for cid in shot.get("characters_in_frame", []) if cid in char_specs
+        )
+        result = review_clip(
+            clip_path, shot, vlm_config, audio_path=audio_path, nim_cfg=config.nim,
+            appearance_spec=appearance_spec,
+        )
         reviews[sid] = result
         if "error" not in result:
             reviewed += 1

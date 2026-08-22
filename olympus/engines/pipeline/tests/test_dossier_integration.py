@@ -317,3 +317,56 @@ def test_char_frames_falls_back_to_role_set():
     assert len(_char_frames(minor)) == 10  # 8 turnaround + 2 expressions
     main = Character(id="p", name="P", role="protagonist")
     assert len(_char_frames(main)) == 30
+
+
+def test_merge_dossier_characters_sanitizes_placeholders_and_pronouns(tmp_path):
+    _write_dossier(
+        tmp_path,
+        StoryDossier(
+            characters=[
+                CharacterDossier(
+                    name="Rei",
+                    friends=["none", "Mika", "her"],
+                    key_skills=["none evidenced", "hacking"],
+                    family=[FamilyMember(name="her", relation="sister")],
+                    relationships=[
+                        Relationship(other_name="her", type="sibling"),
+                        Relationship(other_name="Mika", type="friend"),
+                    ],
+                ),
+            ],
+            meta=StoryDossierMeta(),
+        ),
+    )
+    wb = WorldBible(
+        story_id="s",
+        characters=[Character(id="rei", name="Rei")],
+        meta=WorldBibleMeta(),
+    )
+    merge_dossier_characters(wb, tmp_path)
+    c = wb.characters[0]
+    assert c.friends == ["Mika"]
+    assert c.key_skills == ["hacking"]
+    assert c.family == []  # pronoun "her" dropped
+    assert [r.other_name for r in c.relationships] == ["Mika"]
+
+
+def test_placeholder_name_helpers():
+    from pipeline._util import clean_name_list, is_placeholder_name
+
+    assert is_placeholder_name("none") and is_placeholder_name("her") and is_placeholder_name("")
+    assert not is_placeholder_name("Mika")
+    assert clean_name_list(["none", "Mika", "her", "n/a"]) == ["Mika"]
+
+
+def test_location_view_description_prefers_angle():
+    from pipeline.stage3b_images import _location_view_description
+
+    loc = Location(id="x", name="X", views=[
+        {"angle": "wide_establishing", "description": "wide snowy market"},
+        {"angle": "north", "description": "north stalls"},
+    ])
+    assert _location_view_description(loc) == "wide snowy market"
+    assert _location_view_description(loc, "north") == "north stalls"
+    # no views -> '' (caller falls back to sd_prompt)
+    assert _location_view_description(Location(id="y", name="Y")) == ""

@@ -59,8 +59,15 @@ RULES (important):
   or eye color, choose a vivid, genre-appropriate saturated color (crimson,
   aqua, violet, emerald, ...) so the character reads as clearly colored, never
   grey. Do this ONLY for hair.color / eyes / skin when those are missing.
+- If the script gives an EXPLICIT hair length or style (e.g. "shaved head",
+  "buzz cut", "waist-length braid", "twin tails"), keep it exactly in
+  ``hair.length``/``hair.style`` -- do NOT invent a different length/style for
+  a color you had to fill in. A "shaved head" stays shaved even if you also
+  chose the (unstated) color.
 - Friends / family / relationships: only list people who appear or are clearly
-  referenced in the passages. Do not fabricate relatives.
+  referenced in the passages by NAME. Never use pronouns ("her", "him", "they",
+  "the girl", "the man") as a name; if the person is unnamed, leave the entry
+  out rather than substituting a pronoun or description.
 - ``views``: provide 4-6 views covering the character's full turnaround (front
   view, three-quarter view, side profile, back view) plus 1-2 signature
   expressions or poses that fit their personality/role. Each description must

@@ -60,7 +60,7 @@ from .schemas.worldbible import (
     WorldBibleMeta,
 )
 from .scores import Scores
-from ._util import now_iso
+from ._util import clean_name_list, is_placeholder_name, now_iso
 
 logger = logging.getLogger(__name__)
 
@@ -615,20 +615,27 @@ def merge_dossier_characters(wb: WorldBible, project_dir: Path) -> int:
                 setattr(char, field, val)
                 changed = True
         if d.key_skills and not char.key_skills:
-            char.key_skills = list(d.key_skills)
+            char.key_skills = clean_name_list(d.key_skills)
             changed = True
         if d.friends and not char.friends:
-            char.friends = list(d.friends)
+            char.friends = clean_name_list(d.friends)
             changed = True
         if d.family and not char.family:
-            char.family = [FamilyMember(name=f.name, relation=f.relation) for f in d.family]
-            changed = True
-        if d.relationships and not char.relationships:
-            char.relationships = [
-                CharacterRelationship(other_name=r.other_name, type=r.type, description=r.description)
-                for r in d.relationships
+            fam = [
+                FamilyMember(name=f.name, relation=f.relation)
+                for f in d.family if not is_placeholder_name(f.name)
             ]
-            changed = True
+            if fam:
+                char.family = fam
+                changed = True
+        if d.relationships and not char.relationships:
+            rels = [
+                CharacterRelationship(other_name=r.other_name, type=r.type, description=r.description)
+                for r in d.relationships if not is_placeholder_name(r.other_name)
+            ]
+            if rels:
+                char.relationships = rels
+                changed = True
         views = [v.model_dump() for v in d.views if v.angle]
         if views and not char.views:
             char.views = views

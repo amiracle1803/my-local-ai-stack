@@ -59,9 +59,16 @@ class Stage3BError(RuntimeError):
 
 
 class _VisionCheck(BaseModel):
+    """Extraction schema — the VLM *describes* what it sees (hair/eye/outfit),
+    and the on-model verdict is computed in code against the canonical facts
+    (extract-then-compare: more reliable than a binary VLM judgement)."""
+
     characters_visible: int = 0
     background_matches: bool = True
     composition_matches: bool = True
+    hair_color: str = ""
+    eye_color: str = ""
+    outfit: str = ""
 
 
 def _seed_for(scene_id: str, shot_id: str = "", retry: int = 0) -> int:
@@ -101,6 +108,22 @@ def _env_token_block(scene: dict[str, Any], wb: WorldBible) -> str:
     return ", ".join(bits)
 
 
+def _location_view_description(loc: Any, angle: str = "wide_establishing") -> str:
+    """The 360-view description (self-contained prompt fragment) for a location
+    and camera angle, merged from the stage0 dossier. Falls back to the first
+    view's description, then '' (caller falls back to ``loc.sd_prompt``)."""
+    if loc is None:
+        return ""
+    views = getattr(loc, "views", None) or []
+    for v in views:
+        if v.get("angle") == angle and v.get("description"):
+            return v["description"]
+    for v in views:
+        if v.get("description"):
+            return v["description"]
+    return ""
+
+
 def _enhance_prompt_for_vision(
     prompt: str, shot: dict[str, Any], vision_detail: dict[str, Any], config: PipelineConfig
 ) -> str:
@@ -116,25 +139,102 @@ def _enhance_prompt_for_vision(
         comp = shot.get("composition", "")
         if comp:
             enhanced = f"{enhanced}, composition: {comp}"
+    if not vision_detail.get("appearance_matches"):
+        spec = vision_detail.get("appearance_spec", "")
+        if spec:
+            enhanced = f"{enhanced}, character appearance MUST be: {spec}"
     return enhanced
+
+
+# Appearance color groups for code-side extract-then-compare. A "conflict" is
+# when the VLM-extracted description and the canonical one both name a colour
+# from *different* groups (e.g. extracted "red" vs canonical "dark/black") -- a
+# colour substitution, not a missing detail. Synonyms within a group ("dark" vs
+# "black", "blonde" vs "golden") do NOT conflict.
+_COLOR_GROUPS: tuple[tuple[str, ...], ...] = (
+    ("black", "dark", "raven"),
+    ("white", "silver", "grey", "gray", "pale", "fair", "light"),
+    ("red", "crimson", "scarlet"),
+    ("blue", "navy"),
+    ("green", "emerald", "teal"),
+    ("brown", "auburn"),
+    ("blonde", "blond", "gold", "golden", "yellow", "amber"),
+    ("pink", "purple", "violet", "magenta", "lavender"),
+    ("orange", "copper", "bronze"),
+    ("aqua", "cyan", "turquoise"),
+)
+
+
+def _color_group_tokens(s: str) -> set[int]:
+    """The indices of the color groups named in ``s``."""
+    text = (s or "").lower()
+    return {i for i, g in enumerate(_COLOR_GROUPS) if any(t in text for t in g)}
+
+
+def _color_conflict(extracted: str, canonical: str) -> bool:
+    """True if ``extracted`` and ``canonical`` both name colour groups but share
+    none (a colour substitution)."""
+    ex = _color_group_tokens(extracted)
+    ca = _color_group_tokens(canonical)
+    return bool(ex and ca) and not bool(ex & ca)
+
+
+def _appearance_verdict(
+    extracted: dict[str, str], canonical: dict[str, str]
+) -> tuple[bool, str]:
+    """Compare extracted hair/eye/outfit against canonical facts. Returns
+    (matches, issue) where ``issue`` lists the conflicting fields."""
+    conflicts: list[str] = []
+    for ext_key, can_key in (("hair_color", "hair"), ("eye_color", "eyes"), ("outfit", "outfit")):
+        if _color_conflict(extracted.get(ext_key, ""), canonical.get(can_key, "")):
+            conflicts.append(can_key)
+    return (not conflicts), ", ".join(conflicts)
+
+
+def _shot_appearance(shot: dict[str, Any], wb: WorldBible) -> tuple[str, dict[str, str]]:
+    """(spec_string, facts) for the shot's in-frame characters. ``facts`` is the
+    first in-frame character's {hair/eyes/skin/outfit} (empty when none)."""
+    ids = shot.get("characters_in_frame", []) or []
+    chars = {c.id: c for c in wb.characters}
+    specs: list[str] = []
+    facts: dict[str, str] = {}
+    for i in ids:
+        c = chars.get(i)
+        if c is None:
+            continue
+        specs.append(c.appearance_spec())
+        if not facts:
+            facts = c.appearance_facts()
+    return " | ".join(specs), facts
 
 
 def vision_judge(
     panel_path: Path, shot: dict[str, Any], scene: dict[str, Any], config: PipelineConfig,
+    appearance_facts: dict[str, str] | None = None,
+    appearance_spec: str = "",
 ) -> tuple[bool, dict[str, Any]]:
     """QC checklist on the rendered panel (NIM judge first, local Ollama fallback).
 
     Returns (passed, detail). A transport error counts as an inconclusive pass
     (flag-only, never blocks the run on a broken vision model -- design note).
+
+    On-model consistency uses extract-then-compare: the VLM *describes* the
+    character's hair/eye/outfit, and code compares those against
+    ``appearance_facts`` (canonical). This is more reliable for small VLMs than
+    asking for a binary "matches" verdict.
     """
     expected = len(shot["characters_in_frame"])
     prompt = (
         "Look at this anime panel. Answer as JSON only, no prose: "
         '{"characters_visible": <int>, "background_matches": <bool>, '
-        '"composition_matches": <bool>}. '
+        '"composition_matches": <bool>, "hair_color": <string>, '
+        '"eye_color": <string>, "outfit": <string>}. '
         f"The panel should show exactly {expected} character(s), "
         f"a background of: {scene.get('time_of_day', '')} {scene['location']}, "
-        f"and composition: {shot['composition']}."
+        f"and composition: {shot['composition']}. "
+        "For hair_color / eye_color / outfit: describe the PRIMARY character's "
+        "appearance in 1-4 words each (e.g. 'black', 'blue', 'red coat'). "
+        "Write 'unknown' if you cannot tell."
     )
 
     # Primary judge: NVIDIA NIM (local Ollama stays on standby as fallback).
@@ -146,14 +246,7 @@ def vision_judge(
             logger.warning("NIM vision judge returned bad JSON for %s: %s", shot["id"], exc)
             check = None
         if check is not None:
-            passed = (
-                check.characters_visible == expected
-                and check.background_matches
-                and check.composition_matches
-            )
-            detail = check.model_dump()
-            detail["judge"] = "nim"
-            return passed, detail
+            return _vision_result(check, expected, shot, appearance_facts, appearance_spec, "nim")
 
     # Fallback judge: local Ollama.
     img_b64 = base64.b64encode(panel_path.read_bytes()).decode()
@@ -174,13 +267,35 @@ def vision_judge(
         logger.warning("vision judge unavailable for %s: %s", shot["id"], exc)
         return True, {"inconclusive": True, "error": str(exc), "judge": "local"}
 
+    return _vision_result(check, expected, shot, appearance_facts, appearance_spec, "local")
+
+
+def _vision_result(
+    check: _VisionCheck, expected: int, shot: dict[str, Any],
+    appearance_facts: dict[str, str] | None, appearance_spec: str, judge: str,
+) -> tuple[bool, dict[str, Any]]:
+    """Compute the passed verdict (code-side appearance comparison) and detail."""
+    appearance_matches = True
+    appearance_issue = ""
+    if appearance_facts:
+        appearance_matches, appearance_issue = _appearance_verdict(
+            {"hair_color": check.hair_color, "eye_color": check.eye_color, "outfit": check.outfit},
+            appearance_facts,
+        )
     passed = (
         check.characters_visible == expected
         and check.background_matches
         and check.composition_matches
+        and appearance_matches
     )
     detail = check.model_dump()
-    detail["judge"] = "local"
+    detail["judge"] = judge
+    detail["appearance_matches"] = appearance_matches
+    detail["appearance_issue"] = appearance_issue
+    if appearance_spec:
+        detail["appearance_spec"] = appearance_spec
+    if appearance_facts:
+        detail["appearance_facts"] = appearance_facts
     return passed, detail
 
 
@@ -420,8 +535,9 @@ def run(
                 )
             if not plate_path.exists():
                 loc = next((l for l in wb.locations if l.id == scene["location"]), None)
+                view_desc = _location_view_description(loc)
                 plate_prompt = (
-                    f"{loc.sd_prompt if loc else 'unspecified location'}, "
+                    f"{view_desc or (loc.sd_prompt if loc else 'unspecified location')}, "
                     f"{scene.get('time_of_day', 'day')} lighting, no people, "
                     "anime 2d illustration, manga panel style, cel shading"
                 )
@@ -470,7 +586,7 @@ def run(
             # model loads (qwen2.5vl uses keep_alive 0, so it evicts itself
             # after the call; the next generate reloads flux).
             comfy.free()
-            passed, detail = vision_judge(panel_path, shot, scene, config)
+            passed, detail = vision_judge(panel_path, shot, scene, config, appearance_facts=_shot_appearance(shot, wb)[1] or None, appearance_spec=_shot_appearance(shot, wb)[0])
             sidecar = {
                 "seed": seed, "prompt": prompt, "model": model_used,
                 "attempt": attempt, "take": f"tk{attempt + 1:02d}",
@@ -500,7 +616,7 @@ def run(
                             # Re-QC the refined panel before it replaces the
                             # already-vision-passed base: the identity-lock pass
                             # must not silently swap in a worse frame.
-                            refined_passed, _ = vision_judge(refined, shot, scene, config)
+                            refined_passed, _ = vision_judge(refined, shot, scene, config, appearance_facts=_shot_appearance(shot, wb)[1] or None, appearance_spec=_shot_appearance(shot, wb)[0])
                             if refined_passed:
                                 refined.replace(panel_path)
                             else:

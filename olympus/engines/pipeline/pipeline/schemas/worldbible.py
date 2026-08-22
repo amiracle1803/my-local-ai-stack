@@ -91,6 +91,45 @@ class Character(BaseModel):
     relationships: list[CharacterRelationship] = Field(default_factory=list)
     views: list[dict] = Field(default_factory=list)  # character pose/expression views [{angle, description}]
 
+    def appearance_spec(self) -> str:
+        """A compact canonical appearance spec for on-model QC.
+
+        Consumed by the stage3b panel vision gate and the stage_vlm_review clip
+        gate to check generated output against the character's source-of-truth
+        look (hair, eyes, skin, build, outfit, distinguishing feature, plus the
+        dossier-rich gender/race/height). Falls back to ``sd_prompt`` when the
+        structured fields are empty.
+        """
+        a = self.appearance
+        facts: list[str] = []
+        for label, value in (
+            ("hair", a.hair),
+            ("eyes", a.eyes),
+            ("skin", a.skin),
+            ("build", a.build),
+            ("outfit", a.clothing_primary),
+            ("distinguishing", a.distinguishing_feature),
+            ("gender", self.gender),
+            ("race", self.race),
+            ("height", self.height),
+        ):
+            if value and value.strip():
+                facts.append(f"{label}={value.strip()}")
+        if facts:
+            return f"{self.name}: " + ", ".join(facts)
+        return self.sd_prompt or f"{self.name}: (no canonical appearance)"
+
+    def appearance_facts(self) -> dict[str, str]:
+        """The structured canonical appearance facts (hair/eyes/skin/outfit) for
+        code-side comparison in the extract-then-compare on-model gate."""
+        a = self.appearance
+        return {
+            "hair": a.hair,
+            "eyes": a.eyes,
+            "skin": a.skin,
+            "outfit": a.clothing_primary,
+        }
+
 
 class WorldBibleMeta(BaseModel):
     generated_at: str = ""

@@ -49,7 +49,7 @@ from .schemas.dossier import (
     StoryDossierMeta,
 )
 from .stage1_worldbible import scan_characters
-from ._util import now_iso, read_script
+from ._util import clean_name_list, is_placeholder_name, now_iso, read_script
 
 logger = logging.getLogger(__name__)
 
@@ -199,6 +199,14 @@ def extract_characters(
             role="script",
             stage_hint=f"stage0d_char_{name_slug}",
         )
+        # Sanitize: the model sometimes returns placeholders ("none") or
+        # pronouns ("her") where a concrete name is required.
+        dossier.friends = clean_name_list(dossier.friends)
+        dossier.key_skills = clean_name_list(dossier.key_skills)
+        dossier.family = [f for f in dossier.family if not is_placeholder_name(f.name)]
+        dossier.relationships = [
+            r for r in dossier.relationships if not is_placeholder_name(r.other_name)
+        ]
         characters.append(dossier)
     return characters
 

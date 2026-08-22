@@ -42,3 +42,30 @@ def load_storyboard(project_dir: str | Path) -> dict[str, Any]:
 
 def _shots_by_id(screenplay: dict[str, Any]) -> dict[str, dict[str, Any]]:
     return {shot["id"]: shot for scene in screenplay.get("scenes", []) for shot in scene.get("shots", [])}
+
+
+# ---------------------------------------------------------------------------
+# LLM-output name hygiene -- the model sometimes returns placeholder strings
+# ("none", "unknown", "no one") or pronouns ("her", "they") where a concrete
+# name is required. These helpers let the dossier merge drop those.
+# ---------------------------------------------------------------------------
+_PLACEHOLDER_VALUES = {
+    "", "none", "unknown", "n/a", "na", "null", "no one", "nobody",
+    "none evidenced", "none found", "n o n e",
+}
+_PRONOUNS = {
+    "he", "she", "her", "his", "him", "hers", "they", "them", "their",
+    "theirs", "it", "its", "himself", "herself", "themselves",
+}
+
+
+def is_placeholder_name(name: str | None) -> bool:
+    """True if ``name`` is empty, a placeholder, or a pronoun -- i.e. not a
+    usable concrete character/location name."""
+    n = (name or "").strip().lower()
+    return n in _PLACEHOLDER_VALUES or n in _PRONOUNS
+
+
+def clean_name_list(items: list[str]) -> list[str]:
+    """Drop placeholder/pronoun entries from a list of names, preserving order."""
+    return [i.strip() for i in items if not is_placeholder_name(i)]
