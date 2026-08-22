@@ -252,3 +252,106 @@ def test_run_lock_recovers_after_stage_failure(client, monkeypatch):
     r2 = client.post("/api/pipeline/failtest/run/stage0")
     assert r2.status_code == 200
     _wait_until_not_running("failtest", "stage0")
+
+
+# --------------------------------------------------------------------------
+# intake persistence + run-all + panels upload + stage log
+# --------------------------------------------------------------------------
+def test_create_project_0b_persists_brief_md(client, _isolated_projects_root):
+    r = client.post(
+        "/api/pipeline/projects",
+        json={"slug": "briefproj", "brief_text": BRIEF, "fps": 24, "mode": "0b"},
+    )
+    assert r.status_code == 201, r.text
+    brief_md = _isolated_projects_root / "briefproj" / "input" / "brief.md"
+    assert brief_md.exists()
+    assert "word_target: 300" in brief_md.read_text(encoding="utf-8")
+
+
+def test_create_project_0a_persists_source(client, _isolated_projects_root):
+    r = client.post(
+        "/api/pipeline/projects",
+        json={"slug": "sourceproj", "script_text": "A source story. " * 20, "fps": 24, "mode": "0a"},
+    )
+    assert r.status_code == 201, r.text
+    src = _isolated_projects_root / "sourceproj" / "input" / "source.txt"
+    assert src.exists()
+    assert "A source story" in src.read_text(encoding="utf-8")
+
+
+def test_run_all_starts_and_releases_lock(client, _isolated_projects_root, monkeypatch):
+    client.post("/api/pipeline/projects", json={"slug": "alltest", "brief_text": BRIEF, "fps": 24})
+    release = threading.Event()
+
+    def fake_run_all(slug, *, projects_dir=None, run_critique=True, retry_on_critique=True,
+                     brief_path=None, source_path=None, panel_upload=None, word_target=None):
+        release.wait(timeout=5)
+        return []
+
+    monkeypatch.setattr(run, "run_all", fake_run_all)
+    r = client.post("/api/pipeline/alltest/run-all")
+    assert r.status_code == 200
+    assert r.json()["status"] == "running"
+
+    r2 = client.post("/api/pipeline/alltest/run-all")
+    assert r2.status_code == 409  # dedupe while running
+
+    release.set()
+    _wait_until_not_running("alltest", "_all")
+    r3 = client.post("/api/pipeline/alltest/run-all")
+    assert r3.status_code == 200
+    release.set()
+    _wait_until_not_running("alltest", "_all")
+
+
+def test_run_all_forwards_intake_inputs(client, _isolated_projects_root, monkeypatch):
+    client.post("/api/pipeline/projects", json={"slug": "intaketest", "script_text": "seed", "fps": 24, "mode": "0a"})
+    seen = {}
+
+    def fake_run_all(slug, **kwargs):
+        seen.update(kwargs)
+        return []
+
+    monkeypatch.setattr(run, "run_all", fake_run_all)
+    r = client.post(
+        "/api/pipeline/intaketest/run-all",
+        json={"source_text": "A source story. " * 10, "word_target": 600},
+    )
+    assert r.status_code == 200
+    _wait_until_not_running("intaketest", "_all")
+    # source_text was persisted to input/source.txt and its path forwarded.
+    src = _isolated_projects_root / "intaketest" / "input" / "source.txt"
+    assert src.exists()
+    assert "A source story" in src.read_text(encoding="utf-8")
+    assert seen.get("source_path") == src
+    assert seen.get("word_target") == 600
+
+
+def test_stage_log_endpoint(client, _isolated_projects_root):
+    client.post("/api/pipeline/projects", json={"slug": "logproj", "brief_text": BRIEF, "fps": 24})
+    proj = _isolated_projects_root / "logproj"
+    (proj / "logs").mkdir(parents=True, exist_ok=True)
+    (proj / "logs" / "stage1.error").write_text("boom", encoding="utf-8")
+    r = client.get("/api/pipeline/logproj/log/stage1")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["exists"] is True
+    assert "boom" in body["log"]
+
+
+def test_stage_log_endpoint_empty(client, _isolated_projects_root):
+    client.post("/api/pipeline/projects", json={"slug": "nolog", "brief_text": BRIEF, "fps": 24})
+    r = client.get("/api/pipeline/nolog/log/stage3")
+    assert r.status_code == 200
+    assert r.json()["exists"] is False
+
+
+def test_upload_panels_image(client, _isolated_projects_root):
+    client.post("/api/pipeline/projects", json={"slug": "panelproj", "script_text": "seed", "fps": 24, "mode": "0i"})
+    r = client.post(
+        "/api/pipeline/panelproj/panels",
+        files={"file": ("panel_1.png", b"\x89PNG\r\n\x1a\n" + b"\x00" * 32, "image/png")},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["written"] == 1
+    assert (_isolated_projects_root / "panelproj" / "input" / "panels" / "panel_1.png").exists()

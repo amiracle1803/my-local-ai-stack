@@ -33,6 +33,30 @@ that it is ready for the manager instead of running `git` yourself.
   relevant test, or smoke-test the endpoint.
 - **No git for builders.** Ever. Leave commits to the manager.
 
+### Artifact naming rules (VFX identity standard — enforced going forward)
+
+Canonical ids live in `pipeline/identity.py`; every *new* artifact follows the
+pattern `{project}_sc{scene:03d}_sh{shot:03d}_{asset}[_{variant}][_tk##]_v###.{ext}`.
+The internal machine id (`sh-001-01` = scene 001 + shot 01) is the JSON-contract
+/ cache / storyboard key and is **never renamed** once downstream stages
+reference it — `identity.legacy_sid_from_filename()` / `canonical_id_from_filename()`
+resolve both styles. Rules:
+
+1. IDs are lowercase ASCII and use underscores only.
+2. Do not use spaces, dates, punctuation, or narrative prose in engine filenames.
+3. Scene numbers are sequential: `sc001`, `sc002`, `sc003`.
+4. Shot numbers increment: `sh001`, `sh002`, `sh003` (gap-numbering `sh010` is
+   a documented future option — do not renumber existing shots).
+5. Panels are variants within one shot: `pn01`, `pn02`, `pn03`.
+6. Clips are output variants within one shot: `cl01`, `cl02`.
+7. Use `tk##` for retry attempts and seed exploration (already implicit in
+   ComfyUI's `_0000N` counter).
+8. Use `v###` only for a deliberate new approved revision (starts at `v001`,
+   bumped only on regeneration).
+9. Never rename an artifact after downstream stages reference it.
+10. Human-readable names belong in `labels.json`/metadata, not core filenames.
+11. Deliverables: `{project}_master_v###.mp4` / `.srt` / `_chapters.txt`.
+
 ## Environment
 
 This machine runs Nobara Linux (Fedora-based) with OpenCode running

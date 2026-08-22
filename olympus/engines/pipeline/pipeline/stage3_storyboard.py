@@ -86,11 +86,17 @@ def partition_blocks(
 def assign_motion(
     shots: list[dict[str, Any]], config: PipelineConfig,
     blocks: list[dict[str, Any]], llm: PipelineLLM,
+    wb: Any = None,
 ) -> dict[str, int]:
     """Motion tiers (design 3C.1): Tier 1 floor, Tier 2 for action shots,
     Tier 3 for lipsync close-ups -- capped by max_animated_seconds_per_block
     (overflow degrades to Tier 0 oscillating drift, the designed degradation
     path). Tier 1-2 shots get a motion prompt.
+
+    ``wb`` (optional WorldBible) is used to resolve character ids to names so
+    the motion prompt emits real character actions (``[character: Kana turns
+    her head]``) instead of the weak ``[character: none]`` that produced static
+    stage3c clips (motion-gate axis=none + repeat-detector flags).
 
     M-AP-5 (2026-08-09): Adds motion_tier_reason provenance field to each shot
     for audit trail -- why a shot was Tier 1 vs Tier 2 (composition cue? 
@@ -129,11 +135,24 @@ def assign_motion(
         # M-AP-5: Record the reason for this tier assignment
         shot["motion_tier_reason"] = tier_reasons.get(sid, "")
         if tier in (1, 2):
+            # Resolve character ids -> names so the prompt can name a concrete
+            # on-screen action. Without names the LLM falls back to
+            # "[character: none]" and the model animates only the environment,
+            # leaving the character static (the stage3c weak-motion problem).
+            char_names: list[str] = []
+            if wb is not None:
+                by_id_c = {getattr(c, "id", ""): getattr(c, "name", "") for c in getattr(wb, "characters", [])}
+                char_names = [by_id_c.get(cid, cid) for cid in shot.get("characters_in_frame", [])]
+            else:
+                char_names = shot.get("characters_in_frame", [])
             shot["motion_prompt"] = llm.complete_text(
                 "s3_motion_prompt.md",
                 {
                     "composition": shot["composition"], "beat": shot["beat"],
-                    "characters": ", ".join(shot["characters_in_frame"]) or "none",
+                    "characters": ", ".join(char_names) or "none",
+                    "character_action": shot.get("movement", "none"),
+                    "positioning": shot.get("positioning", ""),
+                    "facial": shot.get("facial", ""),
                     "has_dialogue": bool(shot["dialogue"]),
                 },
                 role="script",
@@ -197,8 +216,12 @@ def run(
     if llm is None:
         llm = PipelineLLM(config, prompts_dir=PROMPTS_DIR, logs_dir=project_dir / "logs")
 
+    # Load the intake dossier for scene-setting grounding (design Stage 0d).
+    from .schemas.dossier import load_dossier
+    dossier = load_dossier(project_dir)
+
     # --- scene segmentation + shot planning (moved from old stage2) ---
-    scenes = segment_scenes(script_text, wb, llm, references=references)
+    scenes = segment_scenes(script_text, wb, llm, references=references, dossier=dossier)
     if not scenes:
         raise Stage2Error("scene segmentation produced no scenes")
 
@@ -225,7 +248,7 @@ def run(
             blocks.append(b)
 
     # --- motion tier assignment (still done here so blocks have tiers) ---
-    tiers = assign_motion(shots, config, blocks, llm)
+    tiers = assign_motion(shots, config, blocks, llm, wb=wb)
 
     est_total = sum(b["est_seconds"] for b in blocks)
     if est_total > 11 * 3600:
@@ -257,17 +280,27 @@ def run(
     # Write the freshly-assembled sd_prompts back to screenplay.json so
     # stage3b reads the NO_TEXT_TAIL-expanded prompts (krea2 / qwen3vl will
     # otherwise render JP signage when manga is in the prompt).
+    # Also propagate the stage3 structural fields (motion_prompt, motion_tier,
+    # motion_tier_reason) into the screenplay shots -- stage3c reads shots from
+    # screenplay.json, so without this the per-shot character/motion/direction
+    # planned in stage3 never reaches the animator (the weak-motion regression).
     screenplay_path = project_dir / "screenplay" / "screenplay.json"
     if screenplay_path.exists():
         sp = json.loads(screenplay_path.read_text(encoding="utf-8"))
-        new_prompts = {
-            shot["id"]: shot["sd_prompt"]
+        new_fields = {
+            shot["id"]: {
+                "sd_prompt": shot.get("sd_prompt"),
+                "motion_prompt": shot.get("motion_prompt"),
+                "motion_tier": shot.get("motion_tier"),
+                "motion_tier_reason": shot.get("motion_tier_reason"),
+            }
             for scene in scenes for shot in scene["shots"]
         }
         for sp_scene in sp.get("scenes", []):
             for sp_shot in sp_scene.get("shots", []):
-                if sp_shot.get("id") in new_prompts:
-                    sp_shot["sd_prompt"] = new_prompts[sp_shot["id"]]
+                if sp_shot.get("id") in new_fields:
+                    sp_shot.update({k: v for k, v in new_fields[sp_shot["id"]].items()
+                                    if v is not None})
         screenplay_path.write_text(json.dumps(sp, indent=2, ensure_ascii=False), encoding="utf-8")
 
     tier_counts = {t: sum(1 for v in tiers.values() if v == t) for t in (0, 1, 2, 3)}

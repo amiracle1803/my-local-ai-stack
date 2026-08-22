@@ -173,6 +173,7 @@ class PipelineLLM:
         temperature: float,
         format_json: bool,
         max_tokens: int | None,
+        images: list[str] | None = None,
     ) -> str:
         options: dict[str, Any] = {"temperature": temperature}
         if max_tokens:
@@ -202,6 +203,10 @@ class PipelineLLM:
             # a live Ollama instance rather than assumed.
             "options": options,
         }
+        if images:
+            # Attach base64 images to the (single) user message for vision models.
+            # Ollama accepts an "images" list of base64 strings on the message.
+            messages[0]["images"] = images
         if format_json:
             payload["format"] = "json"
 
@@ -238,9 +243,13 @@ class PipelineLLM:
         *,
         role: str = "script",
         stage_hint: str = "stage",
+        images: list[str] | None = None,
     ) -> T:
         """Render ``prompt_file`` against ``context``, call Ollama with
         ``format: json``, and validate the response against ``schema``.
+
+        ``images`` is an optional list of base64-encoded images attached to the
+        user message (vision models only, e.g. Stage 0I Pass 2).
 
         On a JSON-decode or Pydantic validation failure, up to two repair
         retries are made: the previous raw output plus the validation error
@@ -251,7 +260,9 @@ class PipelineLLM:
         tmpl = PromptTemplate.load(self.prompts_dir / prompt_file)
         rendered = tmpl.render(self._budget_context(context))
         model = self._model_for_role(role)
-        base_messages = [{"role": "user", "content": rendered}]
+        base_messages: list[dict[str, Any]] = [{"role": "user", "content": rendered}]
+        if images:
+            base_messages[0]["images"] = images
 
         last_raw = ""
         last_error = ""
@@ -259,7 +270,7 @@ class PipelineLLM:
             if attempt == 0:
                 messages = base_messages
             else:
-                messages = base_messages + [
+                messages = list(base_messages) + [
                     {"role": "assistant", "content": last_raw},
                     {
                         "role": "user",
@@ -312,14 +323,18 @@ class PipelineLLM:
         *,
         role: str = "script",
         stage_hint: str = "stage",
+        images: list[str] | None = None,
     ) -> str:
         """Render ``prompt_file`` against ``context`` and return raw prose
         (no JSON enforcement) -- used for scene prose, critique, and revise.
+        ``images`` attaches base64 images for vision-capable models.
         """
         tmpl = PromptTemplate.load(self.prompts_dir / prompt_file)
         rendered = tmpl.render(self._budget_context(context))
         model = self._model_for_role(role)
-        messages = [{"role": "user", "content": rendered}]
+        messages: list[dict[str, Any]] = [{"role": "user", "content": rendered}]
+        if images:
+            messages[0]["images"] = images
         try:
             return self._chat(
                 model=model,

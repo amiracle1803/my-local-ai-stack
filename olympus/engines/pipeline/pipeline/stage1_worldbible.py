@@ -585,6 +585,44 @@ def extract_profiles(
 # --------------------------------------------------------------------------
 
 
+def merge_dossier_characters(wb: WorldBible, project_dir: Path) -> int:
+    """Merge rich character fields from ``intake/dossier.json`` into the world
+    bible's :class:`Character` profiles (matched by name, case-insensitive).
+
+    The dossier is the stage0 rich extraction (race, age, height, gender, key
+    skills, family/general background, friends). It grounds the world bible
+    with facts that the M2a profile call does not ask for, so downstream
+    character design and prompt assembly see the full dossier. Returns the
+    number of characters enriched.
+    """
+    from .schemas.dossier import load_dossier
+
+    dossier = load_dossier(project_dir)
+    if dossier is None:
+        return 0
+    by_name = {c.name.lower(): c for c in dossier.characters}
+    merged = 0
+    for char in wb.characters:
+        d = by_name.get(char.name.lower())
+        if d is None:
+            continue
+        changed = False
+        for field in ("gender", "race", "age", "height", "family_background", "general_background"):
+            val = getattr(d, field, "")
+            if val and val.lower() not in ("", "unknown", "none", "n/a"):
+                setattr(char, field, val)
+                changed = True
+        if d.key_skills and not char.key_skills:
+            char.key_skills = list(d.key_skills)
+            changed = True
+        if d.friends and not char.friends:
+            char.friends = list(d.friends)
+            changed = True
+        if changed:
+            merged += 1
+    return merged
+
+
 def run(
     project_dir: str | Path,
     config: PipelineConfig,
@@ -612,6 +650,10 @@ def run(
         characters=profiles,
         meta=WorldBibleMeta(generated_at=now_iso(), scanned_names=scanned_names),
     )
+
+    merged = merge_dossier_characters(wb, project_dir)
+    if merged:
+        logger.info("[stage1] merged stage0 dossier into %d character profiles", merged)
 
     out_dir = project_dir / "worldbible"
     out_dir.mkdir(parents=True, exist_ok=True)

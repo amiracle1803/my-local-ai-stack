@@ -375,6 +375,54 @@ def write_voice_registry(project_dir: Path, wb: WorldBible, script_text: str) ->
 # --------------------------------------------------------------------------
 
 
+def merge_dossier_locations(wb: WorldBible, project_dir: Path) -> int:
+    """Merge rich location fields (360 views, season, environment) from
+    ``intake/dossier.json`` into the world bible's :class:`Location` records.
+
+    Matching is best-effort (case-insensitive exact, then substring) because
+    the dossier derives location names from scene dossiers while the world
+    bible infers them from the script + stage0 scene plan. Returns the number
+    of locations enriched.
+    """
+    from .schemas.dossier import load_dossier
+
+    dossier = load_dossier(project_dir)
+    if dossier is None:
+        return 0
+
+    def match(name: str):
+        n = name.lower()
+        for d in dossier.locations:
+            dn = d.name.lower()
+            if dn == n or dn in n or n in dn:
+                return d
+        return None
+
+    merged = 0
+    for loc in wb.locations:
+        d = match(loc.name)
+        if d is None:
+            continue
+        changed = False
+        views = [v.model_dump() for v in d.views_360 if v.angle]
+        if views and not loc.views:
+            loc.views = views
+            changed = True
+        angle_names = [v["angle"] for v in views]
+        if angle_names and not loc.angles:
+            loc.angles = angle_names
+            changed = True
+        if d.season and d.season.lower() not in ("", "unspecified", "varies") and not loc.season:
+            loc.season = d.season
+            changed = True
+        if d.environment_features and not loc.environment_features:
+            loc.environment_features = list(d.environment_features)
+            changed = True
+        if changed:
+            merged += 1
+    return merged
+
+
 def run(
     project_dir: str | Path,
     config: PipelineConfig,
@@ -436,6 +484,10 @@ def run(
         }
         for a in world.recurring_assets
     ]
+
+    merged_locations = merge_dossier_locations(wb, project_dir)
+    if merged_locations:
+        logger.info("[stage1_world] merged stage0 dossier 360-views into %d locations", merged_locations)
 
     # v2 delta: relationship web.
     wb.relationships = build_relationships(script_text, wb, llm)

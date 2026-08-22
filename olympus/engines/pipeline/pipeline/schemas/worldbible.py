@@ -63,6 +63,16 @@ class Character(BaseModel):
     first_episode: str = ""
     provenance: list[Provenance] = Field(default_factory=list)
 
+    # Rich intake fields (merged from the stage0 dossier when present).
+    gender: str = ""  # male / female / nonbinary / unknown
+    race: str = ""  # species / race / ethnicity
+    age: str = ""
+    height: str = ""
+    key_skills: list[str] = Field(default_factory=list)
+    family_background: str = ""
+    general_background: str = ""
+    friends: list[str] = Field(default_factory=list)
+
 
 class WorldBibleMeta(BaseModel):
     generated_at: str = ""
@@ -92,6 +102,11 @@ class Location(BaseModel):
     sd_prompt: str = ""
     angles: list[str] = Field(default_factory=list)
     connections: list[LocationConnection] = Field(default_factory=list)  # Spatial relationships to other locations
+
+    # Rich intake fields (merged from the stage0 dossier 360 views when present).
+    season: str = ""
+    environment_features: list[str] = Field(default_factory=list)
+    views: list[dict] = Field(default_factory=list)  # 360 views [{angle, description}]
 
 
 class WorldBible(BaseModel):

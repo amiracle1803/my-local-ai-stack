@@ -12,6 +12,11 @@ KNOWN LOCATIONS (use these ids when the scene matches; else "loc-other"):
 KNOWN CHARACTERS (use these ids):
 {character_list}
 
+KNOWN SCENE SETTINGS (extracted at intake -- time of day / season / environment
+per script scene; use them to set ``time_of_day`` and stay consistent, but do
+not invent a setting the chunk does not show):
+{scene_settings}
+
 SCRIPT CHUNK:
 {chunk_text}
 

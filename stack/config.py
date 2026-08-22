@@ -228,6 +228,10 @@ class NIMConfig(BaseModel):
     model: str = "nvidia/llama-3.1-nemotron-nano-vl-8b-v1"
     api_key: str = ""
     timeout_seconds: int = 120
+    models: list[str] = Field(default_factory=lambda: [
+        "nvidia/llama-3.1-nemotron-nano-vl-8b-v1",
+        "deepseek-ai/deepseek-v4-flash-0731",
+    ])
 
 
 # ── top-level config ───────────────────────────────────────────────────────

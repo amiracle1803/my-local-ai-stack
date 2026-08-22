@@ -25,6 +25,7 @@ _DONE_METRIC = "done"
 # is blocked. Metric *names* are frozen here; the M1+ stage code records them.
 MANDATORY_METRICS: dict[str, list[str]] = {
     "stage0": ["structure_completeness"],
+    "stage0_dossier": ["characters_found"],  # rich intake extraction
     "stage1": ["bible_coverage"],           # M2a: characters
     "stage1_world": ["world_coverage"],     # M2b: world enrichment
     "stage1r": ["refs_per_character"],      # reference images
@@ -157,6 +158,11 @@ class Scores:
                 f"cannot run {stage}: predecessor {prev} is missing mandatory "
                 f"metrics {missing}."
             )
+
+    def clear_stage(self, stage: str) -> None:
+        """Remove all scorecard rows for a stage so it can be re-run (force)."""
+        self._conn.execute("DELETE FROM scores WHERE stage=?", (stage,))
+        self._conn.commit()
 
     def report(self) -> dict:
         """Return the full ledger: per-stage done flag, metrics, gate status."""

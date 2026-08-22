@@ -172,6 +172,7 @@ class NimConfig(BaseModel):
     model: str = "nvidia/llama-3.1-nemotron-nano-vl-8b-v1"
     api_key: str = ""
     timeout_seconds: int = 120
+    models: list[str] = Field(default_factory=list)
 
 
 class PipelineConfig(BaseModel):
@@ -286,6 +287,7 @@ class PipelineConfig(BaseModel):
                 model=getattr(_cfg.nim, "model", "nvidia/llama-3.1-nemotron-nano-vl-8b-v1"),
                 api_key=getattr(_cfg.nim, "api_key", ""),
                 timeout_seconds=getattr(_cfg.nim, "timeout_seconds", 120),
+                models=list(getattr(_cfg.nim, "models", []) or []),
             ),
             num_ctx=getattr(_cfg.ollama, "num_ctx", 16384),
         )

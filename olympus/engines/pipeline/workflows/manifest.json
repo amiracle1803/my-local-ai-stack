@@ -514,6 +514,23 @@
         "SAVE_PREFIX": "12.filename_prefix",
         "SAVE_FPS": "12.frame_rate"
       }
+    },
+    "ltx_director_2pass.json": {
+      "purpose": "Aetherpunk LTX Director 2 two-pass workflow (4-step base + 8-step refinement with spatial upsampler). Uses the LTX-2.3 22B GGUF + audio VAE. 8GB VRAM: OOM-risk for long batches -- use single 2-3s test renders first.",
+      "status": "experimental",
+      "notes": "Ported 2026-08-22 from ComfyUI-LTXDirector example_workflows/LTX_Director_2_Workflow_GGUF.json. New ComfyUI serialization (top-level nodes list, list-format inputs, widget_values) is normalized by WorkflowTemplate.load(). timeline_data/local_prompts/segment_lengths/guide_strength built per-shot; no IC-LoRA or audio segment yet.",
+      "patchable": {
+        "GLOBAL_PROMPT": "137.global_prompt",
+        "TIMELINE_DATA": "137.timeline_data",
+        "LOCAL_PROMPTS": "137.local_prompts",
+        "SEGMENT_LENGTHS": "137.segment_lengths",
+        "GUIDE_STRENGTH": "137.guide_strength",
+        "SEED": "30.noise_seed",
+        "FRAMES": "137.duration_frames",
+        "WIDTH": "137.custom_width",
+        "HEIGHT": "137.custom_height",
+        "SAVE_PREFIX": "37.filename_prefix"
+      }
     }
   }
 }

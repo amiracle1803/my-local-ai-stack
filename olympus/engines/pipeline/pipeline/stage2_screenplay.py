@@ -44,6 +44,7 @@ from .llm import PipelineLLM
 from .scores import Scores
 from ._util import now_iso
 from .schemas.worldbible import WorldBible
+from .schemas.dossier import StoryDossier, load_dossier
 
 logger = logging.getLogger(__name__)
 
@@ -101,6 +102,30 @@ class Stage2Error(ValueError):
     """Stage2-specific data problems."""
 
 
+def _dossier_context(dossier: StoryDossier) -> tuple[str, str]:
+    """(scene_settings, dialogue_log) prompt context derived from the intake
+    dossier -- the extracted scene facts and the verbatim dialogue log, so the
+    screenplay/storyboard stay grounded in what the script actually says."""
+    scene_facts = []
+    for s in dossier.scenes:
+        env = ", ".join(s.environment_features) or "unspecified"
+        scene_facts.append(
+            f"Scene {s.number} ({s.location or '?'}): time={s.time_of_day or 'unspecified'}, "
+            f"season={s.season or 'unspecified'}, environment={env}"
+        )
+    dialogue_lines = []
+    for line in dossier.dialogue:
+        addr = f" to {line.addressee}" if line.addressee else ""
+        move = f" [{line.body_movement}]" if line.body_movement else ""
+        dialogue_lines.append(
+            f"Scene {line.scene_number}: {line.speaker}{addr}: \"{line.text}\"{move}"
+        )
+    return (
+        "\n".join(scene_facts) or "(none)",
+        "\n".join(dialogue_lines) or "(none)",
+    )
+
+
 # --------------------------------------------------------------------------
 # LLM output schemas
 # --------------------------------------------------------------------------
@@ -155,7 +180,7 @@ class _AuditScore(BaseModel):
 # --------------------------------------------------------------------------
 # Step 1 -- scene segmentation
 # --------------------------------------------------------------------------
-def segment_scenes(script_text: str, wb: WorldBible, llm: PipelineLLM, references: dict | None = None) -> list[dict[str, Any]]:
+def segment_scenes(script_text: str, wb: WorldBible, llm: PipelineLLM, references: dict | None = None, dossier: StoryDossier | None = None) -> list[dict[str, Any]]:
     chunks = chunk_text(script_text, chunk_size=DEFAULT_CHUNK_SIZE, chunk_overlap=DEFAULT_CHUNK_OVERLAP)
     location_list = ", ".join(f"{l.id} ({l.name})" for l in wb.locations) or "loc-other"
     character_list = ", ".join(f"{c.id} ({c.name})" for c in wb.characters)
@@ -167,12 +192,15 @@ def segment_scenes(script_text: str, wb: WorldBible, llm: PipelineLLM, reference
         if loc_refs:
             ref_context += "\nLocation reference images available for: " + ", ".join(loc_refs.keys())
 
+    scene_settings, _ = _dossier_context(dossier) if dossier else ("(none)", "(none)")
+
     raw: list[_SceneOut] = []
     for chunk in chunks:
         result = llm.complete_json(
             "s2_scene_segment.md",
             {"chunk_text": chunk.text, "location_list": location_list,
-             "character_list": character_list, "reference_context": ref_context},
+             "character_list": character_list, "reference_context": ref_context,
+             "scene_settings": scene_settings},
             _SceneList,
             role="script",
             stage_hint=f"stage2_scenes_chunk{chunk.index}",
@@ -443,13 +471,15 @@ def _style_card(c) -> str:
     )
 
 
-def write_dialogue(scenes: list[dict[str, Any]], wb: WorldBible, llm: PipelineLLM, references: dict | None = None) -> int:
+def write_dialogue(scenes: list[dict[str, Any]], wb: WorldBible, llm: PipelineLLM, references: dict | None = None, dossier: StoryDossier | None = None) -> int:
     """Per-scene dialogue with style cards; clipped/verbose validation and a
     global first-60-chars dedup. Returns count of dropped/deduped lines.
     Uses reference images for visual context in dialogue."""
     chars = {c.id: c for c in wb.characters}
     seen_signatures: set[str] = set()
     dropped = 0
+
+    _, dialogue_log = _dossier_context(dossier) if dossier else ("(none)", "(none)")
 
     for scene in scenes:
         present = [chars[cid] for cid in scene["characters"] if cid in chars]
@@ -476,6 +506,7 @@ def write_dialogue(scenes: list[dict[str, Any]], wb: WorldBible, llm: PipelineLL
                 "shot_list": "\n".join(f"{s['id']}: {s['beat']}" for s in scene["shots"]),
                 "style_cards": "\n".join(_style_card(c) for c in present),
                 "reference_context": ref_context or "(none)",
+                "dialogue_log": dialogue_log,
             },
             _DialogueList,
             role="script",
@@ -607,8 +638,9 @@ def run(
     wb = WorldBible.model_validate_json(
         (project_dir / "worldbible" / "world_bible.json").read_text(encoding="utf-8")
     )
+    dossier = load_dossier(project_dir)  # intake dossier for dialogue grounding
     rewrites = write_narrations(scenes, wb, llm, project_dir, references=references)
-    dedup_drops = write_dialogue(scenes, wb, llm, references=references)
+    dedup_drops = write_dialogue(scenes, wb, llm, references=references, dossier=dossier)
     avg_before, avg_after = audit_narrations(scenes, llm, project_dir)
 
     shots = [shot for scene in scenes for shot in scene["shots"]]

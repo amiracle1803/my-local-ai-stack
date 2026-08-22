@@ -25,6 +25,7 @@ if str(_ENGINE_ROOT) not in sys.path:
 
 from pipeline import (  # noqa: E402
     stage0_intake,
+    stage0_dossier,
     stage1_worldbible,
     stage1_world,
     stage1r_references,
@@ -81,9 +82,17 @@ def new_project(
     fps: int = 24,
     *,
     projects_dir: str | Path | None = None,
+    mode: str = "0b",
+    panel_upload: str | Path | None = None,
 ) -> Path:
     """Create ``projects/<slug>/`` with input/script.txt + blueprint.json +
-    an initialized scores.sqlite. Returns the project directory."""
+    an initialized scores.sqlite. Returns the project directory.
+
+    ``mode`` selects the stage0 intake mode (0b generate-from-brief / 0a
+    transform-from-source / 0i import-from-panels) and is stored on the
+    blueprint. For 0i, ``panel_upload`` (zip or folder of panels) is copied
+    into ``input/panels/``; the script arg seeds a placeholder identity.
+    """
     script_path = Path(script_path)
     if not script_path.exists():
         raise FileNotFoundError(f"script file not found: {script_path}")
@@ -99,13 +108,41 @@ def new_project(
     script_text = script_path.read_text(encoding="utf-8")
     (project_dir / "input" / "script.txt").write_text(script_text, encoding="utf-8")
 
-    bp = create_blueprint(script_text, slug=slug, fps=fps)
+    if mode == "0i":
+        # For import mode the seed script is just a placeholder identity; the
+        # panels drive the real content. Copy the upload into input/panels/.
+        if panel_upload is not None:
+            panels_dir = project_dir / "input" / "panels"
+            panels_dir.mkdir(parents=True, exist_ok=True)
+            _copy_panels(Path(panel_upload), panels_dir)
+
+    bp = create_blueprint(script_text, slug=slug, fps=fps, mode=mode)
     bp.write(project_dir)
 
     # Initialize the scorecard db so the gate has a store from the start.
     Scores(project_dir / "scores.sqlite").close()
 
     return project_dir
+
+
+def _copy_panels(upload: Path, panels_dir: Path) -> None:
+    """Copy panels from a zip or folder into ``panels_dir`` (flat, no nesting)."""
+    import zipfile as _zipfile
+
+    _EXTS = {".png", ".jpg", ".jpeg", ".webp"}
+    if upload.suffix.lower() == ".zip":
+        with _zipfile.ZipFile(upload) as zf:
+            for m in zf.namelist():
+                if m.endswith("/"):
+                    continue
+                if Path(m).suffix.lower() in _EXTS:
+                    (panels_dir / Path(m).name).write_bytes(zf.read(m))
+    elif upload.is_dir():
+        for p in sorted(upload.iterdir()):
+            if p.is_file() and p.suffix.lower() in _EXTS:
+                (panels_dir / p.name).write_bytes(p.read_bytes())
+    else:
+        raise FileNotFoundError(f"panel upload must be a zip or folder: {upload}")
 
 
 # --------------------------------------------------------------------------
@@ -119,6 +156,9 @@ def run_stage(
     brief_path: str | Path | None = None,
     force: bool = False,
     config: PipelineConfig | None = None,
+    source_path: str | Path | None = None,
+    panel_upload: str | Path | None = None,
+    word_target: int | None = None,
 ) -> dict | None:
     """Run one stage. All stages (0-5) have real implementations. Known
     gaps (LoRA training, lip-sync, music bed) surface as gated scorecard
@@ -130,8 +170,10 @@ def run_stage(
         raise FileNotFoundError(f"no such project: {project_dir}")
 
     # 1. Pollution guard runs FIRST (before the gate) so a swapped script is
-    #    caught regardless of ledger state.
-    verify_story_guard(project_dir)
+    #    caught regardless of ledger state. (stage0 itself writes/repins the
+    #    hash, so it runs before the guard for intake modes.)
+    if stage != "stage0":
+        verify_story_guard(project_dir)
 
     # 2. Structural stage gate, then (for implemented stages) the real work --
     #    both share one Scores handle so the stage can record metrics.
@@ -141,6 +183,21 @@ def run_stage(
 
         cfg = config or PipelineConfig.load()
         if stage == "stage0":
+            from pipeline import stage0a_transform, stage0i_import
+
+            bp = Blueprint.load(project_dir)
+            mode = getattr(bp, "mode", "0b") or "0b"
+            if mode == "0a":
+                return stage0a_transform.run(
+                    project_dir, cfg, scores,
+                    source_path=source_path,
+                    word_target=word_target or 900,
+                )
+            if mode == "0i":
+                return stage0i_import.run(
+                    project_dir, cfg, scores,
+                    upload=panel_upload,
+                )
             return stage0_intake.run(project_dir, cfg, scores, brief_path=brief_path)
 
         if stage == "stage1":
@@ -151,6 +208,7 @@ def run_stage(
             return {"m2a": partial, "m2b": full}
 
         dispatch = {
+            "stage0_dossier": stage0_dossier.run,
             "stage1_world": stage1_world.run,
             "stage1r": stage1r_references.run,
             "stage3": stage3_storyboard.run,
@@ -198,7 +256,9 @@ def report(slug: str, *, projects_dir: str | Path | None = None) -> dict:
 # CLI wiring
 # --------------------------------------------------------------------------
 def _cmd_new_project(args: argparse.Namespace) -> int:
-    project_dir = new_project(args.slug, args.script, fps=args.fps)
+    project_dir = new_project(
+        args.slug, args.script, fps=args.fps, mode=args.mode, panel_upload=args.panels
+    )
     print(f"[ok] created project: {project_dir}")
     print(f"     blueprint: {project_dir / 'blueprint.json'}")
     return 0
@@ -222,7 +282,10 @@ def _cmd_report(args: argparse.Namespace) -> int:
 
 
 def _cmd_run(args: argparse.Namespace) -> int:
-    result = run_stage(args.slug, args.stage, brief_path=args.brief, force=args.force)
+    result = run_stage(
+        args.slug, args.stage, brief_path=args.brief, force=args.force,
+        source_path=args.source, panel_upload=args.panels, word_target=args.word_target,
+    )
     if result is not None:
         print(json.dumps(result, indent=2))
     return 0
@@ -233,11 +296,18 @@ def run_all(
     *,
     projects_dir: str | Path | None = None,
     brief_path: str | Path | None = None,
+    source_path: str | Path | None = None,
+    panel_upload: str | Path | None = None,
+    word_target: int | None = None,
     run_critique: bool = True,
     retry_on_critique: bool = True,
 ) -> list[dict | None]:
     """``run.py all`` (design 0.2): run every stage in STAGE_ORDER unattended,
     skipping stages the scorecard already proves complete (resume-safe).
+
+    ``source_path``/``panel_upload``/``word_target`` are forwarded to stage0 for
+    mode 0a / 0i intake, mirroring ``run_stage`` so the Studio RUN ALL button and
+    the CLI ``all`` command can drive any intake mode identically.
 
     If run_critique=True, runs the self-critique loop after each stage.
     If retry_on_critique=True, retries stages that fail the critique gate.
@@ -263,7 +333,10 @@ def run_all(
 
         # Run the stage
         print(f"[run ] {stage} ...")
-        result = run_stage(slug, stage, projects_dir=projects_dir, brief_path=brief_path)
+        result = run_stage(
+            slug, stage, projects_dir=projects_dir, brief_path=brief_path,
+            source_path=source_path, panel_upload=panel_upload, word_target=word_target,
+        )
         results.append(result)
 
         # Run critique after stage completion (if enabled)
@@ -295,7 +368,10 @@ def run_all(
 
                     # Re-run the stage
                     print(f"[run ] {stage} (retry) ...")
-                    retry_result = run_stage(slug, stage, projects_dir=projects_dir, brief_path=brief_path)
+                    retry_result = run_stage(
+                        slug, stage, projects_dir=projects_dir, brief_path=brief_path,
+                        source_path=source_path, panel_upload=panel_upload, word_target=word_target,
+                    )
                     results.append({"retry": True, "stage": stage, "result": retry_result})
 
                     # Run critique again on retry
@@ -320,6 +396,9 @@ def _cmd_all(args: argparse.Namespace) -> int:
     run_all(
         args.slug,
         brief_path=args.brief,
+        source_path=args.source,
+        panel_upload=args.panels,
+        word_target=args.word_target,
         run_critique=not args.no_critique,
         retry_on_critique=not args.no_retry,
     )
@@ -333,8 +412,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_new = sub.add_parser("new-project", help="create a new project")
     p_new.add_argument("slug")
-    p_new.add_argument("--script", required=True, help="path to the source script .txt")
+    p_new.add_argument("--script", required=True, help="path to the source script .txt (or a placeholder seed for 0i)")
     p_new.add_argument("--fps", type=int, default=24, help="24-60, snapped to 24/30/60")
+    p_new.add_argument("--mode", default="0b", choices=["0b", "0a", "0i"],
+                       help="stage0 intake mode: 0b generate-from-brief (default) | 0a transform-from-source | 0i import-from-panels")
+    p_new.add_argument("--panels", default=None, help="0i only: zip or folder of panels to import")
     p_new.set_defaults(func=_cmd_new_project)
 
     p_rep = sub.add_parser("report", help="print blueprint + scorecard ledger")
@@ -358,11 +440,30 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="stage3b and stage4: force regeneration of all panels or audio (bypasses the resume-safe skip)",
     )
+    p_run.add_argument(
+        "--source",
+        default=None,
+        help="stage0 mode 0a only: path to the source text to transform",
+    )
+    p_run.add_argument(
+        "--panels",
+        default=None,
+        help="stage0 mode 0i only: zip or folder of panels to import (first run)",
+    )
+    p_run.add_argument(
+        "--word-target",
+        type=int,
+        default=None,
+        help="stage0 mode 0a only: total prose word budget for the transformed episode",
+    )
     p_run.set_defaults(func=_cmd_run)
 
     p_all = sub.add_parser("all", help="run every remaining stage in order (design 0.2)")
     p_all.add_argument("slug")
     p_all.add_argument("--brief", default=None, help="stage0 brief (first run only)")
+    p_all.add_argument("--source", default=None, help="stage0 mode 0a only: path to source text")
+    p_all.add_argument("--panels", default=None, help="stage0 mode 0i only: zip/folder of panels")
+    p_all.add_argument("--word-target", type=int, default=None, help="stage0 mode 0a: prose word budget")
     p_all.add_argument("--no-critique", action="store_true", help="disable self-critique loop between stages")
     p_all.add_argument("--no-retry", action="store_true", help="disable auto-retry on critique failure")
     p_all.set_defaults(func=_cmd_all)

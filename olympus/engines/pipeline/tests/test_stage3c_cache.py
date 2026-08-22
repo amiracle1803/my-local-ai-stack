@@ -5,7 +5,28 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from pipeline.stage3c_animation import _clip_cache_key, _clip_cache_load, _clip_cache_store
+from pipeline.stage3c_animation import _clip_cache_key, _clip_cache_load, _clip_cache_store, _motion_prompt
+
+
+def test_motion_prompt_uses_generated_grammar():
+    """stage3c must feed the per-shot [camera]/[motion]/[character] grammar
+    from stage3 through to the director instead of rebuilding a generic prompt
+    (regression: generated character action was dropped, leaving static clips)."""
+    shot = {
+        "motion_prompt": "[camera: pan-right] [motion: scarf flutters, river ripples] "
+                         "[character: Kana turns her head]",
+        "composition": "medium shot", "lighting": "golden hour",
+    }
+    p = _motion_prompt(shot, 1, "ltx_director_23.json")
+    assert "Kana turns her head" in p
+    assert "scarf flutters, river ripples" in p
+    assert "pan-right" in p
+
+
+def test_motion_prompt_falls_back_without_grammar():
+    shot = {"composition": "wide", "lighting": "day", "sd_prompt": "anime scene"}
+    p = _motion_prompt(shot, 1, "ltx_director_23.json")
+    assert "character" in p.lower()  # built-in fallback recipe used
 
 
 # --------------------------------------------------------------------------
@@ -163,13 +184,13 @@ def test_stage3c_cache_reuses_render(stage3c_project):
 
     comfy = _fake_comfy()
 
-    # First run: should call generate.
+    # First run: should call generate (end frame + director clip).
     first = run(
         stage3c_project, config, Scores(str(db)),
         comfy=comfy,
     )
     assert first["ltx_rendered"] == 1
-    assert comfy.generate.call_count == 1
+    assert comfy.generate.call_count == 2
 
     # Reset the mock and re-run on the same project.
     comfy.reset_mock()
@@ -209,8 +230,9 @@ def test_stage3c_cache_misses_on_changed_prompt(stage3c_project):
     assert r2["ltx_rendered"] == 1
     # May or may not be a cache hit depending on prompt change -- the key
     # includes the motion prompt which depends on composition. Verify the
-    # call count: if cache miss (compose changes), generate is called.
-    assert comfy.generate.call_count <= 1  # at most one render
+    # call count: if cache miss (compose changes), generate is called
+    # (end frame + director clip).
+    assert comfy.generate.call_count <= 2  # at most end-frame + director
 
 
 def test_stage3c_cache_repopulates_on_panel_mutation(stage3c_project):
@@ -233,7 +255,7 @@ def test_stage3c_cache_repopulates_on_panel_mutation(stage3c_project):
     panel.write_bytes(b"\x89PNG" + b"\xab" * 200)
     r2 = run(stage3c_project, config, Scores(str(db)), comfy=comfy)
     assert r2["ltx_rendered"] == 1
-    assert comfy.generate.call_count == 1  # re-rendered because panel changed
+    assert comfy.generate.call_count == 2  # re-rendered (end frame + director)
 
 # --------------------------------------------------------------------------
 # Drift-fallback path (no I2V engine available) must not crash

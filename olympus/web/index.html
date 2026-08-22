@@ -250,6 +250,26 @@ main { flex:1; position:relative; overflow:hidden; }
   .sm-item audio { width:100%; display:block; }
   .sm-item .sm-cap { font-family:Consolas,monospace; font-size:.62rem; color:var(--dim); padding:.3rem .5rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .sm-doc { font-family:Consolas,monospace; font-size:.72rem; color:#cfe3f0; white-space:pre-wrap; word-break:break-word; max-height:55vh; overflow:auto; border:1px solid var(--line); background:#0b1522; padding:.8rem; }
+  .studio-banner { display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; padding:.6rem .9rem; border:1px solid var(--line); background:linear-gradient(90deg,rgba(12,40,62,.35),transparent); margin:0 0 .9rem; }
+  .studio-banner .sb-label { font-family:Consolas,monospace; font-size:.68rem; letter-spacing:.18em; color:var(--cyan); }
+  .studio-banner .sb-runall { font-size:.72rem; }
+  #run-all-btn:disabled { opacity:.55; cursor:not-allowed; }
+  #studio-last-msg { font-size:.68rem; color:var(--dim); }
+  #studio-last-msg.ok { color:var(--green); } #studio-last-msg.err { color:var(--red); }
+  .sm-actions { display:flex; gap:.6rem; flex-wrap:wrap; margin:0 0 1rem; }
+  .sm-actions button { font-size:.7rem; }
+  .sm-log { font-family:Consolas,monospace; font-size:.7rem; color:#ffb3a0; white-space:pre-wrap; word-break:break-word; max-height:30vh; overflow:auto; border:1px solid var(--line); background:#160d12; padding:.7rem; margin-top:1rem; }
+  .sm-log:empty { display:none; }
+  .sm-step { margin:.9rem 0 .4rem; font-family:Consolas,monospace; font-size:.72rem; letter-spacing:.14em; color:var(--cyan); border-bottom:1px solid var(--line); padding-bottom:.3rem; }
+  .sm-hint { font-size:.72rem; color:var(--dim); line-height:1.5; margin:.4rem 0 .8rem; }
+  .sm-errline { font-size:.72rem; color:var(--red); white-space:pre-wrap; word-break:break-word; margin-top:.5rem; }
+  .sm-next { margin-top:1rem; font-size:.75rem; color:var(--gold); }
+  #setup-modal { display:none; position:fixed; inset:0; background:rgba(4,8,14,.78); backdrop-filter:blur(4px); z-index:70; }
+  #setup-modal.open { display:flex; align-items:center; justify-content:center; padding:1.5rem; }
+  #setup-box { width:min(720px,94vw); max-height:88vh; overflow:auto; background:var(--panel); border:1px solid var(--line2); }
+  #setup-body { padding:1rem 1.2rem; }
+  #setup-body textarea { width:100%; min-height:180px; font-family:Consolas,monospace; font-size:.74rem; background:#0b1522; color:#cfe3f0; border:1px solid var(--line); padding:.6rem; }
+  #setup-error { font-size:.72rem; color:var(--red); margin-top:.5rem; }
 
 /* 4. UTILITY CLASSES (replaces inline styles) */
 .cursor-pointer { cursor:pointer; }
@@ -482,6 +502,21 @@ main { flex:1; position:relative; overflow:hidden; }
   </div>
   <iframe id="comfy-frame" title="ComfyUI"></iframe>
 
+  <!-- Studio help banner — no agent needed, everything runs from here -->
+  <div class="hud" style="padding:.7rem 1rem;margin:.6rem 0 .9rem;background:linear-gradient(90deg,rgba(87,199,227,.08),transparent);border-color:rgba(87,199,227,.25)">
+    <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap;justify-content:space-between">
+      <div style="display:flex;gap:.7rem;align-items:center;flex-wrap:wrap">
+        <span class="mono" style="font-size:.72rem;color:var(--cyan);letter-spacing:.14em">● STUDIO — NO AGENT NEEDED</span>
+        <span class="mono" style="font-size:.7rem;color:var(--dim)">Create a project → Run stages one-by-one or hit <b style="color:var(--cyan)">RUN ALL</b>. Click any stage card to view outputs &amp; logs. All config is permanent in <code style="background:#0b1522;padding:.1rem .35rem;border:1px solid var(--line)">stack.toml</code>.</span>
+      </div>
+      <div style="display:flex;gap:.5rem;align-items:center">
+        <span class="mono" style="font-size:.68rem;color:var(--dim)">NIM MODEL</span>
+        <select id="studio-nim-select" style="min-width:280px;background:rgba(8,14,24,.9);border:1px solid var(--line2);color:var(--text);padding:.35rem .5rem;font:inherit;font-size:.75rem"></select>
+        <span id="studio-nim-status" class="mono" style="font-size:.68rem;color:var(--dim)"></span>
+      </div>
+    </div>
+  </div>
+
   <div class="hud" style="padding:.8rem 1rem;margin:.9rem 0">
     <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
       <label class="mono" style="font-size:.7rem;color:var(--cyan-dim)">PROJECT</label>
@@ -494,10 +529,21 @@ main { flex:1; position:relative; overflow:hidden; }
         <input class="txt" id="np-slug" placeholder="project-slug" style="width:200px">
         <label class="mono" style="font-size:.72rem;color:var(--cyan-dim)">FPS <span id="np-fps-val">24</span></label>
         <input type="range" id="np-fps" min="24" max="60" step="1" value="24" style="width:160px">
+        <label class="mono" style="font-size:.72rem;color:var(--cyan-dim)">INTAKE</label>
+        <select id="np-intake" style="min-width:160px">
+          <option value="0b" selected>0B · generate (brief)</option>
+          <option value="0a">0A · transform (source)</option>
+          <option value="0i">0I · import (panels)</option>
+        </select>
         <label class="mono" style="font-size:.78rem"><input type="radio" name="np-mode" value="brief" checked> brief</label>
         <label class="mono" style="font-size:.78rem"><input type="radio" name="np-mode" value="script"> full script</label>
       </div>
-      <textarea id="np-text" rows="6" style="width:100%" placeholder="Creative brief (frontmatter: word_target: 600) — or full script text if 'full script' is selected…"></textarea>
+      <div id="np-intake-hint" class="mono" style="font-size:.7rem;color:var(--cyan-dim);margin-bottom:.5rem"></div>
+      <textarea id="np-text" rows="6" style="width:100%" placeholder="Creative brief (frontmatter: word_target: 600) — or source/seed text if 'full script' is selected…"></textarea>
+      <div id="np-panels-file" style="display:none;margin-top:.5rem">
+        <input type="file" id="np-panels" accept=".zip,.png,.jpg,.jpeg,.webp" multiple>
+        <span class="mono" style="font-size:.7rem;color:var(--dim)"> attach panel images / zip (optional — can also be added when running stage 0)</span>
+      </div>
       <div style="margin-top:.6rem;display:flex;gap:.9rem;align-items:center">
         <button class="primary" type="submit">CREATE PROJECT</button>
         <span id="np-error" class="mono" style="font-size:.72rem;color:var(--red)"></span>
@@ -505,17 +551,28 @@ main { flex:1; position:relative; overflow:hidden; }
     </form>
   </div>
 
+  <div class="studio-banner">
+    <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+      <span class="sb-label">FULL PIPELINE</span>
+      <span id="studio-last-msg" class="mono"></span>
+    </div>
+    <div style="display:flex;gap:.6rem;align-items:center">
+      <span id="studio-progress" class="mono" style="font-size:.7rem;color:var(--cyan)"></span>
+      <button class="primary sb-runall" id="run-all-btn">▶ RUN ALL REMAINING STAGES</button>
+    </div>
+  </div>
+
   <div class="stages">
-    <div class="stage hud" data-stage="stage0"><div class="sdot" id="sdot-stage0"></div><div class="sic">📥</div><div class="snm">STAGE 0 · INTAKE</div><div class="sst">script.txt → project blueprint · FPS 24–60 · story-pollution guard</div><button class="ghost srun" data-stage="stage0">RUN ▶</button></div>
-    <div class="stage hud" data-stage="stage1"><div class="sdot" id="sdot-stage1"></div><div class="sic">🌍</div><div class="snm">STAGE 1 · WORLD BIBLE</div><div class="sst">chunked full-script character extraction · era/tech inference · relationship web · outfit specs · contradiction detection · creative expansion · sd_prompt anchors</div><button class="ghost srun" data-stage="stage1">RUN ▶</button></div>
-    <div class="stage hud" data-stage="stage1r"><div class="sdot" id="sdot-stage1r"></div><div class="sic">👤</div><div class="snm">STAGE 1R · REFERENCES</div><div class="sst">10+ refs per character (360° full body) · locations + assets · style pick → consistency LoRA · voice ID per character</div><button class="ghost srun" data-stage="stage1r">RUN ▶</button></div>
-    <div class="stage hud" data-stage="stage3"><div class="sdot" id="sdot-stage3"></div><div class="sic">🎞</div><div class="snm">STAGE 2 · STORYBOARD</div><div class="sst">scene blocks: first part → ending → in-betweens · last frame seeds next block · panel lock + regenerate · sets shot direction</div><button class="ghost srun" data-stage="stage3">RUN ▶</button></div>
-    <div class="stage hud" data-stage="stage2"><div class="sdot" id="sdot-stage2"></div><div class="sic">📝</div><div class="snm">STAGE 3A · SCREENPLAY</div><div class="sst">reads storyboard → adds narration + dialogue + SFX · composition prompts per shot · pacing pauses · quality audit (fix 3 weakest) · sequence-order check</div><button class="ghost srun" data-stage="stage2">RUN ▶</button></div>
-    <div class="stage hud" data-stage="stage3b"><div class="sdot" id="sdot-stage3b"></div><div class="sic">🎨</div><div class="snm">STAGE 3B · IMAGES</div><div class="sst">one krea2 image per shot · same anchors every time = consistent characters</div><button class="ghost srun" data-stage="stage3b">RUN ▶</button></div>
-    <div class="stage hud" data-stage="stage3c"><div class="sdot" id="sdot-stage3c"></div><div class="sic">🎞️</div><div class="snm">STAGE 3C · ANIMATION</div><div class="sst">LTX-Video motion per panel → clips · motion tiers · facial anchors</div><button class="ghost srun" data-stage="stage3c">RUN ▶</button></div>
-    <div class="stage hud" data-stage="stage_vlm_review"><div class="sdot" id="sdot-stage_vlm_review"></div><div class="sic">🔍</div><div class="snm">STAGE · VLM REVIEW</div><div class="sst">vision-model consistency check · prompt-adherence scoring · blunder gating</div><button class="ghost srun" data-stage="stage_vlm_review">RUN ▶</button></div>
-    <div class="stage hud" data-stage="stage4"><div class="sdot" id="sdot-stage4"></div><div class="sic">🎙</div><div class="snm">STAGE 4 · AUDIO</div><div class="sst">Kokoro TTS · narration + per-character dialogue voices · thinking pauses</div><button class="ghost srun" data-stage="stage4">RUN ▶</button></div>
-    <div class="stage hud" data-stage="stage5"><div class="sdot" id="sdot-stage5"></div><div class="sic">🎬</div><div class="snm">STAGE 5 · ASSEMBLY</div><div class="sst">audio→frame timing · clip chunking · subtle transitions · quiet generated music · copyright check · next-episode carryover · length/GB prediction</div><button class="ghost srun" data-stage="stage5">RUN ▶</button></div>
+    <div class="stage hud" data-stage="stage0"><div class="sdot" id="sdot-stage0"></div><div class="sic">📥</div><div class="snm">STAGE 0 · INTAKE</div><div class="sst">script.txt → project blueprint · FPS 24–60 · story-pollution guard</div><div class="mono" style="font-size:.65rem;color:var(--dim);margin-top:.35rem" id="slabel-stage0">pending — click RUN to start</div><div style="display:flex;gap:.35rem;justify-content:center;margin-top:.45rem;flex-wrap:wrap"><button class="ghost srun" data-stage="stage0">RUN ▶</button><button class="ghost sview" data-stage="stage0">VIEW</button></div></div>
+    <div class="stage hud" data-stage="stage1"><div class="sdot" id="sdot-stage1"></div><div class="sic">🌍</div><div class="snm">STAGE 1 · WORLD BIBLE</div><div class="sst">chunked full-script character extraction · era/tech inference · relationship web · outfit specs · contradiction detection · creative expansion · sd_prompt anchors</div><div class="mono" style="font-size:.65rem;color:var(--dim);margin-top:.35rem" id="slabel-stage1">pending</div><div style="display:flex;gap:.35rem;justify-content:center;margin-top:.45rem;flex-wrap:wrap"><button class="ghost srun" data-stage="stage1">RUN ▶</button><button class="ghost sview" data-stage="stage1">VIEW</button><button class="ghost sforce" data-stage="stage1" title="Force rerun even if done">FORCE</button></div></div>
+    <div class="stage hud" data-stage="stage1r"><div class="sdot" id="sdot-stage1r"></div><div class="sic">👤</div><div class="snm">STAGE 1R · REFERENCES</div><div class="sst">10+ refs per character (360° full body) · locations + assets · style pick → consistency LoRA · voice ID per character</div><div class="mono" style="font-size:.65rem;color:var(--dim);margin-top:.35rem" id="slabel-stage1r">pending</div><div style="display:flex;gap:.35rem;justify-content:center;margin-top:.45rem;flex-wrap:wrap"><button class="ghost srun" data-stage="stage1r">RUN ▶</button><button class="ghost sview" data-stage="stage1r">VIEW</button><button class="ghost sforce" data-stage="stage1r" title="Force rerun">FORCE</button></div></div>
+    <div class="stage hud" data-stage="stage3"><div class="sdot" id="sdot-stage3"></div><div class="sic">🎞</div><div class="snm">STAGE 2 · STORYBOARD</div><div class="sst">scene blocks: first part → ending → in-betweens · last frame seeds next block · panel lock + regenerate · sets shot direction</div><div class="mono" style="font-size:.65rem;color:var(--dim);margin-top:.35rem" id="slabel-stage3">pending</div><div style="display:flex;gap:.35rem;justify-content:center;margin-top:.45rem;flex-wrap:wrap"><button class="ghost srun" data-stage="stage3">RUN ▶</button><button class="ghost sview" data-stage="stage3">VIEW</button><button class="ghost sforce" data-stage="stage3" title="Force rerun">FORCE</button></div></div>
+    <div class="stage hud" data-stage="stage2"><div class="sdot" id="sdot-stage2"></div><div class="sic">📝</div><div class="snm">STAGE 3A · SCREENPLAY</div><div class="sst">reads storyboard → adds narration + dialogue + SFX · composition prompts per shot · pacing pauses · quality audit (fix 3 weakest) · sequence-order check</div><div class="mono" style="font-size:.65rem;color:var(--dim);margin-top:.35rem" id="slabel-stage2">pending</div><div style="display:flex;gap:.35rem;justify-content:center;margin-top:.45rem;flex-wrap:wrap"><button class="ghost srun" data-stage="stage2">RUN ▶</button><button class="ghost sview" data-stage="stage2">VIEW</button><button class="ghost sforce" data-stage="stage2" title="Force rerun">FORCE</button></div></div>
+    <div class="stage hud" data-stage="stage3b"><div class="sdot" id="sdot-stage3b"></div><div class="sic">🎨</div><div class="snm">STAGE 3B · IMAGES</div><div class="sst">one krea2 image per shot · same anchors every time = consistent characters</div><div class="mono" style="font-size:.65rem;color:var(--dim);margin-top:.35rem" id="slabel-stage3b">pending</div><div style="display:flex;gap:.35rem;justify-content:center;margin-top:.45rem;flex-wrap:wrap"><button class="ghost srun" data-stage="stage3b">RUN ▶</button><button class="ghost sview" data-stage="stage3b">VIEW</button><button class="ghost sforce" data-stage="stage3b" title="Force regenerate all panels">FORCE</button></div></div>
+    <div class="stage hud" data-stage="stage3c"><div class="sdot" id="sdot-stage3c"></div><div class="sic">🎞️</div><div class="snm">STAGE 3C · ANIMATION</div><div class="sst">LTX-Video motion per panel → clips · motion tiers · facial anchors</div><div class="mono" style="font-size:.65rem;color:var(--dim);margin-top:.35rem" id="slabel-stage3c">pending</div><div style="display:flex;gap:.35rem;justify-content:center;margin-top:.45rem;flex-wrap:wrap"><button class="ghost srun" data-stage="stage3c">RUN ▶</button><button class="ghost sview" data-stage="stage3c">VIEW</button><button class="ghost sforce" data-stage="stage3c" title="Force rerun">FORCE</button></div></div>
+    <div class="stage hud" data-stage="stage_vlm_review"><div class="sdot" id="sdot-stage_vlm_review"></div><div class="sic">🔍</div><div class="snm">STAGE · VLM REVIEW</div><div class="sst">vision-model consistency check · prompt-adherence scoring · blunder gating</div><div class="mono" style="font-size:.65rem;color:var(--dim);margin-top:.35rem" id="slabel-stage_vlm_review">pending</div><div style="display:flex;gap:.35rem;justify-content:center;margin-top:.45rem;flex-wrap:wrap"><button class="ghost srun" data-stage="stage_vlm_review">RUN ▶</button><button class="ghost sview" data-stage="stage_vlm_review">VIEW</button><button class="ghost sforce" data-stage="stage_vlm_review" title="Force rerun">FORCE</button></div></div>
+    <div class="stage hud" data-stage="stage4"><div class="sdot" id="sdot-stage4"></div><div class="sic">🎙</div><div class="snm">STAGE 4 · AUDIO</div><div class="sst">Kokoro TTS · narration + per-character dialogue voices · thinking pauses</div><div class="mono" style="font-size:.65rem;color:var(--dim);margin-top:.35rem" id="slabel-stage4">pending</div><div style="display:flex;gap:.35rem;justify-content:center;margin-top:.45rem;flex-wrap:wrap"><button class="ghost srun" data-stage="stage4">RUN ▶</button><button class="ghost sview" data-stage="stage4">VIEW</button><button class="ghost sforce" data-stage="stage4" title="Force regenerate">FORCE</button></div></div>
+    <div class="stage hud" data-stage="stage5"><div class="sdot" id="sdot-stage5"></div><div class="sic">🎬</div><div class="snm">STAGE 5 · ASSEMBLY</div><div class="sst">audio→frame timing · clip chunking · subtle transitions · quiet generated music · copyright check · next-episode carryover · length/GB prediction</div><div class="mono" style="font-size:.65rem;color:var(--dim);margin-top:.35rem" id="slabel-stage5">pending</div><div style="display:flex;gap:.35rem;justify-content:center;margin-top:.45rem;flex-wrap:wrap"><button class="ghost srun" data-stage="stage5">RUN ▶</button><button class="ghost sview" data-stage="stage5">VIEW</button><button class="ghost sforce" data-stage="stage5" title="Force rerun">FORCE</button></div></div>
   </div>
 
   <div id="stage-modal" role="dialog" aria-modal="true">
@@ -525,6 +582,16 @@ main { flex:1; position:relative; overflow:hidden; }
         <button id="stage-modal-close" aria-label="close">CLOSE ✕</button>
       </div>
       <div id="stage-modal-body"><div class="sm-empty">loading…</div></div>
+    </div>
+  </div>
+
+  <div id="setup-modal" role="dialog" aria-modal="true">
+    <div id="setup-box">
+      <div id="stage-modal-head">
+        <span id="setup-title">STAGE 0 · INTAKE</span>
+        <button id="setup-close" aria-label="close">CLOSE ✕</button>
+      </div>
+      <div id="setup-body"><div class="sm-empty">loading…</div></div>
     </div>
   </div>
   <div style="display:flex;gap:1.5rem;flex-wrap:wrap">
@@ -1214,8 +1281,55 @@ $('comfy-embed-btn').addEventListener('click', () => {
 });
 
 const PIPELINE_STAGES = ['stage0','stage1','stage1r','stage2','stage3','stage3b','stage3c','stage_vlm_review','stage4','stage5'];
+const PIPELINE_ORDER = ['stage0','stage1','stage1_world','stage1r','stage3','stage2','stage3b','stage4','stage3c','stage_vlm_review','stage5'];
 const DOT_CLASSES = new Set(['pending','running','done','failed','awaiting_approval','not_built']);
+const INTAKE_HINTS = {
+  '0b': 'GENERATE — from a creative brief (frontmatter word_target). Paste the brief below.',
+  '0a': 'TRANSFORM — from a source story. Paste the source text below; the pipeline designs an original rewrite.',
+  '0i': 'IMPORT — from existing panels (PNG/JPG/WEBP zip). Upload a zip below; the pipeline reads panels into a screenplay.',
+};
 let studioProject = localStorage.getItem('studio-project') || '';
+let _studioBusy = false;
+
+function setBusy(busy) {
+  _studioBusy = busy;
+  $('run-all-btn').disabled = busy;
+  document.querySelectorAll('.srun').forEach(b => b.disabled = busy);
+  document.querySelectorAll('.sforce').forEach(b => b.disabled = busy);
+}
+
+// ---- NIM model selector (permanent, no agent) ----
+async function loadNimModels() {
+  try {
+    const data = await j('/api/nim/models');
+    const sel = $('studio-nim-select');
+    if (!sel) return;
+    sel.innerHTML = data.models.map(m =>
+      `<option value="${esc(m)}" ${m === data.active ? 'selected' : ''}>${esc(m)}${m === data.active ? ' ● active' : ''}</option>`
+    ).join('');
+    $('studio-nim-status').textContent = data.enabled ? '● enabled' : '○ disabled';
+    $('studio-nim-status').style.color = data.enabled ? 'var(--green)' : 'var(--dim)';
+  } catch (e) {
+    const sel = $('studio-nim-select');
+    if (sel) sel.innerHTML = '<option>unavailable</option>';
+  }
+}
+async function setNimModel(model) {
+  const status = $('studio-nim-status');
+  status.textContent = 'switching…';
+  try {
+    await j('/api/nim/model', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ model }) });
+    status.textContent = '● switched to ' + model.split('/').pop();
+    status.style.color = 'var(--green)';
+    setLastMsg('NIM model switched to ' + model + ' (permanent — saved to stack.toml)', 'ok');
+    await loadNimModels();
+  } catch (e) {
+    status.textContent = '✗ ' + (e.message || e).slice(0,60);
+    status.style.color = 'var(--red)';
+    alert('Failed to switch NIM model: ' + (e.message || e));
+    await loadNimModels();
+  }
+}
 
 async function loadStudioProjects() {
   let projects = [];
@@ -1231,14 +1345,38 @@ async function loadStudioProjects() {
 $('studio-project-select').addEventListener('change', e => {
   studioProject = e.target.value;
   localStorage.setItem('studio-project', studioProject);
+  setLastMsg('');
   pollStudioStatus();
 });
 
 $('studio-new-toggle').addEventListener('click', () => {
   const f = $('studio-new-form');
   f.style.display = f.style.display === 'none' ? 'block' : 'none';
+  syncIntakeHint();
 });
 $('np-fps').addEventListener('input', e => $('np-fps-val').textContent = e.target.value);
+$('np-intake').addEventListener('change', syncIntakeHint);
+
+function syncIntakeHint() {
+  const intake = $('np-intake').value;
+  const hint = $('np-intake-hint');
+  if (hint) hint.textContent = INTAKE_HINTS[intake] || '';
+  const text = $('np-text');
+  const mode = document.querySelector('input[name="np-mode"]:checked').value;
+  if (intake === '0b') {
+    text.placeholder = 'Creative brief (frontmatter: word_target: 600) — body: genre, tone, protagonist, themes, plot beats…';
+    text.style.display = '';
+    $('np-panels-file').style.display = 'none';
+  } else if (intake === '0a') {
+    text.placeholder = 'Source story text — the pipeline extracts mechanics and designs an original transformation…';
+    text.style.display = '';
+    $('np-panels-file').style.display = 'none';
+  } else {
+    text.placeholder = 'Optional: a one-line premise to seed the project (panels drive the real content)…';
+    text.style.display = 'none';
+    $('np-panels-file').style.display = '';
+  }
+}
 
 $('studio-new-form').addEventListener('submit', async e => {
   e.preventDefault();
@@ -1246,29 +1384,55 @@ $('studio-new-form').addEventListener('submit', async e => {
   const slug = $('np-slug').value.trim();
   const fps = Number($('np-fps').value);
   const mode = document.querySelector('input[name="np-mode"]:checked').value;
+  const intake = $('np-intake').value;
   const text = $('np-text').value;
-  if (!slug || !text.trim()) { $('np-error').textContent = 'slug + brief/script text are required'; return; }
-  const body = { slug, fps };
+  if (!slug) { $('np-error').textContent = 'slug is required'; return; }
+  if (intake !== '0i' && !text.trim()) { $('np-error').textContent = 'brief / source text is required'; return; }
+  const body = { slug, fps, mode: intake };
   if (mode === 'brief') body.brief_text = text; else body.script_text = text;
   try {
     await j('/api/pipeline/projects', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
-    $('np-slug').value = ''; $('np-text').value = '';
+    // Optional panels upload for 0i — send as a separate call after creation.
+    const pf = $('np-panels-file').files[0];
+    if (intake === '0i' && pf) await uploadPanels(slug, pf);
+    $('np-slug').value = ''; $('np-text').value = ''; $('np-panels-file').value = '';
     $('studio-new-form').style.display = 'none';
     studioProject = slug; localStorage.setItem('studio-project', slug);
     await loadStudioProjects();
     pollStudioStatus();
-  } catch (err) { $('np-error').textContent = 'failed: ' + err.message.slice(0, 200); }
+    setLastMsg('project created — run the first stage or hit RUN ALL', 'ok');
+  } catch (err) { $('np-error').textContent = 'failed: ' + (err.message || err).slice(0, 200); }
 });
+
+async function uploadPanels(slug, file) {
+  const fd = new FormData();
+  fd.append('file', file);
+  const r = await fetch('/api/pipeline/' + encodeURIComponent(slug) + '/panels', { method:'POST', body: fd });
+  if (!r.ok) throw new Error(await r.text());
+}
+
+function setLastMsg(text, kind) {
+  const el = $('studio-last-msg');
+  el.textContent = text || '';
+  el.className = 'mono ' + (kind === 'ok' ? 'ok' : kind === 'err' ? 'err' : '');
+}
 
 async function pollStudioStatus() {
   if (!studioProject) {
-    PIPELINE_STAGES.forEach(s => { const d = $('sdot-' + s); if (d) d.className = 'sdot pending'; });
+    PIPELINE_STAGES.forEach(s => {
+      const d = $('sdot-' + s); if (d) d.className = 'sdot pending';
+      const lb = $('slabel-' + s); if (lb) lb.textContent = 'no project';
+      const card = document.querySelector(`.stage[data-stage="${s}"]`);
+      if (card) card.style.opacity = '.55';
+    });
     $('studio-project-meta').textContent = '';
+    $('studio-progress').textContent = '';
     return;
   }
   try {
     const st = await j('/api/pipeline/' + encodeURIComponent(studioProject) + '/status');
-    $('studio-project-meta').textContent = `fps ${st.fps} · story_id ${st.story_id.slice(0, 8)}…`;
+    $('studio-project-meta').textContent = `fps ${st.fps} · mode ${st.mode || '0b'} · story_id ${st.story_id.slice(0, 8)}…`;
+    let done = 0, running = 0, failed = 0;
     PIPELINE_STAGES.forEach(s => {
       const d = $('sdot-' + s);
       if (!d) return;
@@ -1276,23 +1440,167 @@ async function pollStudioStatus() {
       const status = DOT_CLASSES.has(info.status) ? info.status : 'pending';
       d.className = 'sdot ' + status;
       d.title = status + (info.error ? ': ' + info.error : '');
+      const lb = $('slabel-' + s);
+      if (lb) {
+        const labelMap = { pending:'pending — click RUN', running:'⏳ running…', done:'✓ done', failed:'✗ failed — click VIEW for log', awaiting_approval:'⏸ awaiting approval', not_built:'○ not built' };
+        lb.textContent = labelMap[status] || status;
+        lb.style.color = status === 'done' ? 'var(--green)' : status === 'failed' ? 'var(--red)' : status === 'running' ? 'var(--cyan)' : 'var(--dim)';
+      }
+      const card = document.querySelector(`.stage[data-stage="${s}"]`);
+      if (card) {
+        card.style.opacity = status === 'done' ? '1' : status === 'running' ? '1' : '.92';
+        card.style.borderColor = status === 'failed' ? 'rgba(239,107,115,.5)' : status === 'running' ? 'var(--cyan)' : '';
+      }
+      if (status === 'done') done++;
+      if (status === 'running') running++;
+      if (status === 'failed') failed++;
     });
+    const total = PIPELINE_STAGES.length;
+    $('studio-progress').textContent = running
+      ? `${done}/${total} done · ${running} running — polling…`
+      : failed ? `${done}/${total} done · ${failed} failed`
+      : `${done}/${total} stages complete${done===total?' — ✓ pipeline complete!':''}`;
+    if (failed) setLastMsg(`${failed} stage(s) failed — click VIEW on red cards for logs, or FORCE to retry`, 'err');
+    else if (running) setLastMsg(`running… ${done}/${total} done`, '');
   } catch { /* project may not exist yet / kernel hiccup — skip this tick */ }
 }
-document.querySelectorAll('.srun').forEach(btn => {
-  btn.addEventListener('click', async () => {
-    if (!studioProject) { alert('create or select a project first'); return; }
-    const stage = btn.dataset.stage;
-    btn.disabled = true; btn.textContent = 'RUNNING…';
-    try {
-      await j('/api/pipeline/' + encodeURIComponent(studioProject) + '/run/' + stage, { method:'POST' });
-    } catch (err) { alert(stage + ' run failed: ' + (err.message || err).slice(0, 300)); }
-    btn.disabled = false; btn.textContent = 'RUN ▶';
-    pollStudioStatus();
-  });
-});
 
-/* ============ stage-artifact viewer ============ */
+async function runStage(stage, force=false) {
+  if (_studioBusy) { alert('a run is already in progress — wait for it to finish'); return; }
+  if (!studioProject) { alert('create or select a project first'); return; }
+  if (force && !confirm(`Force rerun ${stage}? This will clear its previous outputs and run it again even though it is marked done.`)) return;
+  setBusy(true);
+  setLastMsg(`${stage} ${force?'force rerunning':'running'}…`, '');
+  try {
+    // stage0 intake needs its inputs (brief/source/panels) — open the setup modal.
+    if (stage === 'stage0') {
+      await openStage0Setup();
+    } else {
+      await j('/api/pipeline/' + encodeURIComponent(studioProject) + '/run/' + stage, {
+        method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ force })
+      });
+      setLastMsg(`${stage} ${force?'force started':'started'}`, 'ok');
+    }
+  } catch (err) {
+    setLastMsg(`${stage} failed to start: ` + (err.message || err).slice(0, 200), 'err');
+    alert(stage + ' run failed: ' + (err.message || err).slice(0, 300));
+  } finally {
+    setBusy(false);
+    pollStudioStatus();
+  }
+}
+
+async function runAll() {
+  if (_studioBusy) { alert('a run is already in progress — wait for it to finish'); return; }
+  if (!studioProject) { alert('create or select a project first'); return; }
+  if (!confirm('Run all remaining stages in order? GPU stages (1r, 3b, 3c) can take a long time. This resumes from where the project left off.')) return;
+  setBusy(true);
+  setLastMsg('running all remaining stages… (this may take a long time on GPU stages)', '');
+  try {
+    // If stage0 hasn't produced intake yet, collect its inputs (brief/source/
+    // panels) through the same modal the per-stage run uses, then hand them to
+    // /run-all so any intake mode (0b/0a/0i) works end-to-end.
+    let body = {};
+    const st = await j('/api/pipeline/' + encodeURIComponent(studioProject) + '/status');
+    const s0 = (st.stages && st.stages.stage0) || {};
+    if ((st.mode || '0b') !== '0b' || s0.status !== 'done') {
+      const intake = await openStage0Setup(true);
+      if (!intake) { setBusy(false); setLastMsg('full run cancelled', ''); return; }
+      body = intake;
+    }
+    await j('/api/pipeline/' + encodeURIComponent(studioProject) + '/run-all', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+    });
+    setLastMsg('full run started — poll the stage dots / open the video tab when done', 'ok');
+  } catch (err) {
+    setLastMsg('run-all failed to start: ' + (err.message || err).slice(0, 200), 'err');
+    alert(err.message || err);
+  } finally {
+    setBusy(false);
+    pollStudioStatus();
+  }
+}
+
+// ---- stage0 intake setup modal ----
+// collectOnly=true -> resolve(body) with the intake inputs WITHOUT starting a
+// run; used by RUN ALL so it can hand the same brief/source/panels to /run-all.
+function openStage0Setup(collectOnly = false) {
+  return new Promise((resolve) => {
+    const title = $('setup-title');
+    const body = $('setup-body');
+    title.textContent = 'STAGE 0 · INTAKE (' + (studioProject || 'project') + ')';
+    j('/api/pipeline/' + encodeURIComponent(studioProject) + '/status').then(st => {
+      const mode = st.mode || '0b';
+      const hint = INTAKE_HINTS[mode] || '';
+      body.innerHTML = `
+        <div class="sm-hint">${esc(hint)}</div>
+        <div class="sm-step">PROJECT</div>
+        <div class="sm-hint">slug: <b>${esc(studioProject)}</b> · fps ${st.fps} · mode ${esc(mode)}</div>
+        ${mode === '0b' ? `
+          <div class="sm-step">CREATIVE BRIEF</div>
+          <textarea id="setup-brief" placeholder="---&#10;word_target: 800&#10;---&#10;&#10;Genre, tone, protagonist, themes, plot beats…">${esc($('np-text').value)}</textarea>
+        ` : ''}
+        ${mode === '0a' ? `
+          <div class="sm-step">SOURCE TEXT</div>
+          <textarea id="setup-source" placeholder="Paste the source story text here…"></textarea>
+          <div class="sm-hint" style="margin-top:.4rem">word target: <input type="number" id="setup-wordtarget" value="800" min="200" step="50" style="width:90px;background:#0b1522;color:#cfe3f0;border:1px solid var(--line)"></div>
+        ` : ''}
+        ${mode === '0i' ? `
+          <div class="sm-step">PANEL UPLOAD</div>
+          <input type="file" id="setup-panels" accept=".zip,.png,.jpg,.jpeg,.webp" multiple>
+          <div class="sm-hint" style="margin-top:.4rem">Upload a .zip (or a folder of panels). If panels were already attached at project creation, leave empty to reuse them.</div>
+        ` : ''}
+        <div style="margin-top:.9rem;display:flex;gap:.7rem;align-items:center">
+          <button class="primary" id="setup-run">${collectOnly ? 'USE FOR FULL RUN ▶' : 'RUN STAGE 0 ▶'}</button>
+          <button class="ghost" id="setup-close2">CANCEL</button>
+          <span id="setup-error"></span>
+        </div>
+      `;
+      $('setup-modal').classList.add('open');
+      $('setup-close').onclick = () => { $('setup-modal').classList.remove('open'); resolve(false); };
+      $('setup-close2').onclick = () => { $('setup-modal').classList.remove('open'); resolve(false); };
+      $('setup-modal').addEventListener('click', e => { if (e.target === $('setup-modal')) { $('setup-modal').classList.remove('open'); resolve(false); } });
+      $('setup-run').onclick = async () => {
+        const errEl = $('setup-error');
+        errEl.textContent = '';
+        try {
+          const out = {};
+          if (mode === '0b') {
+            const brief = ($('setup-brief') || {}).value || '';
+            if (!brief.trim()) throw new Error('brief is required');
+            out.brief = brief;
+          } else if (mode === '0a') {
+            const source = ($('setup-source') || {}).value || '';
+            if (!source.trim()) throw new Error('source text is required');
+            out.source_text = source;
+            out.word_target = Number(($('setup-wordtarget') || {}).value || 800);
+          } else if (mode === '0i') {
+            const pf = ($('setup-panels') || {}).files && $('setup-panels').files[0];
+            if (pf) await uploadPanels(studioProject, pf);
+          }
+          if (collectOnly) {
+            $('setup-modal').classList.remove('open');
+            resolve(out);
+            return;
+          }
+          await j('/api/pipeline/' + encodeURIComponent(studioProject) + '/run/stage0', {
+            method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(out)
+          });
+          $('setup-modal').classList.remove('open');
+          setLastMsg('stage0 started', 'ok');
+          resolve(true);
+        } catch (err) {
+          errEl.textContent = (err.message || err).slice(0, 250);
+        }
+      };
+    }).catch(err => {
+      body.innerHTML = '<div class="sm-errline">error loading status: ' + esc(err.message) + '</div>';
+      resolve(false);
+    });
+  });
+}
+
+// ---- stage artifact viewer (now also shows logs + run shortcut) ----
 const STAGE_TITLES = {
   stage0: 'STAGE 0 · INTAKE', stage1: 'STAGE 1 · WORLD BIBLE', stage1r: 'STAGE 1R · REFERENCES',
   stage2: 'STAGE 2 · SCREENPLAY', stage3: 'STAGE 3 · STORYBOARD', stage3b: 'STAGE 3B · IMAGES',
@@ -1322,7 +1630,6 @@ function smRender(artifacts) {
   if (vis.length) html += `<div class="sm-grid">${vis.map(smFile).join('')}</div>`;
   if (docs.length) {
     html += `<h2 class="pg mb-lg">DOCUMENTS</h2>` + docs.map(a => {
-      // stash the doc path in the pre's data attribute via a placeholder token
       return `<h3 class="mono-sm text-cyan">${esc(a.name)}</h3><pre class="sm-doc" data-doc-path="${esc(a.path)}">loading…</pre>`;
     }).join('');
   }
@@ -1333,7 +1640,19 @@ function smDocUrl(path) {
 }
 async function loadStageArtifacts(stage, arts) {
   const st = await j('/api/pipeline/' + encodeURIComponent(studioProject) + '/status');
-  smBody.innerHTML = smTags((st.stages[stage] || {}).metrics) + smRender(arts, stage);
+  const info = st.stages[stage] || {};
+  const isStage0 = stage === 'stage0';
+  smBody.innerHTML = `
+    <div class="sm-actions">
+      <button class="ghost sm-run" data-stage="${esc(stage)}">▶ RUN ${isStage0 ? 'STAGE 0 (INTAKE)' : 'THIS STAGE'}</button>
+      ${isStage0 ? '<span class="sm-hint" style="margin:0">Runs the intake for this project (brief/source/panels).</span>' : ''}
+    </div>
+    ${smTags(info.metrics)}
+    ${info.status === 'failed' ? '<div class="sm-errline" id="sm-fail-line">loading error…</div>' : ''}
+    ${smRender(arts, stage)}
+    <div class="sm-log" id="sm-log"></div>
+    ${smNextHint(stage, st)}
+  `;
   await Promise.all([...smBody.querySelectorAll('[data-doc-path]')].map(async pre => {
     try {
       const r = await fetch(smDocUrl(pre.dataset.docPath));
@@ -1343,6 +1662,25 @@ async function loadStageArtifacts(stage, arts) {
       pre.textContent = t;
     } catch { pre.textContent = '(unable to load document)'; }
   }));
+  const runBtn = smBody.querySelector('.sm-run');
+  if (runBtn) runBtn.onclick = () => { smModal.classList.remove('open'); runStage(runBtn.dataset.stage); };
+  if (info.status === 'failed') {
+    try {
+      const lg = await j('/api/pipeline/' + encodeURIComponent(studioProject) + '/log/' + stage);
+      $('sm-fail-line').textContent = lg.log || '(no error log written)';
+    } catch { $('sm-fail-line').textContent = '(could not load error)'; }
+  }
+}
+function smNextHint(stage, st) {
+  const order = PIPELINE_ORDER;
+  const idx = order.indexOf(stage);
+  if (idx < 0) return '';
+  const next = order.slice(idx + 1).find(s => {
+    const info = st.stages[s] || {};
+    return info.status !== 'done';
+  });
+  if (!next) return '<div class="sm-next">✓ this is the last pending stage — the pipeline will be complete.</div>';
+  return `<div class="sm-next">next up: <b>${esc(next)}</b> — run it (or hit RUN ALL).</div>`;
 }
 function openStageModal(stage) {
   if (!studioProject) { alert('create or select a project first'); return; }
@@ -1355,13 +1693,42 @@ function openStageModal(stage) {
 }
 $('stage-modal-close').addEventListener('click', () => smModal.classList.remove('open'));
 smModal.addEventListener('click', e => { if (e.target === smModal) smModal.classList.remove('open'); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') smModal.classList.remove('open'); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { smModal.classList.remove('open'); $('setup-modal').classList.remove('open'); } });
 document.querySelectorAll('.stage').forEach(card => {
-  card.addEventListener('click', e => { if (e.target.closest('.srun')) return; openStageModal(card.dataset.stage); });
+  card.addEventListener('click', e => { if (e.target.closest('button')) return; openStageModal(card.dataset.stage); });
 });
 
-loadStudioProjects().then(pollStudioStatus);
-setInterval(pollStudioStatus, 8000);
+// ---- per-stage buttons: RUN / VIEW / FORCE ----
+document.querySelectorAll('.srun').forEach(btn => {
+  btn.addEventListener('click', e => { e.stopPropagation(); runStage(btn.dataset.stage, false); });
+});
+document.querySelectorAll('.sview').forEach(btn => {
+  btn.addEventListener('click', e => { e.stopPropagation(); openStageModal(btn.dataset.stage); });
+});
+document.querySelectorAll('.sforce').forEach(btn => {
+  btn.addEventListener('click', e => { e.stopPropagation(); runStage(btn.dataset.stage, true); });
+});
+$('run-all-btn').addEventListener('click', runAll);
+$('setup-close').addEventListener('click', () => $('setup-modal').classList.remove('open'));
+$('setup-modal').addEventListener('click', e => { if (e.target === $('setup-modal')) $('setup-modal').classList.remove('open'); });
+
+// ---- NIM model selector wiring ----
+const nimSel = $('studio-nim-select');
+if (nimSel) {
+  nimSel.addEventListener('change', e => setNimModel(e.target.value));
+  loadNimModels();
+}
+
+// ---- studio polling: faster when something is running ----
+let _studioPoll = null;
+function startStudioPolling() {
+  if (_studioPoll) clearInterval(_studioPoll);
+  _studioPoll = setInterval(() => {
+    if (document.querySelector('#page-studio.active')) pollStudioStatus();
+  }, 3000);
+}
+loadStudioProjects().then(() => { pollStudioStatus(); startStudioPolling(); });
+setInterval(() => { if (document.querySelector('#page-studio.active')) loadNimModels(); }, 30000);
 
 /* ============ boot ============ */
 async function refreshAll() {

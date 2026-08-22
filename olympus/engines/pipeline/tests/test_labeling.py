@@ -107,3 +107,26 @@ def test_build_labels_missing_worldbible(tmp_path):
     # falls back to raw ids, no crash
     assert len(labels["panels"]) == 1
     assert labels["panels"][0]["location"] == "loc-shrine"
+
+
+def test_build_labels_canonical_filenames(tmp_path):
+    """Forward-only canonical filenames are parsed into canonical ids."""
+    proj = _mk_project(tmp_path)
+    # replace the legacy panel + clip with canonical-named ones
+    panel = proj / "panels" / "blk-001" / "sh-001-01.png"
+    panel.rename(proj / "panels" / "blk-001" / "river_sc001_sh001_pn01_render_v001.png")
+    (proj / "clips" / "sh-001-01_director_00001.mp4").unlink()
+    (proj / "clips" / "river_sc001_sh001_cl01_ltx-director_v001.mp4").write_bytes(b"mp4")
+
+    labels = build_labels(proj)
+    assert len(labels["panels"]) == 1
+    p = labels["panels"][0]
+    assert p["shot_id"] == "sh-001-01"
+    assert p["canonical_id"] == "river_sc001_sh001"
+    assert p["version"] == "v001"
+
+    assert len(labels["clips"]) == 1
+    c = labels["clips"][0]
+    assert c["shot_id"] == "sh-001-01"
+    assert c["canonical_id"] == "river_sc001_sh001"
+    assert c["version"] == "v001"

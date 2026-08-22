@@ -19,8 +19,8 @@ num_ctx = 16384
 # Model roles — change these to swap models without touching code
 [ollama.models]
 script    = "qwen3:8b"           # all screenplay / story LLM work
-vision = "qwen3:8b"       # panel vision analysis (was qwen2.5vl:7b — qwen2.5vl miscounted character counts on dense anime panels)
-review    = "qwen2.5vl:7b"       # stage_vlm_review 10-dim physics/logic gate (non-reasoning; reliable fast structured output — qwen3-vl:8b reasoning model returns empty content on some frames)
+vision = "qwen2.5vl:7b"       # panel vision judge — must be a VLM (qwen3:8b rejects image payloads with 400; qwen2.5vl occasionally miscounts dense panels but retry cap accepts best attempt)
+review    = "qwen2.5vl:7b"       # stage_vlm_review 10-dim physics/logic gate (non‑reasoning; reliable fast structured output — qwen3‑vl:8b reasoning model returns empty content on some frames)
 default   = "qwen3:8b"        # general fallback (was llama3.1:8b — not pulled on this box)
 embed     = "nomic-embed-text"   # embeddings
 
@@ -38,14 +38,14 @@ host = "0.0.0.0"
 port = 8188
 url = "http://127.0.0.1:8188"
 
-# Image models (GGUF in ComfyUI/models/unet/)
+# Image models (GGUF in ComfyUI/models/unet/) — all LOCAL, 8GB-tested
 [comfyui.models]
-primary            = "flux-2-klein-4b-Q4_K_M.gguf" # 8GB-safe primary (was krea2_turbo-Q4_K_S.gguf — OOMs on 8GB under load; klein per user request 2026-08)
-fallback = "flux-2-klein-4b-Q4_K_M.gguf" # 8GB-safe fallback (was flux1-schnell-Q4_K_S.gguf — swapped per user request)
+primary            = "flux-2-klein-4b-Q4_K_M.gguf" # 8GB-safe primary (2.5GB GGUF, Flux2-klein, verified on RTX 4070 8GB)
+fallback = "flux-2-klein-4b-Q4_K_M.gguf" # 8GB-safe fallback (same file — no OOM fallback needed)
 floor      = "flux-2-klein-4b-Q4_K_M.gguf"     # acceptable quality
-panel               = "flux-2-klein-4b-Q4_K_M.gguf" # panel gen (was krea2_turbo-Q4_K_S.gguf — OOM; klein per user request 2026-08)
-character = "flux-2-klein-4b-Q4_K_M.gguf" # character sheets (flux-2-klein for 8GB VRAM)
-animation_primary = "ltx-2.3-22b-distilled-1.1-Q4_K_M.gguf"
+panel               = "flux-2-klein-4b-Q4_K_M.gguf" # panel gen (flux-2-klein 4B, 8 steps, cfg 1.0)
+character = "flux-2-klein-4b-Q4_K_M.gguf" # character sheets (flux-2-klein)
+animation_primary = "ltx-2.3-22b-distilled-1.1-Q4_K_M.gguf" # 17GB GGUF but validated 8GB-safe via tiled VAE (768x448x81f ~5.8GB per manifest ltx22b_i2v.json) — hunyuan 7.4GB is fallback
 
 # Banned checkpoints — enforced at runtime by pipeline.config.resolve_image_model
 banned_checkpoints = [
@@ -94,8 +94,8 @@ workflows    = "olympus/engines/pipeline/workflows"
 comfyui_dir  = "ComfyUI"
 
 [animation]
-engine = "ltx_director"      # PRIMARY stage3c engine (LTXDirector V2V, best result). Fallbacks: "ltx2b" | "svd_xt" | "wan22" | "wan22_2f" | "ltx23"
-ltx_director_workflow = "ltx_director_23.json"   # LTXDirector V2V template (image-keyframe + text beat; IC-LoRA/video segments off for now)
+engine = "ltx2b"     # PRIMARY stage3c engine: aetherpunk LTX Director V2V (First&Last-Frame directed motion; fixes static clips). Fallbacks: "ltx2b" | "hunyuan" | "wan22" | "ltx23"
+ltx_director_workflow = "ltx_director_23.json"   # LTXDirector V2V template (8GB GGUF, tiled VAE decode; panel keyframe + text beat + END frame)
 enhance_panels = true        # Real-ESRGAN 2x source panels before I2V (reduces face/char distortion)
 panel_char_ref = true        # stage3b: re-render panels conditioned on character ref (identity lock)
 ltx_strength = 0.55          # LTX-2B I2V strength: lower = less face drift, higher = more motion
@@ -136,13 +136,20 @@ vram_gb = 8
 # Ollama and ComfyUI must never share GPU — stage transitions unload first
 
 # ── NVIDIA NIM (hosted judge) ─────────────────────────────────────────────
-# Advanced hosted judge for output QC (panel vision + clip review). Local
-# Ollama models stay on standby as automatic fallback when NIM is disabled or
-# unreachable. API key: set NVIDIA_API_KEY / NVIDIA_NIM_API_KEY env var, or
-# fill api_key below (never commit it). Enabled only when a key resolves.
+# LOCAL-ONLY default: disabled. Pipeline uses local Ollama qwen2.5vl:7b for VLM review.
+# Enable only if you want hosted NIM (requires NVIDIA_API_KEY). DeepSeek model is
+# listed as opt-in but NOT active by default — keeps the pipeline fully local on 8GB.
+# When enabled, stack.toml [nim] model is patched via Studio UI or CLI without an agent.
 [nim]
-enabled = true
+enabled = false
 base_url = "https://integrate.api.nvidia.com/v1"
 model = "nvidia/llama-3.1-nemotron-nano-vl-8b-v1"
 api_key = ""
 timeout_seconds = 120
+
+# Available NIM models for selection
+# DeepSeek models via NVIDIA NIM
+models = [
+  "nvidia/llama-3.1-nemotron-nano-vl-8b-v1",
+  "deepseek-ai/deepseek-v4-flash-0731",
+]

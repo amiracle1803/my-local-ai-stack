@@ -276,20 +276,56 @@ Check a project's state at any time:
 python run.py report my-story
 ```
 
-## Asset Labeling
+## Asset Labeling & Identity
 
-Pipeline files use stable shot identifiers such as:
+### Stable machine id (never renamed)
+
+Every shot keeps a **stable internal machine id** — `sh-001-01` (scene 001 +
+shot 01) — as the JSON-contract, cache, and storyboard key. Existing legacy
+artifacts keep their original filenames; the pipeline never renames anything
+downstream already references.
+
+### Canonical VFX identity (standard going forward)
+
+New artifacts use a **canonical VFX-style name** derived from the machine id:
 
 ```
-sh-001-01.png
-sh-001-01_director_00001.mp4
+{project}_sc{scene:03d}_sh{shot:03d}_{asset}[_{variant}][_tk##]_v###.{ext}
 ```
 
-Olympus does **not** rename these files because stable paths protect stage contracts, caching, tests, and downstream automation. Instead, it writes a human-readable companion index after panel and clip generation.
+Examples:
+
+```
+river-shrine_sc001_sh001_pn01_render_v001.png        # panel
+river-shrine_sc001_sh001_cl01_ltx-director_v001.mp4  # director clip
+river-shrine_sc001_sh001_audio_narration_v001.wav    # narration
+river-shrine_sc001_sh001_dialogue_dl01_v001.wav      # dialogue line 1
+river-shrine_master_v001.mp4                         # deliverable
+```
+
+Semantics (implemented in `pipeline/identity.py`):
+- `pn##` — panel variants within a shot
+- `cl##` — clip output variants within a shot
+- `tk##` — retry attempts / seed exploration (ComfyUI's `_0000N` counter)
+- `v###` — **approved revisions only**, starts at `v001`, bumped on deliberate
+  regeneration (`--force` / manual regen). Never use `final`, `final2`, …
+- `{project}` — the blueprint slug, sanitized
+- The machine `sh-001-01` id stays discoverable from any canonical filename via
+  `identity.legacy_sid_from_filename()` / `canonical_id_from_filename()`
+
+A resolver lets both naming styles coexist: legacy projects keep their files,
+new projects get canonical names, and every downstream stage (panels, clips,
+audio, assembly) reads either via `identity.resolve_panel()` / `audio_path()` /
+`_dialogue_files()`.
+
+### Companion labels index
+
+Alongside the artifacts, Olympus writes a human-readable companion index after
+panel and clip generation.
 
 | File | Use |
 |---|---|
-| `labels.json` | Structured machine-readable scene, panel, and clip index |
+| `labels.json` | Structured machine-readable scene, panel, and clip index (incl. `canonical_id`, `panel_id`, `clip_id`, `version`) |
 | `labels.txt` | Searchable plain-text project overview |
 | `labels.html` | Browser-based asset table for manual review |
 
@@ -371,7 +407,7 @@ cd olympus/engines/pipeline
 python -m pytest tests/ -v
 ```
 
-The project currently documents **230 passing tests** as of 2026-08-21, including labeling-standard coverage.
+The project currently documents **246 passing tests** as of 2026-08-21, including labeling-standard and VFX-identity coverage.
 
 Useful focused tests:
 
@@ -381,6 +417,7 @@ python -m pytest tests/test_video_router.py -v
 python -m pytest tests/test_stage3c_cache.py -v
 python -m pytest tests/test_stage5_assembly.py -v
 python -m pytest tests/test_labeling.py -v
+python -m pytest tests/test_identity.py -v
 ```
 
 Run a panel smoke test:

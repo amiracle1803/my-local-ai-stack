@@ -24,6 +24,7 @@ from pydantic import BaseModel, Field
 # -> 4 (audio) -> 3C (animation w/ krea2 base) -> VLM Review (audio+visual) -> 5 (assembly)
 STAGE_ORDER: list[str] = [
     "stage0",
+    "stage0_dossier",  # rich intake extraction (characters/locations/360-views/scenes/dialogue)
     "stage1",       # M2a: character scan + profiles
     "stage1_world", # M2b: world enrichment (locations, era, magic, economy, relationships)
     "stage1r",      # reference images: character, location, asset style refs
@@ -108,6 +109,7 @@ class Blueprint(BaseModel):
     title_hash: str
     created: str
     fps: int
+    mode: str = "0b"  # stage0 intake mode: 0b (generate) | 0a (transform) | 0i (import)
     style: Style = Field(default_factory=Style)
     target: Target = Field(default_factory=Target)
     stages: dict[str, StageEntry] = Field(default_factory=dict)
@@ -153,6 +155,7 @@ def create_blueprint(
     style: Style | None = None,
     target: Target | None = None,
     story_id: str | None = None,
+    mode: str = "0b",
 ) -> Blueprint:
     """Build a fresh Blueprint with a full pending stage ledger."""
     return Blueprint(
@@ -161,6 +164,7 @@ def create_blueprint(
         title_hash=compute_title_hash(script_text),
         created=_now_iso(),
         fps=snap_fps(fps),
+        mode=mode,
         style=style or Style(),
         target=target or Target(),
         stages={s: StageEntry() for s in STAGE_ORDER},

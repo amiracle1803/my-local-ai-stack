@@ -485,6 +485,8 @@ def test_run_stage_cli_wires_stage1(tmp_path, monkeypatch):
     gate_scores = Scores(proj_dir / "scores.sqlite")
     gate_scores.record("stage0", "global", "structure_completeness", 1.0)
     gate_scores.stage_done("stage0")
+    gate_scores.record("stage0_dossier", "global", "characters_found", 1.0)
+    gate_scores.stage_done("stage0_dossier")
     gate_scores.close()
 
     fake = FakeLLM(

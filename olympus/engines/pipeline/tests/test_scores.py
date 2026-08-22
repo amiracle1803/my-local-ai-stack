@@ -32,6 +32,9 @@ def test_gate_passes_when_predecessor_complete(tmp_path):
         for metric in MANDATORY_METRICS["stage0"]:
             s.record("stage0", "global", metric, 100.0)
         s.stage_done("stage0")
+        for metric in MANDATORY_METRICS["stage0_dossier"]:
+            s.record("stage0_dossier", "global", metric, 100.0)
+        s.stage_done("stage0_dossier")
         s.require_stage("stage1")  # must not raise
 
 

@@ -36,6 +36,7 @@ import requests
 from pydantic import BaseModel
 
 from . import image_router
+from . import identity
 from .blueprint import Blueprint
 from .comfy_client import ComfyClient, ComfyError, ContingencyStop
 from .config import PipelineConfig
@@ -311,6 +312,7 @@ def run(
     comfy: ComfyClient | None = None,
 ) -> dict[str, Any]:
     project_dir = Path(project_dir)
+    project = identity.project_code(project_dir)
     wb = WorldBible.model_validate_json(
         (project_dir / "worldbible" / "world_bible.json").read_text(encoding="utf-8")
     )
@@ -346,6 +348,22 @@ def run(
     }
     panels_state = storyboard["panels"]
     shots_by_scene = [(scene, shot) for scene in screenplay["scenes"] for shot in scene["shots"]]
+    # The storyboard LLM may renumber or merge shots, leaving screenplay ids
+    # with no block/panel entry (seen live: sh-003-05 KeyError). Storyboard is
+    # the render authority; skip unmatched screenplay shots with a recorded
+    # deviation instead of crashing the stage.
+    dropped = sorted(
+        {shot["id"] for _, shot in shots_by_scene} - set(shot_to_block)
+    )
+    for sid_dropped in dropped:
+        scores.record("stage3b", sid_dropped, "missing_from_storyboard_deviation", 1.0)
+        logger.warning(
+            "screenplay shot %s has no storyboard block/panel -- skipping render",
+            sid_dropped,
+        )
+    shots_by_scene = [
+        pair for pair in shots_by_scene if pair[1]["id"] in shot_to_block
+    ]
 
     # Block generation order: first -> ending -> infill (design Stage 3.2).
     order_rank = {"first": 0, "ending": 1, "infill": 2}
@@ -381,14 +399,25 @@ def run(
         state = panels_state[sid]
         if state["status"] == "locked":
             continue
-        panel_path = block_dir / f"{sid}.png"
+        panel_path = identity.panel_path(block_dir, sid, project)
         if panel_path.exists() and state["status"] in ("generated", "reviewed"):
+            # Canonical naming is the standard: drop any orphaned legacy
+            # sh-*.png so a stale pre-canvas panel can't shadow / confuse
+            # the fresh canonical one (resolve_panel prefers canonical).
+            legacy = block_dir / f"{sid}.png"
+            if legacy.exists() and legacy != panel_path:
+                legacy.unlink(missing_ok=True)
             continue  # resume-safe
 
         # Scene plate first (once per scene).
         if scene["id"] not in plates_done:
             plate_dir = block_dir / "_plates"
             plate_path = plate_dir / f"{scene['id']}.png"
+            if not plate_path.exists() and project:
+                # forward-only canonical plate: {project}_sc001_plate_v001.png
+                plate_path = plate_dir / identity.artifact_name(
+                    f"{project}_{scene['id'].replace('sc-', 'sc')}", "plate", version=1, ext="png"
+                )
             if not plate_path.exists():
                 loc = next((l for l in wb.locations if l.id == scene["location"]), None)
                 plate_prompt = (
@@ -444,7 +473,9 @@ def run(
             passed, detail = vision_judge(panel_path, shot, scene, config)
             sidecar = {
                 "seed": seed, "prompt": prompt, "model": model_used,
-                "attempt": attempt, "vision": detail, "ts": _now_iso(),
+                "attempt": attempt, "take": f"tk{attempt + 1:02d}",
+                "version": "v001",  # bumped only on deliberate regeneration
+                "vision": detail, "ts": _now_iso(),
             }
             (block_dir / f"{sid}.json").write_text(json.dumps(sidecar, indent=2), encoding="utf-8")
             if passed:
@@ -510,9 +541,23 @@ def run(
 
     comfy.free()
 
+    # Clean up orphaned legacy panels: once a shot has a canonical panel, its
+    # old sh-*.png (pre-canonical naming) is stale and unreferenced -- remove it
+    # so the folder reflects the single canonical standard.
+    for block_dir in (project_dir / "panels").iterdir() if (project_dir / "panels").is_dir() else []:
+        if not block_dir.is_dir():
+            continue
+        for png in block_dir.glob("sh-*.png"):
+            sid = identity.sid_from_panel_name(png.name, project)
+            canon = identity.resolve_panel(block_dir, sid, project)
+            if canon.exists() and canon != png:
+                png.unlink(missing_ok=True)
+
     # seed_frame continuity hooks: last panel of each block (design Stage 3.3).
     for b in storyboard["blocks"]:
-        last_panel = project_dir / "panels" / b["id"] / f"{b['shots'][-1]}.png"
+        last_sid = b["shots"][-1]
+        last_panel = identity.resolve_panel(
+            project_dir / "panels" / b["id"], last_sid, project)
         if last_panel.exists():
             b_next_idx = storyboard["blocks"].index(b) + 1
             if b_next_idx < len(storyboard["blocks"]):

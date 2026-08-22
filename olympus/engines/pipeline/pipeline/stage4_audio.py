@@ -48,6 +48,7 @@ import requests
 import soundfile as sf
 
 from .blueprint import Blueprint
+from . import identity
 from .config import PipelineConfig
 from .scores import Scores
 from ._util import now_iso
@@ -327,6 +328,7 @@ def run(project_dir: str | Path, config: PipelineConfig, scores: Scores, force: 
     dialogue_dir = project_dir / "audio" / "dialogue"
     narration_dir.mkdir(parents=True, exist_ok=True)
     dialogue_dir.mkdir(parents=True, exist_ok=True)
+    project = identity.project_code(project_dir)
 
     aligner = _Aligner()
     lines_rendered = 0
@@ -341,7 +343,7 @@ def run(project_dir: str | Path, config: PipelineConfig, scores: Scores, force: 
             narration = shot.get("narration")
             if narration:
                 text = narration["text"]
-                wav_path = narration_dir / f"{shot_id}.wav"
+                wav_path = identity.audio_path(narration_dir, shot_id, project, "audio_narration")
                 if force or not wav_path.exists():
                     duration, flagged = _render_and_qc(
                         text, narrator_voice, wav_path, 0, False, base_url, f"narration {shot_id}",
@@ -354,7 +356,8 @@ def run(project_dir: str | Path, config: PipelineConfig, scores: Scores, force: 
                 durations.append(duration)
                 lines_rendered += 1
                 qc_flags += int(flagged)
-                align_path = narration_dir / f"{shot_id}.align.json"
+                align_path = identity.audio_path(
+                    narration_dir, shot_id, project, "audio_narration", ext="align.json")
                 coverages.append(_write_alignment(aligner, wav_path, text, align_path))
 
             for n, line in enumerate(shot.get("dialogue", [])):
@@ -367,7 +370,7 @@ def run(project_dir: str | Path, config: PipelineConfig, scores: Scores, force: 
                     )
                     voice = narrator_voice
                 text = line["text"]
-                wav_path = dialogue_dir / f"{shot_id}_{n}.wav"
+                wav_path = identity.dialogue_path(dialogue_dir, shot_id, project, n)
                 if force or not wav_path.exists():
                     duration, flagged = _render_and_qc(
                         text, voice, wav_path, line.get("pause_before_ms", 0),
@@ -380,7 +383,8 @@ def run(project_dir: str | Path, config: PipelineConfig, scores: Scores, force: 
                 durations.append(duration)
                 lines_rendered += 1
                 qc_flags += int(flagged)
-                align_path = dialogue_dir / f"{shot_id}_{n}.align.json"
+                align_path = identity.audio_path(
+                    dialogue_dir, shot_id, project, "dialogue", ext="align.json")
                 coverages.append(_write_alignment(aligner, wav_path, text, align_path))
 
             shot["real_duration_s"] = max(_MIN_SHOT_DURATION_S, sum(durations))

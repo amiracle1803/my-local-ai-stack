@@ -31,6 +31,7 @@ from .config import ENGINE_ROOT, PipelineConfig
 logger = logging.getLogger(__name__)
 
 WORKFLOWS_DIR = ENGINE_ROOT / "workflows"
+_FALLBACK_WORKFLOWS_DIR = ENGINE_ROOT / "workflows_active"
 DEFAULT_COMFY_URL = "http://127.0.0.1:8188"
 
 _POLL_INTERVAL_S = 1.0
@@ -60,11 +61,94 @@ class WorkflowTemplate:
     def load(cls, name: str) -> "WorkflowTemplate":
         if name in cls._cache:
             return cls._cache[name]
-        manifest = json.loads((WORKFLOWS_DIR / "manifest.json").read_text(encoding="utf-8"))
+        # Prefer workflows/ (deepseek-maintained manifest), fall back to workflows_active/
+        manifest_path = WORKFLOWS_DIR / "manifest.json"
+        if not manifest_path.exists():
+            manifest_path = _FALLBACK_WORKFLOWS_DIR / "manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         entry = manifest["templates"].get(name)
         if entry is None:
-            raise ComfyError(f"workflow {name!r} not in manifest.json")
-        graph = json.loads((WORKFLOWS_DIR / name).read_text(encoding="utf-8"))
+            raise ComfyError(f"workflow {name!r} not in manifest.json ({manifest_path})")
+        # Resolve graph path: try workflows flat, then recursive search, then workflows_active
+        graph_path = WORKFLOWS_DIR / name
+        if not graph_path.exists():
+            # Search recursively in workflows (e.g. stage3b/image_krea2_txt2img.json)
+            found = list(WORKFLOWS_DIR.rglob(name))
+            if found:
+                graph_path = found[0]
+            else:
+                graph_path = _FALLBACK_WORKFLOWS_DIR / name
+                if not graph_path.exists():
+                    found2 = list(_FALLBACK_WORKFLOWS_DIR.rglob(name))
+                    if found2:
+                        graph_path = found2[0]
+        graph = json.loads(graph_path.read_text(encoding="utf-8"))
+        # New ComfyUI serialization: top-level dict with a "nodes" list.
+        # Convert to the legacy node_id→node dict so patching/validation work.
+        _new_format_source = graph  # keep reference for property extraction
+        if isinstance(graph, dict) and "nodes" in graph and isinstance(graph["nodes"], list):
+            graph = {str(n["id"]): n for n in graph["nodes"] if "id" in n}
+            for node in graph.values():
+                if isinstance(node, dict) and "type" in node and "class_type" not in node:
+                    node["class_type"] = node.pop("type")
+        # Normalize list-format inputs (new ComfyUI serialization) to dict
+        # format so patching/validation work uniformly across legacy and
+        # modern workflow files (e.g. aetherpunk LTX Director 2 two-pass).
+        # Two-pass templates store widget-bound values in node "properties"
+        # rather than the "inputs" list; merge them in so patching sees them.
+        _property_keys: set[str] = set()
+        for node in graph.values():
+            if not isinstance(node, dict):
+                continue
+            ins = node.get("inputs")
+            if isinstance(ins, list):
+                d: dict[str, Any] = {}
+                for item in ins:
+                    if not isinstance(item, dict) or "name" not in item:
+                        continue
+                    name = item["name"]
+                    if "link" in item and item["link"] is not None:
+                        d[name] = [item["link"]]
+                    elif "value" in item:
+                        d[name] = item["value"]
+                    elif "widget" in item:
+                        # widget-bound input: try properties first, fall back to empty
+                        d[name] = ""
+                    else:
+                        d[name] = ""
+                node["inputs"] = d
+            # Pull widget defaults from node properties for known node types
+            props = node.get("properties", {})
+            if isinstance(props, dict):
+                for key, val in props.items():
+                    if key in ("cnr_id", "ver", "Node name for S&R", "pos", "size",
+                               "order", "mode", "flags", "outputs", "widgets_values",
+                               "has_serialized_properties", "propHeight", "globalPropHeight",
+                               "retakeMode", "retake_global_prompt", "retakeStart",
+                               "retakeLength", "retakePrompt", "retakeStrength",
+                               "retakeVideo", "normalStartFrame", "normalDurationFrames",
+                               "timeline_ui"):
+                        continue
+                    if key not in node.get("inputs", {}):
+                        node.setdefault("inputs", {})[key] = val
+                        _property_keys.add(key)
+            # Extract widget_values for nodes whose widget-bound inputs are not
+            # listed in the "inputs" array (e.g. RandomNoise uses noise_seed,
+            # SaveVideo uses filename_prefix in the aetherpunk two-pass).
+            wvals = node.get("widgets_values")
+            _WIDGET_NAME_MAP = {
+                "RandomNoise": ["noise_seed"],
+                "SaveVideo": ["filename_prefix"],
+                "SaveImage": ["filename_prefix"],
+                "CreateVideo": ["frame_rate"],
+                "BasicScheduler": ["steps"],
+            }
+            ntype = node.get("class_type") or node.get("type", "")
+            if isinstance(wvals, list) and ntype in _WIDGET_NAME_MAP:
+                names = _WIDGET_NAME_MAP[ntype]
+                for idx, name in enumerate(names):
+                    if idx < len(wvals) and name not in node.get("inputs", {}):
+                        node.setdefault("inputs", {})[name] = wvals[idx]
         patchable = entry.get("patchable", {})
         # Validate on load (design 5.3b): every patchable target must exist.
         # A target may be comma-separated (e.g. "13.width,15.width") so one
@@ -172,6 +256,35 @@ class ComfyClient:
             )
         except requests.RequestException as exc:  # non-fatal
             logger.warning("comfy /free failed: %s", exc)
+
+    def restart(self, unit: str = "comfyui-server.service", wait_s: float = 120.0) -> bool:
+        """Restart the ComfyUI systemd user service and wait for it to come
+        back healthy.
+
+        The 22B LTX model offloads ~12GB to system RAM per render; on 8GB VRAM
+        machines with limited RAM the kernel OOM-killer can take ComfyUI down
+        mid-batch. Restarting between shots fully reclaims that footprint.
+        Returns True if the service is healthy again."""
+        import subprocess
+        import time
+
+        try:
+            subprocess.run(["systemctl", "--user", "restart", unit],
+                           capture_output=True, timeout=60, check=True)
+        except (subprocess.SubprocessError, OSError) as exc:
+            logger.warning("comfyui restart via systemd failed: %s", exc)
+            return False
+        deadline = time.monotonic() + wait_s
+        while time.monotonic() < deadline:
+            try:
+                if self._session.get(f"{self.base_url}/system_stats", timeout=5).ok:
+                    logger.info("ComfyUI restarted and healthy")
+                    return True
+            except requests.RequestException:
+                pass
+            time.sleep(3)
+        logger.warning("ComfyUI restart did not become healthy within %.0fs", wait_s)
+        return False
 
     def unload_ollama(self, base_url: str = "http://127.0.0.1:11434") -> None:
         """GPU scheduling rule (design section 1): never run Ollama and

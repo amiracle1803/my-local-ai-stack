@@ -32,6 +32,7 @@ from pathlib import Path
 from typing import Any
 
 from .blueprint import Blueprint
+from . import identity
 from .config import PipelineConfig
 from .scores import Scores
 from ._util import now_iso
@@ -101,6 +102,21 @@ def _dialogue_index(path: Path, shot_id: str) -> int:
         return int(suffix)
     except ValueError:
         return 0
+
+
+def _dialogue_files(dialogue_dir: Path, shot_id: str, project: str) -> list[Path]:
+    """All dialogue audio for a shot, ordered by dialogue index.
+
+    Handles legacy ``{sid}_{n}.wav`` and canonical
+    ``{project}_sc001_sh001_dialogue_dl01_v001.wav`` naming."""
+    canonical = identity.canonical_shot_id(shot_id, project)
+    if canonical == shot_id:  # legacy project
+        return sorted(dialogue_dir.glob(f"{shot_id}_*.wav"),
+                      key=lambda p: _dialogue_index(p, shot_id))
+    return sorted(
+        dialogue_dir.glob(f"{canonical}_dialogue_dl*_v*.wav"),
+        key=lambda p: int(re.search(r"_dl(\d{2})", p.name).group(1)),
+    )
 
 
 def _drift_for(shot_id: str, storyboard: dict[str, Any], config: PipelineConfig) -> dict[str, Any]:
@@ -374,6 +390,7 @@ def run(project_dir: str | Path, config: PipelineConfig, scores: Scores) -> dict
 
     narration_dir = project_dir / "audio" / "narration"
     dialogue_dir = project_dir / "audio" / "dialogue"
+    project = identity.project_code(project_dir)
 
 # ---- Panel coverage guard (design 5.2) ----
     # If panels are missing from a previous run, the assembly will use
@@ -407,9 +424,9 @@ def run(project_dir: str | Path, config: PipelineConfig, scores: Scores) -> dict
         block_dir = project_dir / "panels" / block["id"]
         if block_dir.exists():
             for p in block_dir.glob("*.png"):
-                stem = p.stem
-                if stem.startswith("sh-"):
-                    panels_existing.add(stem)
+                if p.name.startswith("_"):
+                    continue
+                panels_existing.add(identity.sid_from_panel_name(p.name, project))
     
     missing_now = panels_needed - panels_existing
     n_missing = len(missing_now)
@@ -447,7 +464,7 @@ def run(project_dir: str | Path, config: PipelineConfig, scores: Scores) -> dict
             ]
             
             for shot_id in sorted(block_shots):
-                panel_path = block_dir / f"{shot_id}.png"
+                panel_path = identity.resolve_panel(block_dir, shot_id, project)
                 if panel_path.exists():
                     continue  # already exists
                 
@@ -478,9 +495,9 @@ def run(project_dir: str | Path, config: PipelineConfig, scores: Scores) -> dict
             block_dir = project_dir / "panels" / block["id"]
             if block_dir.exists():
                 for p in block_dir.glob("*.png"):
-                    stem = p.stem
-                    if stem.startswith("sh-"):
-                        panels_after.add(stem)
+                    if p.name.startswith("_"):
+                        continue
+                    panels_after.add(identity.sid_from_panel_name(p.name, project))
         
         still_missing = panels_needed - panels_after
         n_still = len(still_missing)
@@ -503,7 +520,7 @@ def run(project_dir: str | Path, config: PipelineConfig, scores: Scores) -> dict
         for shot_id in block["shots"]:
             shot = shots_by_id.get(shot_id, {})
             dur = _shot_duration(shot)
-            panel_path = block_dir / f"{shot_id}.png"
+            panel_path = identity.resolve_panel(block_dir, shot_id, project)
             has_panel = panel_path.exists()
             if not has_panel:
                 missing_panels += 1
@@ -512,12 +529,10 @@ def run(project_dir: str | Path, config: PipelineConfig, scores: Scores) -> dict
                 )
 
             audio_paths: list[Path] = []
-            narr_path = narration_dir / f"{shot_id}.wav"
+            narr_path = identity.audio_path(narration_dir, shot_id, project, "audio_narration")
             if narr_path.exists():
                 audio_paths.append(narr_path)
-            audio_paths.extend(
-                sorted(dialogue_dir.glob(f"{shot_id}_*.wav"), key=lambda p: _dialogue_index(p, shot_id))
-            )
+            audio_paths.extend(_dialogue_files(dialogue_dir, shot_id, project))
 
             seg_path = segments_dir / f"{shot_id}.mp4"
             shot_clip_raw = (storyboard.get("shot_detail") or {}).get(shot_id, {}).get("clip_path")
@@ -639,14 +654,15 @@ def run(project_dir: str | Path, config: PipelineConfig, scores: Scores) -> dict
 
     # ---- 5. chapters (scene boundaries) + final mux ------------------------
     chapters_path = _build_chapters(screenplay["scenes"], video_dir / "chapters.ffmetadata")
-    final_path = video_dir / "final.mp4"
+    master = identity.artifact_name(project, "master", version=1, ext="mp4")
+    final_path = video_dir / master
     _run([
         _FFMPEG_BIN, "-y", "-i", str(working_path), "-i", str(chapters_path),
         "-map_metadata", "1", "-codec", "copy", "-movflags", "+faststart", str(final_path),
     ])
 
     # ---- 6. subtitles --------------------------------------------------------
-    _build_subtitles(screenplay["scenes"], video_dir / "final.srt")
+    _build_subtitles(screenplay["scenes"], video_dir / identity.artifact_name(project, "master", version=1, ext="srt"))
 
     # ---- 7. predictions vs actual + mandatory av_sync_error_ms --------------
     fmt = _probe_format(final_path)

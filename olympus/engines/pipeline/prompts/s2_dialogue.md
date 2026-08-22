@@ -14,6 +14,11 @@ SHOTS IN THIS SCENE (id + beat):
 SPEECH STYLE CARDS:
 {style_cards}
 
+VERBATIM DIALOGUE LOG (extracted at intake -- what each character actually says
+in the script, to whom, and with what body movement; write lines consistent
+with this log, reusing the same speakers/addressees where the shot covers it):
+{dialogue_log}
+
 Rules per line: match the character's register and patterns; a "clipped"
 speaker stays under 20 words; a "verbose" speaker uses at least 6; mark
 emotion; mark pause_class as one of: interruption, casual, considered,

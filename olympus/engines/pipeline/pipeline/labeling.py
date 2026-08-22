@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Any
 
 from ._util import now_iso, read_json, write_json, load_screenplay, load_storyboard
+from . import identity
 
 logger = logging.getLogger(__name__)
 
@@ -130,19 +131,27 @@ def _load_worldbible(project_dir: Path) -> dict[str, Any] | None:
 
 
 def _panels_index(project_dir: Path, wb: dict[str, Any] | None) -> list[dict[str, Any]]:
-    """Index every generated panel under ``panels/<block>/<sid>.png``."""
+    """Index every generated panel under ``panels/<block>/<sid>.png``.
+
+    Handles both naming styles: legacy ``sh-001-01.png`` and the forward-only
+    canonical ``{project}_sc001_sh001_pn01_render_v001.png``."""
     out: list[dict[str, Any]] = []
     screen = load_screenplay(project_dir)
     by_id = {s["id"]: s for scene in screen.get("scenes", []) for s in scene.get("shots", [])}
     scene_by_shot = {s["id"]: scene for scene in screen.get("scenes", [])
                      for s in scene.get("shots", [])}
+    project = identity.project_code(project_dir)
     for png in sorted((project_dir / "panels").glob("*/[!_.]*.png")):
-        sid = png.stem
+        sid = identity.sid_from_panel_name(png.name, project)
         shot = by_id.get(sid, {})
         scene = scene_by_shot.get(sid, {})
         rel = png.relative_to(project_dir).as_posix()
+        canonical = identity.canonical_shot_id(sid, project)
         out.append({
             "shot_id": sid,
+            "canonical_id": canonical,
+            "panel_id": identity.canonical_id_from_filename(png.name) or canonical,
+            "version": identity.version_from_filename(png.name),
             "file": rel,
             "block": png.parent.name,
             "slug": shot_slug(shot, scene, wb),
@@ -158,7 +167,10 @@ def _panels_index(project_dir: Path, wb: dict[str, Any] | None) -> list[dict[str
 
 
 def _clips_index(project_dir: Path, wb: dict[str, Any] | None) -> list[dict[str, Any]]:
-    """Index every rendered clip under ``clips/`` by matching its shot id."""
+    """Index every rendered clip under ``clips/`` by matching its shot id.
+
+    Handles both naming styles: legacy ``sh-001-01_director_00001.mp4`` and the
+    forward-only canonical ``{project}_sc001_sh001_cl01_ltx-director_v001.mp4``."""
     out: list[dict[str, Any]] = []
     clips_dir = project_dir / "clips"
     if not clips_dir.exists():
@@ -167,18 +179,29 @@ def _clips_index(project_dir: Path, wb: dict[str, Any] | None) -> list[dict[str,
     by_id = {s["id"]: s for scene in screen.get("scenes", []) for s in scene.get("shots", [])}
     scene_by_shot = {s["id"]: scene for scene in screen.get("scenes", [])
                      for s in scene.get("shots", [])}
-    # a clip filename embeds the shot id as the first token, e.g.
-    # sh-001-01_director_00001.mp4 -> sh-001-01
-    sid_re = re.compile(r"^((?:sh|shot)-\d+-\d+(?:-\d+)?)")
+    project = identity.project_code(project_dir)
+    # legacy: sh-001-01_director_00001.mp4 -> sh-001-01
+    # new:    {project}_sc001_sh001_cl01_ltx-director_v001.mp4 -> sc001_sh001
     for mp4 in sorted(clips_dir.glob("*.mp4")):
-        m = sid_re.match(mp4.name)
-        sid = m.group(1) if m else mp4.stem
+        sid = identity.legacy_sid_from_filename(mp4.name)
+        canonical = identity.canonical_id_from_filename(mp4.name)
+        if canonical:
+            # canonical filename embeds scene/shot numbers; convert back to the
+            # 2-digit legacy sid for JSON lookups
+            m = re.search(r"_sc(\d{3})_sh(\d{3})", mp4.name)
+            sid = sid or (f"sh-{m.group(1)}-{int(m.group(2)):02d}" if m else mp4.stem)
+        else:
+            sid = sid or mp4.stem
         shot = by_id.get(sid, {})
         scene = scene_by_shot.get(sid, {})
         kind = "director" if "director" in mp4.name else (
             "hq" if "_hq" in mp4.name else "clip")
         out.append({
             "shot_id": sid,
+            "canonical_id": canonical or identity.canonical_shot_id(sid, project),
+            "clip_id": canonical or identity.canonical_shot_id(sid, project),
+            "version": identity.version_from_filename(mp4.name),
+            "take": identity.take_from_filename(mp4.name),
             "file": mp4.relative_to(project_dir).as_posix(),
             "kind": kind,
             "slug": shot_slug(shot, scene, wb),

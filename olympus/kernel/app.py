@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import hmac
+import io
 import json
 import logging
 import secrets
@@ -523,6 +524,7 @@ class ProjectIn(BaseModel):
     brief_text: str | None = None
     script_text: str | None = None
     fps: int = 24
+    mode: str = "0b"  # stage0 intake mode: 0b | 0a | 0i
 
 
 @app.post("/api/pipeline/projects", status_code=201)
@@ -539,12 +541,25 @@ def pipeline_create(body: ProjectIn):
         seed_path = Path(tmp) / "seed.txt"
         seed_path.write_text(seed)
         try:
-            prun.new_project(body.slug, seed_path, fps=body.fps, projects_dir=project_dir.parent)
+            prun.new_project(
+                body.slug, seed_path, fps=body.fps, projects_dir=project_dir.parent,
+                mode=body.mode,
+            )
         except Exception as e:
             raise HTTPException(400, str(e))
 
+    # Persist intake inputs so stage0 runs (and RUN-ALL) work without re-passing.
+    (project_dir / "input").mkdir(parents=True, exist_ok=True)
+    if body.mode == "0b" and body.brief_text:
+        brief_md = body.brief_text
+        if "word_target:" not in brief_md:
+            brief_md = "---\nword_target: 800\n---\n\n" + brief_md
+        (project_dir / "input" / "brief.md").write_text(brief_md, encoding="utf-8")
+    elif body.mode == "0a" and body.script_text:
+        (project_dir / "input" / "source.txt").write_text(body.script_text, encoding="utf-8")
+
     bp = Blueprint.load(project_dir)
-    return {"slug": bp.slug, "story_id": bp.story_id, "fps": bp.fps, "created": bp.created}
+    return {"slug": bp.slug, "story_id": bp.story_id, "fps": bp.fps, "created": bp.created, "mode": bp.mode}
 
 
 @app.get("/api/pipeline/{slug}/status")
@@ -567,11 +582,20 @@ def pipeline_status(slug: str):
                 pass
         stages[stage] = info
 
-    return {"slug": bp.slug, "story_id": bp.story_id, "fps": bp.fps, "stages": stages}
+    return {"slug": bp.slug, "story_id": bp.story_id, "fps": bp.fps, "mode": bp.mode, "stages": stages}
+
+
+class StageRunIn(BaseModel):
+    source: str | None = None      # stage0 mode 0a: path to source text (server-side)
+    source_text: str | None = None  # stage0 mode 0a: inline source text (persisted to input/source.txt)
+    panels: str | None = None      # stage0 mode 0i: zip/folder of panels (server-side)
+    word_target: int | None = None  # stage0 mode 0a: word budget
+    brief: str | None = None       # stage0 mode 0b: inline brief text (persisted to input/brief.md)
+    force: bool = False            # force rerun even if stage is marked done
 
 
 @app.post("/api/pipeline/{slug}/run/{stage}")
-def pipeline_run_stage(slug: str, stage: str):
+def pipeline_run_stage(slug: str, stage: str, body: StageRunIn | None = None):
     project_dir = PIPELINE_ENGINE / "projects" / slug
     if not (project_dir / "blueprint.json").exists():
         raise HTTPException(404, f"no project: {slug!r}")
@@ -585,10 +609,19 @@ def pipeline_run_stage(slug: str, stage: str):
             raise HTTPException(409, f"{slug}/{stage} already running")
 
         import run as prun
+        body = body or StageRunIn()
 
         def worker():
             ok = False
             err_msg = ""
+            # If force, clear the scorecard entry so the gate allows rerun
+            if body.force:
+                try:
+                    from pipeline.scores import Scores as _Scores
+                    with _Scores(project_dir / "scores.sqlite") as _sc:
+                        _sc.clear_stage(stage)
+                except Exception:
+                    pass
             # Flip the stage to "running" up-front so the dashboard reflects
             # that a job is in flight, not just after it finishes.
             try:
@@ -600,7 +633,25 @@ def pipeline_run_stage(slug: str, stage: str):
             except Exception:
                 pass
             try:
-                prun.run_stage(slug, stage, projects_dir=project_dir.parent)
+                brief_path = None
+                source_path = body.source
+                if body.brief:
+                    (project_dir / "input").mkdir(parents=True, exist_ok=True)
+                    brief_md = body.brief
+                    if "word_target:" not in brief_md:
+                        brief_md = "---\nword_target: 800\n---\n\n" + brief_md
+                    (project_dir / "input" / "brief.md").write_text(brief_md, encoding="utf-8")
+                    brief_path = project_dir / "input" / "brief.md"
+                if body.source_text:
+                    (project_dir / "input").mkdir(parents=True, exist_ok=True)
+                    (project_dir / "input" / "source.txt").write_text(body.source_text, encoding="utf-8")
+                    source_path = project_dir / "input" / "source.txt"
+                prun.run_stage(
+                    slug, stage, projects_dir=project_dir.parent,
+                    source_path=source_path, panel_upload=body.panels,
+                    word_target=body.word_target, brief_path=brief_path,
+                    force=body.force,
+                )
                 ok = True
             except Exception as exc:  # noqa: BLE001 - surface to caller, no swallow
                 err_msg = f"{type(exc).__name__}: {exc}"
@@ -635,12 +686,98 @@ def pipeline_run_stage(slug: str, stage: str):
     return {"slug": slug, "stage": stage, "status": "running"}
 
 
+class RunAllIn(BaseModel):
+    brief: str | None = None          # stage0 mode 0b: inline brief (persisted on demand)
+    source_text: str | None = None    # stage0 mode 0a: inline source (persisted to input/source.txt)
+    source: str | None = None         # stage0 mode 0a: server-side path to source text
+    panels: str | None = None         # stage0 mode 0i: zip/folder of panels
+    word_target: int | None = None    # stage0 mode 0a: prose word budget
+
+
+@app.post("/api/pipeline/{slug}/run-all")
+def pipeline_run_all(slug: str, body: RunAllIn | None = None):
+    """Run every remaining stage in STAGE_ORDER (resume-safe). Intended for the
+    Studio 'RUN ALL' button. Stages already proven complete are skipped by the
+    engine; stages 0 (intake), 1 (world bible), 3 (storyboard), 2 (screenplay),
+    and 4 (audio) that use Ollama run with the local review model when needed."""
+    project_dir = PIPELINE_ENGINE / "projects" / slug
+    if not (project_dir / "blueprint.json").exists():
+        raise HTTPException(404, f"no project: {slug!r}")
+
+    key = (slug, "_all")
+    with _lock_map:
+        t = _locks.get(key)
+        if t and t.is_alive():
+            raise HTTPException(409, f"{slug} full run already in progress")
+
+        import run as prun
+        body = body or RunAllIn()
+
+        def worker():
+            err_msg = ""
+            try:
+                source_path = body.source
+                if body.brief:
+                    (project_dir / "input").mkdir(parents=True, exist_ok=True)
+                    brief_md = body.brief
+                    if "word_target:" not in brief_md:
+                        brief_md = "---\nword_target: 800\n---\n\n" + brief_md
+                    (project_dir / "input" / "brief.md").write_text(brief_md, encoding="utf-8")
+                if body.source_text:
+                    (project_dir / "input").mkdir(parents=True, exist_ok=True)
+                    (project_dir / "input" / "source.txt").write_text(body.source_text, encoding="utf-8")
+                    source_path = project_dir / "input" / "source.txt"
+                prun.run_all(
+                    slug,
+                    projects_dir=project_dir.parent,
+                    brief_path=project_dir / "input" / "brief.md"
+                    if (project_dir / "input" / "brief.md").exists() else None,
+                    source_path=source_path,
+                    panel_upload=body.panels,
+                    word_target=body.word_target,
+                    run_critique=False,
+                )
+            except Exception as exc:  # noqa: BLE001 - surface to caller
+                err_msg = f"{type(exc).__name__}: {exc}"
+                (project_dir / "logs").mkdir(parents=True, exist_ok=True)
+                (project_dir / "logs" / "run_all.error").write_text(err_msg, encoding="utf-8")
+            finally:
+                with _lock_map:
+                    _locks.pop(key, None)
+
+        t = threading.Thread(target=worker, daemon=True, name=f"pipe-{slug}-all")
+        _locks[key] = t
+        t.start()
+
+    return {"slug": slug, "status": "running"}
+
+
+@app.get("/api/pipeline/{slug}/log/{stage}")
+def pipeline_stage_log(slug: str, stage: str):
+    """Per-stage run log/error text (written by the kernel worker on failure, or
+    the stage's own logs). Returns {'log': str, 'exists': bool}."""
+    project_dir = PIPELINE_ENGINE / "projects" / slug
+    if not (project_dir / "blueprint.json").exists():
+        raise HTTPException(404, f"no project: {slug!r}")
+    candidates = [
+        project_dir / "logs" / f"{stage}.error",
+        project_dir / "logs" / f"{stage}.log",
+        project_dir / "logs" / "run_all.error",
+    ]
+    for p in candidates:
+        if p.exists():
+            text = p.read_text(encoding="utf-8", errors="replace")
+            return {"log": text[-20000:], "exists": True, "path": str(p)}
+    return {"log": "", "exists": False}
+
+
 # ── pipeline artifacts (per-stage viewable outputs) ────────────────────────
 
 # Map each stage to the glob patterns (relative to the project dir) that its
 # artifacts live under. Ordered so the most representative output is first.
 _STAGE_ARTIFACT_GLOBS: dict[str, list[str]] = {
     "stage0": ["input/script.txt", "input/brief.md", "stage0_scenes.json"],
+    "stage0_dossier": ["intake/dossier.json"],
     "stage1": ["worldbible/world_bible.json", "worldbible/contradictions.json", "voices.json"],
     "stage1r": ["worldbible/refs/*/ref_*.png", "worldbible/refs/_style/*", "worldbible/refs/*/voice_audition.wav"],
     "stage2": ["screenplay/screenplay.json"],
@@ -708,6 +845,47 @@ def pipeline_file(slug: str, path: str):
         raise HTTPException(404, f"no such file: {path!r}")
     mime = _ARTIFACT_MIME.get(p.suffix.lower().lstrip("."), "application/octet-stream")
     return FileResponse(p, media_type=mime)
+
+
+from fastapi import UploadFile, File as _File  # noqa: E402
+
+_PANEL_EXTS = {".png", ".jpg", ".jpeg", ".webp"}
+
+
+@app.post("/api/pipeline/{slug}/panels")
+def pipeline_upload_panels(slug: str, file: UploadFile = _File(...)):
+    """Upload a panel image or zip into ``input/panels/`` for stage0 mode 0i.
+    Accepts a single file (zip or image). Images are written flat; zips are
+    extracted (only image members)."""
+    import zipfile
+
+    project_dir = PIPELINE_ENGINE / "projects" / slug
+    if not project_dir.is_dir():
+        raise HTTPException(404, f"no project: {slug!r}")
+    panels_dir = project_dir / "input" / "panels"
+    panels_dir.mkdir(parents=True, exist_ok=True)
+
+    fname = Path(file.filename or "panel.png")
+    ext = fname.suffix.lower()
+    data = file.file.read()
+
+    if ext == ".zip":
+        with zipfile.ZipFile(io.BytesIO(data)) as zf:
+            written = 0
+            for m in zf.namelist():
+                if m.endswith("/"):
+                    continue
+                mext = Path(m).suffix.lower()
+                if mext in _PANEL_EXTS:
+                    (panels_dir / Path(m).name).write_bytes(zf.read(m))
+                    written += 1
+        if not written:
+            raise HTTPException(400, "zip contained no panel images (.png/.jpg/.jpeg/.webp)")
+        return {"written": written}
+    if ext not in _PANEL_EXTS:
+        raise HTTPException(400, f"unsupported file type {ext!r}; want .png/.jpg/.jpeg/.webp or .zip")
+    (panels_dir / fname.name).write_bytes(data)
+    return {"written": 1}
 
 
 
@@ -791,6 +969,7 @@ def system_info():
         "kernel": {"version": app.version, "port": cfg.kernel.port,
                    "core_agents": cfg.kernel.core_agents},
         "models": cfg.ollama.models.model_dump(),
+        "nim": cfg.nim.model_dump(),
         "paths": cfg.paths.model_dump(),
         "tasks": {
             "queued": counts.get("queued", 0),
@@ -801,6 +980,74 @@ def system_info():
         "agents": _AGENTS,
         "gpu": gpu_status(),
     }
+
+
+# ── NIM model selection (permanent, no agent) ────────────────────────────
+
+class NimModelIn(BaseModel):
+    model: str = Field(min_length=1)
+
+
+@app.get("/api/nim/models")
+def nim_models():
+    """List available NIM models and the currently active one (from stack.toml)."""
+    return {
+        "active": cfg.nim.model,
+        "models": cfg.nim.models,
+        "enabled": cfg.nim.enabled,
+        "base_url": cfg.nim.base_url,
+    }
+
+
+@app.post("/api/nim/model")
+def set_nim_model(body: NimModelIn):
+    """Set the active NIM model permanently (writes to stack.toml, reloads config)."""
+    if body.model not in cfg.nim.models:
+        raise HTTPException(400, f"unknown NIM model {body.model!r}; available: {cfg.nim.models}")
+    # Update stack.toml in place (preserve comments/formatting where possible)
+    toml_path = STACK_ROOT / "stack.toml"
+    try:
+        text = toml_path.read_text(encoding="utf-8")
+        # Replace the `model = "..."` line inside [nim] section
+        import re
+        # Find [nim] section and its model line
+        def repl(m):
+            return m.group(1) + f'"{body.model}"' + m.group(3)
+        # Pattern: inside [nim] block, find model = "..."
+        # Simple approach: replace the first occurrence of model = "..." after [nim]
+        nim_start = text.find("[nim]")
+        if nim_start == -1:
+            raise HTTPException(500, "stack.toml missing [nim] section")
+        # Find next section after [nim]
+        next_section = text.find("\n[", nim_start + 5)
+        nim_block = text[nim_start:next_section if next_section != -1 else len(text)]
+        new_nim_block = re.sub(
+            r'(model\s*=\s*)"[^"]*"(\s*)',
+            r'\1"' + body.model + r'"\2',
+            nim_block,
+            count=1,
+        )
+        if new_nim_block == nim_block:
+            raise HTTPException(500, "could not find model line in [nim] section")
+        new_text = text[:nim_start] + new_nim_block + (text[next_section:] if next_section != -1 else "")
+        toml_path.write_text(new_text, encoding="utf-8")
+        # Reload config singletons
+        from stack.config import reload_config
+        reload_config()
+        # Also reload pipeline config cache if it exists
+        try:
+            import importlib
+            import pipeline.config as pc
+            importlib.reload(pc)
+        except Exception:
+            pass
+        logger.info("NIM model switched to %s (written to stack.toml)", body.model)
+        return {"active": body.model, "models": cfg.nim.models}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("failed to update NIM model: %s", e)
+        raise HTTPException(500, str(e))
 
 
 # ── static dashboard ───────────────────────────────────────────────────────

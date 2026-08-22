@@ -404,6 +404,228 @@ def _script_quality_scores(
 
 
 # --------------------------------------------------------------------------
+# shared Pass 2 + Pass 3 -- prose generation + integration (used by 0B and 0A)
+# --------------------------------------------------------------------------
+
+
+def generate_from_blueprint(
+    project_dir: str | Path,
+    config: PipelineConfig,
+    scores: Scores,
+    story_bp: StoryBlueprint,
+    *,
+    word_target: int,
+    style_exemplars: list[str] | None = None,
+    llm: PipelineLLM | None = None,
+    scorer: Any | None = None,
+) -> dict[str, Any]:
+    """Pass 2 (scene-by-scene prose) + Pass 3 (integration) shared by Stage 0B
+    (GENERATE) and Stage 0A (TRANSFORM). Given a committed :class:`StoryBlueprint`
+    and a word target, writes per-scene prose, integrates ``input/script.txt``,
+    records the ``structure_completeness`` metric, and marks ``stage0`` done.
+
+    The blueprint's own ``title_hash`` is re-pinned to the generated script so
+    the story-pollution guard protects the finished script downstream (same
+    behavior as the original 0B flow).
+    """
+    project_dir = Path(project_dir)
+
+    if llm is None:
+        llm = PipelineLLM(config, prompts_dir=PROMPTS_DIR, logs_dir=project_dir / "logs")
+    if scorer is None and config.agi.enabled and scorer_enabled(config.agi):
+        from .agi_scorer import get_scorer
+
+        scorer = get_scorer(config.agi)
+
+    style_block = (
+        "\n\n".join(style_exemplars or [])
+        if style_exemplars
+        else "(no style exemplars provided; use clear, vivid third-person-limited prose)"
+    )
+
+    # ---- Pass 2: Scene-by-scene prose ----------------------------------
+    scene_count = len(story_bp.scene_list)
+    base_target = word_target / scene_count if scene_count else 0
+    act3_numbers = [s.number for s in story_bp.scene_list if s.act == 3]
+    climax_number = max(act3_numbers) if act3_numbers else story_bp.scene_list[-1].number
+
+    three_act_summary = _summarize_three_act(story_bp.three_act_structure)
+    char_lookup = {c.name.lower(): c for c in story_bp.characters}
+
+    scene_records: list[SceneProse] = []
+    for scene in story_bp.scene_list:
+        hints = f"{scene.narrative_function} {scene.emotional_purpose} {scene.title}"
+        role = _scene_role(scene.number, hints, climax_number)
+        mult = {"climax": _CLIMAX_MULT, "transitional": _TRANSITIONAL_MULT}.get(role, 1.0)
+        word_t = max(_MIN_SCENE_WORDS, round(base_target * mult))
+
+        plan = ScenePlan(
+            number=scene.number,
+            title=scene.title,
+            act=scene.act,
+            location=scene.location,
+            characters_present=scene.characters_present,
+            emotional_purpose=scene.emotional_purpose,
+            narrative_function=scene.narrative_function,
+            word_target=word_t,
+            scene_role=role,
+        )
+
+        base_ctx = {
+            "scene_number": plan.number,
+            "scene_title": plan.title,
+            "act": plan.act,
+            "location": plan.location,
+            "characters_present": ", ".join(plan.characters_present) or "(none specified)",
+            "emotional_purpose": plan.emotional_purpose,
+            "narrative_function": plan.narrative_function,
+            "three_act_summary": three_act_summary,
+            "character_profiles": _character_profiles(plan.characters_present, char_lookup),
+            "word_target": plan.word_target,
+            "style_exemplars": style_block,
+        }
+
+        # Iterative quality loop: draft -> critique -> revise -> score -> repeat.
+        current_text = ""
+        guidance = ""
+        for iteration in range(_MAX_CRITIQUE_ITERATIONS + 1):
+            if iteration == 0:
+                current_text = llm.complete_text(
+                    "s0b_scene_prose.md", base_ctx, role="script",
+                    stage_hint=f"stage0_scene{plan.number}_draft",
+                )
+            else:
+                current_text = llm.complete_text(
+                    "s0b_revise.md",
+                    {**base_ctx, "scene_text": current_text, "guidance": guidance},
+                    role="script",
+                    stage_hint=f"stage0_scene{plan.number}_revise_iter{iteration}",
+                )
+
+            agi_fid = agi_causal = agi_cons = None
+            if scorer is not None and getattr(scorer, "available", lambda: False)():
+                beat = next((s for s in story_bp.scene_list if s.number == plan.number), None)
+                if beat:
+                    beat_text = f"Scene {plan.number} {beat.title}: {beat.narrative_function}; {beat.emotional_purpose}"
+                    agi_fid = scorer.fidelity(current_text, beat_text)
+                    agi_cons = scorer.consistency(
+                        f"{plan.characters_present}: {plan.emotional_purpose}",
+                        current_text,
+                    )
+                if scene_records:
+                    agi_causal = scorer.causal_flow(scene_records[-1].text, current_text)
+
+            quality_pass = True
+            failures = []
+            if agi_fid is not None and agi_fid < _MIN_AGI_FIDELITY:
+                quality_pass = False
+                failures.append(f"agi_fidelity {agi_fid:.3f} < {_MIN_AGI_FIDELITY}")
+            if agi_causal is not None and agi_causal < _MIN_AGI_CAUSAL_FLOW:
+                quality_pass = False
+                failures.append(f"agi_causal_flow {agi_causal:.3f} < {_MIN_AGI_CAUSAL_FLOW}")
+            if agi_cons is not None and agi_cons < _MIN_AGI_CONSISTENCY:
+                quality_pass = False
+                failures.append(f"agi_consistency {agi_cons:.3f} < {_MIN_AGI_CONSISTENCY}")
+
+            if quality_pass or iteration == _MAX_CRITIQUE_ITERATIONS:
+                final_text = current_text
+                if not quality_pass:
+                    logger.warning(
+                        "Scene %d quality below threshold after %d iterations: %s -- accepting best attempt",
+                        plan.number, _MAX_CRITIQUE_ITERATIONS, "; ".join(failures),
+                    )
+                break
+
+            guidance = llm.complete_text(
+                "s0b_critique.md", {**base_ctx, "scene_text": current_text}, role="script",
+                stage_hint=f"stage0_scene{plan.number}_critique_iter{iteration}",
+            )
+
+        final_text, enforcement = _enforce_word_count(
+            final_text, plan.word_target, base_ctx, llm, plan.number
+        )
+        checks = _scene_checks(final_text)
+        scene_records.append(
+            SceneProse(
+                number=plan.number,
+                title=plan.title,
+                text=final_text.strip(),
+                word_count=_word_count(final_text),
+                word_target=plan.word_target,
+                checks=checks,
+                enforcement_applied=enforcement,
+            )
+        )
+
+    (project_dir / "stage0_scenes.json").write_text(
+        json.dumps([r.model_dump() for r in scene_records], indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    # ---- Pass 3: Integration (no LLM) -----------------------------------
+    scene_records.sort(key=lambda r: r.number)
+    parts = [f"--- [SCENE {r.number}: {r.title}] ---\n\n{r.text}\n" for r in scene_records]
+    full_script = "\n".join(parts).strip() + "\n"
+
+    total_word_count = sum(r.word_count for r in scene_records)
+    word_count_pct = (total_word_count / word_target) if word_target else 0.0
+
+    lowered_script = full_script.lower()
+    missing_characters = [
+        c.name for c in story_bp.characters if c.name.lower() not in lowered_script
+    ]
+    locations = sorted({s.location for s in story_bp.scene_list})
+    missing_locations = [loc for loc in locations if loc.lower() not in lowered_script]
+    oversized = [
+        r.number for r in scene_records
+        if total_word_count > 0 and r.word_count > 0.30 * total_word_count
+    ]
+
+    integration = IntegrationReport(
+        total_word_count=total_word_count,
+        target_word_count=word_target,
+        word_count_pct=word_count_pct,
+        missing_character_names=missing_characters,
+        missing_location_names=missing_locations,
+        oversized_scenes=oversized,
+    )
+    (project_dir / "stage0_integration.json").write_text(
+        integration.model_dump_json(indent=2), encoding="utf-8"
+    )
+
+    (project_dir / "input").mkdir(parents=True, exist_ok=True)
+    (project_dir / "input" / "script.txt").write_text(full_script, encoding="utf-8")
+
+    # Re-pin the story identity to the generated script.
+    bp = Blueprint.load(project_dir)
+    bp.title_hash = compute_title_hash(full_script)
+    bp.stages["stage0"].status = "done"
+    bp.stages["stage0"].ts = now_iso()
+    bp.write(project_dir)
+
+    structure_completeness = _structure_completeness(
+        integration, scene_records, len(story_bp.characters), len(locations)
+    )
+    scores.record("stage0", "global", "structure_completeness", structure_completeness)
+    scores.record("stage0", "global", "total_word_count", float(total_word_count))
+    scores.record("stage0", "global", "word_count_pct", float(word_count_pct))
+    agi_metrics = _script_quality_scores(scorer, story_bp, scene_records, scores)
+    if scorer is not None and getattr(scorer, "available", lambda: False)():
+        scorer.close()
+    scores.stage_done("stage0")
+
+    return {
+        "stage": "stage0",
+        "status": "done",
+        "structure_completeness": structure_completeness,
+        "total_word_count": total_word_count,
+        "target_word_count": word_target,
+        "script_path": str(project_dir / "input" / "script.txt"),
+        "agi": agi_metrics,
+    }
+
+
+# --------------------------------------------------------------------------
 # main entry point
 # --------------------------------------------------------------------------
 def run(
@@ -486,194 +708,14 @@ def run(
     if not story_bp.scene_list:
         raise Stage0Error("Pass 1 blueprint has an empty scene_list; cannot continue to Pass 2")
 
-    # ---- Pass 2: Scene-by-scene prose ----------------------------------
-    scene_count = len(story_bp.scene_list)
-    base_target = brief.word_target / scene_count
-    act3_numbers = [s.number for s in story_bp.scene_list if s.act == 3]
-    climax_number = max(act3_numbers) if act3_numbers else story_bp.scene_list[-1].number
-
-    three_act_summary = _summarize_three_act(story_bp.three_act_structure)
-    char_lookup = {c.name.lower(): c for c in story_bp.characters}
-    style_block = (
-        "\n\n".join(brief.style_exemplars)
-        if brief.style_exemplars
-        else "(no style exemplars provided; use clear, vivid third-person-limited prose)"
+    # Pass 2 (prose) + Pass 3 (integration) -- shared with Stage 0A TRANSFORM.
+    return generate_from_blueprint(
+        project_dir,
+        config,
+        scores,
+        story_bp,
+        word_target=brief.word_target,
+        style_exemplars=brief.style_exemplars,
+        llm=llm,
+        scorer=scorer,
     )
-
-    scene_records: list[SceneProse] = []
-    for scene in story_bp.scene_list:
-        hints = f"{scene.narrative_function} {scene.emotional_purpose} {scene.title}"
-        role = _scene_role(scene.number, hints, climax_number)
-        mult = {"climax": _CLIMAX_MULT, "transitional": _TRANSITIONAL_MULT}.get(role, 1.0)
-        word_target = max(_MIN_SCENE_WORDS, round(base_target * mult))
-
-        plan = ScenePlan(
-            number=scene.number,
-            title=scene.title,
-            act=scene.act,
-            location=scene.location,
-            characters_present=scene.characters_present,
-            emotional_purpose=scene.emotional_purpose,
-            narrative_function=scene.narrative_function,
-            word_target=word_target,
-            scene_role=role,
-        )
-
-        base_ctx = {
-            "scene_number": plan.number,
-            "scene_title": plan.title,
-            "act": plan.act,
-            "location": plan.location,
-            "characters_present": ", ".join(plan.characters_present) or "(none specified)",
-            "emotional_purpose": plan.emotional_purpose,
-            "narrative_function": plan.narrative_function,
-            "three_act_summary": three_act_summary,
-            "character_profiles": _character_profiles(plan.characters_present, char_lookup),
-            "word_target": plan.word_target,
-            "style_exemplars": style_block,
-        }
-
-        # Iterative quality loop: draft -> critique -> revise -> score -> repeat until threshold
-        current_text = ""
-        for iteration in range(_MAX_CRITIQUE_ITERATIONS + 1):
-            if iteration == 0:
-                current_text = llm.complete_text(
-                    "s0b_scene_prose.md", base_ctx, role="script",
-                    stage_hint=f"stage0_scene{plan.number}_draft",
-                )
-            else:
-                # Full revision with accumulated guidance
-                current_text = llm.complete_text(
-                    "s0b_revise.md",
-                    {**base_ctx, "scene_text": current_text, "guidance": guidance},
-                    role="script",
-                    stage_hint=f"stage0_scene{plan.number}_revise_iter{iteration}",
-                )
-
-            # Score the scene if AGI scorer available
-            agi_fid = agi_causal = agi_cons = None
-            if scorer is not None and getattr(scorer, "available", lambda: False)():
-                beat = next((s for s in story_bp.scene_list if s.number == plan.number), None)
-                if beat:
-                    beat_text = f"Scene {plan.number} {beat.title}: {beat.narrative_function}; {beat.emotional_purpose}"
-                    agi_fid = scorer.fidelity(current_text, beat_text)
-                    agi_cons = scorer.consistency(
-                        f"{plan.characters_present}: {plan.emotional_purpose}",
-                        current_text
-                    )
-                # Causal flow needs previous scene
-                if scene_records:
-                    agi_causal = scorer.causal_flow(scene_records[-1].text, current_text)
-
-            # Check quality thresholds
-            quality_pass = True
-            failures = []
-            if agi_fid is not None and agi_fid < _MIN_AGI_FIDELITY:
-                quality_pass = False
-                failures.append(f"agi_fidelity {agi_fid:.3f} < {_MIN_AGI_FIDELITY}")
-            if agi_causal is not None and agi_causal < _MIN_AGI_CAUSAL_FLOW:
-                quality_pass = False
-                failures.append(f"agi_causal_flow {agi_causal:.3f} < {_MIN_AGI_CAUSAL_FLOW}")
-            if agi_cons is not None and agi_cons < _MIN_AGI_CONSISTENCY:
-                quality_pass = False
-                failures.append(f"agi_consistency {agi_cons:.3f} < {_MIN_AGI_CONSISTENCY}")
-
-            if quality_pass or iteration == _MAX_CRITIQUE_ITERATIONS:
-                final_text = current_text
-                if not quality_pass:
-                    logger.warning(
-                        "Scene %d quality below threshold after %d iterations: %s -- accepting best attempt",
-                        plan.number, _MAX_CRITIQUE_ITERATIONS, "; ".join(failures)
-                    )
-                break
-
-            # Generate targeted critique for next iteration
-            guidance = llm.complete_text(
-                "s0b_critique.md", {**base_ctx, "scene_text": current_text}, role="script",
-                stage_hint=f"stage0_scene{plan.number}_critique_iter{iteration}",
-            )
-
-        # Word-count enforcement
-        final_text, enforcement = _enforce_word_count(
-            final_text, plan.word_target, base_ctx, llm, plan.number
-        )
-        checks = _scene_checks(final_text)
-        scene_records.append(
-            SceneProse(
-                number=plan.number,
-                title=plan.title,
-                text=final_text.strip(),
-                word_count=_word_count(final_text),
-                word_target=plan.word_target,
-                checks=checks,
-                enforcement_applied=enforcement,
-            )
-        )
-
-    (project_dir / "stage0_scenes.json").write_text(
-        json.dumps([r.model_dump() for r in scene_records], indent=2, ensure_ascii=False),
-        encoding="utf-8",
-    )
-
-    # ---- Pass 3: Integration (no LLM) -----------------------------------
-    scene_records.sort(key=lambda r: r.number)
-    parts = [f"--- [SCENE {r.number}: {r.title}] ---\n\n{r.text}\n" for r in scene_records]
-    full_script = "\n".join(parts).strip() + "\n"
-
-    total_word_count = sum(r.word_count for r in scene_records)
-    target_word_count = brief.word_target
-    word_count_pct = (total_word_count / target_word_count) if target_word_count else 0.0
-
-    lowered_script = full_script.lower()
-    missing_characters = [
-        c.name for c in story_bp.characters if c.name.lower() not in lowered_script
-    ]
-    locations = sorted({s.location for s in story_bp.scene_list})
-    missing_locations = [loc for loc in locations if loc.lower() not in lowered_script]
-    oversized = [
-        r.number for r in scene_records
-        if total_word_count > 0 and r.word_count > 0.30 * total_word_count
-    ]
-
-    integration = IntegrationReport(
-        total_word_count=total_word_count,
-        target_word_count=target_word_count,
-        word_count_pct=word_count_pct,
-        missing_character_names=missing_characters,
-        missing_location_names=missing_locations,
-        oversized_scenes=oversized,
-    )
-    (project_dir / "stage0_integration.json").write_text(
-        integration.model_dump_json(indent=2), encoding="utf-8"
-    )
-
-    (project_dir / "input").mkdir(parents=True, exist_ok=True)
-    (project_dir / "input" / "script.txt").write_text(full_script, encoding="utf-8")
-
-    # Re-pin the story identity to the generated script (see module docstring).
-    bp = Blueprint.load(project_dir)
-    bp.title_hash = compute_title_hash(full_script)
-    bp.stages["stage0"].status = "done"
-    bp.stages["stage0"].ts = now_iso()
-    bp.write(project_dir)
-
-    structure_completeness = _structure_completeness(
-        integration, scene_records, len(story_bp.characters), len(locations)
-    )
-    scores.record("stage0", "global", "structure_completeness", structure_completeness)
-    scores.record("stage0", "global", "total_word_count", float(total_word_count))
-    scores.record("stage0", "global", "word_count_pct", float(word_count_pct))
-    agi_metrics = _script_quality_scores(scorer, story_bp, scene_records, scores)
-    if scorer is not None and getattr(scorer, "available", lambda: False)():
-        scorer.close()  # free the model after the scoring pass
-    scores.stage_done("stage0")
-
-    return {
-        "stage": "stage0",
-        "status": "done",
-        "structure_completeness": structure_completeness,
-        "total_word_count": total_word_count,
-        "target_word_count": target_word_count,
-        "script_path": str(project_dir / "input" / "script.txt"),
-        "agi": agi_metrics,
-    }

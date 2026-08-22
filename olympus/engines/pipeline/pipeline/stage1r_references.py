@@ -96,6 +96,31 @@ def _audition_line(char: dict[str, Any] | Any) -> str:
     return f"My name is {char.name}. I will not turn back from {drive}."
 
 
+def _location_views(loc: Any) -> list[tuple[str, str]]:
+    """(angle_label, description) pairs for a location's 360 coverage.
+
+    Prefers the world bible's ``views`` (angle + self-contained prompt
+    fragment, merged from the stage0 dossier); falls back to ``angles`` labels,
+    then the fixed 4-angle default. Each returned description is prompt-ready.
+    """
+    if loc.views:
+        return [
+            (v.get("angle", ""), v.get("description", ""))
+            for v in loc.views
+            if v.get("angle") and v.get("description")
+        ]
+    angles = loc.angles or ["wide_establishing", "medium_shot", "closeup_counter", "over_shoulder"]
+    _HUMANIZED = {
+        "wide_establishing": "wide establishing view",
+        "medium_shot": "medium shot view",
+        "closeup_counter": "close detail view",
+        "over_shoulder": "over the shoulder view",
+        "top_down": "high angle top-down overview",
+        "reverse_angle": "opposite side view",
+    }
+    return [(a, _HUMANIZED.get(a, a.replace("_", " ") + " view")) for a in angles]
+
+
 def render_auditions(project_dir: Path, wb: WorldBible, voices: dict[str, Any]) -> int:
     """5-second voice audition per character via Voice Studio (design 4.4.1)."""
     done = 0
@@ -258,18 +283,17 @@ def run(
         # Free after each character (already freed per frame, but belt-and-suspenders)
         comfy.free()
 
-    # Recurring locations: 4 angles each.
+    # Recurring locations: full 360 coverage from the world bible (dossier views).
     loc_count = 0
     for loc in wb.locations:
         if not loc.recurring:
             continue
         loc_dir = project_dir / "worldbible" / "refs" / loc.id
         loc_dir.mkdir(parents=True, exist_ok=True)
-        for i, angle in enumerate(("wide establishing view", "opposite side view",
-                                   "interior or close detail view", "high angle overview")):
+        for i, (angle, desc) in enumerate(_location_views(loc)):
             if sorted(loc_dir.glob(f"ref_{i:02d}*.png")):
                 continue
-            prompt = f"{loc.sd_prompt}, {angle}, {_STYLE_TAIL}, no text, no letters, no subtitles, no captions, no signage"
+            prompt = f"{loc.sd_prompt}, {desc}, {_STYLE_TAIL}, no text, no letters, no subtitles, no captions, no signage"
             try:
                 paths = comfy.generate(
                     template,
