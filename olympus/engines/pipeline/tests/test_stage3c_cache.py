@@ -29,6 +29,19 @@ def test_motion_prompt_falls_back_without_grammar():
     assert "character" in p.lower()  # built-in fallback recipe used
 
 
+def test_ltx2b_motion_prompt_has_no_weak_modifiers():
+    """The distilled LTX-2B model reads 'subtle'/'gentle'/'soft wind' as 'do
+    almost nothing' -> static clips (motion gate axis=none). The default-engine
+    prompt must use strong motion verbs, not weak ambience (regression: weak
+    phrasing left clips static)."""
+    shot = {"composition": "medium shot", "lighting": "day", "sd_prompt": "anime scene",
+            "camera_movement": "slow push-in"}
+    p = _motion_prompt(shot, 1, "video_i2v_ltx_2b.json").lower()
+    for weak in ("subtle", "gently", "soft wind", "softly"):
+        assert weak not in p, f"weak modifier {weak!r} in ltx2b motion prompt: {p}"
+    assert any(verb in p for verb in ("swaying", "billowing", "drifting", "flowing"))
+
+
 # --------------------------------------------------------------------------
 # cache key and persistence (pure, no GPU)
 # --------------------------------------------------------------------------

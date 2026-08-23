@@ -237,6 +237,7 @@ MP4, subtitles, chapters, labels
 | Stage | Purpose | Major output |
 |---|---|---|
 | stage0 | Converts a brief into a structured script and project blueprint | `input/script.txt`, blueprint |
+| stage0_dossier | Rich intake extraction: characters (appearance/race/family/relationships), location 360-views, scene settings, verbatim dialogue | `intake/dossier.json` |
 | stage1 | Extracts characters, traits, voices, and contradictions | Character world bible |
 | stage1_world | Builds locations, relationships, world rules, and voice registry | Full world bible |
 | stage1r | Generates character, location, style, and voice reference assets | `references/` |
@@ -252,6 +253,7 @@ Run one stage at a time while developing:
 
 ```bash
 python run.py run my-story stage0
+python run.py run my-story stage0_dossier
 python run.py run my-story stage1
 python run.py run my-story stage1_world
 python run.py run my-story stage1r

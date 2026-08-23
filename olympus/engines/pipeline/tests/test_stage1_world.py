@@ -40,3 +40,24 @@ def test_location_prompt_clamped_to_60_words():
     prompt = _location_sd_prompt("Academy", " ".join(["word"] * 100), "fantasy-medieval")
     assert len(prompt.split()) <= 60
     assert prompt.startswith("Academy")
+
+
+def test_world_inference_lore_fields():
+    """The deepened world inference schema carries power_system / world_rules /
+    lore_entries with sensible defaults when the LLM returns nothing."""
+    from pipeline.stage1_world import _LoreEntry, _PowerSystem, _WorldInference
+
+    w = _WorldInference(
+        power_system=_PowerSystem(name="Qi Cultivation", source="qi",
+                                  rules=["dantian stores qi"], progression="realms"),
+        world_rules=["magic requires mana to cast"],
+        lore_entries=[_LoreEntry(title="The Sundering", text="the world split", evidence="quote")],
+    )
+    d = w.model_dump()
+    assert d["power_system"]["name"] == "Qi Cultivation"
+    assert d["world_rules"] == ["magic requires mana to cast"]
+    assert d["lore_entries"][0]["title"] == "The Sundering"
+
+    # empty inference -> safe defaults (power_system=None is set by the caller)
+    e = _WorldInference()
+    assert e.power_system.name == "" and e.world_rules == [] and e.lore_entries == []

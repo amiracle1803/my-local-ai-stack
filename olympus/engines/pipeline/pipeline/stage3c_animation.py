@@ -418,9 +418,9 @@ def _motion_prompt(shot: dict[str, Any], tier: int, template: str = "") -> str:
         if tier == 1:
             return (
                 f"{comp}, anime scene, {light}. The character turns their head and "
-                "breathes, hair and coat swaying with soft wind physics, fabric "
-                "billowing gently, subtle body motion, stable consistent character "
-                "and outfit, cinematic lighting."
+                "breathes, shifting weight, hair and coat swaying with strong wind "
+                "physics, fabric billowing, strands drifting, body moving naturally, "
+                "stable consistent character and outfit, cinematic lighting."
             )
         return (
             f"{comp}, anime scene, {light}. The character moves with one clear action, "
@@ -428,7 +428,10 @@ def _motion_prompt(shot: dict[str, Any], tier: int, template: str = "") -> str:
             f"{cam}, dynamic anime motion, stable consistent character and outfit."
         )
     if tier == 1:
-        return f"{comp} {base}. {light}. Subtle ambient motion: hair drifts, cloth sways, particles float. Shallow depth of field."
+        return (
+            f"{comp} {base}. {light}. Wind moves the hair and clothes, strands "
+            "drifting, fabric flowing, particles floating. Shallow depth of field."
+        )
     if tier == 2:
         cam = shot.get("camera_movement") or "slow dolly in"
         return f"{comp} {base}. {light}. Camera {cam}, focused on subject. Dynamic anime scene with natural motion."

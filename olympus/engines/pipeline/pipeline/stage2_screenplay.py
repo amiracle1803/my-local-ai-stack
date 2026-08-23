@@ -354,6 +354,36 @@ def assemble_sd_prompt(
     return ", ".join(parts)
 
 
+def assemble_sd_prompt_simple(shot: dict[str, Any], scene: dict[str, Any], wb: WorldBible) -> str:
+    """One subject + explicit camera framing for weak text-to-image fallbacks.
+
+    flux-2-klein-4b cannot hold multi-constraint spatial prompts ("over-the-
+    shoulder from B toward A, east gate beyond"). Collapse to: primary character
+    appearance + explicit camera label + location + style + no-text tail.
+    """
+    chars = {c.id: c for c in wb.characters}
+    in_frame = [chars[cid] for cid in shot.get("characters_in_frame", []) if cid in chars]
+    loc = next((l for l in wb.locations if l.id == scene.get("location")), None)
+
+    char_desc = ""
+    if in_frame:
+        a = in_frame[0].appearance
+        char_desc = f"{a.hair}, {a.eyes}, {a.skin}, {a.build}, {a.clothing_primary}"
+
+    camera = shot.get("camera_angle") or shot.get("composition") or "medium shot"
+    time_od = scene.get("time_of_day", "")
+    tod = f", {time_od} lighting" if time_od and time_od != "unclear" else ""
+
+    parts = [p for p in (
+        char_desc,
+        str(camera),
+        loc.sd_prompt if loc else "",
+        f"anime 2d illustration, clean linework, cel shading{tod}",
+        _NO_TEXT_TAIL,
+    ) if p]
+    return ", ".join(parts)
+
+
 # --------------------------------------------------------------------------
 # Step 4 -- narration craft
 # --------------------------------------------------------------------------

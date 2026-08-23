@@ -14,6 +14,28 @@ olympus/web/        ← Dashboard UI (single-page, vanilla HTML/JS/CSS)
 ComfyUI/            ← Image/animation generation (external, port 8188)
 ```
 
+## Pipeline stages
+
+Stage order (source of truth: `pipeline/blueprint.py STAGE_ORDER`):
+
+```
+stage0 → stage0_dossier → stage1 → stage1_world → stage1r → stage3
+       → stage2 → stage3b → stage4 → stage3c → stage_vlm_review → stage5
+```
+
+- **stage0_dossier** (intake enrichment): reads the finished `input/script.txt`
+  (read-only) and extracts `intake/dossier.json` — rich character profiles
+  (appearance, race, age, height, gender, family, relationships, skills),
+  location **360-views**, per-scene setting facts (time/season/environment),
+  and a verbatim dialogue log (speaker → addressee → body movement). The world
+  bible, screenplay, and storyboard stages consume it.
+- **On-model consistency loop**: `Character.appearance_spec()` is the canonical
+  appearance. stage3b's `vision_judge` (extract-then-compare) and
+  `stage_vlm_review` check panels/clips against it;
+  `pipeline/consistency_report.py` aggregates mismatches into
+  `consistency/consistency_report.json` with proposed fixes (the self-critique
+  loop from the original spec).
+
 ## Chain of command
 
 You are a builder, not the manager. The manager (Fable, in Claude Code

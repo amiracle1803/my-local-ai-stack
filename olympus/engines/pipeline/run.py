@@ -230,6 +230,12 @@ def run_stage(
         if stage in ("stage3c", "stage_vlm_review"):
             # Clips produced/edited -> refresh the labels index (panels + clips).
             labeling.write_labels(project_dir)
+        if stage == "stage_vlm_review":
+            # Aggregate on-model consistency findings (panels + clips) into a
+            # per-character self-critique report (design Stage VLM Review).
+            from pipeline import consistency_report
+
+            consistency_report.write_report(project_dir)
         return result
     finally:
         scores.close()

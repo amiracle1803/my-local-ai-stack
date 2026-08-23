@@ -80,6 +80,21 @@ class _Economy(BaseModel):
     explained_in_story: bool = False
 
 
+class _PowerSystem(BaseModel):
+    """The story's 'power system' (magic/qi/tech cultivation, superpowers, ...)."""
+
+    name: str = ""
+    source: str = ""  # magic / technology / qi / chakra / superpower / none
+    rules: list[str] = Field(default_factory=list)
+    progression: str = ""  # how power grows / is gained
+
+
+class _LoreEntry(BaseModel):
+    title: str = ""
+    text: str = ""
+    evidence: str = ""
+
+
 class _LocationOut(BaseModel):
     name: str
     description: str = ""
@@ -101,6 +116,9 @@ class _WorldInference(BaseModel):
     era: _Era = Field(default_factory=_Era)
     technology: list[str] = Field(default_factory=list)
     magic_system: _MagicSystem = Field(default_factory=_MagicSystem)
+    power_system: _PowerSystem = Field(default_factory=_PowerSystem)
+    world_rules: list[str] = Field(default_factory=list)
+    lore_entries: list[_LoreEntry] = Field(default_factory=list)
     government: str = ""
     class_structure: list[str] = Field(default_factory=list)
     daily_life: _DailyLife = Field(default_factory=_DailyLife)
@@ -532,6 +550,12 @@ def run(
         "daily_life": world.daily_life.model_dump(),
         "economy": world.economy.model_dump(),
     }
+    wb.power_system = world.power_system.model_dump() if world.power_system.name else None
+    wb.world_rules = list(world.world_rules)
+    wb.lore_entries = [
+        {"title": e.title, "text": e.text, "evidence": e.evidence}
+        for e in world.lore_entries if e.title
+    ]
     wb.locations = [
         Location(
             id=_slug(loc.name, "loc"), name=loc.name,
@@ -584,6 +608,8 @@ def run(
     scores.record("stage1", "global", "contradictions_open", float(open_contradictions))
     scores.record("stage1", "global", "entries_expanded", float(expanded))
     scores.record("stage1", "global", "era_confidence", world.era.confidence)
+    scores.record("stage1", "global", "lore_entries", float(len(wb.lore_entries)))
+    scores.record("stage1", "global", "world_rules", float(len(wb.world_rules)))
     scores.stage_done("stage1")
 
     # M2b standalone completion: stage1_world is its own stage in STAGE_ORDER

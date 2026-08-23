@@ -66,9 +66,23 @@ def test_shot_appearance_returns_spec_and_facts():
     ])
     spec, facts = _shot_appearance({"characters_in_frame": ["rei", "mika"]}, wb)
     assert "hair=silver" in spec and "hair=black" in spec and "|" in spec
-    assert facts == {"hair": "silver", "eyes": "cyan", "skin": "", "outfit": "grey cloak"}
+    # facts merge BOTH characters so a 2-character panel is judged against all
+    assert facts["hair"] == "silver | black"
+    assert facts["eyes"] == "cyan" and facts["outfit"] == "grey cloak"
     assert _shot_appearance({"characters_in_frame": []}, wb) == ("", {})
     assert _shot_appearance({"characters_in_frame": ["ghost"]}, wb) == ("", {})
+
+
+def test_multi_character_appearance_no_false_conflict():
+    """A 2-character shot where the VLM extracts the second character's colour
+    must NOT be flagged against the first character's canonical colour."""
+    from pipeline.stage3b_images import _appearance_verdict
+
+    facts = {"hair": "silver | black", "eyes": "amber | dark brown", "outfit": "grey cloak"}
+    ok, issue = _appearance_verdict(
+        {"hair_color": "black", "eye_color": "brown", "outfit": "grey cloak"}, facts
+    )
+    assert ok and issue == ""
 
 
 def test_color_conflict():
