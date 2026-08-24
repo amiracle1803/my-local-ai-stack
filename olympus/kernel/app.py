@@ -570,16 +570,23 @@ def pipeline_status(slug: str):
 
     bp = Blueprint.load(project_dir)
     stages = {}
+    # Read the full scorecard ledger once so every stage reports its done flag,
+    # metrics, and any missing mandatory proof metrics -- not just "done" stages.
+    # The dashboard uses this to show gate health and catch incomplete stages.
+    try:
+        ledger = Scores(project_dir / "scores.sqlite").report()["stages"]
+    except Exception:
+        ledger = {}
     for stage in STAGE_ORDER:
         st = bp.stages.get(stage)
         status = st.status if st else "pending"
         info = {"status": status}
+        li = ledger.get(stage) or {}
+        info["done"] = bool(li.get("done"))
+        info["complete"] = bool(li.get("complete"))
+        info["missing_metrics"] = li.get("missing_metrics", [])
         if status == "done":
-            try:
-                with Scores(project_dir / "scores.sqlite") as s:
-                    info["metrics"] = s.metrics_for(stage)
-            except Exception:
-                pass
+            info["metrics"] = li.get("metrics", {})
         stages[stage] = info
 
     return {"slug": bp.slug, "story_id": bp.story_id, "fps": bp.fps, "mode": bp.mode, "stages": stages}
@@ -1055,6 +1062,15 @@ def set_nim_model(body: NimModelIn):
 @app.get("/", include_in_schema=False)
 def index():
     return FileResponse(WEB_DIR / "index.html")
+
+
+# Serve the dashboard's split CSS/JS assets. Kept explicit (rather than a broad
+# StaticFiles mount) so the root path stays reserved for index.html.
+@app.get("/{asset}", include_in_schema=False)
+def web_asset(asset: str):
+    if asset not in ("styles.css", "app.js"):
+        raise HTTPException(404, f"unknown asset: {asset!r}")
+    return FileResponse(WEB_DIR / asset)
 
 
 app.mount("/web", StaticFiles(directory=WEB_DIR), name="web")

@@ -3,355 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Olympus | Local AI Stack Dashboard</title> /* the website tab name in browser */
+<title>Olympus | Local AI Stack Dashboard</title>
 <meta name="description" content="Olympus dashboard — central hub for the Local AI Stack. Monitor agents, tasks, pipeline stages, voice studio, and system health.">
 <meta name="theme-color" content="#04060c">
 <meta property="og:title" content="Olympus | Local AI Stack Dashboard">
 <meta property="og:description" content="Central hub for the Local AI Stack. Monitor agents, tasks, pipeline stages, voice studio, and system health.">
 <meta property="og:type" content="website">
-<link rel="manifest" href="data:application/json,{%22name%22:%22Olympus%22,%22short_name%22:%22Olympus%22,%22start_url%22:%22/%22,%22display%22:%22standalone%22,%22background_color%22:%22%2304060c%22,%22theme_color%22:%22%2304060c%22}">
-<style>
-/* ============ TABLE OF CONTENTS ============
-1. CSS VARIABLES & BASE STYLES
-2. LAYOUT & GRID SYSTEMS
-3. COMPONENT STYLES
-   - HEADER & NAVIGATION
-   - BUTTONS & FORM ELEMENTS
-   - HUD (HEADS-UP DISPLAY) PANELS
-   - CARDS & NOTIFICATIONS
-   - KANBAN BOARD
-   - WIKI INTERFACE
-   - VOICE STUDIO
-   - STUDIO PIPELINE
-4. PAGE-SPECIFIC STYLES
-   - HOME PAGE (CORTEX VISUALIZATION)
-   - TASKS PAGE
-   - WIKI PAGE
-   - COMMERCE PAGE
-   - AUTOMATIONS PAGE
-   - VOICE PAGE
-   - STUDIO PAGE
-   - SYSTEM PAGE
-5. RESPONSIVE BREAKPOINTS
-6. ANIMATIONS & TRANSITIONS
-============================================ */
-/* 1. CSS VARIABLES & BASE STYLES */
-:root {
-     --bg:#04060c; --panel:rgba(10,16,28,.85); --line:#123347; --line2:#1d4d66;
-     --cyan:#57c7e3; --cyan-dim:#2a7d99; --text:#dfe9f2; --dim:#8b9fb3; /* Improved contrast from #5f7d93 */
-     --purple:#8f7bff; --pink:#ff5ca8; --green:#3ddc84; --gold:#e8b84b; --red:#ef6b73;
-     color-scheme: dark;
-   }
-   * { box-sizing:border-box; margin:0; }
-/* Improved focus visibility for accessibility */
-*:focus-visible {
-  outline: 2px solid var(--cyan);
-  outline-offset: 2px;
-}
-/* Ensure form elements are keyboard accessible */
-button:focus-visible,
-input:focus-visible,
-textarea:focus-visible,
-select:focus-visible,
-a:focus-visible {
-  outline: 2px solid var(--cyan);
-}
-   body { background:var(--bg); color:var(--text); font:14px/1.5 "Segoe UI",system-ui,sans-serif; height:100vh; display:flex; flex-direction:column; overflow:hidden; }
-   .mono { font-family:Consolas,"Cascadia Mono",monospace; }
-
-/* 2. LAYOUT & GRID SYSTEMS */
-header { display:flex; align-items:center; gap:2rem; padding:.65rem 1.5rem; border-bottom:1px solid var(--line); background:rgba(6,10,18,.9); z-index:5; }
-   /* 3. COMPONENT STYLES - HEADER & NAVIGATION */
-   .logo { display:flex; align-items:center; gap:.5rem; font-family:Consolas,monospace; font-weight:700; letter-spacing:.35em; font-size:1rem; }
-   .logo .orb { width:14px; height:14px; border-radius:50%; background:radial-gradient(circle at 35% 35%, #9ec9ff, #2b6bff 60%, #0a1e4a); box-shadow:0 0 8px #2b6bff88; }
-   header nav { display:flex; gap:1.4rem; }
-   header nav a { font-family:Consolas,monospace; font-size:.75rem; letter-spacing:.22em; color:var(--cyan-dim); text-decoration:none; cursor:pointer; padding:.25rem 0; border-bottom:2px solid transparent; }
-   header nav a:hover { color:var(--cyan); }
-   header nav a.active { color:#fff; border-bottom-color:var(--cyan); }
-   #hdr-right { margin-left:auto; font-family:Consolas,monospace; font-size:.72rem; letter-spacing:.15em; color:var(--dim); }
-   #hdr-right .ok { color:var(--green); }
-
-/* Continued LAYOUT & GRID SYSTEMS */
-main { flex:1; position:relative; overflow:hidden; }
-   .page { display:none; height:100%; overflow-y:auto; padding:1.25rem 1.5rem; }
-   .page.active { display:block; }
-   #page-home { display:none; padding:0; overflow:hidden; }
-   #page-home.active { display:block; }
-
-  .hud { background:var(--panel); border:1px solid var(--line); position:relative; backdrop-filter:blur(3px); }
-  .hud::before, .hud::after { content:""; position:absolute; width:10px; height:10px; border:1px solid var(--cyan-dim); pointer-events:none; }
-  .hud::before { top:-1px; left:-1px; border-right:none; border-bottom:none; }
-  .hud::after  { bottom:-1px; right:-1px; border-left:none; border-top:none; }
-  .hud-title { font-family:Consolas,monospace; font-size:.72rem; letter-spacing:.25em; color:var(--cyan); padding:.55rem .9rem; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:.5rem; }
-  .hud-title::before { content:"◤"; font-size:.6rem; color:var(--cyan-dim); }
-
-  /* home */
-  #cortex { position:absolute; inset:0; width:100%; height:100%; cursor:grab; }
-  #note-float { position:absolute; top:4.6rem; left:50%; transform:translateX(-50%); width:520px; max-height:62vh; z-index:6; display:none; flex-direction:column; }
-  #note-float.open { display:flex; }
-  #note-float .nf-body { overflow-y:auto; padding:1rem 1.2rem; font-size:.86rem; }
-  #note-float .nf-body pre { background:#060a12; padding:.7rem; overflow-x:auto; border:1px solid var(--line); }
-  #note-float .nf-body a { color:var(--cyan); }
-  #nf-close { margin-left:auto; cursor:pointer; color:var(--dim); }
-  #nf-close:hover { color:#fff; }
-  #search-wrap { position:absolute; top:1.1rem; left:50%; transform:translateX(-50%); width:340px; z-index:4; }
-  #cortex-search { width:100%; background:rgba(8,14,24,.85); border:1px solid var(--line2); color:var(--text); font-family:Consolas,monospace; font-size:.72rem; letter-spacing:.25em; text-align:center; padding:.55rem; outline:none; }
-  #cortex-search::placeholder { color:var(--cyan-dim); }
-  #search-results { margin-top:.35rem; max-height:300px; overflow-y:auto; display:none; }
-  #search-results div { padding:.4rem .8rem; font-size:.82rem; color:var(--dim); cursor:pointer; border-bottom:1px solid var(--line); }
-  #search-results div:hover { color:#fff; background:rgba(87,199,227,.08); }
-
-  #jarvis-panel { position:absolute; top:1.1rem; left:1.25rem; width:360px; bottom:3.4rem; z-index:4; display:flex; flex-direction:column; transition:width .25s; }
-  #jarvis-panel.collapsed { bottom:auto; width:220px; }
-  #jarvis-panel.collapsed #jarvis-log, #jarvis-panel.collapsed #jarvis-form, #jarvis-panel.collapsed #jarvis-opts { display:none; }
-  #jarvis-panel.collapsed .hud-title { border-bottom:none; }
-  #jarvis-log { flex:1; overflow-y:auto; padding:.75rem .9rem; display:flex; flex-direction:column; gap:.7rem; }
-  .jmsg { border-left:2px solid var(--line2); padding:.15rem 0 .15rem .7rem; font-size:.86rem; }
-  .jmsg .who { font-family:Consolas,monospace; font-size:.68rem; letter-spacing:.15em; margin-right:.45rem; }
-  .jmsg.you .who { color:var(--cyan); } .jmsg.you { border-left-color:var(--cyan-dim); }
-  .jmsg.bot .who { color:var(--purple); } .jmsg.bot { border-left-color:var(--purple); }
-  .jmsg .tlink { display:block; font-family:Consolas,monospace; font-size:.7rem; color:var(--cyan); margin-top:.2rem; }
-  #jarvis-form { display:flex; gap:.45rem; padding:.7rem .9rem .4rem; }
-  #jarvis-in { flex:1; background:rgba(8,14,24,.9); border:1px solid var(--line2); color:var(--text); padding:.5rem .7rem; font-size:.82rem; outline:none; }
-  .sq { width:38px; background:#13243a; border:1px solid var(--line2); color:var(--cyan); cursor:pointer; font-size:.9rem; }
-  .sq.send { background:linear-gradient(135deg,#3a6fd8,#7c5cff); color:#fff; border:none; }
-  #jarvis-opts { padding:.2rem .9rem .7rem; font-family:Consolas,monospace; font-size:.66rem; letter-spacing:.18em; color:var(--cyan-dim); }
-  #jstatus.online { color:var(--green); } #jstatus.processing { color:var(--gold); }
-  #jstatus { margin-left:auto; }
-
-  #rail { position:absolute; top:1.1rem; right:1.25rem; width:300px; bottom:3.4rem; z-index:4; display:flex; flex-direction:column; gap:.9rem; overflow-y:auto; }
-  .rail-body { padding:.6rem .8rem; font-size:.8rem; }
-  #briefing-body { font-family:Consolas,monospace; font-size:.72rem; color:var(--dim); white-space:pre-wrap; max-height:150px; overflow-y:auto; }
-  #briefing-body b { color:var(--text); }
-  #capture-row { display:flex; gap:.4rem; }
-  #capture-in { flex:1; background:rgba(8,14,24,.9); border:1px solid var(--line); color:var(--text); padding:.4rem .6rem; font-size:.8rem; outline:none; }
-  .act-row { display:flex; align-items:baseline; gap:.5rem; padding:.22rem 0; font-size:.78rem; border-bottom:1px dotted rgba(18,51,71,.6); }
-  .act-row .txt { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text); }
-  .act-row .agent { font-family:Consolas,monospace; font-size:.68rem; color:var(--green); }
-  .dot { display:inline-block; width:7px; height:7px; border-radius:50%; flex:none; }
-  .sys-row { display:flex; align-items:center; gap:.55rem; padding:.26rem 0; font-family:Consolas,monospace; font-size:.72rem; letter-spacing:.12em; }
-  .sys-row .nm { color:var(--text); flex:1; text-transform:uppercase; }
-  .sys-row .st { font-size:.66rem; }
-  .sys-row .st.up { color:var(--green); } .sys-row .st.down { color:var(--dim); }
-  .sys-row button { font-family:inherit; font-size:.62rem; background:none; border:1px solid var(--line2); color:var(--cyan); padding:.1rem .5rem; cursor:pointer; }
-
-  #home-foot { position:absolute; left:0; right:0; bottom:0; padding:.55rem 1.5rem; display:flex; justify-content:space-between; font-family:Consolas,monospace; font-size:.68rem; letter-spacing:.2em; color:var(--cyan-dim); border-top:1px solid var(--line); background:rgba(6,10,18,.85); z-index:4; }
-  #firing { color:var(--purple); }
-
-  /* shared page bits */
-  h1.pg { font-family:Consolas,monospace; font-size:.85rem; letter-spacing:.3em; color:var(--cyan); margin-bottom:1rem; }
-  h2.pg { font-family:Consolas,monospace; font-size:.72rem; letter-spacing:.25em; color:var(--cyan-dim); margin:1.2rem 0 .6rem; }
-  table { width:100%; border-collapse:collapse; font-size:.85rem; }
-  th,td { text-align:left; padding:.5rem .7rem; border-bottom:1px solid var(--line); vertical-align:top; }
-  th { font-family:Consolas,monospace; font-size:.68rem; letter-spacing:.2em; color:var(--cyan-dim); }
-  .ok{color:var(--green)} .bad{color:var(--red)} .warn{color:var(--gold)}
-  button.primary { background:linear-gradient(135deg,#3a6fd8,#7c5cff); border:none; color:#fff; padding:.5rem 1.1rem; cursor:pointer; font:inherit; }
-  button.ghost { background:none; border:1px solid var(--line2); color:var(--cyan); padding:.15rem .6rem; cursor:pointer; font-size:.72rem; font-family:Consolas,monospace; }
-  textarea,select,input.txt { background:rgba(8,14,24,.9); border:1px solid var(--line2); color:var(--text); padding:.5rem .7rem; font:inherit; outline:none; }
-  .chip { display:inline-flex; align-items:center; gap:.5rem; border:1px solid var(--line); padding:.3rem .8rem; margin:0 .4rem .45rem 0; font-size:.82rem; background:var(--panel); }
-  .cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:.9rem; margin-bottom:1.2rem; }
-  .card { padding:.9rem 1.1rem; }
-  .card .big { font-size:1.3rem; font-weight:600; font-family:Consolas,monospace; }
-  .card .lbl { color:var(--dim); font-size:.72rem; font-family:Consolas,monospace; letter-spacing:.15em; text-transform:uppercase; }
-  .st-dot { display:inline-block; width:7px; height:7px; border-radius:50%; flex:none; }
-  .st-dot.s-done { background:var(--green); }
-  .st-dot.s-failed { background:var(--pink); }
-  .st-dot.s-running { background:var(--cyan); }
-  .st-dot.s-queued { background:var(--gold); }
-  .link-row a { color:var(--cyan); margin-right:1.4rem; line-height:2.1; font-size:.85rem; }
-
-  /* tasks kanban */
-  #orchestrate-bar { display:flex; gap:.6rem; margin-bottom:1rem; max-width:900px; }
-  #orchestrate-goal { flex:1; }
-  .kanban { display:grid; grid-template-columns:repeat(4,1fr); gap:.9rem; align-items:start; }
-  .kcol .hud-title .cnt { margin-left:auto; color:var(--dim); }
-  .kcards { padding:.6rem; display:flex; flex-direction:column; gap:.6rem; max-height:56vh; overflow-y:auto; }
-  .kcard { border:1px solid var(--line); background:rgba(8,14,24,.75); padding:.55rem .7rem; font-size:.8rem; }
-  .kcard .khead { display:flex; align-items:center; gap:.5rem; margin-bottom:.25rem; font-family:Consolas,monospace; font-size:.68rem; }
-  .kcard .kid { color:var(--dim); }
-  .kcard .kagent { color:var(--green); letter-spacing:.1em; }
-  .kcard .ktext { color:var(--text); }
-  .kcard .kres { color:var(--dim); font-size:.74rem; margin-top:.3rem; max-height:70px; overflow:hidden; white-space:pre-wrap; }
-  .kcard .kres-wide { max-width:480px; }
-  .kcard .kbtns { margin-top:.4rem; display:flex; gap:.4rem; }
-
-  /* wiki */
-  .browser { display:grid; grid-template-columns:300px 1fr; gap:1rem; height:calc(100% - 6.5rem); }
-  .filelist { overflow-y:auto; font-size:.85rem; padding:.5rem; }
-  .notepane { overflow-y:auto; padding:1.1rem 1.4rem; }
-  .notepane pre { background:#060a12; padding:.7rem; overflow-x:auto; border:1px solid var(--line); }
-  .notepane a { color:var(--cyan); }
-  #wiki-crumb { font-family:Consolas,monospace; font-size:.72rem; color:var(--cyan-dim); letter-spacing:.1em; cursor:pointer; }
-  #wiki-crumb span { cursor:pointer; }
-  #wiki-crumb span:hover { color:var(--cyan); }
-  #wiki-filter { max-width:280px; margin-bottom:.6rem; }
-  #wiki-count { font-family:Consolas,monospace; }
-  .filelist div { padding:.35rem .6rem; cursor:pointer; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; border-radius:3px; }
-  .filelist div:hover { color:#fff; background:rgba(87,199,227,.08); }
-  .wiki-up { font-family:Consolas,monospace; font-size:.78rem; color:var(--cyan-dim); padding:.4rem .6rem; border-bottom:1px solid var(--line); margin-bottom:.3rem; }
-  .wiki-dir, .wiki-note { display:flex; align-items:center; gap:.6rem; padding:.4rem .6rem; border-radius:3px; }
-  .wiki-dir b, .wiki-note b { font-size:.82rem; color:var(--text); }
-  .wiki-ic { width:22px; text-align:center; flex:none; }
-  .wiki-note:hover b { color:var(--cyan); }
-  .notepane h1,.notepane h2,.notepane h3,.notepane h4 { color:var(--cyan); font-family:Consolas,monospace; margin:1rem 0 .5rem; }
-  .notepane code { background:#101d2c; padding:.15rem .4rem; border-radius:3px; font-size:.82rem; }
-  .notepane pre { background:#060a12; padding:.7rem; overflow-x:auto; border:1px solid var(--line); border-radius:4px; }
-  .notepane a { color:var(--cyan); }
-  .notepane blockquote { border-left:3px solid var(--cyan-dim); padding:.4rem .8rem; color:var(--dim); margin:.5rem 0; }
-  .notepane table { border-collapse:collapse; width:100%; }
-  .notepane th { font-family:Consolas,monospace; font-size:.68rem; color:var(--cyan-dim); border:1px solid var(--line); padding:.4rem .6rem; }
-  .notepane td { border:1px solid var(--line); padding:.4rem .6rem; }
-
-  /* voice */
-  #voice-grid { display:grid; grid-template-columns:340px 1fr; gap:1.2rem; max-width:1100px; }
-  #voice-list { display:flex; flex-direction:column; gap:.35rem; padding:.7rem; max-height:60vh; overflow-y:auto; }
-  .vrow { display:flex; align-items:center; gap:.6rem; padding:.4rem .6rem; cursor:pointer; border:1px solid transparent; font-size:.84rem; }
-  .vrow:hover { border-color:var(--line2); }
-  .vrow.sel { border-color:var(--cyan-dim); background:rgba(87,199,227,.07); }
-  .vrow .vico { width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:#13243a; font-size:.7rem; font-family:Consolas,monospace; color:var(--cyan); }
-  #clips { display:flex; flex-direction:column; gap:.6rem; margin-top:1rem; }
-  .clip { padding:.6rem .8rem; }
-  .clip .cmeta { font-family:Consolas,monospace; font-size:.7rem; color:var(--dim); margin-bottom:.35rem; display:flex; gap:1rem; }
-  .clip audio { width:100%; height:32px; }
-
-  /* studio */
-  .stages { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:.7rem; margin:1rem 0 1.2rem; }
-  .stage { padding:.7rem .8rem; text-align:center; position:relative; }
-  .stage .sic { font-size:1.3rem; }
-  .stage .snm { font-family:Consolas,monospace; font-size:.68rem; letter-spacing:.15em; color:var(--cyan); margin-top:.3rem; }
-  .stage .sst { font-size:.7rem; color:var(--dim); }
-  .stage .sdot { position:absolute; top:.55rem; right:.6rem; width:9px; height:9px; border-radius:50%; background:#2a3a4a; }
-  .stage .sdot.pending { background:#2a3a4a; }
-  .stage .sdot.not_built { background:#161f29; border:1px solid #2a3a4a; }
-  .stage .sdot.running { background:var(--cyan); box-shadow:0 0 6px var(--cyan); }
-  .stage .sdot.done { background:var(--green); box-shadow:0 0 6px var(--green); }
-  .stage .sdot.failed { background:var(--red); box-shadow:0 0 6px var(--red); }
-  .stage .sdot.awaiting_approval { background:var(--gold); box-shadow:0 0 6px var(--gold); }
-  .stage button.ghost { margin-top:.5rem; font-size:.66rem; padding:.15rem .55rem; }
-  .stage { cursor:pointer; transition:border-color .15s, transform .15s; }
-  .stage:hover { border-color:var(--cyan); transform:translateY(-1px); }
-  #comfy-frame { width:100%; height:calc(100vh - 21rem); border:1px solid var(--line2); background:#000; display:none; }
-  /* stage-artifact viewer modal */
-  #stage-modal { display:none; position:fixed; inset:0; background:rgba(4,8,14,.72); backdrop-filter:blur(4px); z-index:60; }
-  #stage-modal.open { display:flex; align-items:center; justify-content:center; padding:1.5rem; }
-  #stage-modal-box { width:min(1100px, 95vw); max-height:88vh; overflow:auto; background:var(--panel); border:1px solid var(--line2); position:relative; }
-  #stage-modal-head { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:.7rem .9rem; border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--panel); z-index:2; }
-  #stage-modal-title { font-family:Consolas,monospace; font-size:.74rem; letter-spacing:.22em; color:var(--cyan); }
-  #stage-modal-close { background:none; border:1px solid var(--line2); color:var(--dim); font-size:.7rem; padding:.2rem .6rem; cursor:pointer; }
-  #stage-modal-close:hover { color:#fff; border-color:var(--cyan); }
-  #stage-modal-body { padding:1rem 1.1rem; min-height:40vh; }
-  .sm-metrics { display:flex; flex-wrap:wrap; gap:.45rem; margin-bottom:1rem; }
-  .sm-metrics span { font-family:Consolas,monospace; font-size:.66rem; color:var(--dim); background:#101d2c; border:1px solid var(--line); padding:.2rem .5rem; }
-  .sm-metrics b { color:var(--cyan); font-weight:400; }
-  .sm-empty { color:var(--dim); font-size:.75rem; padding:2rem .5rem; text-align:center; }
-  .sm-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:.7rem; }
-  .sm-item { border:1px solid var(--line); background:#0e1a28; }
-  .sm-item img, .sm-item video { width:100%; max-height:260px; object-fit:cover; display:block; background:#000; }
-  .sm-item audio { width:100%; display:block; }
-  .sm-item .sm-cap { font-family:Consolas,monospace; font-size:.62rem; color:var(--dim); padding:.3rem .5rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .sm-doc { font-family:Consolas,monospace; font-size:.72rem; color:#cfe3f0; white-space:pre-wrap; word-break:break-word; max-height:55vh; overflow:auto; border:1px solid var(--line); background:#0b1522; padding:.8rem; }
-  .studio-banner { display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; padding:.6rem .9rem; border:1px solid var(--line); background:linear-gradient(90deg,rgba(12,40,62,.35),transparent); margin:0 0 .9rem; }
-  .studio-banner .sb-label { font-family:Consolas,monospace; font-size:.68rem; letter-spacing:.18em; color:var(--cyan); }
-  .studio-banner .sb-runall { font-size:.72rem; }
-  #run-all-btn:disabled { opacity:.55; cursor:not-allowed; }
-  #studio-last-msg { font-size:.68rem; color:var(--dim); }
-  #studio-last-msg.ok { color:var(--green); } #studio-last-msg.err { color:var(--red); }
-  .sm-actions { display:flex; gap:.6rem; flex-wrap:wrap; margin:0 0 1rem; }
-  .sm-actions button { font-size:.7rem; }
-  .sm-log { font-family:Consolas,monospace; font-size:.7rem; color:#ffb3a0; white-space:pre-wrap; word-break:break-word; max-height:30vh; overflow:auto; border:1px solid var(--line); background:#160d12; padding:.7rem; margin-top:1rem; }
-  .sm-log:empty { display:none; }
-  .sm-step { margin:.9rem 0 .4rem; font-family:Consolas,monospace; font-size:.72rem; letter-spacing:.14em; color:var(--cyan); border-bottom:1px solid var(--line); padding-bottom:.3rem; }
-  .sm-hint { font-size:.72rem; color:var(--dim); line-height:1.5; margin:.4rem 0 .8rem; }
-  .sm-errline { font-size:.72rem; color:var(--red); white-space:pre-wrap; word-break:break-word; margin-top:.5rem; }
-  .sm-next { margin-top:1rem; font-size:.75rem; color:var(--gold); }
-  #setup-modal { display:none; position:fixed; inset:0; background:rgba(4,8,14,.78); backdrop-filter:blur(4px); z-index:70; }
-  #setup-modal.open { display:flex; align-items:center; justify-content:center; padding:1.5rem; }
-  #setup-box { width:min(720px,94vw); max-height:88vh; overflow:auto; background:var(--panel); border:1px solid var(--line2); }
-  #setup-body { padding:1rem 1.2rem; }
-  #setup-body textarea { width:100%; min-height:180px; font-family:Consolas,monospace; font-size:.74rem; background:#0b1522; color:#cfe3f0; border:1px solid var(--line); padding:.6rem; }
-  #setup-error { font-size:.72rem; color:var(--red); margin-top:.5rem; }
-
-/* 4. UTILITY CLASSES (replaces inline styles) */
-.cursor-pointer { cursor:pointer; }
-.mono-sm { font-family:Consolas,monospace; font-size:.7rem; color:var(--cyan-dim); }
-.mono-xs { font-family:Consolas,monospace; font-size:.68rem; color:var(--dim); }
-.text-cyan { color:var(--cyan); }
-.text-cyan-dim { color:var(--cyan-dim); }
-.text-dim { color:var(--dim); }
-.text-red { color:var(--red); }
-.text-green { color:var(--green); }
-.w-full { width:100%; }
-.flex-1 { flex:1; }
-.min-w-160 { min-width:160px; }
-.min-w-200 { min-width:200px; }
-.min-w-220 { min-width:220px; }
-.btn-pad { padding:.5rem .9rem; }
-.p-md { padding:.8rem 1rem; }
-.p-lg { padding:1rem; }
-.mb-sm { margin-bottom:.6rem; }
-.mb-md { margin-bottom:.9rem; }
-.mb-lg { margin-bottom:1.2rem; }
-.mt-sm { margin-top:.6rem; }
-.mt-md { margin-top:.7rem; }
-.mt-lg { margin-top:1rem; }
-.inline-actions { display:flex; align-items:center; gap:1rem; flex-wrap:wrap; }
-.form-vertical { display:flex; flex-direction:column; gap:.6rem; max-width:760px; margin-bottom:1.4rem; }
-.grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:1.2rem; max-width:1200px; }
-
-/* 5. RESPONSIVE BREAKPOINTS */
-@media (max-width: 1200px) {
-  #jarvis-panel { width: 300px; }
-  #rail { width: 250px; }
-  .browser { grid-template-columns: 250px 1fr; }
-}
-
-@media (max-width: 992px) {
-  header { flex-wrap: wrap; gap: 1rem; }
-  #hdr-right { width: 100%; margin-top: 1rem; text-align: center; }
-  #jarvis-panel { width: 100%; height: 150px; }
-  #rail { width: 100%; height: 150px; margin-top: 1rem; }
-  .browser { grid-template-columns: 1fr; }
-  #voice-grid { grid-template-columns: 1fr; }
-  .stages { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
-}
-
-@media (max-width: 768px) {
-  body { font-size: 12px; }
-  header { padding: .5rem 1rem; }
-  .hud-title { font-size: .65rem; padding: .45rem .75rem; }
-  .page { padding: 1rem; }
-  #cortex-search { padding: .45rem; font-size: .65rem; }
-  .sq { width: 32px; font-size: .75rem; }
-  button.primary, button.ghost { padding: .4rem .8rem; font-size: .65rem; }
-  .chip { font-size: .75rem; padding: .25rem .5rem; }
-  .kcard { padding: .4rem .5rem; font-size: .75rem; }
-  .notepane { padding: .75rem 1rem; }
-  .sm-doc { font-size: .65rem; }
-}
-
-@media (max-width: 480px) {
-  body { font-size: 11px; }
-  header { gap: .5rem; }
-  .logo { gap: .25rem; font-size: .8rem; }
-  .logo .orb { width: 12px; height: 12px; }
-  header nav { gap: .8rem; }
-  header nav a { font-size: .65rem; letter-spacing: .1em; }
-  #hdr-right { font-size: .65rem; }
-  .hud-title { font-size: .6rem; }
-  .page { padding: .75rem; }
-  #cortex-search { padding: .35rem; font-size: .6rem; }
-  .sq { width: 28px; font-size: .7rem; }
-  button.primary, button.ghost { padding: .35rem .7rem; font-size: .6rem; }
-  .chip { font-size: .7rem; padding: .2rem .4rem; }
-  .kcard { padding: .35rem .4rem; font-size: .7rem; }
-  .notepane { padding: .5rem .75rem; }
-  .sm-doc { font-size: .6rem; }
-  #studio-project-select { min-width: 150px; }
-}
-</style>
+<link rel="stylesheet" href="/styles.css">
 </head>
 <body>
 
+<!-- ===== Top navigation bar ===== -->
 <header>
   <div class="logo"><span class="orb"></span>OLYMPUS</div>
   <nav>
@@ -369,15 +31,15 @@ main { flex:1; position:relative; overflow:hidden; }
 
 <main>
 
-<!-- ================= HOME ================= -->
+<!-- ===== HOME — interactive knowledge graph ===== -->
 <div class="page active" id="page-home">
   <canvas id="cortex" role="img" aria-label="Interactive agent knowledge graph visualization. Drag to rotate, click nodes to view details."></canvas>
-<noscript>
-  <div class="hud p-lg">
-    <p class="text-dim">JavaScript is required for the full Olympus experience.</p>
-    <p class="text-dim">Use the navigation tabs above to access individual pages, or enable JavaScript to view the interactive knowledge graph.</p>
-  </div>
-</noscript>
+  <noscript>
+    <div class="hud p-lg">
+      <p class="text-dim">JavaScript is required for the full Olympus experience.</p>
+      <p class="text-dim">Enable JavaScript to view the interactive knowledge graph.</p>
+    </div>
+  </noscript>
   <div id="search-wrap">
     <input id="cortex-search" class="mono" placeholder="✦ SEARCH THE CORTEX" autocomplete="off">
     <div id="search-results" class="hud"></div>
@@ -385,7 +47,8 @@ main { flex:1; position:relative; overflow:hidden; }
   <div id="jarvis-panel" class="hud">
     <div class="hud-title cursor-pointer" id="jarvis-title" title="click to collapse/expand">● JARVIS
       <span id="jstatus" class="online mono">ONLINE</span>
-      <span id="jarvis-caret" class="mono-sm" style="margin-left:.6rem">▾</span></div>
+      <span id="jarvis-caret" class="mono-sm" style="margin-left:.6rem">▾</span>
+    </div>
     <div id="jarvis-log">
       <div class="jmsg bot"><span class="who">JARVIS ~</span>At your service, Amir. Questions answered, work routed.</div>
     </div>
@@ -407,7 +70,6 @@ main { flex:1; position:relative; overflow:hidden; }
     <div class="hud-title"><span id="nf-title">NOTE</span><span id="nf-close" title="close">✕</span></div>
     <div class="nf-body" id="nf-body"></div>
   </div>
-
   <div id="home-foot">
     <span id="cortex-stats">CORTEX · …</span>
     <span id="firing">● ROUTING FIRING</span>
@@ -415,7 +77,7 @@ main { flex:1; position:relative; overflow:hidden; }
   </div>
 </div>
 
-<!-- ================= TASKS ================= -->
+<!-- ===== TASKS — agent work queue kanban ===== -->
 <div class="page" id="page-tasks">
   <h1 class="pg">TASKS · AGENT WORK QUEUE</h1>
   <div id="orchestrate-bar">
@@ -423,6 +85,7 @@ main { flex:1; position:relative; overflow:hidden; }
     <button class="primary" id="orchestrate-btn">ORCHESTRATE</button>
     <input class="txt" id="quick-task" placeholder="…or drop a single task (auto-routed)">
     <button class="ghost btn-pad" id="quick-btn">QUEUE</button>
+    <button class="ghost" id="clear-done-btn" title="Remove completed & failed tasks from the board">CLEAR DONE</button>
   </div>
   <div class="kanban">
     <div class="kcol hud"><div class="hud-title">QUEUED <span class="cnt" id="cnt-queued">0</span></div><div class="kcards" id="col-queued"></div></div>
@@ -432,10 +95,10 @@ main { flex:1; position:relative; overflow:hidden; }
   </div>
 </div>
 
-<!-- ================= WIKI ================= -->
+<!-- ===== WIKI — knowledge corpus browser ===== -->
 <div class="page" id="page-wiki">
   <h1 class="pg">WIKI · KNOWLEDGE CORPUS</h1>
-  <div style="display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;margin-bottom:.8rem">
+  <div class="flex mb-md">
     <div id="wiki-crumb" class="mono-sm" style="cursor:pointer">/ vault root</div>
     <input class="txt mono" id="wiki-filter" placeholder="filter notes…" style="max-width:280px">
     <span id="wiki-count" class="mono-xs text-dim"></span>
@@ -448,10 +111,10 @@ main { flex:1; position:relative; overflow:hidden; }
   </div>
 </div>
 
-<!-- ================= COMMERCE ================= -->
+<!-- ===== COMMERCE — Plutus agent ===== -->
 <div class="page" id="page-commerce">
   <h1 class="pg">COMMERCE · PLUTUS</h1>
-  <form class="task form-vertical" id="plutus-form">
+  <form class="form-vertical" id="plutus-form">
     <textarea id="plutus-text" rows="3" placeholder="Ask Plutus — listings, invoices, pricing, budgets…"></textarea>
     <div><button class="primary">SEND TO PLUTUS</button></div>
   </form>
@@ -459,7 +122,7 @@ main { flex:1; position:relative; overflow:hidden; }
   <tbody id="plutus-rows"></tbody></table></div>
 </div>
 
-<!-- ================= AUTOMATIONS ================= -->
+<!-- ===== AUTOMATIONS — service chips + external links ===== -->
 <div class="page" id="page-automations">
   <h1 class="pg">AUTOMATIONS</h1>
   <div id="auto-services" class="mb-lg"></div>
@@ -471,16 +134,16 @@ main { flex:1; position:relative; overflow:hidden; }
   </div>
 </div>
 
-<!-- ================= VOICE ================= -->
+<!-- ===== VOICE — speech studio ===== -->
 <div class="page" id="page-voice">
   <h1 class="pg">VOICE · SPEECH STUDIO</h1>
-  <div id="voice-status" style="margin-bottom:1rem"></div>
+  <div id="voice-status" class="mb-md"></div>
   <div id="voice-grid">
     <div class="hud"><div class="hud-title">VOICES</div><div id="voice-list"></div></div>
     <div>
-      <div class="hud" style="padding:1rem">
-        <textarea id="voice-text" rows="5" style="width:100%" placeholder="Text to synthesize…">The Olympus cortex is live and all systems are connected.</textarea>
-        <div style="display:flex;align-items:center;gap:1rem;margin-top:.7rem">
+      <div class="hud p-md">
+        <textarea id="voice-text" rows="5" class="w-full" placeholder="Text to synthesize…">The Olympus cortex is live and all systems are connected.</textarea>
+        <div class="flex mt-sm">
           <label class="mono" style="font-size:.72rem;color:var(--cyan-dim)">SPEED <span id="speed-val">1.0</span></label>
           <input type="range" id="voice-speed" min="0.5" max="1.5" step="0.05" value="1.0" style="flex:1">
           <button class="primary" id="voice-gen">GENERATE ▶</button>
@@ -491,10 +154,10 @@ main { flex:1; position:relative; overflow:hidden; }
   </div>
 </div>
 
-<!-- ================= STUDIO ================= -->
+<!-- ===== STUDIO — anime / manga pipeline ===== -->
 <div class="page" id="page-studio">
   <h1 class="pg">STUDIO · ANIME / MANGA PIPELINE v2</h1>
-  <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:.4rem">
+  <div class="flex mb-sm">
     <span id="studio-status"></span>
     <button class="primary" id="comfy-embed-btn">OPEN COMFYUI HERE ▼</button>
     <a href="http://127.0.0.1:8188" target="_blank" style="color:var(--cyan);font-size:.82rem">open in new tab ↗</a>
@@ -502,35 +165,36 @@ main { flex:1; position:relative; overflow:hidden; }
   </div>
   <iframe id="comfy-frame" title="ComfyUI"></iframe>
 
-  <!-- Studio help banner — no agent needed, everything runs from here -->
-  <div class="hud" style="padding:.7rem 1rem;margin:.6rem 0 .9rem;background:linear-gradient(90deg,rgba(87,199,227,.08),transparent);border-color:rgba(87,199,227,.25)">
-    <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap;justify-content:space-between">
-      <div style="display:flex;gap:.7rem;align-items:center;flex-wrap:wrap">
+  <!-- Studio banner — no agent needed, everything runs from here -->
+  <div class="hud p-md mb-md" style="background:linear-gradient(90deg,rgba(87,199,227,.08),transparent);border-color:rgba(87,199,227,.25)">
+    <div class="flex-between">
+      <div class="flex">
         <span class="mono" style="font-size:.72rem;color:var(--cyan);letter-spacing:.14em">● STUDIO — NO AGENT NEEDED</span>
         <span class="mono" style="font-size:.7rem;color:var(--dim)">Create a project → Run stages one-by-one or hit <b style="color:var(--cyan)">RUN ALL</b>. Click any stage card to view outputs &amp; logs. All config is permanent in <code style="background:#0b1522;padding:.1rem .35rem;border:1px solid var(--line)">stack.toml</code>.</span>
       </div>
-      <div style="display:flex;gap:.5rem;align-items:center">
+      <div class="flex">
         <span class="mono" style="font-size:.68rem;color:var(--dim)">NIM MODEL</span>
-        <select id="studio-nim-select" style="min-width:280px;background:rgba(8,14,24,.9);border:1px solid var(--line2);color:var(--text);padding:.35rem .5rem;font:inherit;font-size:.75rem"></select>
+        <select id="studio-nim-select" class="min-w-280" style="background:rgba(8,14,24,.9);border:1px solid var(--line2);color:var(--text);padding:.35rem .5rem;font:inherit;font-size:.75rem"></select>
         <span id="studio-nim-status" class="mono" style="font-size:.68rem;color:var(--dim)"></span>
       </div>
     </div>
   </div>
 
-  <div class="hud" style="padding:.8rem 1rem;margin:.9rem 0">
-    <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+  <!-- Project selector + new project form -->
+  <div class="hud p-md mb-md">
+    <div class="flex">
       <label class="mono" style="font-size:.7rem;color:var(--cyan-dim)">PROJECT</label>
-      <select id="studio-project-select" style="min-width:220px"></select>
+      <select id="studio-project-select" class="min-w-200"></select>
       <button class="ghost" id="studio-new-toggle">+ NEW PROJECT</button>
       <span id="studio-project-meta" class="mono" style="font-size:.7rem;color:var(--dim)"></span>
     </div>
     <form id="studio-new-form" style="display:none;margin-top:.8rem">
-      <div style="display:flex;flex-wrap:wrap;gap:1rem;align-items:center;margin-bottom:.6rem">
+      <div class="flex mb-sm">
         <input class="txt" id="np-slug" placeholder="project-slug" style="width:200px">
         <label class="mono" style="font-size:.72rem;color:var(--cyan-dim)">FPS <span id="np-fps-val">24</span></label>
         <input type="range" id="np-fps" min="24" max="60" step="1" value="24" style="width:160px">
         <label class="mono" style="font-size:.72rem;color:var(--cyan-dim)">INTAKE</label>
-        <select id="np-intake" style="min-width:160px">
+        <select id="np-intake" class="min-w-200">
           <option value="0b" selected>0B · generate (brief)</option>
           <option value="0a">0A · transform (source)</option>
           <option value="0i">0I · import (panels)</option>
@@ -538,13 +202,13 @@ main { flex:1; position:relative; overflow:hidden; }
         <label class="mono" style="font-size:.78rem"><input type="radio" name="np-mode" value="brief" checked> brief</label>
         <label class="mono" style="font-size:.78rem"><input type="radio" name="np-mode" value="script"> full script</label>
       </div>
-      <div id="np-intake-hint" class="mono" style="font-size:.7rem;color:var(--cyan-dim);margin-bottom:.5rem"></div>
-      <textarea id="np-text" rows="6" style="width:100%" placeholder="Creative brief (frontmatter: word_target: 600) — or source/seed text if 'full script' is selected…"></textarea>
+      <div id="np-intake-hint" class="mono mb-sm" style="font-size:.7rem;color:var(--cyan-dim)"></div>
+      <textarea id="np-text" rows="6" class="w-full" placeholder="Creative brief (frontmatter: word_target: 600) — or source/seed text if 'full script' is selected…"></textarea>
       <div id="np-panels-file" style="display:none;margin-top:.5rem">
         <input type="file" id="np-panels" accept=".zip,.png,.jpg,.jpeg,.webp" multiple>
         <span class="mono" style="font-size:.7rem;color:var(--dim)"> attach panel images / zip (optional — can also be added when running stage 0)</span>
       </div>
-      <div style="margin-top:.6rem;display:flex;gap:.9rem;align-items:center">
+      <div class="flex mt-sm">
         <button class="primary" type="submit">CREATE PROJECT</button>
         <span id="np-error" class="mono" style="font-size:.72rem;color:var(--red)"></span>
       </div>
@@ -552,29 +216,21 @@ main { flex:1; position:relative; overflow:hidden; }
   </div>
 
   <div class="studio-banner">
-    <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+    <div class="flex">
       <span class="sb-label">FULL PIPELINE</span>
       <span id="studio-last-msg" class="mono"></span>
     </div>
-    <div style="display:flex;gap:.6rem;align-items:center">
+    <div class="flex">
       <span id="studio-progress" class="mono" style="font-size:.7rem;color:var(--cyan)"></span>
       <button class="primary sb-runall" id="run-all-btn">▶ RUN ALL REMAINING STAGES</button>
     </div>
   </div>
 
-  <div class="stages">
-    <div class="stage hud" data-stage="stage0"><div class="sdot" id="sdot-stage0"></div><div class="sic">📥</div><div class="snm">STAGE 0 · INTAKE</div><div class="sst">script.txt → project blueprint · FPS 24–60 · story-pollution guard</div><div class="mono" style="font-size:.65rem;color:var(--dim);margin-top:.35rem" id="slabel-stage0">pending — click RUN to start</div><div style="display:flex;gap:.35rem;justify-content:center;margin-top:.45rem;flex-wrap:wrap"><button class="ghost srun" data-stage="stage0">RUN ▶</button><button class="ghost sview" data-stage="stage0">VIEW</button></div></div>
-    <div class="stage hud" data-stage="stage1"><div class="sdot" id="sdot-stage1"></div><div class="sic">🌍</div><div class="snm">STAGE 1 · WORLD BIBLE</div><div class="sst">chunked full-script character extraction · era/tech inference · relationship web · outfit specs · contradiction detection · creative expansion · sd_prompt anchors</div><div class="mono" style="font-size:.65rem;color:var(--dim);margin-top:.35rem" id="slabel-stage1">pending</div><div style="display:flex;gap:.35rem;justify-content:center;margin-top:.45rem;flex-wrap:wrap"><button class="ghost srun" data-stage="stage1">RUN ▶</button><button class="ghost sview" data-stage="stage1">VIEW</button><button class="ghost sforce" data-stage="stage1" title="Force rerun even if done">FORCE</button></div></div>
-    <div class="stage hud" data-stage="stage1r"><div class="sdot" id="sdot-stage1r"></div><div class="sic">👤</div><div class="snm">STAGE 1R · REFERENCES</div><div class="sst">10+ refs per character (360° full body) · locations + assets · style pick → consistency LoRA · voice ID per character</div><div class="mono" style="font-size:.65rem;color:var(--dim);margin-top:.35rem" id="slabel-stage1r">pending</div><div style="display:flex;gap:.35rem;justify-content:center;margin-top:.45rem;flex-wrap:wrap"><button class="ghost srun" data-stage="stage1r">RUN ▶</button><button class="ghost sview" data-stage="stage1r">VIEW</button><button class="ghost sforce" data-stage="stage1r" title="Force rerun">FORCE</button></div></div>
-    <div class="stage hud" data-stage="stage3"><div class="sdot" id="sdot-stage3"></div><div class="sic">🎞</div><div class="snm">STAGE 2 · STORYBOARD</div><div class="sst">scene blocks: first part → ending → in-betweens · last frame seeds next block · panel lock + regenerate · sets shot direction</div><div class="mono" style="font-size:.65rem;color:var(--dim);margin-top:.35rem" id="slabel-stage3">pending</div><div style="display:flex;gap:.35rem;justify-content:center;margin-top:.45rem;flex-wrap:wrap"><button class="ghost srun" data-stage="stage3">RUN ▶</button><button class="ghost sview" data-stage="stage3">VIEW</button><button class="ghost sforce" data-stage="stage3" title="Force rerun">FORCE</button></div></div>
-    <div class="stage hud" data-stage="stage2"><div class="sdot" id="sdot-stage2"></div><div class="sic">📝</div><div class="snm">STAGE 3A · SCREENPLAY</div><div class="sst">reads storyboard → adds narration + dialogue + SFX · composition prompts per shot · pacing pauses · quality audit (fix 3 weakest) · sequence-order check</div><div class="mono" style="font-size:.65rem;color:var(--dim);margin-top:.35rem" id="slabel-stage2">pending</div><div style="display:flex;gap:.35rem;justify-content:center;margin-top:.45rem;flex-wrap:wrap"><button class="ghost srun" data-stage="stage2">RUN ▶</button><button class="ghost sview" data-stage="stage2">VIEW</button><button class="ghost sforce" data-stage="stage2" title="Force rerun">FORCE</button></div></div>
-    <div class="stage hud" data-stage="stage3b"><div class="sdot" id="sdot-stage3b"></div><div class="sic">🎨</div><div class="snm">STAGE 3B · IMAGES</div><div class="sst">one krea2 image per shot · same anchors every time = consistent characters</div><div class="mono" style="font-size:.65rem;color:var(--dim);margin-top:.35rem" id="slabel-stage3b">pending</div><div style="display:flex;gap:.35rem;justify-content:center;margin-top:.45rem;flex-wrap:wrap"><button class="ghost srun" data-stage="stage3b">RUN ▶</button><button class="ghost sview" data-stage="stage3b">VIEW</button><button class="ghost sforce" data-stage="stage3b" title="Force regenerate all panels">FORCE</button></div></div>
-    <div class="stage hud" data-stage="stage3c"><div class="sdot" id="sdot-stage3c"></div><div class="sic">🎞️</div><div class="snm">STAGE 3C · ANIMATION</div><div class="sst">LTX-Video motion per panel → clips · motion tiers · facial anchors</div><div class="mono" style="font-size:.65rem;color:var(--dim);margin-top:.35rem" id="slabel-stage3c">pending</div><div style="display:flex;gap:.35rem;justify-content:center;margin-top:.45rem;flex-wrap:wrap"><button class="ghost srun" data-stage="stage3c">RUN ▶</button><button class="ghost sview" data-stage="stage3c">VIEW</button><button class="ghost sforce" data-stage="stage3c" title="Force rerun">FORCE</button></div></div>
-    <div class="stage hud" data-stage="stage_vlm_review"><div class="sdot" id="sdot-stage_vlm_review"></div><div class="sic">🔍</div><div class="snm">STAGE · VLM REVIEW</div><div class="sst">vision-model consistency check · prompt-adherence scoring · blunder gating</div><div class="mono" style="font-size:.65rem;color:var(--dim);margin-top:.35rem" id="slabel-stage_vlm_review">pending</div><div style="display:flex;gap:.35rem;justify-content:center;margin-top:.45rem;flex-wrap:wrap"><button class="ghost srun" data-stage="stage_vlm_review">RUN ▶</button><button class="ghost sview" data-stage="stage_vlm_review">VIEW</button><button class="ghost sforce" data-stage="stage_vlm_review" title="Force rerun">FORCE</button></div></div>
-    <div class="stage hud" data-stage="stage4"><div class="sdot" id="sdot-stage4"></div><div class="sic">🎙</div><div class="snm">STAGE 4 · AUDIO</div><div class="sst">Kokoro TTS · narration + per-character dialogue voices · thinking pauses</div><div class="mono" style="font-size:.65rem;color:var(--dim);margin-top:.35rem" id="slabel-stage4">pending</div><div style="display:flex;gap:.35rem;justify-content:center;margin-top:.45rem;flex-wrap:wrap"><button class="ghost srun" data-stage="stage4">RUN ▶</button><button class="ghost sview" data-stage="stage4">VIEW</button><button class="ghost sforce" data-stage="stage4" title="Force regenerate">FORCE</button></div></div>
-    <div class="stage hud" data-stage="stage5"><div class="sdot" id="sdot-stage5"></div><div class="sic">🎬</div><div class="snm">STAGE 5 · ASSEMBLY</div><div class="sst">audio→frame timing · clip chunking · subtle transitions · quiet generated music · copyright check · next-episode carryover · length/GB prediction</div><div class="mono" style="font-size:.65rem;color:var(--dim);margin-top:.35rem" id="slabel-stage5">pending</div><div style="display:flex;gap:.35rem;justify-content:center;margin-top:.45rem;flex-wrap:wrap"><button class="ghost srun" data-stage="stage5">RUN ▶</button><button class="ghost sview" data-stage="stage5">VIEW</button><button class="ghost sforce" data-stage="stage5" title="Force rerun">FORCE</button></div></div>
-  </div>
+  <!-- Stage cards — one per canonical pipeline stage. The data-stage ids are
+       the internal contract keys from pipeline/blueprint.py STAGE_ORDER. -->
+  <div class="stages" id="stage-grid"></div>
 
+  <!-- Stage artifact viewer modal -->
   <div id="stage-modal" role="dialog" aria-modal="true">
     <div id="stage-modal-box">
       <div id="stage-modal-head">
@@ -585,6 +241,7 @@ main { flex:1; position:relative; overflow:hidden; }
     </div>
   </div>
 
+  <!-- Stage0 intake setup modal -->
   <div id="setup-modal" role="dialog" aria-modal="true">
     <div id="setup-box">
       <div id="stage-modal-head">
@@ -594,18 +251,19 @@ main { flex:1; position:relative; overflow:hidden; }
       <div id="setup-body"><div class="sm-empty">loading…</div></div>
     </div>
   </div>
-  <div style="display:flex;gap:1.5rem;flex-wrap:wrap">
+
+  <div class="flex">
     <p class="mono" style="font-size:.72rem;color:var(--dim)">pipeline engine: olympus/engines/pipeline/ · kernel: olympus/kernel/</p>
     <p class="mono" style="font-size:.72rem;color:var(--dim)">design: docs/planning/anime-pipeline-v2-design.md</p>
     <p class="mono" style="font-size:.72rem;color:var(--dim)">tools: realesrgan · rife-ncnn-vulkan · anime-face-detector</p>
   </div>
 </div>
 
-<!-- ================= SYSTEM ================= -->
+<!-- ===== SYSTEM — overview ===== -->
 <div class="page" id="page-system">
   <h1 class="pg">SYSTEM · OVERVIEW</h1>
   <div class="cards" id="sys-cards"></div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;max-width:1200px">
+  <div class="grid-2">
     <div>
       <h2 class="pg">MODEL ROLES</h2>
       <div class="hud"><table id="sys-models"><thead><tr><th>ROLE</th><th>MODEL</th></tr></thead><tbody></tbody></table></div>
@@ -619,1125 +277,13 @@ main { flex:1; position:relative; overflow:hidden; }
       <div class="hud"><table id="sys-agents-tbl"><thead><tr><th>AGENT</th><th>DOMAIN</th><th>ROLE</th><th>RESOLVED MODEL</th></tr></thead><tbody></tbody></table></div>
       <h2 class="pg">TASK STATS</h2>
       <div id="sys-taskstats"></div>
-      <p style="margin-top:1rem"><button class="primary" onclick="fetch('/api/agents/reload',{method:'POST'}).then(refreshAll)">RELOAD AGENT REGISTRY</button></p>
+      <p class="mt-lg"><button class="primary" onclick="fetch('/api/agents/reload',{method:'POST'}).then(refreshAll)">RELOAD AGENT REGISTRY</button></p>
     </div>
   </div>
 </div>
 
 </main>
 
-
-
-<script>
-const $ = id => document.getElementById(id);
-async function j(url, opts) { const r = await fetch(url, opts); if (!r.ok) throw new Error(await r.text()); return r.json(); }
-function esc(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
-const _CSRF = (document.cookie.match(/(?:^|; )olympus_csrf=([^;]+)/) || [,''])[1];
-const _origFetch = window.fetch;
-window.fetch = (url, opts = {}) => {
-  const m = (opts.method || 'GET').toUpperCase();
-  if (['POST','PUT','PATCH','DELETE'].includes(m)) {
-    const h = new Headers(opts.headers);
-    h.set('x-csrf-token', _CSRF);
-    opts.headers = h;
-  }
-  return _origFetch(url, opts);
-};
- function sanitizePromptInput(text) {
-   if (typeof text !== 'string') return '';
-   const stripped = text
-     .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, '')
-     .replace(/\s+/g, ' ')
-     .trim();
-   const lower = stripped.toLowerCase();
-   const blocked = [
-     'ignore previous', 'ignore all', 'disregard',
-     'system prompt', 'you are now', 'act as', 'you are a',
-     'new instruction', 'override'
-   ];
-   for (const pattern of blocked) {
-     if (lower.includes(pattern)) {
-       return '[filtered: prompt manipulation detected]';
-     }
-   }
-   return stripped.slice(0, 2000);
- }
-
-/* ============ nav ============ */
-function goPage(name) { document.querySelector(`header nav a[data-page="${name}"]`).click(); }
-document.querySelectorAll('header nav a').forEach(a => a.addEventListener('click', () => {
-  document.querySelectorAll('header nav a').forEach(x => x.classList.remove('active'));
-  document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
-  a.classList.add('active'); $('page-' + a.dataset.page).classList.add('active');
-  if (a.dataset.page === 'wiki') loadWiki(wikiFolder);
-}));
-
-/* ============ CORTEX ============ */
-const AGENT_COLORS = ['#8f7bff','#c05cff','#ff5ca8','#ff9f45','#e8b84b','#4ade80','#37c9a2','#5cb8ff','#7bd4ff','#b08fff'];
-const HOME_ROT_X = 0.25, HOME_VEL = 0.0018;
-let cortex = { nodes:[], edges:[], nuclei:[], rotY:0, rotX:HOME_ROT_X, vel:HOME_VEL,
-               firing:-1, fireT:0, lastDrag:0,
-               zoom:1, zoomT:1, userZoom:1, userZoomT:1, offX:0, offY:0, focus:-1, hover:-1, proj:[],
-               _paused:false };
-
-function buildCortex(agents, notePaths) {
-  const R = 1, nodes = [];
-  agents.forEach((a, i) => {
-    const phi = Math.acos(1 - 2 * (i + .5) / agents.length), th = Math.PI * (1 + Math.sqrt(5)) * i;
-    nodes.push({ x:.55*R*Math.sin(phi)*Math.cos(th), y:.55*R*Math.cos(phi), z:.55*R*Math.sin(phi)*Math.sin(th),
-                 r:5.5, color:AGENT_COLORS[i % AGENT_COLORS.length], nucleus:true,
-                 name:a.name, label:a.name.toUpperCase(), desc:a.description });
-  });
-  const nNuc = nodes.length;
-  // satellites: one node per real vault/wiki note (fill with plain neurons if the vault is small)
-  const paths = (notePaths || []).slice(0, 240);
-  const N = Math.max(paths.length, 120);
-  for (let i = 0; i < N; i++) {
-    const phi = Math.acos(1 - 2 * (i + .5) / N), th = Math.PI * (1 + Math.sqrt(5)) * i;
-    const x = R*Math.sin(phi)*Math.cos(th)+(Math.random()-.5)*.25,
-          y = R*Math.cos(phi)+(Math.random()-.5)*.25,
-          z = R*Math.sin(phi)*Math.sin(th)+(Math.random()-.5)*.25;
-    let best = 0, bd = 9;
-    for (let k = 0; k < nNuc; k++) { const d = (x-nodes[k].x)**2+(y-nodes[k].y)**2+(z-nodes[k].z)**2; if (d < bd) { bd = d; best = k; } }
-    const path = paths[i] || null;
-    nodes.push({ x, y, z, r: path ? 2.4+Math.random()*1.6 : 1.6+Math.random()*1.4,
-                 color:(bd<.55 && Math.random()<.55) ? nodes[best].color : '#a8d4f2',
-                 nucleus:false, cluster:best, path,
-                 label: path ? path.split('/').pop().replace(/\.md$/,'') : null });
-  }
-  const edges = [];
-  for (let i = nNuc; i < nodes.length; i++) {
-    let bi = -1, bd = 9;
-    for (let k = nNuc; k < nodes.length; k++) { if (k === i) continue;
-      const d = (nodes[i].x-nodes[k].x)**2+(nodes[i].y-nodes[k].y)**2+(nodes[i].z-nodes[k].z)**2;
-      if (d < bd) { bd = d; bi = k; } }
-    if (bi >= 0 && bd < .5) edges.push([i, bi]);
-    if (Math.random() < .35) edges.push([i, nodes[i].cluster]);
-  }
-  cortex.nodes = nodes; cortex.edges = edges; cortex.nuclei = nodes.slice(0, nNuc);
-  const named = nodes.filter(n => n.path).length;
-  $('cortex-stats').textContent = `CORTEX · ${nodes.length} NODES (${named} NOTES) · ${edges.length} NERVES · ${nNuc} NUCLEI · LIVE`;
-}
-
-function drawCortex() {
-   if (cortex._paused) return; // caller restarts when appropriate
-   
-   const cv = $('cortex'), ctx = cv.getContext('2d');
-   const dpr = devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
-   if (cv.width !== W*dpr || cv.height !== H*dpr) { cv.width = W*dpr; cv.height = H*dpr; }
-   ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,W,H);
-   // sphere dead-center of the entire page
-   const cx = W / 2, cy = H / 2;
-   const now = performance.now();
-   const focused = cortex.focus >= 0;
-   if (focused) {
-     // reading a node: stop the spin, zoom in
-     cortex.vel += (0 - cortex.vel) * .08;
-     cortex.zoomT = 1.85;
-   } else if (cortex.dragging || cortex.hover >= 0) {
-     // any interaction (grabbing, or hovering a node to click it) halts the spin
-     cortex.vel += (0 - cortex.vel) * .25;
-     cortex.zoomT = 1;
-   } else {
-     cortex.zoomT = 1;
-     // idle again: ease tilt + spin back to defaults after 3s
-     if (now - cortex.lastDrag > 3000) {
-       cortex.rotX += (HOME_ROT_X - cortex.rotX) * .03;
-       cortex.vel += (HOME_VEL - cortex.vel) * .03;
-     }
-   }
-   cortex.zoom += (cortex.zoomT - cortex.zoom) * .07;
-   cortex.userZoom += (cortex.userZoomT - cortex.userZoom) * .12;
-   cortex.rotY += cortex.vel;
-   const scale = Math.min(W * .62, H) * .42 * cortex.zoom * cortex.userZoom;
-   const sy = Math.sin(cortex.rotY), cyr = Math.cos(cortex.rotY);
-   const sx = Math.sin(cortex.rotX), cxr = Math.cos(cortex.rotX);
-   const raw = cortex.nodes.map(n => {
-     let x = n.x*cyr + n.z*sy, z = -n.x*sy + n.z*cyr, y = n.y;
-     let y2 = y*cxr - z*sx, z2 = y*sx + z*cxr;
-     const p = 1.6 / (1.6 + z2);
-     return { X: cx + x*scale*p, Y: cy + y2*scale*p, d: p, n };
-   });
-   // pan so the focused node eases to just below the note reader; otherwise ease back to center
-   if (focused) {
-     const f = raw[cortex.focus];
-     cortex.offX += ((cx - f.X) - cortex.offX) * .07;
-     cortex.offY += ((cy + H*.18 - f.Y) - cortex.offY) * .07;
-   } else {
-     cortex.offX += (0 - cortex.offX) * .07;
-     cortex.offY += (0 - cortex.offY) * .07;
-   }
-   const proj = raw.map(p => ({ X: p.X + cortex.offX, Y: p.Y + cortex.offY, d: p.d, n: p.n }));
-   cortex.proj = proj;
-   for (const [a,b] of cortex.edges) {
-     const A = proj[a], B = proj[b];
-     let alpha = .10 * Math.min(A.d, B.d), color = '150,190,220';
-     if (cortex.firing >= 0 && (cortex.nodes[a].cluster === cortex.firing || a === cortex.firing || b === cortex.firing)) {
-       alpha += .35 * Math.max(0, 1 - (now - cortex.fireT)/900); color = '190,160,255';
-     }
-     ctx.strokeStyle = `rgba(${color},${alpha})`;
-     ctx.beginPath(); ctx.moveTo(A.X, A.Y); ctx.lineTo(B.X, B.Y); ctx.stroke();
-   }
-   const order = proj.map((p,i) => i).sort((a,b) => proj[a].d - proj[b].d);
-   for (const i of order) {
-     const p = proj[i];
-     const hot = i === cortex.hover || i === cortex.focus;
-     const r = p.n.r * p.d * 1.15 * (hot ? 1.6 : 1);
-     ctx.beginPath(); ctx.arc(p.X, p.Y, r, 0, 7);
-     ctx.fillStyle = p.n.color;
-     ctx.globalAlpha = .35 + .65 * (p.d - .55) / .9;
-     if (p.n.nucleus || hot) { ctx.shadowColor = p.n.color; ctx.shadowBlur = hot ? 20 : 14; }
-     ctx.fill(); ctx.shadowBlur = 0; ctx.globalAlpha = 1;
-   }
-   // hover / focus label
-   const lbl = cortex.hover >= 0 ? cortex.hover : cortex.focus;
-   if (lbl >= 0 && cortex.nodes[lbl].label) {
-     const p = proj[lbl], text = cortex.nodes[lbl].label;
-     ctx.font = '11px Consolas, monospace';
-     const w = ctx.measureText(text).width;
-     ctx.fillStyle = 'rgba(6,10,18,.9)';
-     ctx.fillRect(p.X + 10, p.Y - 18, w + 12, 18);
-     ctx.strokeStyle = 'rgba(87,199,227,.4)';
-     ctx.strokeRect(p.X + 10, p.Y - 18, w + 12, 18);
-     ctx.fillStyle = '#9fe3f7';
-     ctx.fillText(text, p.X + 16, p.Y - 5);
-   }
-   requestAnimationFrame(drawCortex);
- }
-
-setInterval(() => {
-  if (!cortex.nuclei.length || cortex.focus >= 0) return;
-  cortex.firing = Math.floor(Math.random() * cortex.nuclei.length);
-  cortex.fireT = performance.now();
-  const nuc = cortex.nuclei[cortex.firing];
-  $('firing').textContent = `● ${nuc.name.toUpperCase()} FIRING`;
-  $('firing').style.color = nuc.color;
-}, 1700);
-
-/* cortex interaction: drag to spin, hover to identify, click a note-node to read it */
-function cortexHit(x, y) {
-  let best = -1, bd = 14 * 14;
-  for (let i = 0; i < cortex.proj.length; i++) {
-    const p = cortex.proj[i];
-    const d = (p.X - x) ** 2 + (p.Y - y) ** 2;
-    if (d < bd && (cortex.nodes[i].path || cortex.nodes[i].nucleus)) { bd = d; best = i; }
-  }
-  return best;
-}
-async function focusCortexNode(i) {
-   const n = cortex.nodes[i];
-   cortex.focus = i;
-   cortex._paused = true;
-   $('note-float').classList.add('open');
-  if (n.nucleus) {
-    $('nf-title').textContent = 'AGENT · ' + n.label;
-    $('nf-body').innerHTML = `<p>${esc(n.desc || '')}</p><p class="mono text-dim mono-xs mt-sm">click ✕ to release the cortex</p>`;
-    return;
-  }
-  $('nf-title').textContent = n.label;
-  $('nf-body').innerHTML = '<em class="text-dim">reading…</em>';
-  try {
-    const note = await j('/api/brain/note?path=' + encodeURIComponent(n.path));
-    $('nf-body').innerHTML = note.html || '<em>empty note</em>';
-  } catch { $('nf-body').innerHTML = '<em>could not load this note</em>'; }
-}
-function releaseCortex() {
-   cortex.focus = -1;                    // pan/zoom ease back to center automatically
-   cortex.lastDrag = 0;                  // resume default rotation immediately
-   cortex._paused = false;
-   $('note-float').classList.remove('open');
- }
- 
-function cortexResume() {
-   if (cortex._paused) {
-     cortex._paused = false;
-     requestAnimationFrame(drawCortex);
-   }
- }
- document.addEventListener('visibilitychange', () => {
-   if (!document.hidden && cortex._paused && cortex.focus < 0) cortexResume();
- });
-$('nf-close').addEventListener('click', releaseCortex);
-addEventListener('keydown', e => { if (e.key === 'Escape') releaseCortex(); });
-
-(() => { let drag = false, moved = 0, lx = 0, ly = 0;
-  const cv = $('cortex');
-  // scroll to zoom out (way out) or in; double-click empty space to snap back to default
-  cv.addEventListener('wheel', e => {
-    e.preventDefault();
-    cortex.userZoomT = Math.min(3, Math.max(0.25, cortex.userZoomT * (e.deltaY > 0 ? 0.88 : 1.14)));
-    cortex.lastDrag = performance.now();   // zooming counts as interaction: pause the spin
-  }, { passive: false });
-  cv.addEventListener('dblclick', e => {
-    const rect = cv.getBoundingClientRect();
-    if (cortexHit(e.clientX - rect.left, e.clientY - rect.top) < 0) {
-      cortex.userZoomT = 1;
-      cortexResume();
-    }
-  });
-  cv.addEventListener('mousedown', e => { drag = true; cortex.dragging = true; moved = 0; lx = e.clientX; ly = e.clientY; cv.style.cursor='grabbing'; });
-  addEventListener('mouseup', e => {
-    if (drag && moved < 5 && e.target === cv) {
-      const rect = cv.getBoundingClientRect();
-      const hit = cortexHit(e.clientX - rect.left, e.clientY - rect.top);
-      if (hit >= 0) focusCortexNode(hit);
-      else if (cortex.focus >= 0) releaseCortex();
-      else if (cortex._paused) cortexResume();
-    }
-    drag = false; cortex.dragging = false; cortex.lastDrag = performance.now(); cv.style.cursor='grab';
-  });
-  addEventListener('mousemove', e => {
-    if (drag) {
-      moved += Math.abs(e.clientX - lx) + Math.abs(e.clientY - ly);
-      cortex.rotY += (e.clientX - lx) * .005; cortex.rotX += (e.clientY - ly) * .003;
-      cortex.lastDrag = performance.now();
-    } else if (e.target === cv) {
-      const rect = cv.getBoundingClientRect();
-      const prev = cortex.hover;
-      cortex.hover = cortexHit(e.clientX - rect.left, e.clientY - rect.top);
-      if (prev >= 0 && cortex.hover < 0) cortex.lastDrag = performance.now(); // left a node: idle timer restarts
-      cv.style.cursor = cortex.hover >= 0 ? 'pointer' : 'grab';
-    } else if (cortex.hover >= 0) { cortex.hover = -1; cortex.lastDrag = performance.now(); }
-    lx = e.clientX; ly = e.clientY;
-  });
-})();
-
-/* ============ health / systems / activity ============ */
-async function refreshHealth() {
-  try {
-    const h = await j('/api/health');
-    window._health = h;
-    $('hdr-agents').textContent = h.agents;
-    $('hdr-ollama').innerHTML = h.ollama ? '<span class="ok">UP</span>' : '<span class="bad">DOWN</span>';
-    const g = h.gpu;
-    $('gpu-stat').textContent = g.available ? `GPU · ${(g.vram_used_mb/1024).toFixed(1)}/${(g.vram_total_mb/1024).toFixed(0)} GB` : 'GPU · FREE';
-  } catch { $('hdr-ollama').innerHTML = '<span class="bad">?</span>'; }
-}
-
-async function refreshSystems() {
-  const svcs = await j('/api/services');
-  const rows = svcs.map(s => s.name === 'ollama' ? { ...s, noStart: true } : s);
-  $('systems-body').innerHTML = rows.map(s => `<div class="sys-row">
-      <span class="dot" style="background:${s.running ? 'var(--green)' : '#2a3a4a'}"></span>
-      <span class="nm">${esc(s.name)}</span>
-      ${s.running ? '<span class="st up">UP</span>'
-                  : `<span class="st down">DOWN</span>${s.noStart ? '' : `<button onclick="startSvc('${s.name}')">start</button>`}`}
-    </div>`).join('');
-  const chips = svcs.map(s => `<span class="chip"><span class="${s.running?'ok':'bad'}">●</span> ${esc(s.name)}
-      ${s.running ? '' : `<button class="ghost" onclick="startSvc('${s.name}')">start</button>`}</span>`).join('');
-  $('auto-services').innerHTML = chips; $('sys-services').innerHTML = chips;
-  const comfy = svcs.find(s => s.name === 'comfyui');
-  $('studio-status').innerHTML = `<span class="chip"><span class="${comfy.running?'ok':'bad'}">●</span> ComfyUI ${comfy.running?'UP':'DOWN'}
-     ${comfy.running ? '' : '<button class="ghost" onclick="startSvc(\'comfyui\')">start</button>'}</span>`;
-  window._comfyUp = comfy.running;
-  const voice = svcs.find(s => s.name === 'voice');
-  $('voice-status').innerHTML = `<span class="chip"><span class="${voice.running?'ok':'bad'}">●</span> Voice Studio ${voice.running?'UP':'DOWN'}
-     ${voice.running ? '' : '<button class="ghost" onclick="startSvc(\'voice\')">start</button>'}</span>`;
-  if (voice.running && !window._voicesLoaded) loadVoices();
-}
-async function startSvc(name) { await j(`/api/services/${encodeURIComponent(name)}/start`, {method:'POST'}); setTimeout(refreshSystems, 4000); }
-
-const STATUS_DOT = { done:'var(--green)', failed:'var(--pink)', running:'var(--cyan)', queued:'var(--gold)' };
-function kcard(t) {
-  return `<div class="kcard">
-    <div class="khead"><span class="st-dot s-${t.status}"></span>
-      <span class="kid">#${t.id}</span><span class="kagent">${esc(t.agent).toUpperCase()}</span></div>
-    <div class="ktext">${esc(t.text).slice(0, 140)}</div>
-    ${t.result || t.error ? `<div class="kres">${esc((t.result || t.error)).slice(0, 220)}</div>` : ''}
-    <div class="kbtns">
-      <button class="ghost" onclick="rerunTask(${t.id})">rerun</button>
-      ${t.status === 'failed' ? `<button class="ghost" onclick="retryTask(${t.id})">retry</button>` : ''}
-    </div></div>`;
-}
-async function rerunTask(id) { await j(`/api/tasks/${id}/rerun`, {method:'POST'}); refreshTasks(); }
-async function retryTask(id) { await j(`/api/tasks/${id}/retry`, {method:'POST'}); refreshTasks(); }
-
-async function refreshTasks() {
-  const tasks = await j('/api/tasks');
-  $('activity-body').innerHTML = tasks.slice(0, 9).map(t => `<div class="act-row">
-      <span class="dot" style="background:${STATUS_DOT[t.status]}"></span>
-      <span class="txt">${esc(t.text)}</span><span class="agent">${esc(t.agent)}</span></div>`).join('') || '<span class="text-dim">no activity yet</span>';
-  for (const st of ['queued','running','done','failed']) {
-    const list = tasks.filter(t => t.status === st);
-    $('col-' + st).innerHTML = list.map(kcard).join('') || '<div class="text-dim mono-sm">empty</div>';
-    $('cnt-' + st).textContent = list.length;
-  }
-  $('plutus-rows').innerHTML = tasks.filter(t => t.agent === 'plutus').map(t => `<tr><td>${t.id}</td>
-      <td class="${t.status==='done'?'ok':t.status==='failed'?'bad':'warn'}">${t.status}</td>
-      <td>${esc(t.text).slice(0,110)}</td><td class="kres kres-wide">${esc(t.result || t.error || '')}</td></tr>`).join('');
-  const brief = tasks.find(t => t.status === 'done' && /brief|wrap|summary|\[PLAN\]/i.test(t.text)) || tasks.find(t => t.status === 'done');
-  if (brief) $('briefing-body').innerHTML =
-    `<b># ${esc(brief.text.slice(0,80))}</b>\n&gt; 🤖 ${esc(brief.agent)} · Olympus · ${esc(brief.updated)}\n\n${esc((brief.result||'').slice(0,300))}`;
-}
-
-async function refreshAgents() {
-  window._agents = await j('/api/agents');
-  buildCortex(window._agents, noteIndex || []);
-  // once the vault index is loaded, rebuild so every neuron is a real note
-  buildNoteIndex().then(idx => buildCortex(window._agents, idx));
-}
-
-async function refreshSystemPage() {
-  try {
-    const s = await j('/api/system');
-    const h = window._health || { status:'?', ollama:false, gpu:{available:false} };
-    const total = Object.values(s.tasks).reduce((a,b) => a+b, 0);
-    $('sys-cards').innerHTML = `
-      <div class="card hud"><div class="big ${h.status==='ok'?'ok':'bad'}">${(h.status||'?').toUpperCase()}</div><div class="lbl">kernel v${esc(s.kernel.version)} :${s.kernel.port}</div></div>
-      <div class="card hud"><div class="big">${s.agents.length}</div><div class="lbl">agents</div></div>
-      <div class="card hud"><div class="big ${h.ollama?'ok':'bad'}">${h.ollama?'UP':'DOWN'}</div><div class="lbl">ollama :11434</div></div>
-      <div class="card hud"><div class="big">${h.gpu.available ? h.gpu.vram_used_mb+' MB' : 'FREE'}</div><div class="lbl">gpu vram used</div></div>
-      <div class="card hud"><div class="big">${total}</div><div class="lbl">tasks total</div></div>`;
-    $('sys-models').querySelector('tbody').innerHTML = Object.entries(s.models)
-      .map(([r,m]) => `<tr><td class="mono">${esc(r)}</td><td class="mono">${esc(m)}</td></tr>`).join('');
-    $('sys-paths').querySelector('tbody').innerHTML = Object.entries(s.paths)
-      .map(([k,v]) => `<tr><td class="mono text-cyan-dim">${esc(k)}</td><td class="mono">${esc(v)}</td></tr>`).join('');
-    $('sys-agents-tbl').querySelector('tbody').innerHTML = s.agents.map((a,i) =>
-      `<tr><td><span style="color:${AGENT_COLORS[i % AGENT_COLORS.length]}">●</span> ${esc(a.name)}</td>
-       <td class="mono">${esc(a.domain)}</td><td class="mono">${esc(a.model)}</td><td class="mono">${esc(a.resolved_model)}</td></tr>`).join('');
-    $('sys-taskstats').innerHTML = ['queued','running','done','failed'].map(st =>
-      `<span class="chip"><span class="dot" style="background:${STATUS_DOT[st]}"></span> ${st.toUpperCase()} ${s.tasks[st] || 0}</span>`).join('');
-  } catch {}
-}
-
-/* ============ jarvis ============ */
-async function pollTask(id, onDone) {
-  for (let i = 0; i < 120; i++) {
-    const t = await j('/api/tasks/' + id);
-    if (t.status === 'done' || t.status === 'failed') return onDone(t);
-    await new Promise(r => setTimeout(r, 2000));
-  }
-  onDone({ status:'failed', error:'timed out' });
-}
-// Add loading state helper
-function setLoading(element, isLoading) {
-  if (element) {
-    element.disabled = isLoading;
-    element.style.opacity = isLoading ? '0.6' : '1';
-    element.style.cursor = isLoading ? 'not-allowed' : 'pointer';
-    
-    // Also update button text for visual feedback
-    const originalText = element.dataset.originalText || element.textContent;
-    if (isLoading) {
-      element.dataset.originalText = originalText;
-      element.textContent = 'LOADING…';
-    } else {
-      element.textContent = originalText || element.textContent;
-    }
-  }
-}
-
-async function speak(text) {
-   if (!$('speak-replies').checked) return;
-   try {
-     const r = await fetch('/api/voice/tts', { method:'POST', headers:{'Content-Type':'application/json'},
-       body: JSON.stringify({ text: text.slice(0, 400) }) });
-     if (r.ok) { new Audio(URL.createObjectURL(await r.blob())).play(); return; }
-   } catch {}
-   try { speechSynthesis.speak(new SpeechSynthesisUtterance(text.slice(0, 400))); } catch {}
- }
-$('jarvis-form').addEventListener('submit', async e => {
-   e.preventDefault();
-   const btn = $('jarvis-form').querySelector('button[type="submit"]');
-   setLoading(btn, true);
-   try {
-     const text = $('jarvis-in').value.trim(); if (!text) return;
-     $('jarvis-in').value = '';
-     const log = $('jarvis-log');
-     log.insertAdjacentHTML('beforeend', `<div class="jmsg you"><span class="who">YOU ›</span>${esc(text)}</div>`);
-     const el = document.createElement('div');
-     el.className = 'jmsg bot'; el.innerHTML = '<span class="who">JARVIS ~</span><em class="text-dim">thinking…</em>';
-     log.appendChild(el); log.scrollTop = log.scrollHeight;
-     $('jstatus').textContent = 'PROCESSING'; $('jstatus').className = 'processing mono';
-     const t = await j('/api/tasks', { method:'POST', headers:{'Content-Type':'application/json'},
-                                       body: JSON.stringify({ text, agent:'jarvis' }) });
-     pollTask(t.id, done => {
-       const reply = done.result || ('⚠ ' + (done.error || 'failed'));
-       el.innerHTML = `<span class="who">JARVIS ~</span>${esc(reply)}<span class="tlink">→ task ${done.id ?? t.id}</span>`;
-       log.scrollTop = log.scrollHeight;
-       $('jstatus').textContent = 'ONLINE'; $('jstatus').className = 'online mono';
-       speak(reply); refreshTasks();
-     });
-} catch (err) {
-      alert('Error: ' + err.message);
-    } finally {
-      const btn = $('jarvis-form').querySelector('button[type="submit"]');
-      setLoading(btn, false);
-    }
-  });
-$('jarvis-title').addEventListener('click', e => {
-  if (e.target.tagName === 'INPUT') return;
-  const p = $('jarvis-panel');
-  p.classList.toggle('collapsed');
-  $('jarvis-caret').textContent = p.classList.contains('collapsed') ? '▸' : '▾';
-});
-$('mic-btn').addEventListener('click', () => {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { $('jarvis-in').placeholder = 'voice input not supported in this browser'; return; }
-  const rec = new SR(); rec.lang = 'en-US';
-  rec.onresult = e => { $('jarvis-in').value = e.results[0][0].transcript; };
-  rec.start();
-});
-
-/* ============ capture ============ */
-$('capture-btn').addEventListener('click', async () => {
-   const v = $('capture-in').value.trim(); if (!v) return;
-   const btn = $('capture-btn');
-   setLoading(btn, true);
-   try {
-     $('capture-in').value = '';
-     const sanitized = sanitizePromptInput(v);
-     await j('/api/tasks', { method:'POST', headers:{'Content-Type':'application/json'},
-                           body: JSON.stringify({ text: 'Capture this note for the inbox: ' + sanitized, agent:'archivist' }) });
-     refreshTasks();
-   } catch (err) {
-     alert('Error: ' + err.message);
-   } finally {
-     setLoading($('capture-btn'), false);
-   }
- });
-
-/* ============ cortex search ============ */
-let noteIndex = null;
-async function buildNoteIndex() {
-  if (noteIndex) return noteIndex;
-  noteIndex = [];
-  async function walk(folder, depth) {
-    let items; try { items = await j('/api/brain/notes?folder=' + encodeURIComponent(folder)); } catch { return; }
-    for (const it of items) {
-      const p = folder ? folder + '/' + it.name : it.name;
-      if (it.type === 'note') noteIndex.push(p);
-      else if (depth < 2) await walk(p, depth + 1);
-    }
-  }
-  await walk('', 0);
-  return noteIndex;
-}
-$('cortex-search').addEventListener('input', async e => {
-  const q = e.target.value.trim().toLowerCase(), box = $('search-results');
-  if (!q) { box.style.display = 'none'; return; }
-  const idx = await buildNoteIndex();
-  const hits = idx.filter(p => p.toLowerCase().includes(q)).slice(0, 12);
-  box.innerHTML = hits.map(p => `<div data-p="${esc(p)}">📄 ${esc(p)}</div>`).join('') || '<div>no matches — press Enter to ask Archivist</div>';
-  box.style.display = 'block';
-  box.querySelectorAll('[data-p]').forEach(el => el.addEventListener('click', async () => {
-    box.style.display = 'none'; goPage('wiki'); openWikiNote(el.dataset.p);
-  }));
-});
-$('cortex-search').addEventListener('keydown', async e => {
-  if (e.key !== 'Enter') return;
-  const q = e.target.value.trim(); if (!q) return;
-  e.target.value = ''; $('search-results').style.display = 'none';
-  await j('/api/tasks', { method:'POST', headers:{'Content-Type':'application/json'},
-                          body: JSON.stringify({ text: 'Search the vault/wiki for: ' + q, agent:'archivist' }) });
-  refreshTasks();
-});
-
-/* ============ wiki ============ */
-let wikiFolder = '', wikiItems = [], wikiNoteCache = {};
-async function loadWiki(folder) {
-  try { wikiItems = await j('/api/brain/notes?folder=' + encodeURIComponent(folder)); }
-  catch { if (folder) return loadWiki(''); wikiItems = []; }
-  wikiFolder = folder;
-  const parts = folder ? folder.split('/') : [];
-  $('wiki-crumb').innerHTML =
-    '<span data-dir="">📂 vault root</span>' +
-    parts.map((p, i) => {
-      const d = parts.slice(0, i + 1).join('/');
-      return `<span class="text-dim"> / </span><span data-dir="${esc(d)}">${esc(p)}</span>`;
-    }).join('');
-  $('wiki-crumb').querySelectorAll('[data-dir]').forEach(el =>
-    el.addEventListener('click', () => loadWiki(el.dataset.dir))
-  );
-  const fc = wikiItems.filter(i => i.type === 'note').length;
-  const dc = wikiItems.filter(i => i.type === 'dir').length;
-  $('wiki-count').textContent = `${fc} notes${dc ? ', ' + dc + ' folders' : ''}`;
-  renderWiki();
-}
-function renderWiki() {
-  const f = $('wiki-filter').value.trim().toLowerCase();
-  const items = wikiItems.filter(it => !f || it.name.toLowerCase().includes(f));
-  const up = wikiFolder ? `<div class="wiki-up" data-dir="${esc(wikiFolder.split('/').slice(0,-1).join('/'))}">⬆ ..</div>` : '';
-  $('wiki-files').innerHTML = up + items.map(it => it.type === 'dir'
-    ? `<div class="wiki-dir" data-dir="${esc(wikiFolder ? wikiFolder + '/' + it.name : it.name)}"><span class="wiki-ic">📁</span><div><b>${esc(it.name)}</b><div class="mono-xs text-dim">folder</div></div></div>`
-    : `<div class="wiki-note" data-note="${esc(wikiFolder ? wikiFolder + '/' + it.name : it.name)}"><span class="wiki-ic">📄</span><div><b>${esc(it.name)}</b><div class="mono-xs text-dim">markdown note</div></div></div>`).join('')
-    || '<div class="sm-empty">nothing in this folder</div>';
-  $('wiki-files').querySelectorAll('[data-dir]').forEach(el =>
-    el.addEventListener('click', () => loadWiki(el.dataset.dir)));
-  $('wiki-files').querySelectorAll('[data-note]').forEach(el =>
-    el.addEventListener('click', () => openWikiNote(el.dataset.note)));
-}
-async function openWikiNote(path) {
-  if (wikiNoteCache[path]) {
-    $('wiki-note').innerHTML = `<div class="mono-sm text-cyan-dim mb-sm">${esc(path)}</div>` + wikiNoteCache[path];
-    return;
-  }
-  $('wiki-note').innerHTML = '<em class="text-dim">loading…</em>';
-  try {
-    const n = await j('/api/brain/note?path=' + encodeURIComponent(path));
-    wikiNoteCache[path] = n.html || '<em>empty note</em>';
-    $('wiki-note').innerHTML = `<div class="mono-sm text-cyan-dim mb-sm">${esc(path)}</div>` + wikiNoteCache[path];
-  } catch { $('wiki-note').innerHTML = '<em>could not load note — check vault path in stack.toml</em>'; }
-}
-$('wiki-filter').addEventListener('input', renderWiki);
-
-/* ============ tasks page ============ */
-$('orchestrate-btn').addEventListener('click', async () => {
-   const goal = $('orchestrate-goal').value.trim(); if (!goal) return;
-   const btn = $('orchestrate-btn');
-   setLoading(btn, true);
-   try {
-     $('orchestrate-goal').value = '';
-     await j('/api/orchestrate', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ goal }) });
-     refreshTasks();
-   } catch (err) {
-     alert('Error: ' + err.message);
-   } finally {
-     setLoading($('orchestrate-btn'), false);
-   }
- });
- $('quick-btn').addEventListener('click', async () => {
-   const text = $('quick-task').value.trim(); if (!text) return;
-   const btn = $('quick-btn');
-   setLoading(btn, true);
-   try {
-     $('quick-task').value = '';
-     await j('/api/tasks', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ text }) });
-     refreshTasks();
-   } catch (err) {
-     alert('Error: ' + err.message);
-   } finally {
-     setLoading($('quick-btn'), false);
-   }
- });
-
-/* ============ commerce ============ */
-$('plutus-form').addEventListener('submit', async e => { e.preventDefault();
-   const btn = $('plutus-form').querySelector('button[type="submit"]');
-   setLoading(btn, true);
-   try {
-     const text = $('plutus-text').value.trim(); if (!text) return;
-     await j('/api/tasks', { method:'POST', headers:{'Content-Type':'application/json'},
-                           body: JSON.stringify({ text, agent:'plutus' }) });
-     $('plutus-text').value = ''; refreshTasks();
-   } catch (err) {
-     alert('Error: ' + err.message);
-   } finally {
-     setLoading($('plutus-form').querySelector('button[type="submit"]'), false);
-   }
- });
-
-/* ============ voice page ============ */
-let selectedVoice = 'af_heart';
-async function loadVoices() {
-   try {
-     const vs = await j('/api/voice/voices');
-     window._voicesLoaded = true;
-     $('voice-list').innerHTML = vs.map(v => `<div class="vrow ${v===selectedVoice?'sel':''}" data-v="${v}">
-         <span class="vico">${v.split('_')[0].toUpperCase()}</span> ${esc(v)}</div>`).join('');
-     $('voice-list').querySelectorAll('.vrow').forEach(el => el.addEventListener('click', () => {
-       selectedVoice = el.dataset.v;
-$('voice-list').querySelectorAll('.vrow').forEach(x => x.classList.toggle('sel', x.dataset.v === selectedVoice));
-      }));
-   } catch {}
- }
-$('voice-speed').addEventListener('input', e => $('speed-val').textContent = Number(e.target.value).toFixed(2));
-$('voice-gen').addEventListener('click', async () => {
-    const text = $('voice-text').value.trim(); if (!text) return;
-    const btn = $('voice-gen');
-    setLoading(btn, true);
-    try {
-      const r = await fetch('/api/voice/tts', { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ text, voice: selectedVoice, speed: Number($('voice-speed').value) }) });
-      if (!r.ok) throw new Error(await r.text());
-      const url = URL.createObjectURL(await r.blob());
-      const div = document.createElement('div');
-      div.className = 'clip hud';
-      div.dataset.blobUrl = url;
-      div.innerHTML = `<div class="cmeta"><span>${esc(selectedVoice)}</span><span>x${$('voice-speed').value}</span>
-          <span>${new Date().toLocaleTimeString()}</span><a href="${esc(url)}" download="tts.wav" class="text-cyan">download</a></div>
-        <div class="mono-xs text-dim">${esc(text.slice(0,120))}</div>
-        <audio controls src="${esc(url)}"></audio>`;
-      $('clips').prepend(div);
-      const audio = div.querySelector('audio');
-      const revoke = () => { URL.revokeObjectURL(url); };
-      audio.addEventListener('ended', revoke, { once: true });
-      audio.addEventListener('abort', revoke, { once: true });
-      audio.play();
-    } catch (err) { alert('TTS failed: ' + err.message); }
-    finally {
-      setLoading($('voice-gen'), false);
-    }
-  });
-
-/* ============ studio ============ */
-$('comfy-embed-btn').addEventListener('click', () => {
-  const f = $('comfy-frame');
-  if (f.style.display === 'block') { f.style.display = 'none'; $('comfy-embed-btn').textContent = 'OPEN COMFYUI HERE ▼'; return; }
-  if (!window._comfyUp) { alert('ComfyUI is not running — hit its start button first (takes ~30s to boot).'); return; }
-  f.src = 'http://127.0.0.1:8188'; f.style.display = 'block';
-  $('comfy-embed-btn').textContent = 'CLOSE COMFYUI ▲';
-  f.scrollIntoView({ behavior:'smooth' });
-});
-
-const PIPELINE_STAGES = ['stage0','stage1','stage1r','stage2','stage3','stage3b','stage3c','stage_vlm_review','stage4','stage5'];
-const PIPELINE_ORDER = ['stage0','stage1','stage1_world','stage1r','stage3','stage2','stage3b','stage4','stage3c','stage_vlm_review','stage5'];
-const DOT_CLASSES = new Set(['pending','running','done','failed','awaiting_approval','not_built']);
-const INTAKE_HINTS = {
-  '0b': 'GENERATE — from a creative brief (frontmatter word_target). Paste the brief below.',
-  '0a': 'TRANSFORM — from a source story. Paste the source text below; the pipeline designs an original rewrite.',
-  '0i': 'IMPORT — from existing panels (PNG/JPG/WEBP zip). Upload a zip below; the pipeline reads panels into a screenplay.',
-};
-let studioProject = localStorage.getItem('studio-project') || '';
-let _studioBusy = false;
-
-function setBusy(busy) {
-  _studioBusy = busy;
-  $('run-all-btn').disabled = busy;
-  document.querySelectorAll('.srun').forEach(b => b.disabled = busy);
-  document.querySelectorAll('.sforce').forEach(b => b.disabled = busy);
-}
-
-// ---- NIM model selector (permanent, no agent) ----
-async function loadNimModels() {
-  try {
-    const data = await j('/api/nim/models');
-    const sel = $('studio-nim-select');
-    if (!sel) return;
-    sel.innerHTML = data.models.map(m =>
-      `<option value="${esc(m)}" ${m === data.active ? 'selected' : ''}>${esc(m)}${m === data.active ? ' ● active' : ''}</option>`
-    ).join('');
-    $('studio-nim-status').textContent = data.enabled ? '● enabled' : '○ disabled';
-    $('studio-nim-status').style.color = data.enabled ? 'var(--green)' : 'var(--dim)';
-  } catch (e) {
-    const sel = $('studio-nim-select');
-    if (sel) sel.innerHTML = '<option>unavailable</option>';
-  }
-}
-async function setNimModel(model) {
-  const status = $('studio-nim-status');
-  status.textContent = 'switching…';
-  try {
-    await j('/api/nim/model', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ model }) });
-    status.textContent = '● switched to ' + model.split('/').pop();
-    status.style.color = 'var(--green)';
-    setLastMsg('NIM model switched to ' + model + ' (permanent — saved to stack.toml)', 'ok');
-    await loadNimModels();
-  } catch (e) {
-    status.textContent = '✗ ' + (e.message || e).slice(0,60);
-    status.style.color = 'var(--red)';
-    alert('Failed to switch NIM model: ' + (e.message || e));
-    await loadNimModels();
-  }
-}
-
-async function loadStudioProjects() {
-  let projects = [];
-  try { projects = await j('/api/pipeline/projects'); } catch { return projects; }
-  const sel = $('studio-project-select');
-  sel.innerHTML = projects.length
-    ? projects.map(p => `<option value="${esc(p.slug)}">${esc(p.slug)}</option>`).join('')
-    : '<option value="">(no projects yet)</option>';
-  if (!projects.find(p => p.slug === studioProject)) studioProject = projects.length ? projects[0].slug : '';
-  if (studioProject) { sel.value = studioProject; localStorage.setItem('studio-project', studioProject); }
-  return projects;
-}
-$('studio-project-select').addEventListener('change', e => {
-  studioProject = e.target.value;
-  localStorage.setItem('studio-project', studioProject);
-  setLastMsg('');
-  pollStudioStatus();
-});
-
-$('studio-new-toggle').addEventListener('click', () => {
-  const f = $('studio-new-form');
-  f.style.display = f.style.display === 'none' ? 'block' : 'none';
-  syncIntakeHint();
-});
-$('np-fps').addEventListener('input', e => $('np-fps-val').textContent = e.target.value);
-$('np-intake').addEventListener('change', syncIntakeHint);
-
-function syncIntakeHint() {
-  const intake = $('np-intake').value;
-  const hint = $('np-intake-hint');
-  if (hint) hint.textContent = INTAKE_HINTS[intake] || '';
-  const text = $('np-text');
-  const mode = document.querySelector('input[name="np-mode"]:checked').value;
-  if (intake === '0b') {
-    text.placeholder = 'Creative brief (frontmatter: word_target: 600) — body: genre, tone, protagonist, themes, plot beats…';
-    text.style.display = '';
-    $('np-panels-file').style.display = 'none';
-  } else if (intake === '0a') {
-    text.placeholder = 'Source story text — the pipeline extracts mechanics and designs an original transformation…';
-    text.style.display = '';
-    $('np-panels-file').style.display = 'none';
-  } else {
-    text.placeholder = 'Optional: a one-line premise to seed the project (panels drive the real content)…';
-    text.style.display = 'none';
-    $('np-panels-file').style.display = '';
-  }
-}
-
-$('studio-new-form').addEventListener('submit', async e => {
-  e.preventDefault();
-  $('np-error').textContent = '';
-  const slug = $('np-slug').value.trim();
-  const fps = Number($('np-fps').value);
-  const mode = document.querySelector('input[name="np-mode"]:checked').value;
-  const intake = $('np-intake').value;
-  const text = $('np-text').value;
-  if (!slug) { $('np-error').textContent = 'slug is required'; return; }
-  if (intake !== '0i' && !text.trim()) { $('np-error').textContent = 'brief / source text is required'; return; }
-  const body = { slug, fps, mode: intake };
-  if (mode === 'brief') body.brief_text = text; else body.script_text = text;
-  try {
-    await j('/api/pipeline/projects', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
-    // Optional panels upload for 0i — send as a separate call after creation.
-    const pf = $('np-panels-file').files[0];
-    if (intake === '0i' && pf) await uploadPanels(slug, pf);
-    $('np-slug').value = ''; $('np-text').value = ''; $('np-panels-file').value = '';
-    $('studio-new-form').style.display = 'none';
-    studioProject = slug; localStorage.setItem('studio-project', slug);
-    await loadStudioProjects();
-    pollStudioStatus();
-    setLastMsg('project created — run the first stage or hit RUN ALL', 'ok');
-  } catch (err) { $('np-error').textContent = 'failed: ' + (err.message || err).slice(0, 200); }
-});
-
-async function uploadPanels(slug, file) {
-  const fd = new FormData();
-  fd.append('file', file);
-  const r = await fetch('/api/pipeline/' + encodeURIComponent(slug) + '/panels', { method:'POST', body: fd });
-  if (!r.ok) throw new Error(await r.text());
-}
-
-function setLastMsg(text, kind) {
-  const el = $('studio-last-msg');
-  el.textContent = text || '';
-  el.className = 'mono ' + (kind === 'ok' ? 'ok' : kind === 'err' ? 'err' : '');
-}
-
-async function pollStudioStatus() {
-  if (!studioProject) {
-    PIPELINE_STAGES.forEach(s => {
-      const d = $('sdot-' + s); if (d) d.className = 'sdot pending';
-      const lb = $('slabel-' + s); if (lb) lb.textContent = 'no project';
-      const card = document.querySelector(`.stage[data-stage="${s}"]`);
-      if (card) card.style.opacity = '.55';
-    });
-    $('studio-project-meta').textContent = '';
-    $('studio-progress').textContent = '';
-    return;
-  }
-  try {
-    const st = await j('/api/pipeline/' + encodeURIComponent(studioProject) + '/status');
-    $('studio-project-meta').textContent = `fps ${st.fps} · mode ${st.mode || '0b'} · story_id ${st.story_id.slice(0, 8)}…`;
-    let done = 0, running = 0, failed = 0;
-    PIPELINE_STAGES.forEach(s => {
-      const d = $('sdot-' + s);
-      if (!d) return;
-      const info = st.stages[s] || {};
-      const status = DOT_CLASSES.has(info.status) ? info.status : 'pending';
-      d.className = 'sdot ' + status;
-      d.title = status + (info.error ? ': ' + info.error : '');
-      const lb = $('slabel-' + s);
-      if (lb) {
-        const labelMap = { pending:'pending — click RUN', running:'⏳ running…', done:'✓ done', failed:'✗ failed — click VIEW for log', awaiting_approval:'⏸ awaiting approval', not_built:'○ not built' };
-        lb.textContent = labelMap[status] || status;
-        lb.style.color = status === 'done' ? 'var(--green)' : status === 'failed' ? 'var(--red)' : status === 'running' ? 'var(--cyan)' : 'var(--dim)';
-      }
-      const card = document.querySelector(`.stage[data-stage="${s}"]`);
-      if (card) {
-        card.style.opacity = status === 'done' ? '1' : status === 'running' ? '1' : '.92';
-        card.style.borderColor = status === 'failed' ? 'rgba(239,107,115,.5)' : status === 'running' ? 'var(--cyan)' : '';
-      }
-      if (status === 'done') done++;
-      if (status === 'running') running++;
-      if (status === 'failed') failed++;
-    });
-    const total = PIPELINE_STAGES.length;
-    $('studio-progress').textContent = running
-      ? `${done}/${total} done · ${running} running — polling…`
-      : failed ? `${done}/${total} done · ${failed} failed`
-      : `${done}/${total} stages complete${done===total?' — ✓ pipeline complete!':''}`;
-    if (failed) setLastMsg(`${failed} stage(s) failed — click VIEW on red cards for logs, or FORCE to retry`, 'err');
-    else if (running) setLastMsg(`running… ${done}/${total} done`, '');
-  } catch { /* project may not exist yet / kernel hiccup — skip this tick */ }
-}
-
-async function runStage(stage, force=false) {
-  if (_studioBusy) { alert('a run is already in progress — wait for it to finish'); return; }
-  if (!studioProject) { alert('create or select a project first'); return; }
-  if (force && !confirm(`Force rerun ${stage}? This will clear its previous outputs and run it again even though it is marked done.`)) return;
-  setBusy(true);
-  setLastMsg(`${stage} ${force?'force rerunning':'running'}…`, '');
-  try {
-    // stage0 intake needs its inputs (brief/source/panels) — open the setup modal.
-    if (stage === 'stage0') {
-      await openStage0Setup();
-    } else {
-      await j('/api/pipeline/' + encodeURIComponent(studioProject) + '/run/' + stage, {
-        method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ force })
-      });
-      setLastMsg(`${stage} ${force?'force started':'started'}`, 'ok');
-    }
-  } catch (err) {
-    setLastMsg(`${stage} failed to start: ` + (err.message || err).slice(0, 200), 'err');
-    alert(stage + ' run failed: ' + (err.message || err).slice(0, 300));
-  } finally {
-    setBusy(false);
-    pollStudioStatus();
-  }
-}
-
-async function runAll() {
-  if (_studioBusy) { alert('a run is already in progress — wait for it to finish'); return; }
-  if (!studioProject) { alert('create or select a project first'); return; }
-  if (!confirm('Run all remaining stages in order? GPU stages (1r, 3b, 3c) can take a long time. This resumes from where the project left off.')) return;
-  setBusy(true);
-  setLastMsg('running all remaining stages… (this may take a long time on GPU stages)', '');
-  try {
-    // If stage0 hasn't produced intake yet, collect its inputs (brief/source/
-    // panels) through the same modal the per-stage run uses, then hand them to
-    // /run-all so any intake mode (0b/0a/0i) works end-to-end.
-    let body = {};
-    const st = await j('/api/pipeline/' + encodeURIComponent(studioProject) + '/status');
-    const s0 = (st.stages && st.stages.stage0) || {};
-    if ((st.mode || '0b') !== '0b' || s0.status !== 'done') {
-      const intake = await openStage0Setup(true);
-      if (!intake) { setBusy(false); setLastMsg('full run cancelled', ''); return; }
-      body = intake;
-    }
-    await j('/api/pipeline/' + encodeURIComponent(studioProject) + '/run-all', {
-      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
-    });
-    setLastMsg('full run started — poll the stage dots / open the video tab when done', 'ok');
-  } catch (err) {
-    setLastMsg('run-all failed to start: ' + (err.message || err).slice(0, 200), 'err');
-    alert(err.message || err);
-  } finally {
-    setBusy(false);
-    pollStudioStatus();
-  }
-}
-
-// ---- stage0 intake setup modal ----
-// collectOnly=true -> resolve(body) with the intake inputs WITHOUT starting a
-// run; used by RUN ALL so it can hand the same brief/source/panels to /run-all.
-function openStage0Setup(collectOnly = false) {
-  return new Promise((resolve) => {
-    const title = $('setup-title');
-    const body = $('setup-body');
-    title.textContent = 'STAGE 0 · INTAKE (' + (studioProject || 'project') + ')';
-    j('/api/pipeline/' + encodeURIComponent(studioProject) + '/status').then(st => {
-      const mode = st.mode || '0b';
-      const hint = INTAKE_HINTS[mode] || '';
-      body.innerHTML = `
-        <div class="sm-hint">${esc(hint)}</div>
-        <div class="sm-step">PROJECT</div>
-        <div class="sm-hint">slug: <b>${esc(studioProject)}</b> · fps ${st.fps} · mode ${esc(mode)}</div>
-        ${mode === '0b' ? `
-          <div class="sm-step">CREATIVE BRIEF</div>
-          <textarea id="setup-brief" placeholder="---&#10;word_target: 800&#10;---&#10;&#10;Genre, tone, protagonist, themes, plot beats…">${esc($('np-text').value)}</textarea>
-        ` : ''}
-        ${mode === '0a' ? `
-          <div class="sm-step">SOURCE TEXT</div>
-          <textarea id="setup-source" placeholder="Paste the source story text here…"></textarea>
-          <div class="sm-hint" style="margin-top:.4rem">word target: <input type="number" id="setup-wordtarget" value="800" min="200" step="50" style="width:90px;background:#0b1522;color:#cfe3f0;border:1px solid var(--line)"></div>
-        ` : ''}
-        ${mode === '0i' ? `
-          <div class="sm-step">PANEL UPLOAD</div>
-          <input type="file" id="setup-panels" accept=".zip,.png,.jpg,.jpeg,.webp" multiple>
-          <div class="sm-hint" style="margin-top:.4rem">Upload a .zip (or a folder of panels). If panels were already attached at project creation, leave empty to reuse them.</div>
-        ` : ''}
-        <div style="margin-top:.9rem;display:flex;gap:.7rem;align-items:center">
-          <button class="primary" id="setup-run">${collectOnly ? 'USE FOR FULL RUN ▶' : 'RUN STAGE 0 ▶'}</button>
-          <button class="ghost" id="setup-close2">CANCEL</button>
-          <span id="setup-error"></span>
-        </div>
-      `;
-      $('setup-modal').classList.add('open');
-      $('setup-close').onclick = () => { $('setup-modal').classList.remove('open'); resolve(false); };
-      $('setup-close2').onclick = () => { $('setup-modal').classList.remove('open'); resolve(false); };
-      $('setup-modal').addEventListener('click', e => { if (e.target === $('setup-modal')) { $('setup-modal').classList.remove('open'); resolve(false); } });
-      $('setup-run').onclick = async () => {
-        const errEl = $('setup-error');
-        errEl.textContent = '';
-        try {
-          const out = {};
-          if (mode === '0b') {
-            const brief = ($('setup-brief') || {}).value || '';
-            if (!brief.trim()) throw new Error('brief is required');
-            out.brief = brief;
-          } else if (mode === '0a') {
-            const source = ($('setup-source') || {}).value || '';
-            if (!source.trim()) throw new Error('source text is required');
-            out.source_text = source;
-            out.word_target = Number(($('setup-wordtarget') || {}).value || 800);
-          } else if (mode === '0i') {
-            const pf = ($('setup-panels') || {}).files && $('setup-panels').files[0];
-            if (pf) await uploadPanels(studioProject, pf);
-          }
-          if (collectOnly) {
-            $('setup-modal').classList.remove('open');
-            resolve(out);
-            return;
-          }
-          await j('/api/pipeline/' + encodeURIComponent(studioProject) + '/run/stage0', {
-            method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(out)
-          });
-          $('setup-modal').classList.remove('open');
-          setLastMsg('stage0 started', 'ok');
-          resolve(true);
-        } catch (err) {
-          errEl.textContent = (err.message || err).slice(0, 250);
-        }
-      };
-    }).catch(err => {
-      body.innerHTML = '<div class="sm-errline">error loading status: ' + esc(err.message) + '</div>';
-      resolve(false);
-    });
-  });
-}
-
-// ---- stage artifact viewer (now also shows logs + run shortcut) ----
-const STAGE_TITLES = {
-  stage0: 'STAGE 0 · INTAKE', stage1: 'STAGE 1 · WORLD BIBLE', stage1r: 'STAGE 1R · REFERENCES',
-  stage2: 'STAGE 2 · SCREENPLAY', stage3: 'STAGE 3 · STORYBOARD', stage3b: 'STAGE 3B · IMAGES',
-  stage3c: 'STAGE 3C · ANIMATION', stage_vlm_review: 'VLM REVIEW', stage4: 'STAGE 4 · AUDIO',
-  stage5: 'STAGE 5 · ASSEMBLY',
-};
-const smModal = $('stage-modal'), smBody = $('stage-modal-body'), smTitle = $('stage-modal-title');
-
-function smTags(metrics) {
-  if (!metrics) return '';
-  const m = Object.entries(metrics).map(([k, v]) =>
-    `<span>${esc(k)} <b>${typeof v === 'number' ? v.toLocaleString() : esc(v)}</b></span>`).join('');
-  return m ? `<div class="sm-metrics">${m}</div>` : '';
-}
-function smFile(a) {
-   const src = '/api/pipeline/' + encodeURIComponent(studioProject) + '/file?path=' + encodeURIComponent(a.path);
-   if (a.kind === 'image') return `<div class="sm-item"><img loading="lazy" src="${esc(src)}" alt="${esc(a.name)}"><div class="sm-cap">${esc(a.name)}</div></div>`;
-   if (a.kind === 'video') return `<div class="sm-item"><video controls src="${esc(src)}"></video><div class="sm-cap">${esc(a.name)}</div></div>`;
-   if (a.kind === 'audio') return `<div class="sm-item"><audio controls src="${esc(src)}"></audio><div class="sm-cap">${esc(a.name)}</div></div>`;
-   return '';
- }
-function smRender(artifacts) {
-  if (!artifacts.length) return '<div class="sm-empty">no artifacts yet for this stage — run it first</div>';
-  const vis = artifacts.filter(a => a.kind !== 'text' && a.kind !== 'json');
-  const docs = artifacts.filter(a => a.kind === 'text' || a.kind === 'json');
-  let html = '';
-  if (vis.length) html += `<div class="sm-grid">${vis.map(smFile).join('')}</div>`;
-  if (docs.length) {
-    html += `<h2 class="pg mb-lg">DOCUMENTS</h2>` + docs.map(a => {
-      return `<h3 class="mono-sm text-cyan">${esc(a.name)}</h3><pre class="sm-doc" data-doc-path="${esc(a.path)}">loading…</pre>`;
-    }).join('');
-  }
-  return html || '<div class="sm-empty">no viewable artifacts</div>';
-}
-function smDocUrl(path) {
-  return '/api/pipeline/' + encodeURIComponent(studioProject) + '/file?path=' + encodeURIComponent(path);
-}
-async function loadStageArtifacts(stage, arts) {
-  const st = await j('/api/pipeline/' + encodeURIComponent(studioProject) + '/status');
-  const info = st.stages[stage] || {};
-  const isStage0 = stage === 'stage0';
-  smBody.innerHTML = `
-    <div class="sm-actions">
-      <button class="ghost sm-run" data-stage="${esc(stage)}">▶ RUN ${isStage0 ? 'STAGE 0 (INTAKE)' : 'THIS STAGE'}</button>
-      ${isStage0 ? '<span class="sm-hint" style="margin:0">Runs the intake for this project (brief/source/panels).</span>' : ''}
-    </div>
-    ${smTags(info.metrics)}
-    ${info.status === 'failed' ? '<div class="sm-errline" id="sm-fail-line">loading error…</div>' : ''}
-    ${smRender(arts, stage)}
-    <div class="sm-log" id="sm-log"></div>
-    ${smNextHint(stage, st)}
-  `;
-  await Promise.all([...smBody.querySelectorAll('[data-doc-path]')].map(async pre => {
-    try {
-      const r = await fetch(smDocUrl(pre.dataset.docPath));
-      if (!r.ok) throw new Error();
-      let t = await r.text();
-      if (t.length > 120000) t = t.slice(0, 120000) + '\n…(truncated)';
-      pre.textContent = t;
-    } catch { pre.textContent = '(unable to load document)'; }
-  }));
-  const runBtn = smBody.querySelector('.sm-run');
-  if (runBtn) runBtn.onclick = () => { smModal.classList.remove('open'); runStage(runBtn.dataset.stage); };
-  if (info.status === 'failed') {
-    try {
-      const lg = await j('/api/pipeline/' + encodeURIComponent(studioProject) + '/log/' + stage);
-      $('sm-fail-line').textContent = lg.log || '(no error log written)';
-    } catch { $('sm-fail-line').textContent = '(could not load error)'; }
-  }
-}
-function smNextHint(stage, st) {
-  const order = PIPELINE_ORDER;
-  const idx = order.indexOf(stage);
-  if (idx < 0) return '';
-  const next = order.slice(idx + 1).find(s => {
-    const info = st.stages[s] || {};
-    return info.status !== 'done';
-  });
-  if (!next) return '<div class="sm-next">✓ this is the last pending stage — the pipeline will be complete.</div>';
-  return `<div class="sm-next">next up: <b>${esc(next)}</b> — run it (or hit RUN ALL).</div>`;
-}
-function openStageModal(stage) {
-  if (!studioProject) { alert('create or select a project first'); return; }
-  smTitle.textContent = STAGE_TITLES[stage] || 'STAGE';
-  smBody.innerHTML = '<div class="sm-empty">loading…</div>';
-  smModal.classList.add('open');
-  j('/api/pipeline/' + encodeURIComponent(studioProject) + '/artifacts')
-    .then(list => loadStageArtifacts(stage, list[stage] || []))
-    .catch(err => { smBody.innerHTML = '<div class="sm-empty">error: ' + esc(err.message) + '</div>'; });
-}
-$('stage-modal-close').addEventListener('click', () => smModal.classList.remove('open'));
-smModal.addEventListener('click', e => { if (e.target === smModal) smModal.classList.remove('open'); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { smModal.classList.remove('open'); $('setup-modal').classList.remove('open'); } });
-document.querySelectorAll('.stage').forEach(card => {
-  card.addEventListener('click', e => { if (e.target.closest('button')) return; openStageModal(card.dataset.stage); });
-});
-
-// ---- per-stage buttons: RUN / VIEW / FORCE ----
-document.querySelectorAll('.srun').forEach(btn => {
-  btn.addEventListener('click', e => { e.stopPropagation(); runStage(btn.dataset.stage, false); });
-});
-document.querySelectorAll('.sview').forEach(btn => {
-  btn.addEventListener('click', e => { e.stopPropagation(); openStageModal(btn.dataset.stage); });
-});
-document.querySelectorAll('.sforce').forEach(btn => {
-  btn.addEventListener('click', e => { e.stopPropagation(); runStage(btn.dataset.stage, true); });
-});
-$('run-all-btn').addEventListener('click', runAll);
-$('setup-close').addEventListener('click', () => $('setup-modal').classList.remove('open'));
-$('setup-modal').addEventListener('click', e => { if (e.target === $('setup-modal')) $('setup-modal').classList.remove('open'); });
-
-// ---- NIM model selector wiring ----
-const nimSel = $('studio-nim-select');
-if (nimSel) {
-  nimSel.addEventListener('change', e => setNimModel(e.target.value));
-  loadNimModels();
-}
-
-// ---- studio polling: faster when something is running ----
-let _studioPoll = null;
-function startStudioPolling() {
-  if (_studioPoll) clearInterval(_studioPoll);
-  _studioPoll = setInterval(() => {
-    if (document.querySelector('#page-studio.active')) pollStudioStatus();
-  }, 3000);
-}
-loadStudioProjects().then(() => { pollStudioStatus(); startStudioPolling(); });
-setInterval(() => { if (document.querySelector('#page-studio.active')) loadNimModels(); }, 30000);
-
-/* ============ boot ============ */
-async function refreshAll() {
-  await refreshHealth();
-  await Promise.all([refreshAgents(), refreshSystems(), refreshTasks(), refreshSystemPage()]);
-}
-refreshAll(); drawCortex(); loadWiki('LLM-Wiki');
-setInterval(refreshHealth, 10000); setInterval(refreshSystems, 15000);
-setInterval(refreshTasks, 5000); setInterval(refreshSystemPage, 20000);
-</script>
+<script src="/app.js" defer></script>
 </body>
 </html>

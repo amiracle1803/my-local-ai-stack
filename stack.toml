@@ -94,7 +94,7 @@ workflows    = "olympus/engines/pipeline/workflows"
 comfyui_dir  = "ComfyUI"
 
 [animation]
-engine = "ltx2b"     # PRIMARY stage3c engine: aetherpunk LTX Director V2V (First&Last-Frame directed motion; fixes static clips). Fallbacks: "ltx2b" | "hunyuan" | "wan22" | "ltx23"
+engine = "wan22"     # PRIMARY stage3c engine: aetherpunk LTX Director V2V (First&Last-Frame directed motion; fixes static clips). Fallbacks: "ltx2b" | "hunyuan" | "wan22" | "ltx23"
 ltx_director_workflow = "ltx_director_23.json"   # LTXDirector V2V template (8GB GGUF, tiled VAE decode; panel keyframe + text beat + END frame)
 enhance_panels = true        # Real-ESRGAN 2x source panels before I2V (reduces face/char distortion)
 panel_char_ref = true        # stage3b: re-render panels conditioned on character ref (identity lock)
