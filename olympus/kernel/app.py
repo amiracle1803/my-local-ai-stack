@@ -934,7 +934,14 @@ def brain_notes(folder: str = ""):
     base = (root / folder).resolve()
     if not base.is_relative_to(root_resolved) or not base.is_dir():
         raise HTTPException(404, "folder not found")
-    dirs = sorted(p.name for p in base.iterdir() if p.is_dir() and not p.name.startswith("."))
+    dirs = sorted(
+        p.name for p in base.iterdir()
+        if p.is_dir()
+        and not p.name.startswith(".")
+        # Skip symlinks that resolve outside the vault root so the dashboard's
+        # folder walk never trips over them (e.g. vault shortcuts to ~/Downloads).
+        and p.resolve().is_relative_to(root_resolved)
+    )
     notes = sorted(p.name for p in base.glob("*.md"))
     return [{"type": "dir", "name": d} for d in dirs] + [{"type": "note", "name": n} for n in notes]
 

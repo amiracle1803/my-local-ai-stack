@@ -1120,7 +1120,7 @@ function renderStageGrid() {
       <div class="flex" style="gap:.35rem;justify-content:center;margin-top:.45rem;flex-wrap:wrap">
         <button class="ghost srun" data-stage="${m.id}">RUN ▶</button>
         <button class="ghost sview" data-stage="${m.id}">VIEW</button>
-        ${m.id === 'stage0' ? '' : `<button class="ghost sforce" data-stage="${m.id}" title="Force rerun">FORCE</button>`}
+        <button class="ghost sforce" data-stage="${m.id}" title="Force rerun">FORCE</button>
       </div>
     </div>`).join('');
 
@@ -1151,7 +1151,7 @@ async function runStage(stage, force = false) {
   try {
     // stage0 intake needs its inputs (brief/source/panels) — open the setup modal
     if (stage === 'stage0') {
-      await openStage0Setup();
+      await openStage0Setup(false, force);
     } else {
       await j('/api/pipeline/' + encodeURIComponent(studioProject) + '/run/' + stage, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1203,9 +1203,10 @@ async function runAll() {
 // 11f. Stage0 intake setup modal --------------------------------------------
 // collectOnly=true resolves with the intake inputs WITHOUT starting a run; used
 // by RUN ALL so it can hand the same brief/source/panels to /run-all.
-function openStage0Setup(collectOnly = false) {
+// force=true sends the force flag so a completed stage0 is cleared + re-run.
+function openStage0Setup(collectOnly = false, force = false) {
   return new Promise((resolve) => {
-    $('setup-title').textContent = 'STAGE 0 · INTAKE (' + (studioProject || 'project') + ')';
+    $('setup-title').textContent = 'STAGE 0 · INTAKE (' + (studioProject || 'project') + ')' + (force ? ' — FORCE RERUN' : '');
     const body = $('setup-body');
     j('/api/pipeline/' + encodeURIComponent(studioProject) + '/status').then((st) => {
       const mode = st.mode || '0b';
@@ -1256,10 +1257,10 @@ function openStage0Setup(collectOnly = false) {
           if (collectOnly) { $('setup-modal').classList.remove('open'); resolve(out); return; }
           await j('/api/pipeline/' + encodeURIComponent(studioProject) + '/run/stage0', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(out),
+            body: JSON.stringify({ ...out, force }),
           });
           $('setup-modal').classList.remove('open');
-          setLastMsg('stage0 started', 'ok');
+          setLastMsg(force ? 'stage0 force rerun started' : 'stage0 started', 'ok');
           resolve(true);
         } catch (err) {
           errEl.textContent = (err.message || err).slice(0, 250);
@@ -1307,7 +1308,7 @@ function smDocHtml(path) {
 // Each returns a string of HTML given the artifact index list. They turn the
 // raw JSON docs into cards/tables so you can "see what happened" per stage.
 
-async function viewStage0(list, st) {
+async function viewStage0(list) {
   let html = '';
   const sceneFile = list.find((a) => a.path === 'stage0_scenes.json');
   const scriptFile = list.find((a) => a.path === 'input/script.txt');
@@ -1319,19 +1320,20 @@ async function viewStage0(list, st) {
     html += `<div class="sm-section-title">SCENE BREAKDOWN</div>`;
     try {
       const scenes = await fetchJson(sceneFile.path);
-      if (Array.isArray(scenes)) {
-        html += scenes.map((sc, i) => `<div class="char-card">
+      const sceneList = Array.isArray(scenes) ? scenes : Object.values(scenes || {});
+      if (sceneList.length) {
+        html += sceneList.map((sc, i) => `<div class="char-card">
           <div class="cname">SCENE ${i + 1}</div>
           <div class="crole">${esc(sc.location || sc.setting || sc.scene_heading || '')}</div>
           <div class="capp">${esc(sc.summary || sc.synopsis || sc.description || sc.content || '')}</div>
-        </div>`).join('') || '<div class="sm-empty">empty scene list</div>';
-      } else html += smDocHtml(sceneFile.path);
+        </div>`).join('');
+      } else html += '<div class="sm-empty">empty scene list</div>';
     } catch { html += smDocHtml(sceneFile.path); }
   }
   return html;
 }
 
-async function viewWorldBible(list, st) {
+async function viewWorldBible(list) {
   let html = '';
   const wb = list.find((a) => a.path === 'worldbible/world_bible.json');
   const contra = list.find((a) => a.path === 'worldbible/contradictions.json');
@@ -1368,7 +1370,7 @@ async function viewWorldBible(list, st) {
   return html;
 }
 
-async function viewStoryboard(list, st) {
+async function viewStoryboard(list) {
   let html = '';
   const sb = list.find((a) => a.path === 'storyboard/storyboard.json');
   if (sb) {
@@ -1398,7 +1400,7 @@ async function viewStoryboard(list, st) {
   return html;
 }
 
-async function viewScreenplay(list, st) {
+async function viewScreenplay(list) {
   let html = '';
   const sp = list.find((a) => a.path === 'screenplay/screenplay.json');
   if (sp) {
@@ -1428,25 +1430,25 @@ async function viewScreenplay(list, st) {
   return html;
 }
 
-async function viewImages(list, st) {
+async function viewImages(list) {
   const imgs = list.filter((a) => a.kind === 'image');
   if (!imgs.length) return '<div class="sm-empty">no panel images generated yet — run stage 3B</div>';
   return `<div class="sm-grid">${imgs.map(smFile).join('')}</div>`;
 }
 
-async function viewAnimation(list, st) {
+async function viewAnimation(list) {
   const vids = list.filter((a) => a.kind === 'video');
   if (!vids.length) return '<div class="sm-empty">no animation clips yet — run stage 3C</div>';
   return `<div class="sm-grid">${vids.map(smFile).join('')}</div>`;
 }
 
-async function viewAudio(list, st) {
+async function viewAudio(list) {
   const aud = list.filter((a) => a.kind === 'audio');
   if (!aud.length) return '<div class="sm-empty">no audio rendered yet — run stage 4</div>';
   return `<div class="sm-grid">${aud.map(smFile).join('')}</div>`;
 }
 
-async function viewVlmReview(list, st) {
+async function viewVlmReview(list) {
   let html = '';
   const vr = list.find((a) => a.path === 'reviews/vlm_review.json');
   if (vr) {
@@ -1490,7 +1492,7 @@ async function viewVlmReview(list, st) {
   return html;
 }
 
-async function viewAssembly(list, st) {
+async function viewAssembly(list) {
   let html = '';
   const vid = list.find((a) => a.kind === 'video');
   if (vid) html += `<div class="sm-section-title">FINAL VIDEO</div>` + smFile(vid);
@@ -1536,7 +1538,7 @@ function loadStageArtifacts(stage, arts, st) {
   // Load the human-readable viewer for this stage
   const viewer = STAGE_VIEWERS[stage] || (() => Promise.resolve(''));
   const docOnly = arts.filter((a) => a.kind === 'text' || a.kind === 'json');
-  viewer(arts, st)
+  viewer(arts)
     .then((html) => {
       $('sm-viewer').innerHTML = html || '<div class="sm-empty">no viewable artifacts</div>';
       // Load any raw JSON/text docs referenced by the viewer
@@ -1653,7 +1655,18 @@ async function refreshAll() {
 
 refreshAll();
 drawCortex();
-loadWiki('LLM-Wiki');
+// Open the configured wiki root if it exists inside the vault, else the vault
+// root. Checking existence up-front (instead of just requesting it) avoids a
+// 404 console error when the configured folder is absent from the vault.
+j('/api/system')
+  .then((s) => {
+    const wr = (s.paths && s.paths.wiki_root) || '';
+    if (!wr) return loadWiki('');
+    return j('/api/brain/notes?folder=')
+      .then((root) => loadWiki(root.some((i) => i.type === 'dir' && i.name === wr) ? wr : ''))
+      .catch(() => loadWiki(''));
+  })
+  .catch(() => loadWiki(''));
 setInterval(refreshHealth, 10000);
 setInterval(refreshSystems, 15000);
 setInterval(refreshTasks, 5000);
