@@ -17,6 +17,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Callable
 
 # Make the `pipeline` package importable no matter the working directory.
 _ENGINE_ROOT = Path(__file__).resolve().parent
@@ -182,6 +183,23 @@ def run_stage(
         scores.require_stage(stage)
 
         cfg = config or PipelineConfig.load()
+
+        # Animation master switch (design): when stage3c is disabled, skip the
+        # GPU animation stage AND the clip-only VLM review. Both are marked done
+        # with their mandatory proof metrics so the scorecard gate chain still
+        # lets stage5 run -- stage5 assembles panels with Ken Burns motion
+        # (zoom/pan + fades) instead of requiring LTX/Wan clips.
+        if not cfg.animation.enabled and stage in ("stage3c", "stage_vlm_review"):
+            metric = "ltx_rendered" if stage == "stage3c" else "review_coverage"
+            scores.record(stage, "global", metric, 0.0)
+            scores.stage_done(stage)
+            Blueprint.mark_stage(project_dir, stage)
+            return {
+                "stage": stage,
+                "status": "skipped",
+                "reason": "animation disabled (panels mode) — see stack.toml [animation].enabled",
+            }
+
         if stage == "stage0":
             from pipeline import stage0a_transform, stage0i_import
 
@@ -307,6 +325,9 @@ def run_all(
     word_target: int | None = None,
     run_critique: bool = True,
     retry_on_critique: bool = True,
+    step: bool = False,
+    quick: bool = False,
+    should_stop: Callable[[], bool] | None = None,
 ) -> list[dict | None]:
     """``run.py all`` (design 0.2): run every stage in STAGE_ORDER unattended,
     skipping stages the scorecard already proves complete (resume-safe).
@@ -317,9 +338,27 @@ def run_all(
 
     If run_critique=True, runs the self-critique loop after each stage.
     If retry_on_critique=True, retries stages that fail the critique gate.
+
+    Control knobs:
+      step=True   run exactly ONE stage then stop (the Studio "stop at each
+                  stage" flow — re-invoke to advance to the next stage).
+      quick=True  cap the GPU-heavy reference-image count (refs_per_character)
+                  so the whole pipeline finishes well under an hour; used by the
+                  Studio QUICK TEST button.
+      should_stop is a callable checked between stages; when it returns True the
+                  run aborts at the next stage boundary (Studio STOP button).
     """
     project_dir = _projects_root(projects_dir) / slug
     config = PipelineConfig.load()
+    if quick:
+        # A quick test proves the pipeline end-to-end fast: trim the reference
+        # images per character (the biggest GPU cost) and cap the panel
+        # vision-judge retries to one so it finishes < 1 hour.
+        config.animation.refs_per_character_cap = config.animation.refs_per_character_cap or 4
+        config.animation.panel_max_regens = config.animation.panel_max_regens or 1
+        config.animation.quick_critique_iterations = config.animation.quick_critique_iterations or 1
+        if word_target is None:
+            word_target = 300
     results: list[dict | None] = []
 
     # Initialize LLM for critique
@@ -327,6 +366,10 @@ def run_all(
     llm = PipelineLLM(config, prompts_dir=_ENGINE_ROOT / "prompts", logs_dir=project_dir / "logs")
 
     for stage in STAGE_ORDER:
+        if should_stop and should_stop():
+            print("[stop] run cancelled between stages")
+            results.append({"stopped": True, "stage": stage})
+            break
         scores = Scores(project_dir / "scores.sqlite")
         try:
             complete = scores.is_done(stage) and not scores.missing_metrics(stage)
@@ -337,11 +380,12 @@ def run_all(
             results.append({"skipped": True, "stage": stage})
             continue
 
-        # Run the stage
+        # Run the stage (pass our config so quick-mode refs cap reaches stage1r)
         print(f"[run ] {stage} ...")
         result = run_stage(
             slug, stage, projects_dir=projects_dir, brief_path=brief_path,
             source_path=source_path, panel_upload=panel_upload, word_target=word_target,
+            config=config,
         )
         results.append(result)
 
@@ -377,6 +421,7 @@ def run_all(
                     retry_result = run_stage(
                         slug, stage, projects_dir=projects_dir, brief_path=brief_path,
                         source_path=source_path, panel_upload=panel_upload, word_target=word_target,
+                        config=config,
                     )
                     results.append({"retry": True, "stage": stage, "result": retry_result})
 
@@ -395,6 +440,14 @@ def run_all(
             else:
                 print(f"  [ok] Critique passed: {critique_result.consistency_score:.2f}")
 
+        # Step mode: stop after this one stage so the user can review the output
+        # before continuing. Re-invoking run_all resumes at the next pending stage
+        # (the scorecard marks complete stages as skipped).
+        if step:
+            print(f"[step] stopped after {stage} — click CONTINUE to run the next stage")
+            results.append({"stepped": True, "stage": stage})
+            break
+
     return results
 
 
@@ -407,6 +460,8 @@ def _cmd_all(args: argparse.Namespace) -> int:
         word_target=args.word_target,
         run_critique=not args.no_critique,
         retry_on_critique=not args.no_retry,
+        step=args.step,
+        quick=args.quick,
     )
     print("[ok] all stages complete")
     return 0
@@ -472,6 +527,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_all.add_argument("--word-target", type=int, default=None, help="stage0 mode 0a: prose word budget")
     p_all.add_argument("--no-critique", action="store_true", help="disable self-critique loop between stages")
     p_all.add_argument("--no-retry", action="store_true", help="disable auto-retry on critique failure")
+    p_all.add_argument("--step", action="store_true", help="stop after each stage (review, then re-run to continue)")
+    p_all.add_argument("--quick", action="store_true", help="quick test run: cap reference images so the whole pipeline finishes < 1 hour")
     p_all.set_defaults(func=_cmd_all)
 
     return parser

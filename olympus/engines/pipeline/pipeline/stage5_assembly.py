@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import json
 import logging
+import hashlib
 import re
 import subprocess
 from datetime import datetime, timezone
@@ -205,6 +206,45 @@ def _drift_filter(axis: str, direction: int, pixels: int, fps: int, dur: float) 
     return f"scale={scale},{crop},{pad},fps={fps}"
 
 
+def _kenburns_filter(shot_id: str, zoom: float, fade_s: float, fps: int, dur: float) -> str:
+    """Ken Burns motion for a static manga panel (used when stage3c is disabled).
+
+    The panel is scaled up for zoom headroom, then the ``zoompan`` filter animates
+    a crop window over the shot's frame count -- shrinking (zoom-in), growing
+    (zoom-out), or sliding vertically (pan up/down) -- producing the timeline
+    frames directly (``d=frames``). A fade in/out gives each shot a clean
+    transition. Which motion a shot gets is derived deterministically from its id
+    so re-runs are stable and adjacent shots vary.
+    """
+    w, h = _PANEL_SIZE
+    tw, th = _TIMELINE_SIZE
+    zmax = max(zoom, 1.0)
+    fade_s = max(0.0, min(fade_s, dur / 3))  # keep fade shorter than the shot
+    frames = max(2, int(round(dur * fps)))
+    # Deterministic motion per shot: 0=zoom-in, 1=zoom-out, 2=pan-up, 3=pan-down
+    mode = int(hashlib.sha256(shot_id.encode()).hexdigest(), 16) % 4
+    # `on` is the output frame index (0..frames-1), so `t/dur` == `on/(frames-1)`.
+    if mode == 0:      # zoom-in: crop window shrinks from full to base/zmax
+        zexpr = f"1+({zmax}-1)*on/{frames - 1}"
+    elif mode == 1:    # zoom-out: crop window grows from base/zmax to full
+        zexpr = f"{zmax}-({zmax}-1)*on/{frames - 1}"
+    elif mode == 2:    # pan-up: window slides from bottom to top
+        zexpr = "1.06"
+    else:              # pan-down: window slides from top to bottom
+        zexpr = "1.06"
+    if mode in (0, 1):
+        xexpr, yexpr = "iw/2-(iw/zoom/2)", "ih/2-(ih/zoom/2)"       # centered
+    elif mode == 2:
+        xexpr, yexpr = "iw/2-(iw/zoom/2)", f"(ih-ih/zoom)*(1-on/{frames - 1})"
+    else:
+        xexpr, yexpr = "iw/2-(iw/zoom/2)", f"(ih-ih/zoom)*on/{frames - 1}"
+    fade = f"fade=t=in:st=0:d={fade_s:.3f},fade=t=out:st={max(0, dur - fade_s):.3f}:d={fade_s:.3f}"
+    # zoompan consumes a single image and emits `d` frames -- no input -loop.
+    return (f"scale={w * zmax:.0f}:{h * zmax:.0f},"
+            f"zoompan=z='{zexpr}':x='{xexpr}':y='{yexpr}':d={frames}:s={tw}x{th}:fps={fps},"
+            f"{fade}")
+
+
 def _segment_stale(seg_path: Path, sources: list[Path | None]) -> bool:
     """True iff the cached segment predates any still-existing source it was
     built from. stage3b/stage3c re-render in place (new panels, new AI-
@@ -232,6 +272,9 @@ def _build_segment_args(
     panel_path: Path | None, seg_path: Path, dur: float, fps: int,
     drift: dict[str, Any], audio_paths: list[Path],
     clip_path: Path | None = None,
+    panels_mode: bool = False,
+    panels_zoom: float = 1.08,
+    panels_fade_s: float = 0.4,
 ) -> list[str]:
     args: list[str] = ["-y"]
 
@@ -248,8 +291,14 @@ def _build_segment_args(
         args += ["-i", str(clip_path)]
         v_in_label = 0
     elif panel_path is not None:
-        args += ["-loop", "1", "-t", f"{dur:.3f}", "-i", str(panel_path)]
-        vf = _drift_filter(drift["axis"], drift["direction"], drift["pixels"], fps, dur)
+        if panels_mode:
+            # Animation disabled: single-image Ken Burns (zoompan emits all
+            # `d` frames itself, so no -loop / -t on the input).
+            args += ["-i", str(panel_path)]
+            vf = _kenburns_filter(seg_path.stem, panels_zoom, panels_fade_s, fps, dur)
+        else:
+            args += ["-loop", "1", "-t", f"{dur:.3f}", "-i", str(panel_path)]
+            vf = _drift_filter(drift["axis"], drift["direction"], drift["pixels"], fps, dur)
         v_in_label = 0
         vf_full = f"[{v_in_label}:v]{vf}[v]"
     else:
@@ -542,6 +591,9 @@ def run(project_dir: str | Path, config: PipelineConfig, scores: Scores) -> dict
                 args = _build_segment_args(
                     panel_path if has_panel else None, seg_path, dur, fps, drift, audio_paths,
                     clip_path=shot_clip,
+                    panels_mode=not config.animation.enabled,
+                    panels_zoom=config.animation.panels_zoom,
+                    panels_fade_s=config.animation.panels_fade_s,
                 )
                 _run([_FFMPEG_BIN, *args])
             if shot_clip is not None and shot_clip.exists():

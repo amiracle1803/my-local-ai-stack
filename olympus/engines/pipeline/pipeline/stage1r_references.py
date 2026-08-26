@@ -255,6 +255,11 @@ def run(
         ref_dir = project_dir / "worldbible" / "refs" / char.id
         ref_dir.mkdir(parents=True, exist_ok=True)
         frames = _char_frames(char)
+        # QUICK TEST / refs cap: trim the per-character frame list so the GPU
+        # stage finishes fast (config.refs_per_character_cap, 0 = unlimited).
+        cap = int(getattr(config.animation, "refs_per_character_cap", 0) or 0)
+        if cap > 0 and len(frames) > cap:
+            frames = frames[:cap]
         manifest = []
         for i, (suffix, variant) in enumerate(frames):
             fname_prefix = f"pipeline/{project_dir.name}/refs/{char.id}/ref_{i:02d}"

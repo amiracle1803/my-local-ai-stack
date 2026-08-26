@@ -13,7 +13,11 @@ import sys
 
 # Configuration
 invoke_url = "https://integrate.api.nvidia.com/v1/chat/completions"
-API_KEY = "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"
+# API key is read from the NVIDIA_API_KEY env var (set in the gitignored .env).
+# Never hardcode the token in this tracked file.
+API_KEY = os.environ.get("NVIDIA_API_KEY", "")
+if not API_KEY:
+    raise SystemExit("NVIDIA_API_KEY is not set (see .env).")
 headers = {
     "Authorization": f"Bearer {API_KEY}",
     "Accept": "application/json",

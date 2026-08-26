@@ -486,9 +486,16 @@ def generate_from_blueprint(
         }
 
         # Iterative quality loop: draft -> critique -> revise -> score -> repeat.
+        # QUICK TEST caps the depth to 1 (accept first draft) via config to cut
+        # stage0's LLM calls ~3x; 0 = the built-in 3-iteration movie-grade loop.
+        max_iter = (
+            int(getattr(config, "animation", None).quick_critique_iterations)
+            if getattr(getattr(config, "animation", None), "quick_critique_iterations", 0) > 0
+            else _MAX_CRITIQUE_ITERATIONS
+        )
         current_text = ""
         guidance = ""
-        for iteration in range(_MAX_CRITIQUE_ITERATIONS + 1):
+        for iteration in range(max_iter + 1):
             if iteration == 0:
                 current_text = llm.complete_text(
                     "s0b_scene_prose.md", base_ctx, role="script",
@@ -527,12 +534,12 @@ def generate_from_blueprint(
                 quality_pass = False
                 failures.append(f"agi_consistency {agi_cons:.3f} < {_MIN_AGI_CONSISTENCY}")
 
-            if quality_pass or iteration == _MAX_CRITIQUE_ITERATIONS:
+            if quality_pass or iteration == max_iter:
                 final_text = current_text
                 if not quality_pass:
                     logger.warning(
                         "Scene %d quality below threshold after %d iterations: %s -- accepting best attempt",
-                        plan.number, _MAX_CRITIQUE_ITERATIONS, "; ".join(failures),
+                        plan.number, max_iter, "; ".join(failures),
                     )
                 break
 

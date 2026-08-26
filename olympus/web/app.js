@@ -1,28 +1,21 @@
 /* ============================================================================
    OLYMPUS DASHBOARD — app.js
    ----------------------------------------------------------------------------
-   Sections
-     0. Utilities (fetch wrapper, escaping, CSRF, prompt sanitizer)
-     1. Navigation
-     2. Home / Cortex knowledge graph
-     3. Health, systems, activity
-     4. Jarvis chat
-     5. Capture
-     6. Cortex search
-     7. Wiki browser
-     8. Tasks page
-     9. Commerce
-    10. Voice studio
-    11. Studio pipeline
-        11a. Stage metadata (canonical order from backend)
-        11b. Project list / new project
-        11c. NIM model selector
-        11d. Stage grid render + gate health / warnings
-        11e. Run / run-all / per-stage controls
-        11f. Stage0 intake setup modal
-        11g. Stage artifact viewer (human-readable per stage)
-    12. System page
-    13. Boot
+   Single-page dashboard logic. Organized top-to-bottom as:
+      0.  Utilities (fetch helpers, escaping, CSRF, prompt sanitizer, forms)
+      1.  Navigation
+      2.  Home / Cortex knowledge graph
+      3.  Health, systems, activity
+      4.  Jarvis chat
+      5.  Capture
+      6.  Cortex search
+      7.  Wiki browser
+      8.  Tasks page
+      9.  Commerce
+     10.  Voice studio
+     11.  Studio pipeline (stage grid, run controls, modals, artifact viewer)
+     12.  System page
+     13.  Boot (initial load + polling timers)
    ========================================================================== */
 
 'use strict';
@@ -32,11 +25,22 @@
 // Shorthand for document.getElementById
 const $ = (id) => document.getElementById(id);
 
-// JSON fetch: throws with the server's error body on non-2xx
+// JSON fetch: throws with the server's error body on any non-2xx response
 async function j(url, opts) {
   const r = await fetch(url, opts);
   if (!r.ok) throw new Error(await r.text());
   return r.json();
+}
+
+// POST a JSON body and parse the JSON response (consolidates the repeated
+// fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body})
+// pattern that used to appear on nearly every mutating call)
+async function postJson(url, body) {
+  return j(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
 }
 
 // Escape a value for safe insertion into innerHTML
@@ -89,7 +93,7 @@ function setLoading(element, isLoading) {
   }
 }
 
-// Shared submit wrapper: disables button, calls fn, restores button.
+// Shared submit wrapper: disables the button, runs fn, restores the button.
 // Cuts out the repeated try/catch/finally that used to exist on every form.
 async function withLoading(btn, fn) {
   setLoading(btn, true);
@@ -114,22 +118,19 @@ function bindTaskForm(formId, btnSel, opts) {
     if (!text) return;
     await withLoading(btn, async () => {
       input.value = '';
-      await j('/api/tasks', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(opts.body ? opts.body(text) : { text, agent: opts.agent }),
-      });
+      await postJson('/api/tasks', opts.body ? opts.body(text) : { text, agent: opts.agent });
       opts.onDone?.();
     });
   });
 }
 
-/* -- 1. Navigation --------------------------------------------------------- */
+/* -- 1. Navigation ---------------------------------------------------------- */
 
 function goPage(name) {
   document.querySelector(`header nav a[data-page="${name}"]`).click();
 }
 
-// Wire up the top nav: swap active page, load wiki when it opens
+// Wire up the top nav: swap the active page, and (re)load the wiki when opened
 document.querySelectorAll('header nav a').forEach((a) =>
   a.addEventListener('click', () => {
     document.querySelectorAll('header nav a').forEach((x) => x.classList.remove('active'));
@@ -140,12 +141,13 @@ document.querySelectorAll('header nav a').forEach((a) =>
   })
 );
 
-/* -- 2. Home / Cortex knowledge graph -------------------------------------- */
+/* -- 2. Home / Cortex knowledge graph --------------------------------------- */
 
 const AGENT_COLORS = ['#8f7bff', '#c05cff', '#ff5ca8', '#ff9f45', '#e8b84b',
   '#4ade80', '#37c9a2', '#5cb8ff', '#7bd4ff', '#b08fff'];
 const HOME_ROT_X = 0.25, HOME_VEL = 0.0018;
 
+// Mutable state for the 3D-ish graph renderer (nodes, edges, camera, focus)
 let cortex = {
   nodes: [], edges: [], nuclei: [], rotY: 0, rotX: HOME_ROT_X, vel: HOME_VEL,
   firing: -1, fireT: 0, lastDrag: 0, zoom: 1, zoomT: 1, userZoom: 1,
@@ -155,6 +157,7 @@ let cortex = {
 // Build the 3D-ish node/edge graph: agent nuclei + one node per vault note
 function buildCortex(agents, notePaths) {
   const R = 1, nodes = [];
+  // Place each agent as a "nucleus" distributed on a Fibonacci sphere
   agents.forEach((a, i) => {
     const phi = Math.acos(1 - 2 * (i + 0.5) / agents.length);
     const th = Math.PI * (1 + Math.sqrt(5)) * i;
@@ -166,6 +169,7 @@ function buildCortex(agents, notePaths) {
     });
   });
   const nNuc = nodes.length;
+  // Scatter one satellite node per vault note (capped) and tint near-nuclei ones
   const paths = (notePaths || []).slice(0, 240);
   const N = Math.max(paths.length, 120);
   for (let i = 0; i < N; i++) {
@@ -274,7 +278,7 @@ function drawCortex() {
     const hot = i === cortex.hover || i === cortex.focus;
     const r = p.n.r * p.d * 1.15 * (hot ? 1.6 : 1);
     ctx.beginPath();
-    ctx.arc(p.X, p.Y, r, 0, 2 * Math.PI); // full circle (was: 0,7)
+    ctx.arc(p.X, p.Y, r, 0, 2 * Math.PI);
     ctx.fillStyle = p.n.color;
     ctx.globalAlpha = 0.35 + 0.65 * (p.d - 0.55) / 0.9;
     if (p.n.nucleus || hot) { ctx.shadowColor = p.n.color; ctx.shadowBlur = hot ? 20 : 14; }
@@ -325,11 +329,13 @@ async function focusCortexNode(i) {
   cortex._paused = true;
   $('note-float').classList.add('open');
   if (n.nucleus) {
+    // Agent nucleus → just show its description
     $('nf-title').textContent = 'AGENT · ' + n.label;
     $('nf-body').innerHTML =
       `<p>${esc(n.desc || '')}</p><p class="mono text-dim mono-xs mt-sm">click ✕ to release the cortex</p>`;
     return;
   }
+  // Vault note → load and render its markdown
   $('nf-title').textContent = n.label;
   $('nf-body').innerHTML = '<em class="text-dim">reading…</em>';
   try {
@@ -407,7 +413,7 @@ addEventListener('keydown', (e) => { if (e.key === 'Escape') releaseCortex(); })
   });
 })();
 
-/* -- 3. Health / systems / activity ---------------------------------------- */
+/* -- 3. Health / systems / activity ----------------------------------------- */
 
 async function refreshHealth() {
   try {
@@ -520,7 +526,7 @@ async function refreshAgents() {
   buildNoteIndex().then((idx) => buildCortex(window._agents, idx));
 }
 
-/* -- 4. Jarvis chat -------------------------------------------------------- */
+/* -- 4. Jarvis chat ---------------------------------------------------------- */
 
 // Poll a task until it finishes (or times out), then call onDone
 async function pollTask(id, onDone) {
@@ -561,10 +567,7 @@ $('jarvis-form').addEventListener('submit', async (e) => {
     log.scrollTop = log.scrollHeight;
     $('jstatus').textContent = 'PROCESSING';
     $('jstatus').className = 'processing mono';
-    const t = await j('/api/tasks', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, agent: 'jarvis' }),
-    });
+    const t = await postJson('/api/tasks', { text, agent: 'jarvis' });
     pollTask(t.id, (done) => {
       const reply = done.result || ('⚠ ' + (done.error || 'failed'));
       el.innerHTML = `<span class="who">JARVIS ~</span>${esc(reply)}<span class="tlink">→ task ${done.id ?? t.id}</span>`;
@@ -595,7 +598,7 @@ $('mic-btn').addEventListener('click', () => {
   rec.start();
 });
 
-/* -- 5. Capture ------------------------------------------------------------ */
+/* -- 5. Capture -------------------------------------------------------------- */
 
 $('capture-btn').addEventListener('click', () => {
   const v = $('capture-in').value.trim();
@@ -603,15 +606,12 @@ $('capture-btn').addEventListener('click', () => {
   withLoading($('capture-btn'), async () => {
     $('capture-in').value = '';
     const sanitized = sanitizePromptInput(v);
-    await j('/api/tasks', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: 'Capture this note for the inbox: ' + sanitized, agent: 'archivist' }),
-    });
+    await postJson('/api/tasks', { text: 'Capture this note for the inbox: ' + sanitized, agent: 'archivist' });
     refreshTasks();
   });
 });
 
-/* -- 6. Cortex search ------------------------------------------------------ */
+/* -- 6. Cortex search --------------------------------------------------------- */
 
 let noteIndex = null;
 async function buildNoteIndex() {
@@ -652,14 +652,11 @@ $('cortex-search').addEventListener('keydown', async (e) => {
   if (!q) return;
   e.target.value = '';
   $('search-results').style.display = 'none';
-  await j('/api/tasks', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text: 'Search the vault/wiki for: ' + q, agent: 'archivist' }),
-  });
+  await postJson('/api/tasks', { text: 'Search the vault/wiki for: ' + q, agent: 'archivist' });
   refreshTasks();
 });
 
-/* -- 7. Wiki browser ------------------------------------------------------- */
+/* -- 7. Wiki browser ----------------------------------------------------------- */
 
 let wikiFolder = '', wikiItems = [], wikiNoteCache = {};
 
@@ -714,17 +711,14 @@ async function openWikiNote(path) {
 }
 $('wiki-filter').addEventListener('input', renderWiki);
 
-/* -- 8. Tasks page --------------------------------------------------------- */
+/* -- 8. Tasks page ------------------------------------------------------------- */
 
 $('orchestrate-btn').addEventListener('click', () => {
   const goal = $('orchestrate-goal').value.trim();
   if (!goal) return;
   withLoading($('orchestrate-btn'), async () => {
     $('orchestrate-goal').value = '';
-    await j('/api/orchestrate', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ goal }),
-    });
+    await postJson('/api/orchestrate', { goal });
     refreshTasks();
   });
 });
@@ -734,10 +728,7 @@ $('quick-btn').addEventListener('click', () => {
   if (!text) return;
   withLoading($('quick-btn'), async () => {
     $('quick-task').value = '';
-    await j('/api/tasks', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text }),
-    });
+    await postJson('/api/tasks', { text });
     refreshTasks();
   });
 });
@@ -751,14 +742,14 @@ $('clear-done-btn').addEventListener('click', () => {
   document.querySelectorAll('#col-done .kcard, #col-failed .kcard').forEach((c) => c.remove());
 });
 
-/* -- 9. Commerce ----------------------------------------------------------- */
+/* -- 9. Commerce ---------------------------------------------------------------- */
 
 bindTaskForm('plutus-form', 'button[type="submit"]', {
   inputId: 'plutus-text', agent: 'plutus',
   onDone() { refreshTasks(); },
 });
 
-/* -- 10. Voice studio ------------------------------------------------------ */
+/* -- 10. Voice studio ------------------------------------------------------------- */
 
 let selectedVoice = 'af_heart';
 
@@ -813,7 +804,7 @@ $('voice-gen').addEventListener('click', () => {
   });
 });
 
-/* -- 11. Studio pipeline --------------------------------------------------- */
+/* -- 11. Studio pipeline ------------------------------------------------------------ */
 
 // 11a. Canonical stage metadata ---------------------------------------------
 // The stage ids and ORDER mirror pipeline/blueprint.py STAGE_ORDER exactly, so
@@ -859,7 +850,7 @@ const STAGE_LABEL_MAP = {
 // Each rule: [metricKey, test(value) -> bool, humanLabel]
 const STAGE_WARNINGS = {
   stage0:    [['structure_completeness', (v) => v < 0.5, 'weak intake structure (<50%)']],
-  stage1r:   [['failed_generations', (v) => v > 0, `${'failed_generations'} refs failed`],
+  stage1r:   [['failed_generations', (v) => v > 0, 'failed_generations refs failed'],
               ['refs_per_character', (v) => v > 0 && v < 10, 'too few refs/character (<10)']],
   stage3b:   [['vision_fail_rate', (v) => v > 0.3, 'high vision fail rate (>30%)'],
               ['panels_generated', (v) => v === 0, 'no panels generated']],
@@ -894,6 +885,12 @@ const INTAKE_HINTS = {
 let studioProject = localStorage.getItem('studio-project') || '';
 let _studioBusy = false;
 
+// Build a pipeline API URL for the active project. Centralizes the repeated
+// '/api/pipeline/{slug}/...' string concatenation that was scattered everywhere.
+const pipelineFor = (slug, path = '') =>
+  `/api/pipeline/${encodeURIComponent(slug)}${path ? '/' + path : ''}`;
+const pipeline = (path = '') => pipelineFor(studioProject, path);
+
 function setBusy(busy) {
   _studioBusy = busy;
   $('run-all-btn').disabled = busy;
@@ -907,7 +904,7 @@ function setLastMsg(text, kind) {
   el.className = 'mono ' + (kind === 'ok' ? 'ok' : kind === 'err' ? 'err' : kind === 'warn' ? 'warn' : '');
 }
 
-// 11c. NIM model selector ----------------------------------------------------
+// 11b. NIM model selector ------------------------------------------------------
 
 async function loadNimModels() {
   try {
@@ -929,10 +926,7 @@ async function setNimModel(model) {
   const status = $('studio-nim-status');
   status.textContent = 'switching…';
   try {
-    await j('/api/nim/model', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model }),
-    });
+    await postJson('/api/nim/model', { model });
     status.textContent = '● switched to ' + model.split('/').pop();
     status.style.color = 'var(--green)';
     setLastMsg('NIM model switched to ' + model + ' (permanent — saved to stack.toml)', 'ok');
@@ -945,7 +939,7 @@ async function setNimModel(model) {
   }
 }
 
-// 11b. Project list / new project -------------------------------------------
+// 11c. Project list / new project ------------------------------------------------
 
 async function loadStudioProjects() {
   let projects = [];
@@ -1009,10 +1003,7 @@ $('studio-new-form').addEventListener('submit', async (e) => {
   const body = { slug, fps, mode: intake };
   if (mode === 'brief') body.brief_text = text; else body.script_text = text;
   try {
-    await j('/api/pipeline/projects', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+    await postJson('/api/pipeline/projects', body);
     // Optional panels upload for 0i — send as a separate call after creation
     const pf = $('np-panels-file').files[0];
     if (intake === '0i' && pf) await uploadPanels(slug, pf);
@@ -1031,11 +1022,11 @@ $('studio-new-form').addEventListener('submit', async (e) => {
 async function uploadPanels(slug, file) {
   const fd = new FormData();
   fd.append('file', file);
-  const r = await fetch('/api/pipeline/' + encodeURIComponent(slug) + '/panels', { method: 'POST', body: fd });
+  const r = await fetch(pipelineFor(slug, 'panels'), { method: 'POST', body: fd });
   if (!r.ok) throw new Error(await r.text());
 }
 
-// 11d. Stage grid render + gate health / warnings ---------------------------
+// 11d. Stage grid render + gate health / warnings ---------------------------------
 
 function pollStudioStatus() {
   if (!studioProject) {
@@ -1052,10 +1043,16 @@ function pollStudioStatus() {
     $('studio-progress').textContent = '';
     return;
   }
-  j('/api/pipeline/' + encodeURIComponent(studioProject) + '/status')
+  j(pipeline('status'))
     .then((st) => {
       $('studio-project-meta').textContent =
         `fps ${st.fps} · mode ${st.mode || '0b'} · story_id ${st.story_id.slice(0, 8)}…`;
+      // Animation disabled = panels mode: stage3c + clip VLM review are skipped
+      // by the backend, so treat them as done-without-clips on the board (no
+      // misleading "no clips rendered" / "0% passed" warnings).
+      const animOff = st.animation_enabled === false;
+      _animationEnabled = st.animation_enabled;
+      renderAnimToggle();
       let done = 0, running = 0, failed = 0, warnings = 0;
       STAGE_IDS.forEach((s) => {
         const d = $(`sdot-${s}`);
@@ -1066,10 +1063,15 @@ function pollStudioStatus() {
         d.title = status + (info.error ? ': ' + info.error : '');
         const lb = $(`slabel-${s}`);
         if (lb) {
-          lb.textContent = STAGE_LABEL_MAP[status] || status;
-          lb.style.color = status === 'done' ? 'var(--green)'
-            : status === 'failed' ? 'var(--red)'
-            : status === 'running' ? 'var(--cyan)' : 'var(--dim)';
+          if (animOff && (s === 'stage3c' || s === 'stage_vlm_review')) {
+            lb.textContent = 'skipped · panels mode';
+            lb.style.color = 'var(--cyan-dim)';
+          } else {
+            lb.textContent = STAGE_LABEL_MAP[status] || status;
+            lb.style.color = status === 'done' ? 'var(--green)'
+              : status === 'failed' ? 'var(--red)'
+              : status === 'running' ? 'var(--cyan)' : 'var(--dim)';
+          }
         }
         const card = document.querySelector(`.stage[data-stage="${s}"]`);
         if (card) {
@@ -1078,7 +1080,9 @@ function pollStudioStatus() {
             : status === 'running' ? 'var(--cyan)' : '';
         }
         // Warning badge: metrics problem OR missing mandatory proof metrics
-        const w = stageWarnings(s, info.metrics);
+        // (suppressed entirely for the skipped animation stages in panels mode)
+        const w = animOff && (s === 'stage3c' || s === 'stage_vlm_review')
+          ? '' : stageWarnings(s, info.metrics);
         const missingArr = info.missing_metrics || [];
         const warnText = [w, missingArr.length ? `missing proof: ${missingArr.join(', ')}` : ''].filter(Boolean).join(' · ');
         const wb = $(`swarn-${s}`);
@@ -1116,8 +1120,8 @@ function renderStageGrid() {
       <div class="sic">${m.icon}</div>
       <div class="snm">${m.title}</div>
       <div class="sst">${m.sst}</div>
-      <div class="mono" style="font-size:.65rem;color:var(--dim);margin-top:.35rem" id="slabel-${m.id}">pending — click RUN to start</div>
-      <div class="flex" style="gap:.35rem;justify-content:center;margin-top:.45rem;flex-wrap:wrap">
+      <div class="sst-label" id="slabel-${m.id}">pending — click RUN to start</div>
+      <div class="sbtns">
         <button class="ghost srun" data-stage="${m.id}">RUN ▶</button>
         <button class="ghost sview" data-stage="${m.id}">VIEW</button>
         <button class="ghost sforce" data-stage="${m.id}" title="Force rerun">FORCE</button>
@@ -1140,7 +1144,7 @@ function renderStageGrid() {
     btn.addEventListener('click', (e) => { e.stopPropagation(); runStage(btn.dataset.stage, true); }));
 }
 
-// 11e. Run / run-all / per-stage controls -----------------------------------
+// 11e. Run / run-all / per-stage controls ----------------------------------------
 
 async function runStage(stage, force = false) {
   if (_studioBusy) { alert('a run is already in progress — wait for it to finish'); return; }
@@ -1153,10 +1157,7 @@ async function runStage(stage, force = false) {
     if (stage === 'stage0') {
       await openStage0Setup(false, force);
     } else {
-      await j('/api/pipeline/' + encodeURIComponent(studioProject) + '/run/' + stage, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ force }),
-      });
+      await postJson(pipeline('run/' + stage), { force });
       setLastMsg(`${stage} ${force ? 'force started' : 'started'}`, 'ok');
     }
   } catch (err) {
@@ -1171,26 +1172,28 @@ async function runStage(stage, force = false) {
 async function runAll() {
   if (_studioBusy) { alert('a run is already in progress — wait for it to finish'); return; }
   if (!studioProject) { alert('create or select a project first'); return; }
-  if (!confirm('Run all remaining stages in order? GPU stages (1r, 3b, 3c) can take a long time. This resumes from where the project left off.')) return;
+  const step = $('studio-step-check')?.checked || false;
+  const what = step ? 'the next stage' : 'all remaining stages';
+  if (!confirm(`Run ${what} in order?${step ? ' The pipeline will stop after this stage so you can review before continuing.' : ' This resumes from where the project left off.'}`)) return;
   setBusy(true);
-  setLastMsg('running all remaining stages… (this may take a long time on GPU stages)', '');
+  setLastMsg(`running ${what}…`, '');
   try {
     // If stage0 hasn't produced intake yet, collect its inputs through the same
     // modal the per-stage run uses, then hand them to /run-all so any intake
     // mode (0b/0a/0i) works end-to-end.
     let body = {};
-    const st = await j('/api/pipeline/' + encodeURIComponent(studioProject) + '/status');
+    const st = await j(pipeline('status'));
     const s0 = (st.stages && st.stages.stage0) || {};
     if ((st.mode || '0b') !== '0b' || s0.status !== 'done') {
       const intake = await openStage0Setup(true);
       if (!intake) { setBusy(false); setLastMsg('full run cancelled', ''); return; }
       body = intake;
     }
-    await j('/api/pipeline/' + encodeURIComponent(studioProject) + '/run-all', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    setLastMsg('full run started — poll the stage dots / open the video tab when done', 'ok');
+    body.step = step;
+    await postJson(pipeline('run-all'), body);
+    setLastMsg(step
+      ? `stage running — the pipeline will stop after it completes; then hit RUN NEXT / CONTINUE`
+      : 'full run started — poll the stage dots / open the video tab when done', 'ok');
   } catch (err) {
     setLastMsg('run-all failed to start: ' + (err.message || err).slice(0, 200), 'err');
     alert(err.message || err);
@@ -1200,7 +1203,7 @@ async function runAll() {
   }
 }
 
-// 11f. Stage0 intake setup modal --------------------------------------------
+// 11f. Stage0 intake setup modal -------------------------------------------------
 // collectOnly=true resolves with the intake inputs WITHOUT starting a run; used
 // by RUN ALL so it can hand the same brief/source/panels to /run-all.
 // force=true sends the force flag so a completed stage0 is cleared + re-run.
@@ -1208,7 +1211,7 @@ function openStage0Setup(collectOnly = false, force = false) {
   return new Promise((resolve) => {
     $('setup-title').textContent = 'STAGE 0 · INTAKE (' + (studioProject || 'project') + ')' + (force ? ' — FORCE RERUN' : '');
     const body = $('setup-body');
-    j('/api/pipeline/' + encodeURIComponent(studioProject) + '/status').then((st) => {
+    j(pipeline('status')).then((st) => {
       const mode = st.mode || '0b';
       body.innerHTML = `
         <div class="sm-hint">${esc(INTAKE_HINTS[mode] || '')}</div>
@@ -1231,11 +1234,13 @@ function openStage0Setup(collectOnly = false, force = false) {
           <span id="setup-error"></span>
         </div>`;
       $('setup-modal').classList.add('open');
+      // Use onclick (not addEventListener) for the dismiss controls so repeated
+      // modal openings never stack duplicate handlers and each resolves once.
       $('setup-close').onclick = () => { $('setup-modal').classList.remove('open'); resolve(false); };
       $('setup-close2').onclick = () => { $('setup-modal').classList.remove('open'); resolve(false); };
-      $('setup-modal').addEventListener('click', (e) => {
+      $('setup-modal').onclick = (e) => {
         if (e.target === $('setup-modal')) { $('setup-modal').classList.remove('open'); resolve(false); }
-      });
+      };
       $('setup-run').onclick = async () => {
         const errEl = $('setup-error');
         errEl.textContent = '';
@@ -1255,10 +1260,7 @@ function openStage0Setup(collectOnly = false, force = false) {
             if (pf) await uploadPanels(studioProject, pf);
           }
           if (collectOnly) { $('setup-modal').classList.remove('open'); resolve(out); return; }
-          await j('/api/pipeline/' + encodeURIComponent(studioProject) + '/run/stage0', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...out, force }),
-          });
+          await postJson(pipeline('run/stage0'), { ...out, force });
           $('setup-modal').classList.remove('open');
           setLastMsg(force ? 'stage0 force rerun started' : 'stage0 started', 'ok');
           resolve(true);
@@ -1273,7 +1275,7 @@ function openStage0Setup(collectOnly = false, force = false) {
   });
 }
 
-// 11g. Stage artifact viewer -------------------------------------------------
+// 11g. Stage artifact viewer ----------------------------------------------------------
 
 const smModal = $('stage-modal'), smBody = $('stage-modal-body'), smTitle = $('stage-modal-title');
 
@@ -1286,9 +1288,7 @@ function smTags(metrics) {
 }
 
 // URL to stream one artifact file for the current project
-function smUrl(path) {
-  return '/api/pipeline/' + encodeURIComponent(studioProject) + '/file?path=' + encodeURIComponent(path);
-}
+function smUrl(path) { return pipeline('file?path=' + encodeURIComponent(path)); }
 
 // Render one image/video/audio artifact tile
 function smFile(a) {
@@ -1304,9 +1304,12 @@ function smDocHtml(path) {
   return `<h3 class="mono-sm text-cyan">${esc(path)}</h3><pre class="sm-doc" data-doc-path="${esc(path)}">loading…</pre>`;
 }
 
-// ---- Human-readable viewers ---------------------------------------------
+// ---- Human-readable viewers ---------------------------------------------------
 // Each returns a string of HTML given the artifact index list. They turn the
 // raw JSON docs into cards/tables so you can "see what happened" per stage.
+
+// Shared: reduce a possibly-array / possibly-object JSON value to an array
+const asList = (v) => (Array.isArray(v) ? v : Object.values(v || {}));
 
 async function viewStage0(list) {
   let html = '';
@@ -1320,7 +1323,7 @@ async function viewStage0(list) {
     html += `<div class="sm-section-title">SCENE BREAKDOWN</div>`;
     try {
       const scenes = await fetchJson(sceneFile.path);
-      const sceneList = Array.isArray(scenes) ? scenes : Object.values(scenes || {});
+      const sceneList = asList(scenes);
       if (sceneList.length) {
         html += sceneList.map((sc, i) => `<div class="char-card">
           <div class="cname">SCENE ${i + 1}</div>
@@ -1341,8 +1344,7 @@ async function viewWorldBible(list) {
     html += `<div class="sm-section-title">CHARACTERS · LOCATIONS · WORLD</div>`;
     try {
       const data = await fetchJson(wb.path);
-      const chars = data.characters;
-      const charList = Array.isArray(chars) ? chars : Object.values(chars || {});
+      const charList = asList(data.characters);
       if (charList.length) {
         html += charList.map((c) => {
           const ap = c.appearance || {};
@@ -1357,8 +1359,7 @@ async function viewWorldBible(list) {
           </div>`;
         }).join('');
       }
-      const locs = data.locations;
-      const locList = Array.isArray(locs) ? locs : Object.values(locs || {});
+      const locList = asList(data.locations);
       if (locList.length) {
         html += `<div class="sm-section-title">LOCATIONS</div>`;
         html += locList.map((l) => `<div class="char-card"><div class="cname">${esc(l.name || l.id)}</div>
@@ -1385,8 +1386,7 @@ async function viewStoryboard(list) {
         </div>`).join('');
       }
       // shot_detail is the per-shot breakdown (id, tier, direction, prompt)
-      const shots = data.shot_detail;
-      const shotList = Array.isArray(shots) ? shots : Object.values(shots || {});
+      const shotList = asList(data.shot_detail);
       if (shotList.length) {
         html += `<div class="sm-section-title">SHOTS (${shotList.length})</div>`;
         html += shotList.map((s) => {
@@ -1430,22 +1430,30 @@ async function viewScreenplay(list) {
   return html;
 }
 
-async function viewImages(list) {
-  const imgs = list.filter((a) => a.kind === 'image');
-  if (!imgs.length) return '<div class="sm-empty">no panel images generated yet — run stage 3B</div>';
-  return `<div class="sm-grid">${imgs.map(smFile).join('')}</div>`;
+// Simple "gallery of a given media kind" viewers (images / animation / audio)
+async function viewMedia(list, kind, emptyMsg) {
+  const items = list.filter((a) => a.kind === kind);
+  if (!items.length) return `<div class="sm-empty">${emptyMsg}</div>`;
+  return `<div class="sm-grid">${items.map(smFile).join('')}</div>`;
 }
 
-async function viewAnimation(list) {
-  const vids = list.filter((a) => a.kind === 'video');
-  if (!vids.length) return '<div class="sm-empty">no animation clips yet — run stage 3C</div>';
-  return `<div class="sm-grid">${vids.map(smFile).join('')}</div>`;
-}
-
-async function viewAudio(list) {
-  const aud = list.filter((a) => a.kind === 'audio');
-  if (!aud.length) return '<div class="sm-empty">no audio rendered yet — run stage 4</div>';
-  return `<div class="sm-grid">${aud.map(smFile).join('')}</div>`;
+// Stage 3B viewer: show the manga vertical page(s) first, then the individual
+// panels in story order. The manga composite stacks every block's panels
+// one-under-the-other (webtoon style) so the whole scene reads like manga.
+async function viewPanels(list) {
+  let html = '';
+  const manga = list.filter((a) => a.path.endsWith('_manga.png'));
+  if (manga.length) {
+    html += `<div class="sm-section-title">MANGA PAGE (one panel under the next)</div>`;
+    html += manga.map((a) => `<div class="sm-item manga-page" style="margin-bottom:1rem"><img loading="lazy" src="${esc(smUrl(a.path))}" alt="${esc(a.name)}"><div class="sm-cap">${esc(a.name)}</div></div>`).join('');
+  }
+  const panels = list.filter((a) => a.kind === 'image' && !a.path.endsWith('_manga.png'));
+  if (panels.length) {
+    html += `<div class="sm-section-title">PANELS (${panels.length})</div>`;
+    html += `<div class="sm-grid">${panels.map(smFile).join('')}</div>`;
+  }
+  if (!html) return `<div class="sm-empty">no panel images generated yet — run stage 3B</div>`;
+  return html;
 }
 
 async function viewVlmReview(list) {
@@ -1480,7 +1488,7 @@ async function viewVlmReview(list) {
           return `<div class="review-card">
             <div class="rv-head"><span class="mono-sm text-cyan">${esc(clipId)}</span>
               <span class="rv-verdict ${esc(verdict)}">${esc(String(r.verdict || 'REVIEW'))}</span>
-              <span class="mono-sm text-dim" style="margin-left:auto">score <b>${score}</b></span></div>
+              <span class="mono-sm text-dim auto-left">score <b>${score}</b></span></div>
             <div class="scorebar ${barClass}" style="margin-top:.3rem"><i style="width:${Math.max(2, Math.min(100, score * 10))}%"></i></div>
             ${details ? `<div class="rv-details">${details}</div>` : ''}
             ${r.raw_response ? `<div class="rv-raw">${esc(r.raw_response.slice(0, 300))}</div>` : ''}
@@ -1506,9 +1514,15 @@ async function viewAssembly(list) {
 // Map each stage to its human-readable viewer; fall back to a plain JSON doc
 const STAGE_VIEWERS = {
   stage0: viewStage0, stage0_dossier: viewWorldBible, stage1: viewWorldBible,
-  stage1_world: viewWorldBible, stage1r: viewImages, stage3: viewStoryboard,
-  stage2: viewScreenplay, stage3b: viewImages, stage4: viewAudio,
-  stage3c: viewAnimation, stage_vlm_review: viewVlmReview, stage5: viewAssembly,
+  stage1_world: viewWorldBible, stage1r: (l) => viewMedia(l, 'image', 'no reference images generated yet — run stage 1R'),
+  stage3: viewStoryboard, stage2: viewScreenplay,
+  stage3b: viewPanels,
+  stage4: (l) => viewMedia(l, 'audio', 'no audio rendered yet — run stage 4'),
+  stage3c: (l) => viewMedia(l, 'video',
+    _animationEnabled === false
+      ? 'Animation is OFF (panels mode) — panels were assembled with Ken Burns zoom/pan + fades in stage 5. Enable ANIMATION in the banner to render LTX/Wan clips here.'
+      : 'no animation clips yet — run stage 3C'),
+  stage_vlm_review: viewVlmReview, stage5: viewAssembly,
 };
 
 async function fetchText(path) {
@@ -1560,7 +1574,7 @@ function loadStageArtifacts(stage, arts, st) {
 
   // Attach failure log if the stage failed
   if (st.stages[stage] && st.stages[stage].status === 'failed') {
-    j('/api/pipeline/' + encodeURIComponent(studioProject) + '/log/' + stage)
+    j(pipeline('log/' + stage))
       .then((lg) => { $('sm-fail-line').textContent = lg.log || '(no error log written)'; })
       .catch(() => { $('sm-fail-line').textContent = '(could not load error)'; });
   }
@@ -1582,10 +1596,8 @@ function openStageModal(stage) {
   smTitle.textContent = STAGE_TITLES[stage] || 'STAGE';
   smBody.innerHTML = '<div class="sm-empty">loading…</div>';
   smModal.classList.add('open');
-  Promise.all([
-    j('/api/pipeline/' + encodeURIComponent(studioProject) + '/artifacts'),
-    j('/api/pipeline/' + encodeURIComponent(studioProject) + '/status'),
-  ]).then(([list, st]) => loadStageArtifacts(stage, list[stage] || [], st))
+  Promise.all([j(pipeline('artifacts')), j(pipeline('status'))])
+    .then(([list, st]) => loadStageArtifacts(stage, list[stage] || [], st))
     .catch((err) => { smBody.innerHTML = '<div class="sm-empty">error: ' + esc(err.message) + '</div>'; });
 }
 
@@ -1599,6 +1611,90 @@ $('setup-close').addEventListener('click', () => $('setup-modal').classList.remo
 $('setup-modal').addEventListener('click', (e) => {
   if (e.target === $('setup-modal')) $('setup-modal').classList.remove('open');
 });
+
+// ---- STOP / QUICK TEST controls (studio FULL PIPELINE banner) ----
+// STOP asks the run-all worker to abort at the next stage boundary.
+$('studio-stop-btn')?.addEventListener('click', async () => {
+  if (!studioProject) { alert('select a project first'); return; }
+  await postJson(pipeline('stop'));
+  setLastMsg('stop requested — the run will halt after the current stage', 'warn');
+});
+
+// QUICK TEST creates a small throwaway project and runs the whole pipeline
+// fast (refs capped, animation off) to prove it works end-to-end in < 1 hour.
+$('quick-test-btn')?.addEventListener('click', async () => {
+  if (_studioBusy) { alert('a run is already in progress — wait for it to finish'); return; }
+  if (!confirm('Run a QUICK TEST? A small throwaway project (word_target 300, refs capped, animation off) is created and the full pipeline runs end-to-end — typically well under an hour.')) return;
+  withLoading($('quick-test-btn'), async () => {
+    const r = await j('/api/pipeline/quick-test', { method: 'POST' });
+    studioProject = r.slug;
+    localStorage.setItem('studio-project', r.slug);
+    await loadStudioProjects();
+    setLastMsg(`QUICK TEST ${r.slug} started — polling… (stop anytime with STOP)`, 'ok');
+    pollStudioStatus();
+  });
+});
+
+// Label the RUN ALL button by step mode: STEP pauses after each stage so the
+// next click continues to the following stage (CONTINUE / RUN NEXT).
+function renderRunAllLabel() {
+  const btn = $('run-all-btn');
+  if (!btn) return;
+  const step = $('studio-step-check')?.checked || false;
+  btn.textContent = step ? '▶ RUN NEXT STAGE' : '▶ RUN ALL REMAINING STAGES';
+}
+$('studio-step-check')?.addEventListener('change', renderRunAllLabel);
+renderRunAllLabel();
+
+// ---- Embedded ComfyUI iframe toggle ----
+// The studio page lets you open ComfyUI inline (via an <iframe>) instead of a
+// separate tab. Clicking the button toggles the iframe's visibility and label.
+const comfyBtn = $('comfy-embed-btn'), comfyFrame = $('comfy-frame');
+if (comfyBtn && comfyFrame) {
+  comfyBtn.addEventListener('click', () => {
+    const hidden = comfyFrame.style.display === 'none';
+    comfyFrame.style.display = hidden ? 'block' : 'none';
+    comfyBtn.textContent = hidden ? 'HIDE COMFYUI ▲' : 'OPEN COMFYUI HERE ▼';
+  });
+}
+
+// ---- Animation master switch (studio banner toggle) ----
+// OFF (default) = panels mode: stage3c + clip VLM review skipped, final video
+// assembled from panels with Ken Burns zoom/pan + fades. ON = GPU animation.
+// State is persisted to stack.toml [animation].enabled, not localStorage.
+let _animationEnabled = null;
+function renderAnimToggle() {
+  const btn = $('studio-anim-toggle');
+  if (!btn) return;
+  if (_animationEnabled === null) { btn.textContent = '…'; return; }
+  btn.textContent = _animationEnabled ? 'ON ●' : 'OFF ○';
+  btn.style.color = _animationEnabled ? 'var(--green)' : 'var(--dim)';
+  btn.title = _animationEnabled
+    ? 'Animation ON — stage3c renders LTX/Wan clips. Click to switch to panels mode.'
+    : 'Panels mode — assemble from panels (Ken Burns zoom/pan + fades), no GPU animation. Click to enable animation.';
+}
+async function loadAnimationState() {
+  try {
+    const s = await j('/api/system');
+    _animationEnabled = !!s.animation?.enabled;
+    renderAnimToggle();
+  } catch { /* kernel down — keep last state */ }
+}
+const animToggleBtn = $('studio-anim-toggle');
+if (animToggleBtn) {
+  animToggleBtn.addEventListener('click', async () => {
+    const next = !_animationEnabled;
+    withLoading(animToggleBtn, async () => {
+      await postJson('/api/animation', { enabled: next });
+      _animationEnabled = next;
+      renderAnimToggle();
+      setLastMsg(next
+        ? 'animation ON — stage3c (LTX/Wan) will run on the next RUN; GPU stages will be slow'
+        : 'animation OFF — panels mode: Ken Burns zoom/pan + fades, no GPU video', 'ok');
+      pollStudioStatus();
+    });
+  });
+}
 
 // ---- NIM model selector wiring ----
 const nimSel = $('studio-nim-select');
@@ -1619,9 +1715,10 @@ function startStudioPolling() {
 // Render the grid first, then load projects + start polling
 renderStageGrid();
 loadStudioProjects().then(() => { pollStudioStatus(); startStudioPolling(); });
+loadAnimationState();
 setInterval(() => { if (document.querySelector('#page-studio.active')) loadNimModels(); }, 30000);
 
-/* -- 12. System page ------------------------------------------------------- */
+/* -- 12. System page ------------------------------------------------------------ */
 
 async function refreshSystemPage() {
   try {
@@ -1646,7 +1743,7 @@ async function refreshSystemPage() {
   } catch { /* system page unavailable */ }
 }
 
-/* -- 13. Boot -------------------------------------------------------------- */
+/* -- 13. Boot ------------------------------------------------------------------- */
 
 async function refreshAll() {
   await refreshHealth();

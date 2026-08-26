@@ -29,8 +29,21 @@ def test_quality_profile_selection():
     assert _quality_profile("krea2-anything.gguf")["min_prompt_adherence"] == 0.60
     assert _quality_profile("flux-2-klein-4b-Q4_K_M.gguf")["min_pass_rate"] == 0.50
     assert _quality_profile("flux-2-klein-4b-Q4_K_M.gguf")["min_prompt_adherence"] == 0.25
-    # unknown model -> conservative fallback profile
-    assert _quality_profile("some-other-model.gguf") is QUALITY_PROFILES["flux-2-klein"]
+    # unknown model -> conservative fallback profile (values match, not identity:
+    # _quality_profile now returns a copy so a quick-mode override can cap regens)
+    fb = _quality_profile("some-other-model.gguf")
+    assert fb["min_pass_rate"] == QUALITY_PROFILES["flux-2-klein"]["min_pass_rate"]
+    assert fb["hard_checks"] == QUALITY_PROFILES["flux-2-klein"]["hard_checks"]
+    assert fb["soft_checks"] == QUALITY_PROFILES["flux-2-klein"]["soft_checks"]
+
+
+def test_quality_profile_max_regens_override():
+    # quick mode caps the retry ladder regardless of model profile
+    assert _quality_profile("krea2-v1.0", max_regens_override=1)["max_regens"] == 1
+    assert _quality_profile("flux-2-klein-4b-Q4_K_M.gguf", max_regens_override=1)["max_regens"] == 1
+    # default (no override) keeps the model's own ladder
+    assert _quality_profile("krea2-v1.0")["max_regens"] == 3
+    assert _quality_profile("flux-2-klein-4b-Q4_K_M.gguf")["max_regens"] == 2
 
 
 def test_profiles_keep_hard_appearance_for_fallback():

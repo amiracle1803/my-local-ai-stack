@@ -251,12 +251,21 @@ QUALITY_PROFILES: dict[str, dict[str, Any]] = {
 }
 
 
-def _quality_profile(model_used: str) -> dict[str, Any]:
-    """Select the gate profile for the model that actually rendered the panels."""
+def _quality_profile(model_used: str, *, max_regens_override: int = 0) -> dict[str, Any]:
+    """Select the gate profile for the model that actually rendered the panels.
+
+    ``max_regens_override`` (>0) caps the vision-judge retry ladder -- QUICK
+    TEST passes 1 so a failing panel is accepted after a single enhanced
+    re-render instead of the full ladder. 0 keeps the model profile default.
+    """
     m = (model_used or "").lower()
     if m.startswith("krea2") or "krea" in m:
-        return QUALITY_PROFILES["krea2"]
-    return QUALITY_PROFILES["flux-2-klein"]  # conservative default = fallback
+        profile = dict(QUALITY_PROFILES["krea2"])
+    else:
+        profile = dict(QUALITY_PROFILES["flux-2-klein"])  # conservative default = fallback
+    if max_regens_override > 0:
+        profile["max_regens"] = max_regens_override
+    return profile
 
 
 def _panel_score(v: _VisionCheck) -> float:
@@ -560,7 +569,10 @@ def run(
 
     # Route once for the whole stage run (design 5.3b krea2 gate).
     template, model_used = image_router.pick_template(config, comfy)
-    profile = _quality_profile(model_used)
+    profile = _quality_profile(
+        model_used,
+        max_regens_override=int(getattr(config.animation, "panel_max_regens", 0) or 0),
+    )
 
     # LoRA gate (design Stage 3B.5) with the explicit deviation flag.
     lora_dir = config.loras_dir() / project_dir.name
@@ -858,6 +870,17 @@ def run(
     scores.record("stage3b", "global", "vision_fail_rate", fail_rate)
     scores.record("stage3b", "global", "prompt_adherence_avg", adherence_avg)
     scores.record("stage3b", "global", "vision_pass_rate", pass_rate)
+
+    # Manga vertical layout: composite each block's panels into a page (one
+    # panel under the other, webtoon style) so the story reads like manga.
+    # Individual panels are untouched — the video assembly still uses them.
+    try:
+        from . import manga_layout
+
+        manga_layout.build_manga_pages(project_dir, storyboard)
+    except Exception as exc:  # noqa: BLE001 - layout is a bonus deliverable
+        logger.warning("manga layout failed for %s: %s", project_dir.name, exc)
+
     scores.stage_done("stage3b")
 
     bp = Blueprint.load(project_dir)

@@ -14,6 +14,7 @@ import hmac
 import io
 import json
 import logging
+import re
 import secrets
 import subprocess
 import urllib.request
@@ -498,6 +499,9 @@ from pipeline.scores import Scores
 
 _locks: dict[tuple, threading.Thread] = {}
 _lock_map = threading.Lock()
+# Slugs with a pending stop request for their RUN ALL / QUICK TEST run. Checked
+# by the run-all worker between stages so a long full run can be aborted.
+_stop_requests: set[str] = set()
 
 
 @app.get("/api/pipeline/projects")
@@ -589,7 +593,8 @@ def pipeline_status(slug: str):
             info["metrics"] = li.get("metrics", {})
         stages[stage] = info
 
-    return {"slug": bp.slug, "story_id": bp.story_id, "fps": bp.fps, "mode": bp.mode, "stages": stages}
+    return {"slug": bp.slug, "story_id": bp.story_id, "fps": bp.fps, "mode": bp.mode,
+            "animation_enabled": cfg.animation.enabled, "stages": stages}
 
 
 class StageRunIn(BaseModel):
@@ -699,6 +704,8 @@ class RunAllIn(BaseModel):
     source: str | None = None         # stage0 mode 0a: server-side path to source text
     panels: str | None = None         # stage0 mode 0i: zip/folder of panels
     word_target: int | None = None    # stage0 mode 0a: prose word budget
+    step: bool = False                # stop after each stage (review, then CONTINUE)
+    quick: bool = False               # quick test: cap refs so the run finishes < 1 hour
 
 
 @app.post("/api/pipeline/{slug}/run-all")
@@ -734,6 +741,7 @@ def pipeline_run_all(slug: str, body: RunAllIn | None = None):
                     (project_dir / "input").mkdir(parents=True, exist_ok=True)
                     (project_dir / "input" / "source.txt").write_text(body.source_text, encoding="utf-8")
                     source_path = project_dir / "input" / "source.txt"
+                _stop_requests.discard(slug)  # fresh run clears any stale stop flag
                 prun.run_all(
                     slug,
                     projects_dir=project_dir.parent,
@@ -743,12 +751,16 @@ def pipeline_run_all(slug: str, body: RunAllIn | None = None):
                     panel_upload=body.panels,
                     word_target=body.word_target,
                     run_critique=False,
+                    step=body.step,
+                    quick=body.quick,
+                    should_stop=lambda: slug in _stop_requests,
                 )
             except Exception as exc:  # noqa: BLE001 - surface to caller
                 err_msg = f"{type(exc).__name__}: {exc}"
                 (project_dir / "logs").mkdir(parents=True, exist_ok=True)
                 (project_dir / "logs" / "run_all.error").write_text(err_msg, encoding="utf-8")
             finally:
+                _stop_requests.discard(slug)
                 with _lock_map:
                     _locks.pop(key, None)
 
@@ -757,6 +769,86 @@ def pipeline_run_all(slug: str, body: RunAllIn | None = None):
         t.start()
 
     return {"slug": slug, "status": "running"}
+
+
+@app.post("/api/pipeline/{slug}/stop")
+def pipeline_stop_run(slug: str):
+    """Request the RUN ALL / QUICK TEST worker to stop at the next stage boundary.
+
+    Sets a per-slug stop flag that ``run_all`` checks between stages (a stage
+    already running finishes; the loop then aborts instead of continuing)."""
+    project_dir = PIPELINE_ENGINE / "projects" / slug
+    if not (project_dir / "blueprint.json").exists():
+        raise HTTPException(404, f"no project: {slug!r}")
+    _stop_requests.add(slug)
+    return {"slug": slug, "status": "stop requested"}
+
+
+@app.post("/api/pipeline/quick-test", status_code=201)
+def pipeline_quick_test():
+    """One-shot QUICK TEST run: create a small throwaway project and start the
+    full pipeline with reduced GPU work (refs capped, animation off) so it
+    finishes well under an hour. Returns the new project's slug so the Studio
+    can select it and poll progress."""
+    import run as prun
+    import tempfile
+    from datetime import datetime
+
+    slug = f"quicktest_{datetime.now().strftime('%H%M%S')}"
+    project_dir = PIPELINE_ENGINE / "projects" / slug
+    if project_dir.exists():
+        raise HTTPException(409, f"project {slug!r} exists — wait and retry")
+
+    brief = (
+        "---\nword_target: 300\n---\n\n"
+        "A short anime test: a lone swordsman defends a mountain village from a "
+        "shadow wolf on a stormy night. Earnest, fast-paced, one action scene and "
+        "one quiet resolution. Protagonist Kael (silver hair, green eyes, worn "
+        "armor). Antagonist: the shadow wolf."
+    )
+    with tempfile.TemporaryDirectory() as tmp:
+        seed_path = Path(tmp) / "seed.txt"
+        seed_path.write_text(brief, encoding="utf-8")
+        try:
+            prun.new_project(slug, seed_path, fps=24, projects_dir=PIPELINE_ENGINE / "projects", mode="0b")
+        except Exception as e:
+            raise HTTPException(400, str(e))
+
+    (project_dir / "input").mkdir(parents=True, exist_ok=True)
+    (project_dir / "input" / "brief.md").write_text(brief, encoding="utf-8")
+
+    key = (slug, "_all")
+    with _lock_map:
+        t = _locks.get(key)
+        if t and t.is_alive():
+            raise HTTPException(409, f"{slug} full run already in progress")
+
+        def worker():
+            try:
+                prun.run_all(
+                    slug,
+                    projects_dir=PIPELINE_ENGINE / "projects",
+                    brief_path=project_dir / "input" / "brief.md",
+                    run_critique=False,
+                    step=False,
+                    quick=True,
+                    should_stop=lambda: slug in _stop_requests,
+                )
+            except Exception as exc:  # noqa: BLE001 - surface to caller
+                (project_dir / "logs").mkdir(parents=True, exist_ok=True)
+                (project_dir / "logs" / "run_all.error").write_text(
+                    f"{type(exc).__name__}: {exc}", encoding="utf-8"
+                )
+            finally:
+                _stop_requests.discard(slug)
+                with _lock_map:
+                    _locks.pop(key, None)
+
+        t = threading.Thread(target=worker, daemon=True, name=f"pipe-{slug}-all")
+        _locks[key] = t
+        t.start()
+
+    return {"slug": slug, "status": "running", "mode": "0b", "quick": True}
 
 
 @app.get("/api/pipeline/{slug}/log/{stage}")
@@ -789,7 +881,7 @@ _STAGE_ARTIFACT_GLOBS: dict[str, list[str]] = {
     "stage1r": ["worldbible/refs/*/ref_*.png", "worldbible/refs/_style/*", "worldbible/refs/*/voice_audition.wav"],
     "stage2": ["screenplay/screenplay.json"],
     "stage3": ["storyboard/storyboard.json"],
-    "stage3b": ["plates/*.png", "panels/*.png"],
+    "stage3b": ["plates/*.png", "panels/*_manga.png", "panels/*.png", "panels/**/*_manga.png", "panels/manga.json"],
     "stage3c": ["clips/*.mp4"],
     "stage_vlm_review": ["reviews/vlm_review.json"],
     "stage4": ["audio/**/*.wav"],
@@ -985,6 +1077,11 @@ def system_info():
         "models": cfg.ollama.models.model_dump(),
         "nim": cfg.nim.model_dump(),
         "paths": cfg.paths.model_dump(),
+        "animation": {
+            "enabled": cfg.animation.enabled,
+            "panels_zoom": cfg.animation.panels_zoom,
+            "panels_fade_s": cfg.animation.panels_fade_s,
+        },
         "tasks": {
             "queued": counts.get("queued", 0),
             "running": counts.get("running", 0),
@@ -1061,6 +1158,58 @@ def set_nim_model(body: NimModelIn):
         raise
     except Exception as e:
         logger.error("failed to update NIM model: %s", e)
+        raise HTTPException(500, str(e))
+
+
+# ── Animation master switch (permanent, no agent) ────────────────────────
+
+class AnimationToggleIn(BaseModel):
+    enabled: bool
+
+
+@app.post("/api/animation")
+def set_animation_enabled(body: AnimationToggleIn):
+    """Flip [animation].enabled in stack.toml (permanent) and reload config.
+
+    OFF = panels mode: stage3c + clip VLM review are skipped and the final
+    video is assembled from manga panels with Ken Burns motion + fades.
+    ON = run the GPU animation stage (LTX/Wan I2V).
+    """
+    toml_path = STACK_ROOT / "stack.toml"
+    try:
+        text = toml_path.read_text(encoding="utf-8")
+        anim_start = text.find("[animation]")
+        if anim_start == -1:
+            raise HTTPException(500, "stack.toml missing [animation] section")
+        next_section = text.find("\n[", anim_start + 10)
+        block = text[anim_start:next_section if next_section != -1 else len(text)]
+        new_block = re.sub(
+            r'(enabled\s*=\s*)("[^"]*"|\w+)',
+            lambda m: m.group(1) + ("true" if body.enabled else "false"),
+            block,
+            count=1,
+        )
+        if new_block == block:
+            # No `enabled` line yet — add one right after the section header.
+            header, _, rest = block.partition("\n")
+            new_block = header + f"\nenabled = {'true' if body.enabled else 'false'}" + "\n" + rest
+        new_text = text[:anim_start] + new_block + (text[next_section:] if next_section != -1 else "")
+        toml_path.write_text(new_text, encoding="utf-8")
+
+        from stack.config import reload_config
+        reload_config()
+        try:
+            import importlib
+            import pipeline.config as pc
+            importlib.reload(pc)
+        except Exception:
+            pass
+        logger.info("animation.enabled set to %s (written to stack.toml)", body.enabled)
+        return {"enabled": body.enabled, "animation": cfg.animation.model_dump()}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("failed to update animation toggle: %s", e)
         raise HTTPException(500, str(e))
 
 

@@ -284,7 +284,8 @@ def test_run_all_starts_and_releases_lock(client, _isolated_projects_root, monke
     release = threading.Event()
 
     def fake_run_all(slug, *, projects_dir=None, run_critique=True, retry_on_critique=True,
-                     brief_path=None, source_path=None, panel_upload=None, word_target=None):
+                     brief_path=None, source_path=None, panel_upload=None, word_target=None,
+                     step=False, quick=False, should_stop=None):
         release.wait(timeout=5)
         return []
 

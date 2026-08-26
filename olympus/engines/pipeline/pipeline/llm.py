@@ -101,7 +101,7 @@ class PipelineLLM:
         base_url: str = DEFAULT_OLLAMA_URL,
         token_budget: int = DEFAULT_TOKEN_BUDGET,
         num_ctx: int | None = None,
-        request_timeout: float = 300.0,
+        request_timeout: float | None = None,
         session: requests.Session | None = None,
     ) -> None:
         self.config = config
@@ -113,7 +113,13 @@ class PipelineLLM:
         # stage 0-2 prompts + their JSON output -- the pipeline now passes an
         # explicit context window (stack.toml [ollama] num_ctx, default 16384).
         self.num_ctx = num_ctx if num_ctx is not None else getattr(config, "num_ctx", 16384)
-        self.request_timeout = request_timeout
+        # Timeout: default comes from stack.toml [ollama].timeout_seconds
+        # (config.ollama_timeout, default 600) so long structured-JSON calls
+        # don't get cut off mid-generation.
+        self.request_timeout = (
+            request_timeout if request_timeout is not None
+            else getattr(config, "ollama_timeout", 600.0)
+        )
         self._session = session or requests.Session()
 
     # ---- model role resolution ------------------------------------------

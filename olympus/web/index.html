@@ -13,7 +13,9 @@
 </head>
 <body>
 
-<!-- ===== Top navigation bar ===== -->
+<!-- ===== Top navigation bar ==============================================
+     Each <a> carries a data-page matching a <div class="page" id="page-…">.
+     app.js swaps the .active class to show the selected page. -->
 <header>
   <div class="logo"><span class="orb"></span>OLYMPUS</div>
   <nav>
@@ -31,7 +33,7 @@
 
 <main>
 
-<!-- ===== HOME — interactive knowledge graph ===== -->
+<!-- ===== HOME — interactive knowledge graph =============================== -->
 <div class="page active" id="page-home">
   <canvas id="cortex" role="img" aria-label="Interactive agent knowledge graph visualization. Drag to rotate, click nodes to view details."></canvas>
   <noscript>
@@ -77,7 +79,7 @@
   </div>
 </div>
 
-<!-- ===== TASKS — agent work queue kanban ===== -->
+<!-- ===== TASKS — agent work queue kanban ================================== -->
 <div class="page" id="page-tasks">
   <h1 class="pg">TASKS · AGENT WORK QUEUE</h1>
   <div id="orchestrate-bar">
@@ -95,11 +97,11 @@
   </div>
 </div>
 
-<!-- ===== WIKI — knowledge corpus browser ===== -->
+<!-- ===== WIKI — knowledge corpus browser ================================== -->
 <div class="page" id="page-wiki">
   <h1 class="pg">WIKI · KNOWLEDGE CORPUS</h1>
   <div class="flex mb-md">
-    <div id="wiki-crumb" class="mono-sm" style="cursor:pointer">/ vault root</div>
+    <div id="wiki-crumb" class="mono-sm cursor-pointer">/ vault root</div>
     <input class="txt mono" id="wiki-filter" placeholder="filter notes…" style="max-width:280px">
     <span id="wiki-count" class="mono-xs text-dim"></span>
   </div>
@@ -111,7 +113,7 @@
   </div>
 </div>
 
-<!-- ===== COMMERCE — Plutus agent ===== -->
+<!-- ===== COMMERCE — Plutus agent ========================================== -->
 <div class="page" id="page-commerce">
   <h1 class="pg">COMMERCE · PLUTUS</h1>
   <form class="form-vertical" id="plutus-form">
@@ -122,7 +124,7 @@
   <tbody id="plutus-rows"></tbody></table></div>
 </div>
 
-<!-- ===== AUTOMATIONS — service chips + external links ===== -->
+<!-- ===== AUTOMATIONS — service chips + external links ===================== -->
 <div class="page" id="page-automations">
   <h1 class="pg">AUTOMATIONS</h1>
   <div id="auto-services" class="mb-lg"></div>
@@ -134,7 +136,7 @@
   </div>
 </div>
 
-<!-- ===== VOICE — speech studio ===== -->
+<!-- ===== VOICE — speech studio ============================================ -->
 <div class="page" id="page-voice">
   <h1 class="pg">VOICE · SPEECH STUDIO</h1>
   <div id="voice-status" class="mb-md"></div>
@@ -144,7 +146,7 @@
       <div class="hud p-md">
         <textarea id="voice-text" rows="5" class="w-full" placeholder="Text to synthesize…">The Olympus cortex is live and all systems are connected.</textarea>
         <div class="flex mt-sm">
-          <label class="mono" style="font-size:.72rem;color:var(--cyan-dim)">SPEED <span id="speed-val">1.0</span></label>
+          <label class="label">SPEED <span id="speed-val">1.0</span></label>
           <input type="range" id="voice-speed" min="0.5" max="1.5" step="0.05" value="1.0" style="flex:1">
           <button class="primary" id="voice-gen">GENERATE ▶</button>
         </div>
@@ -154,14 +156,14 @@
   </div>
 </div>
 
-<!-- ===== STUDIO — anime / manga pipeline ===== -->
+<!-- ===== STUDIO — anime / manga pipeline ================================== -->
 <div class="page" id="page-studio">
   <h1 class="pg">STUDIO · ANIME / MANGA PIPELINE v2</h1>
   <div class="flex mb-sm">
     <span id="studio-status"></span>
     <button class="primary" id="comfy-embed-btn">OPEN COMFYUI HERE ▼</button>
-    <a href="http://127.0.0.1:8188" target="_blank" style="color:var(--cyan);font-size:.82rem">open in new tab ↗</a>
-    <span class="mono" style="font-size:.7rem;color:var(--dim)">--novram --disable-cuda-malloc · RTX 4070 8GB</span>
+    <a href="http://127.0.0.1:8188" target="_blank" class="cyan-sm">open in new tab ↗</a>
+    <span class="hint-sm">--novram --disable-cuda-malloc · RTX 4070 8GB</span>
   </div>
   <iframe id="comfy-frame" title="ComfyUI"></iframe>
 
@@ -169,13 +171,15 @@
   <div class="hud p-md mb-md" style="background:linear-gradient(90deg,rgba(87,199,227,.08),transparent);border-color:rgba(87,199,227,.25)">
     <div class="flex-between">
       <div class="flex">
-        <span class="mono" style="font-size:.72rem;color:var(--cyan);letter-spacing:.14em">● STUDIO — NO AGENT NEEDED</span>
-        <span class="mono" style="font-size:.7rem;color:var(--dim)">Create a project → Run stages one-by-one or hit <b style="color:var(--cyan)">RUN ALL</b>. Click any stage card to view outputs &amp; logs. All config is permanent in <code style="background:#0b1522;padding:.1rem .35rem;border:1px solid var(--line)">stack.toml</code>.</span>
+        <span class="label" style="color:var(--cyan);letter-spacing:.14em">● STUDIO — NO AGENT NEEDED</span>
+        <span class="hint">Create a project → Run stages one-by-one or hit <b class="text-cyan">RUN ALL</b>. Click any stage card to view outputs &amp; logs. All config is permanent in <code class="mono" style="background:#0b1522;padding:.1rem .35rem;border:1px solid var(--line)">stack.toml</code>.</span>
       </div>
       <div class="flex">
-        <span class="mono" style="font-size:.68rem;color:var(--dim)">NIM MODEL</span>
-        <select id="studio-nim-select" class="min-w-280" style="background:rgba(8,14,24,.9);border:1px solid var(--line2);color:var(--text);padding:.35rem .5rem;font:inherit;font-size:.75rem"></select>
-        <span id="studio-nim-status" class="mono" style="font-size:.68rem;color:var(--dim)"></span>
+        <label class="label" title="Animation master switch — OFF (default) assembles panels with Ken Burns zoom/pan + fades; ON runs stage3c GPU video">ANIMATION</label>
+        <button class="ghost" id="studio-anim-toggle" title="Toggle GPU animation on/off (writes stack.toml [animation].enabled)">…</button>
+        <span class="hint-sm">NIM MODEL</span>
+        <select id="studio-nim-select" class="min-w-280"></select>
+        <span id="studio-nim-status" class="hint-sm"></span>
       </div>
     </div>
   </div>
@@ -183,34 +187,34 @@
   <!-- Project selector + new project form -->
   <div class="hud p-md mb-md">
     <div class="flex">
-      <label class="mono" style="font-size:.7rem;color:var(--cyan-dim)">PROJECT</label>
+      <label class="label">PROJECT</label>
       <select id="studio-project-select" class="min-w-200"></select>
       <button class="ghost" id="studio-new-toggle">+ NEW PROJECT</button>
-      <span id="studio-project-meta" class="mono" style="font-size:.7rem;color:var(--dim)"></span>
+      <span id="studio-project-meta" class="hint"></span>
     </div>
     <form id="studio-new-form" style="display:none;margin-top:.8rem">
       <div class="flex mb-sm">
         <input class="txt" id="np-slug" placeholder="project-slug" style="width:200px">
-        <label class="mono" style="font-size:.72rem;color:var(--cyan-dim)">FPS <span id="np-fps-val">24</span></label>
+        <label class="label">FPS <span id="np-fps-val">24</span></label>
         <input type="range" id="np-fps" min="24" max="60" step="1" value="24" style="width:160px">
-        <label class="mono" style="font-size:.72rem;color:var(--cyan-dim)">INTAKE</label>
+        <label class="label">INTAKE</label>
         <select id="np-intake" class="min-w-200">
           <option value="0b" selected>0B · generate (brief)</option>
           <option value="0a">0A · transform (source)</option>
           <option value="0i">0I · import (panels)</option>
         </select>
-        <label class="mono" style="font-size:.78rem"><input type="radio" name="np-mode" value="brief" checked> brief</label>
-        <label class="mono" style="font-size:.78rem"><input type="radio" name="np-mode" value="script"> full script</label>
+        <label class="label" style="font-size:.78rem"><input type="radio" name="np-mode" value="brief" checked> brief</label>
+        <label class="label" style="font-size:.78rem"><input type="radio" name="np-mode" value="script"> full script</label>
       </div>
-      <div id="np-intake-hint" class="mono mb-sm" style="font-size:.7rem;color:var(--cyan-dim)"></div>
+      <div id="np-intake-hint" class="label mb-sm"></div>
       <textarea id="np-text" rows="6" class="w-full" placeholder="Creative brief (frontmatter: word_target: 600) — or source/seed text if 'full script' is selected…"></textarea>
       <div id="np-panels-file" style="display:none;margin-top:.5rem">
         <input type="file" id="np-panels" accept=".zip,.png,.jpg,.jpeg,.webp" multiple>
-        <span class="mono" style="font-size:.7rem;color:var(--dim)"> attach panel images / zip (optional — can also be added when running stage 0)</span>
+        <span class="hint-sm"> attach panel images / zip (optional — can also be added when running stage 0)</span>
       </div>
       <div class="flex mt-sm">
         <button class="primary" type="submit">CREATE PROJECT</button>
-        <span id="np-error" class="mono" style="font-size:.72rem;color:var(--red)"></span>
+        <span id="np-error" class="err-sm"></span>
       </div>
     </form>
   </div>
@@ -221,7 +225,10 @@
       <span id="studio-last-msg" class="mono"></span>
     </div>
     <div class="flex">
-      <span id="studio-progress" class="mono" style="font-size:.7rem;color:var(--cyan)"></span>
+      <span id="studio-progress" class="cyan-sm"></span>
+      <label class="label" title="Stop after each stage so you can review the output before continuing — click RUN NEXT each time">STEP <input type="checkbox" id="studio-step-check"></label>
+      <button class="ghost" id="studio-stop-btn" title="Abort the current RUN ALL / QUICK TEST at the next stage boundary">STOP</button>
+      <button class="ghost" id="quick-test-btn" title="Create a small throwaway project and run the full pipeline fast (refs capped, < 1 hour)">QUICK TEST ▶</button>
       <button class="primary sb-runall" id="run-all-btn">▶ RUN ALL REMAINING STAGES</button>
     </div>
   </div>
@@ -253,13 +260,13 @@
   </div>
 
   <div class="flex">
-    <p class="mono" style="font-size:.72rem;color:var(--dim)">pipeline engine: olympus/engines/pipeline/ · kernel: olympus/kernel/</p>
-    <p class="mono" style="font-size:.72rem;color:var(--dim)">design: docs/planning/anime-pipeline-v2-design.md</p>
-    <p class="mono" style="font-size:.72rem;color:var(--dim)">tools: realesrgan · rife-ncnn-vulkan · anime-face-detector</p>
+    <p class="hint-sm">pipeline engine: olympus/engines/pipeline/ · kernel: olympus/kernel/</p>
+    <p class="hint-sm">design: docs/planning/anime-pipeline-v2-design.md</p>
+    <p class="hint-sm">tools: realesrgan · rife-ncnn-vulkan · anime-face-detector</p>
   </div>
 </div>
 
-<!-- ===== SYSTEM — overview ===== -->
+<!-- ===== SYSTEM — overview ================================================ -->
 <div class="page" id="page-system">
   <h1 class="pg">SYSTEM · OVERVIEW</h1>
   <div class="cards" id="sys-cards"></div>

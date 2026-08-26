@@ -47,6 +47,33 @@ class AutomationConfig(BaseModel):
 
 
 class AnimationConfig(BaseModel):
+    # Master switch for the GPU animation stage. When False (default), stage3c
+    # and the clip VLM review are skipped and the final video is assembled from
+    # the manga panels with Ken Burns motion (zoom in/out + pan up/down) and
+    # gentle fade transitions instead of LTX/Wan video generation.
+    enabled: bool = False
+
+    # Ken Burns panels motion (used only when enabled=False): how much to zoom
+    # (1.0 = no zoom) and how long the fade in/out at each shot boundary lasts.
+    panels_zoom: float = 1.08
+    panels_fade_s: float = 0.4
+
+    # Cap on reference images rendered per character (stage1r). 0 = no cap.
+    # The Studio QUICK TEST run sets this low so the whole pipeline finishes in
+    # well under an hour; production runs leave it at 0 for the full 10-30 refs.
+    refs_per_character_cap: int = 0
+
+    # Panel vision-judge retry cap (stage3b). 0 = use the model profile default
+    # (krea2: 3, flux fallback: 2). QUICK TEST sets this to 1 so a panel that
+    # fails the on-model check is accepted after a single enhanced re-render
+    # instead of the full retry ladder -- much faster, slightly lower quality.
+    panel_max_regens: int = 0
+
+    # Stage0 scene-prose quality loop depth (draft -> critique -> revise -> score).
+    # 0 = the built-in 3-iteration movie-grade loop. QUICK TEST sets 1 so each
+    # scene is accepted after its first draft -- ~3x fewer LLM calls in stage0.
+    quick_critique_iterations: int = 0
+
     drift_axis: str = "vertical"
     max_animated_seconds_per_block: float = 60.0
     default_motion_tier: int = 1
@@ -185,6 +212,10 @@ class PipelineConfig(BaseModel):
     agi: AgiConfig = Field(default_factory=AgiConfig)
     nim: NimConfig = Field(default_factory=NimConfig)
     num_ctx: int = 16384
+    # Ollama request timeout (seconds) used by PipelineLLM for LLM stages.
+    # Structured JSON generation on qwen3:8b can exceed 5 minutes; stack.toml
+    # [ollama].timeout_seconds is the source of truth (default 600).
+    ollama_timeout: int = 600
 
     config_path: Path = Field(default=DEFAULT_CONFIG_PATH, exclude=True)
 
@@ -216,6 +247,12 @@ class PipelineConfig(BaseModel):
                 allow_missing_loras=_cfg.automation.allow_missing_loras,
             ),
             animation=AnimationConfig(
+                enabled=getattr(_cfg.animation, "enabled", False),
+                panels_zoom=getattr(_cfg.animation, "panels_zoom", 1.08),
+                panels_fade_s=getattr(_cfg.animation, "panels_fade_s", 0.4),
+                refs_per_character_cap=getattr(_cfg.animation, "refs_per_character_cap", 0),
+                panel_max_regens=getattr(_cfg.animation, "panel_max_regens", 0),
+                quick_critique_iterations=getattr(_cfg.animation, "quick_critique_iterations", 0),
                 drift_axis=_cfg.animation.drift_axis,
                 max_animated_seconds_per_block=_cfg.animation.max_animated_seconds_per_block,
                 default_motion_tier=_cfg.animation.default_motion_tier,
@@ -290,6 +327,7 @@ class PipelineConfig(BaseModel):
                 models=list(getattr(_cfg.nim, "models", []) or []),
             ),
             num_ctx=getattr(_cfg.ollama, "num_ctx", 16384),
+            ollama_timeout=getattr(_cfg.ollama, "timeout_seconds", 600),
         )
 
     def resolve_image_model(self, role: str = "primary") -> str:

@@ -10,7 +10,7 @@ version = "3.0.0"
 host = "127.0.0.1"
 port = 11434
 url = "http://127.0.0.1:11434"
-timeout_seconds = 300
+timeout_seconds = 600
 # Context window for pipeline LLM calls. Ollama's vram-based default (4096)
 # is too small for the stage 0-2 prompts + JSON output; 16k is a good balance
 # on 8GB VRAM (qwen3:8b offloads a few layers to CPU, still usable).
@@ -40,11 +40,11 @@ url = "http://127.0.0.1:8188"
 
 # Image models (GGUF in ComfyUI/models/unet/) — all LOCAL, 8GB-tested
 [comfyui.models]
-primary            = "flux-2-klein-4b-Q4_K_M.gguf" # 8GB-safe primary (2.5GB GGUF, Flux2-klein, verified on RTX 4070 8GB)
-fallback = "flux-2-klein-4b-Q4_K_M.gguf" # 8GB-safe fallback (same file — no OOM fallback needed)
+primary            = "krea2_turbo-Q4_K_S.gguf" # PRIMARY image model (7.5GB GGUF, verified via model_lab smoke gate) — manga-quality anime panels
+fallback = "flux-2-klein-4b-Q4_K_M.gguf" # 8GB-safe fallback (2.5GB GGUF, Flux2-klein, verified on RTX 4070 8GB)
 floor      = "flux-2-klein-4b-Q4_K_M.gguf"     # acceptable quality
-panel               = "flux-2-klein-4b-Q4_K_M.gguf" # panel gen (flux-2-klein 4B, 8 steps, cfg 1.0)
-character = "flux-2-klein-4b-Q4_K_M.gguf" # character sheets (flux-2-klein)
+panel               = "krea2_turbo-Q4_K_S.gguf" # panel gen (krea2 turbo, manga-comic look)
+character = "krea2_turbo-Q4_K_S.gguf" # character sheets (krea2 turbo)
 animation_primary = "ltx-2.3-22b-distilled-1.1-Q4_K_M.gguf" # 17GB GGUF but validated 8GB-safe via tiled VAE (768x448x81f ~5.8GB per manifest ltx22b_i2v.json) — hunyuan 7.4GB is fallback
 
 # Banned checkpoints — enforced at runtime by pipeline.config.resolve_image_model
@@ -94,6 +94,12 @@ workflows    = "olympus/engines/pipeline/workflows"
 comfyui_dir  = "ComfyUI"
 
 [animation]
+enabled = false    # GPU animation master switch. OFF (default) = assemble panels with Ken Burns zoom/pan + fades; ON = run stage3c LTX/Wan video gen
+panels_zoom = 1.08 # Ken Burns zoom amount when enabled=false (1.0 = no zoom)
+panels_fade_s = 0.4 # fade in/out seconds at each shot boundary when enabled=false
+refs_per_character_cap = 0 # stage1r refs/char cap; QUICK TEST sets ~4 so the whole pipeline finishes < 1 hour (0 = unlimited)
+panel_max_regens = 0 # stage3b vision-judge retry cap; QUICK TEST sets 1 = accept after one enhanced re-render (0 = profile default: krea2 3 / flux 2)
+quick_critique_iterations = 0 # stage0 scene quality loop depth; QUICK TEST sets 1 = accept first draft (~3x fewer LLM calls)
 engine = "wan22"     # PRIMARY stage3c engine: aetherpunk LTX Director V2V (First&Last-Frame directed motion; fixes static clips). Fallbacks: "ltx2b" | "hunyuan" | "wan22" | "ltx23"
 ltx_director_workflow = "ltx_director_23.json"   # LTXDirector V2V template (8GB GGUF, tiled VAE decode; panel keyframe + text beat + END frame)
 enhance_panels = true        # Real-ESRGAN 2x source panels before I2V (reduces face/char distortion)
