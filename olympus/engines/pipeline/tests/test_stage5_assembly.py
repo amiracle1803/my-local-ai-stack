@@ -2,7 +2,9 @@
 from pathlib import Path
 from unittest.mock import patch
 
-from pipeline.stage5_assembly import _build_segment_args, _clip_vf, _shot_duration
+from pipeline.stage5_assembly import (
+    _build_segment_args, _clip_for_repeat_check, _clip_vf, _shot_duration,
+)
 
 _TW, _TH = 1280, 720
 
@@ -55,6 +57,19 @@ def test_clip_vf_unprobeable_falls_back_with_loop(tmp_path):
         vf, needs_loop = _clip_vf(clip, dur=10.0, tw=_TW, th=_TH, fps=24)
     assert needs_loop is True
     assert "trim=0:10.000" in vf
+
+
+def test_clip_for_repeat_check_skipped_in_panels_mode(tmp_path):
+    """Panels mode (Ken Burns from a single panel) must NOT repeat-detect even
+    when a stale ``clip_path`` from an earlier LTX-era stage3c run survives in
+    shot_detail -- subtle zoom motion would trip a false 'repeat' verdict on
+    the naive-loop artifact check."""
+    stale_clip = tmp_path / "old_clip.mp4"
+    stale_clip.write_bytes(b"fake")
+    assert _clip_for_repeat_check(stale_clip, panels_mode=True) is None
+    assert _clip_for_repeat_check(stale_clip, panels_mode=False) == stale_clip
+    assert _clip_for_repeat_check(None, panels_mode=False) is None
+    assert _clip_for_repeat_check(tmp_path / "missing.mp4", panels_mode=False) is None
 
 
 def test_build_segment_args_pingpong_no_stream_loop(tmp_path):

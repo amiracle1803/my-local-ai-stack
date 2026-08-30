@@ -451,6 +451,42 @@ def run_all(
     return results
 
 
+def _cmd_train_loras(args: argparse.Namespace) -> int:
+    """Build persistent style + scene LoRAs (once, reused by every project)."""
+    from pipeline import lora_dataset
+    from pipeline.config import PipelineConfig
+
+    cfg = PipelineConfig.load()
+    if not args.skip_generate:
+        idx = lora_dataset.build_datasets(cfg, style_count=args.style_count,
+                                          scene_count=args.scene_count)
+        print(f"datasets built: style {len(idx['style']['images'])} imgs, "
+              f"scene {len(idx['scene']['images'])} imgs")
+    if args.skip_train:
+        return 0
+
+    from pipeline import lora_docker
+    from pipeline.model_lab import train_lora
+
+    results = {}
+    for name, kind in (("style", lora_dataset._STYLE_DIR), ("scene", lora_dataset._SCENE_DIR)):
+        dataset = cfg.loras_dir() / kind
+        out = cfg.loras_dir() / f"{name}_lora"
+        print(f"training {name} LoRA on {dataset} ...")
+        res = train_lora(
+            dataset,
+            character_id=f"{name}",
+            rank=args.rank, steps=args.steps,
+            output_path=out,
+            config=cfg,
+        )
+        results[name] = res
+        print(f"  {name}: passed={res.passed} path={res.lora_path} err={res.error}")
+    print(json.dumps({k: {"passed": v.passed, "path": v.lora_path, "error": v.error}
+                      for k, v in results.items()}, indent=2))
+    return 0
+
+
 def _cmd_all(args: argparse.Namespace) -> int:
     run_all(
         args.slug,
@@ -530,6 +566,15 @@ def build_parser() -> argparse.ArgumentParser:
     p_all.add_argument("--step", action="store_true", help="stop after each stage (review, then re-run to continue)")
     p_all.add_argument("--quick", action="store_true", help="quick test run: cap reference images so the whole pipeline finishes < 1 hour")
     p_all.set_defaults(func=_cmd_all)
+
+    p_lora = sub.add_parser("train-loras", help="build persistent style + scene LoRAs (once, not per-run)")
+    p_lora.add_argument("--style-count", type=int, default=120, help="style dataset image count (default 120)")
+    p_lora.add_argument("--scene-count", type=int, default=60, help="scene dataset image count (default 60)")
+    p_lora.add_argument("--steps", type=int, default=800, help="kohya training steps per LoRA")
+    p_lora.add_argument("--rank", type=int, default=8, help="LoRA rank")
+    p_lora.add_argument("--skip-generate", action="store_true", help="skip dataset generation (reuse existing)")
+    p_lora.add_argument("--skip-train", action="store_true", help="only build datasets, skip kohya training")
+    p_lora.set_defaults(func=_cmd_train_loras)
 
     return parser
 

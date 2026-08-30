@@ -25,8 +25,9 @@ from pipeline.stage3b_images import (
 
 
 def test_quality_profile_selection():
-    assert _quality_profile("krea2-v1.0")["min_pass_rate"] == 0.70
-    assert _quality_profile("krea2-anything.gguf")["min_prompt_adherence"] == 0.60
+    # krea2 is manga-stylized, so composition/background are soft (like flux)
+    assert _quality_profile("krea2-v1.0")["min_pass_rate"] == 0.50
+    assert _quality_profile("krea2-anything.gguf")["min_prompt_adherence"] == 0.25
     assert _quality_profile("flux-2-klein-4b-Q4_K_M.gguf")["min_pass_rate"] == 0.50
     assert _quality_profile("flux-2-klein-4b-Q4_K_M.gguf")["min_prompt_adherence"] == 0.25
     # unknown model -> conservative fallback profile (values match, not identity:
@@ -52,7 +53,8 @@ def test_profiles_keep_hard_appearance_for_fallback():
     assert "composition_matches" in fb["soft_checks"]
     assert "background_matches" in fb["soft_checks"]
     k = QUALITY_PROFILES["krea2"]
-    assert "composition_matches" in k["hard_checks"]  # strict for krea2
+    assert "appearance_matches" in k["hard_checks"]  # identity is the hard gate
+    assert "composition_matches" in k["soft_checks"]  # manga framing is soft
 
 
 # --------------------------------------------------------------------------

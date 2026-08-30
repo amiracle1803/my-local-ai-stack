@@ -138,6 +138,23 @@ def _drift_for(shot_id: str, storyboard: dict[str, Any], config: PipelineConfig)
     return {"axis": axis, "direction": direction, "pixels": pixels}
 
 
+def _clip_for_repeat_check(shot_clip: Path | None, panels_mode: bool) -> Path | None:
+    """Return the LTX clip to repeat-detect against, or None.
+
+    The repeat detector's premise is "near-duplicate frames exactly one clip
+    period apart == naive ``-stream_loop`` artifact", so it only applies to
+    segments actually built from a looped clip. In panels mode (Ken Burns from
+    a single panel) the segment never loops a clip -- a stale ``clip_path``
+    left in ``shot_detail`` by an earlier LTX-era stage3c run must not
+    trigger spurious repeat verdicts on subtle zoom motion.
+    """
+    if panels_mode:
+        return None
+    if shot_clip is not None and shot_clip.exists():
+        return shot_clip
+    return None
+
+
 # The delivery timeline (design 3B: 1216x704 generation lands "letter-perfect"
 # in a 1280x720 timeline == blueprint Target.resolution default). Consistency
 # review 2026-07-11 finding 6: segments were shipping at panel size.
@@ -566,6 +583,7 @@ def run(project_dir: str | Path, config: PipelineConfig, scores: Scores) -> dict
 
     for block in storyboard["blocks"]:
         block_dir = project_dir / "panels" / block["id"]
+        panels_mode = not config.animation.enabled
         for shot_id in block["shots"]:
             shot = shots_by_id.get(shot_id, {})
             dur = _shot_duration(shot)
@@ -591,13 +609,14 @@ def run(project_dir: str | Path, config: PipelineConfig, scores: Scores) -> dict
                 args = _build_segment_args(
                     panel_path if has_panel else None, seg_path, dur, fps, drift, audio_paths,
                     clip_path=shot_clip,
-                    panels_mode=not config.animation.enabled,
+                    panels_mode=panels_mode,
                     panels_zoom=config.animation.panels_zoom,
                     panels_fade_s=config.animation.panels_fade_s,
                 )
                 _run([_FFMPEG_BIN, *args])
-            if shot_clip is not None and shot_clip.exists():
-                clip_segments.append((seg_path, shot_clip))
+            repeat_clip = _clip_for_repeat_check(shot_clip, panels_mode)
+            if repeat_clip is not None:
+                clip_segments.append((seg_path, repeat_clip))
             total_segments += 1
 
             timeline_entries.append({

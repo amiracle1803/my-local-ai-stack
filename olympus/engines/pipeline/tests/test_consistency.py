@@ -114,6 +114,22 @@ def test_appearance_verdict():
     assert not ok and "hair" in issue and "eyes" in issue
 
 
+def test_appearance_eyes_are_soft_signal():
+    """NIM calibration dial-in: eye color extraction is unreliable across
+    judges, so the HARD identity verdict rests on hair+outfit. A panel with
+    wrong eyes but correct hair+outfit passes identity, with the eye conflict
+    recorded as eyes(soft) rather than vetoing the panel."""
+    from pipeline.stage3b_images import _appearance_verdict
+
+    ok, issue = _appearance_verdict(
+        {"hair_color": "brown", "eye_color": "blue", "outfit": "black jacket"},
+        {"hair": "dark brown", "eyes": "gray", "outfit": "black tactical jacket"},
+    )
+    assert ok is True                       # hair+outfit hard pass
+    assert "eyes(soft)" in issue            # eye drift logged, not fatal
+    assert "hair" not in issue and "outfit" not in issue
+
+
 # --------------------------------------------------------------------------
 # stage3b gate
 # --------------------------------------------------------------------------

@@ -40,11 +40,11 @@ url = "http://127.0.0.1:8188"
 
 # Image models (GGUF in ComfyUI/models/unet/) — all LOCAL, 8GB-tested
 [comfyui.models]
-primary            = "krea2_turbo-Q4_K_S.gguf" # PRIMARY image model (7.5GB GGUF, verified via model_lab smoke gate) — manga-quality anime panels
-fallback = "flux-2-klein-4b-Q4_K_M.gguf" # 8GB-safe fallback (2.5GB GGUF, Flux2-klein, verified on RTX 4070 8GB)
+primary            = "flux-2-klein-4b-Q4_K_M.gguf" # 8GB-safe primary (2.5GB GGUF, Flux2-klein, verified stable on RTX 4070 8GB). krea2 segfaults under heavy load on this card.
+fallback = "flux-2-klein-4b-Q4_K_M.gguf" # 8GB-safe fallback (same file — no OOM fallback needed)
 floor      = "flux-2-klein-4b-Q4_K_M.gguf"     # acceptable quality
-panel               = "krea2_turbo-Q4_K_S.gguf" # panel gen (krea2 turbo, manga-comic look)
-character = "krea2_turbo-Q4_K_S.gguf" # character sheets (krea2 turbo)
+panel               = "flux-2-klein-4b-Q4_K_M.gguf" # panel gen (flux-2-klein — krea2 unstable on 8GB)
+character = "flux-2-klein-4b-Q4_K_M.gguf" # character sheets (flux-2-klein — krea2 unstable on 8GB)
 animation_primary = "ltx-2.3-22b-distilled-1.1-Q4_K_M.gguf" # 17GB GGUF but validated 8GB-safe via tiled VAE (768x448x81f ~5.8GB per manifest ltx22b_i2v.json) — hunyuan 7.4GB is fallback
 
 # Banned checkpoints — enforced at runtime by pipeline.config.resolve_image_model
@@ -143,19 +143,21 @@ vram_gb = 8
 
 # ── NVIDIA NIM (hosted judge) ─────────────────────────────────────────────
 # LOCAL-ONLY default: disabled. Pipeline uses local Ollama qwen2.5vl:7b for VLM review.
-# Enable only if you want hosted NIM (requires NVIDIA_API_KEY). DeepSeek model is
-# listed as opt-in but NOT active by default — keeps the pipeline fully local on 8GB.
-# When enabled, stack.toml [nim] model is patched via Studio UI or CLI without an agent.
+# Enable only if you want hosted NIM (requires NVIDIA_API_KEY). Keep fully local on 8GB.
+# tools/nim_calibrate.py forces this ON at runtime for a one-shot calibration sweep,
+# then the pipeline returns to the local judge (retire the hosted VLM after calibrating).
+# Endpoint verified live 2026-08-29: integrate.api.nvidia.com/v1 (nemotron-nano-vl 8b id
+# is retired -> 410; meta/llama-3.2-{11b,90b}-vision-instruct both accept vision input).
 [nim]
 enabled = false
 base_url = "https://integrate.api.nvidia.com/v1"
-model = "nvidia/llama-3.1-nemotron-nano-vl-8b-v1"
+model = "meta/llama-3.2-11b-vision-instruct"
 api_key = ""
 timeout_seconds = 120
 
-# Available NIM models for selection
-# DeepSeek models via NVIDIA NIM
+# Available NIM models for selection (hosted VLMs; verified live)
+# 90b is the strongest QC judge (slowest/most expensive) — use it for calibration sweeps.
 models = [
-  "nvidia/llama-3.1-nemotron-nano-vl-8b-v1",
-  "deepseek-ai/deepseek-v4-flash-0731",
+  "meta/llama-3.2-11b-vision-instruct",
+  "meta/llama-3.2-90b-vision-instruct",
 ]

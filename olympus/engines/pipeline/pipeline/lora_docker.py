@@ -17,7 +17,11 @@ from .config import ENGINE_ROOT, PipelineConfig
 logger = logging.getLogger(__name__)
 
 _DOCKER_IMAGE = "kohya-ss:local"
-_DOCKERFILE = ENGINE_ROOT / "Dockerfile.kohya"
+# Dockerfile.kohya + constraints.txt live at the repo root (lora_docker was
+# originally written expecting them under ENGINE_ROOT; the build context is the
+# repo root so both COPY paths resolve).
+_REPO_ROOT = ENGINE_ROOT.parent.parent
+_DOCKERFILE = _REPO_ROOT / "Dockerfile.kohya"
 
 
 @dataclass
@@ -43,7 +47,7 @@ def _ensure_podman_image() -> bool:
             return True
         logger.info("Building kohya-ss Docker image...")
         build = subprocess.run(
-            ["podman", "build", "-f", str(_DOCKERFILE), "-t", _DOCKER_IMAGE, str(ENGINE_ROOT)],
+            ["podman", "build", "-f", str(_DOCKERFILE), "-t", _DOCKER_IMAGE, str(_REPO_ROOT)],
             capture_output=True, text=True, timeout=1800,
         )
         if build.returncode != 0:

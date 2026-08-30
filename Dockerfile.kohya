@@ -8,7 +8,13 @@ ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# The jammy base has a known broken perl-base/IPC::Open3 that makes the
+# ca-certificates post-install crash (syntax errors in Open3.pm). Force a
+# clean perl install FIRST so update-ca-certificates works, then install the
+# rest. Without this the apt step exits 100 and the image never builds.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends perl perl-base && \
+    apt-get install -y --no-install-recommends \
     python3.10 python3.10-venv python3-pip \
     git wget curl ca-certificates \
     libglib2.0-0 libsm6 libxext6 libxrender1 libgl1-mesa-glx \
