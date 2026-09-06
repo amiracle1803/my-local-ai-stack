@@ -177,6 +177,13 @@
       <div class="flex">
         <label class="label" title="Animation master switch — OFF (default) assembles panels with Ken Burns zoom/pan + fades; ON runs stage3c GPU video">ANIMATION</label>
         <button class="ghost" id="studio-anim-toggle" title="Toggle GPU animation on/off (writes stack.toml [animation].enabled)">…</button>
+        <span class="label" style="margin-left:1.1rem" title="Generation engine — LOCAL runs everything on this machine (Ollama + ComfyUI). NVIDIA offloads heavy LLM/vision/image work to the free NVIDIA Build API so the 8GB card stays free for ComfyUI.">ENGINE</span>
+        <select id="studio-engine-select" class="min-w-120" title="LOCAL = on-box models; NVIDIA = offload to the free NVIDIA API (persisted in stack.toml [nim].engine)">
+          <option value="local">LOCAL</option>
+          <option value="nvidia">NVIDIA</option>
+        </select>
+        <span id="studio-engine-status" class="hint-sm"></span>
+        <button class="ghost" id="nvidia-test-btn" title="Live-test the NVIDIA Build API (key + endpoint + model)">TEST NVIDIA</button>
         <span class="hint-sm">NIM MODEL</span>
         <select id="studio-nim-select" class="min-w-280"></select>
         <span id="studio-nim-status" class="hint-sm"></span>

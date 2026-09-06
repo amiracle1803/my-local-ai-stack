@@ -252,12 +252,30 @@ class NIMConfig(BaseModel):
     """
     enabled: bool = False
     base_url: str = "https://integrate.api.nvidia.com/v1"
-    model: str = "nvidia/llama-3.1-nemotron-nano-vl-8b-v1"
+    model: str = "meta/llama-3.2-90b-vision-instruct"
     api_key: str = ""
     timeout_seconds: int = 120
+    # Generation engine: "local" (Ollama + ComfyUI) or "nvidia" (offload).
+    # When "nvidia", the heavy LLM / vision / image work is routed to the free
+    # NVIDIA Build API and the local 8GB card stays free for ComfyUI.
+    engine: str = "local"
+    offload_llm: bool = False
+    offload_vision: bool = False
+    offload_images: bool = False
+    # Verified 2026-09-05 by tools/nvidia_probe.py. deepseek-v4-flash was the
+    # most 529/overloaded-prone; deepseek-v4-pro is fast+reliable for JSON+prose.
+    text_model: str = "deepseek-ai/deepseek-v4-pro-0813"
+    # 90b is the strongest QC judge but ~288s/image (calibration only); 11b is
+    # ~3s and practical for per-panel volume QC.
+    vision_model: str = "meta/llama-3.2-11b-vision-instruct"
+    image_model: str = "google/diffusiongemma-26b-a4b-it"
     models: list[str] = Field(default_factory=lambda: [
-        "nvidia/llama-3.1-nemotron-nano-vl-8b-v1",
-        "deepseek-ai/deepseek-v4-flash-0731",
+        "deepseek-ai/deepseek-v4-pro-0813",
+        "moonshotai/kimi-k3",
+        "minimaxai/minimax-m3",
+        "openai/gpt-oss-20b",
+        "meta/llama-3.2-11b-vision-instruct",
+        "meta/llama-3.2-90b-vision-instruct",
     ])
 
 
@@ -317,8 +335,9 @@ def load_config(path: str | Path | None = None) -> StackConfig:
 
 
 def reload_config(path: str | Path | None = None) -> StackConfig:
-    global _cfg
+    global _cfg, cfg
     _cfg = StackConfig.load(path)
+    cfg = _cfg
     return _cfg
 
 

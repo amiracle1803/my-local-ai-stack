@@ -207,12 +207,55 @@ _eviction_thread = threading.Thread(target=_evict_old_tasks, daemon=True, name="
 _eviction_thread.start()
 
 
-def _resolve_model(role: str) -> str:
-    """Map an agent model role name to the actual Ollama model."""
+_installed_ollama: set[str] | None = None
+_installed_ollama_ts: float = 0.0
+
+
+def _ollama_installed() -> set[str]:
+    """Names of models currently installed in Ollama (cached 60s).
+
+    The kernel resolves agent roles to a model that actually exists on this
+    box. Ollama returns a 404 for a generate request on a model that is not
+    pulled, which silently failed every Jarvis/capture/commerce task when the
+    configured role model (e.g. ``llama3.2:3b``) was absent.
+    """
+    global _installed_ollama, _installed_ollama_ts
+    now = time.time()
+    if _installed_ollama is not None and now - _installed_ollama_ts < 60:
+        return _installed_ollama
+    names: set[str] = set()
     try:
-        return getattr(cfg.ollama.agents, role)
+        req = urllib.request.Request(cfg.ollama.url + "/api/tags")
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            names = {m.get("name", "") for m in json.loads(resp.read()).get("models", [])}
+    except Exception:
+        pass
+    _installed_ollama = names
+    _installed_ollama_ts = now
+    return names
+
+
+def _resolve_model(role: str) -> str:
+    """Map an agent model role name to an Ollama model that is INSTALLED.
+
+    Falls back to ``[ollama].models.default`` when the role's configured model
+    is missing from the box so agent tasks never 404 on an unpulled model.
+    """
+    try:
+        candidate = getattr(cfg.ollama.agents, role)
     except AttributeError:
-        return cfg.ollama.models.default
+        candidate = ""
+    installed = _ollama_installed()
+    if candidate and candidate in installed:
+        return candidate
+    default = cfg.ollama.models.default
+    if default in installed:
+        return default
+    # Last resort: any installed completion model (prefer qwen3 family).
+    for name in sorted(installed):
+        if any(k in name for k in ("qwen3:", "qwen3-", "llama3")) and not name.startswith("hf.co"):
+            return name
+    return default
 
 
 _AGENTS = [
@@ -524,7 +567,7 @@ def pipeline_projects():
 
 
 class ProjectIn(BaseModel):
-    slug: str
+    slug: str = Field(min_length=1, max_length=64)
     brief_text: str | None = None
     script_text: str | None = None
     fps: int = 24
@@ -535,6 +578,13 @@ class ProjectIn(BaseModel):
 def pipeline_create(body: ProjectIn):
     import run as prun
     import tempfile
+
+    # Reject unsafe/accidental slugs (an earlier bug leaked an exception's
+    # repr into a project directory named "HTTPException").
+    slug = body.slug.strip()
+    if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_-]*", slug):
+        raise HTTPException(400, "slug must be alphanumeric (letters, digits, _ , -)")
+    body = body.model_copy(update={"slug": slug})
 
     project_dir = PIPELINE_ENGINE / "projects" / body.slug
     if project_dir.exists():
@@ -1107,12 +1157,110 @@ def nim_models():
         "models": cfg.nim.models,
         "enabled": cfg.nim.enabled,
         "base_url": cfg.nim.base_url,
+        "engine": cfg.nim.engine,
+        "offload_llm": cfg.nim.offload_llm,
+        "offload_vision": cfg.nim.offload_vision,
+        "offload_images": cfg.nim.offload_images,
+        "text_model": cfg.nim.text_model,
+        "vision_model": cfg.nim.vision_model,
+        "image_model": cfg.nim.image_model,
+        "api_key_present": bool(_nvidia_key_resolved()),
     }
+
+
+def _nvidia_key_resolved() -> str:
+    try:
+        from pipeline.nvidia_gen import resolve_api_key
+        return resolve_api_key(cfg.nim) or ""
+    except Exception:
+        return ""
+
+
+class NimEngineIn(BaseModel):
+    engine: str = "local"
+    offload_llm: bool | None = None
+    offload_vision: bool | None = None
+    offload_images: bool | None = None
+
+
+@app.post("/api/nim/engine")
+def set_nim_engine(body: NimEngineIn):
+    """Set the generation engine + offload flags permanently (writes stack.toml)."""
+    global cfg
+    if body.engine not in ("local", "nvidia"):
+        raise HTTPException(400, "engine must be 'local' or 'nvidia'")
+    if body.engine == "nvidia" and not _nvidia_key_resolved():
+        raise HTTPException(400, "no NVIDIA API key — set NVIDIA_API_KEY or .agent-secrets/nvidia_key")
+    toml_path = STACK_ROOT / "stack.toml"
+    try:
+        text = toml_path.read_text(encoding="utf-8")
+        nim_start = text.find("[nim]")
+        if nim_start == -1:
+            raise HTTPException(500, "stack.toml missing [nim] section")
+        next_section = text.find("\n[", nim_start + 5)
+        nim_block = text[nim_start:next_section if next_section != -1 else len(text)]
+
+        def set_kv(block, key, value):
+            if isinstance(value, bool):
+                rendered = "true" if value else "false"
+                pat = re.compile(rf'({key}\s*=\s*)([^\n]+)')
+            else:
+                rendered = f'"{value}"'
+                pat = re.compile(rf'({key}\s*=\s*)("[^"]*"|\w+)')
+            if pat.search(block):
+                return pat.sub(lambda m: m.group(1) + rendered, block, count=1)
+            header, _, rest = block.partition("\n")
+            return header + f"\n{key} = {rendered}" + "\n" + rest
+
+        new_block = set_kv(nim_block, "engine", body.engine)
+        new_block = set_kv(new_block, "offload_llm", body.offload_llm if body.offload_llm is not None else cfg.nim.offload_llm)
+        new_block = set_kv(new_block, "offload_vision", body.offload_vision if body.offload_vision is not None else cfg.nim.offload_vision)
+        new_block = set_kv(new_block, "offload_images", body.offload_images if body.offload_images is not None else cfg.nim.offload_images)
+        new_text = text[:nim_start] + new_block + (text[next_section:] if next_section != -1 else "")
+        toml_path.write_text(new_text, encoding="utf-8")
+
+        from stack.config import reload_config
+        cfg = reload_config()
+        # Note: pipeline.config reads stack config live via PipelineConfig.load()
+        # (see pipeline/config.py), so no importlib.reload is needed here. The
+        # previous importlib.reload recreated the pipeline pydantic classes
+        # mid-flight and caused old/new class mismatches -> ValidationError in
+        # the next stage run.
+        logger.info("NIM engine set to %s (written to stack.toml)", body.engine)
+        return nim_models()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("failed to update NIM engine: %s", e)
+        raise HTTPException(500, str(e))
+
+
+@app.post("/api/nim/test")
+def test_nim():
+    """Live test: one chat call to the configured NVIDIA text model. Verifies the
+    API key + endpoint so the Studio 'TEST' button gives real confirmation."""
+    if not _nvidia_key_resolved():
+        raise HTTPException(400, "no NVIDIA API key configured")
+    try:
+        from pipeline.nvidia_gen import NvidiaClient
+        client = NvidiaClient(cfg.nim)
+        out = client.chat(
+            "Reply with exactly: OK", max_tokens=500,
+            model=getattr(cfg.nim, "text_model", "deepseek-ai/deepseek-v4-flash-0731"),
+        )
+        if out is None:
+            raise HTTPException(502, "NVIDIA API call failed (see kernel log)")
+        return {"ok": True, "model": cfg.nim.text_model, "reply": out[:200]}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, str(e))
 
 
 @app.post("/api/nim/model")
 def set_nim_model(body: NimModelIn):
     """Set the active NIM model permanently (writes to stack.toml, reloads config)."""
+    global cfg
     if body.model not in cfg.nim.models:
         raise HTTPException(400, f"unknown NIM model {body.model!r}; available: {cfg.nim.models}")
     # Update stack.toml in place (preserve comments/formatting where possible)
@@ -1144,14 +1292,7 @@ def set_nim_model(body: NimModelIn):
         toml_path.write_text(new_text, encoding="utf-8")
         # Reload config singletons
         from stack.config import reload_config
-        reload_config()
-        # Also reload pipeline config cache if it exists
-        try:
-            import importlib
-            import pipeline.config as pc
-            importlib.reload(pc)
-        except Exception:
-            pass
+        cfg = reload_config()
         logger.info("NIM model switched to %s (written to stack.toml)", body.model)
         return {"active": body.model, "models": cfg.nim.models}
     except HTTPException:
@@ -1175,6 +1316,7 @@ def set_animation_enabled(body: AnimationToggleIn):
     video is assembled from manga panels with Ken Burns motion + fades.
     ON = run the GPU animation stage (LTX/Wan I2V).
     """
+    global cfg
     toml_path = STACK_ROOT / "stack.toml"
     try:
         text = toml_path.read_text(encoding="utf-8")
@@ -1197,13 +1339,7 @@ def set_animation_enabled(body: AnimationToggleIn):
         toml_path.write_text(new_text, encoding="utf-8")
 
         from stack.config import reload_config
-        reload_config()
-        try:
-            import importlib
-            import pipeline.config as pc
-            importlib.reload(pc)
-        except Exception:
-            pass
+        cfg = reload_config()
         logger.info("animation.enabled set to %s (written to stack.toml)", body.enabled)
         return {"enabled": body.enabled, "animation": cfg.animation.model_dump()}
     except HTTPException:

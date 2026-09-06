@@ -181,6 +181,30 @@ class PipelineLLM:
         max_tokens: int | None,
         images: list[str] | None = None,
     ) -> str:
+        # NVIDIA offload: when the engine is "nvidia" and LLM offload is on,
+        # route TEXT-only calls (no attached images) to the hosted NVIDIA Build
+        # API so the local 8GB card stays free for ComfyUI. Vision calls always
+        # stay local (NVIDIA vision goes through judge_vision, not this path).
+        if (
+            not images
+            and getattr(getattr(self.config, "nim", None), "engine", "local") == "nvidia"
+            and getattr(self.config.nim, "offload_llm", False)
+        ):
+            from .nvidia_gen import NvidiaClient
+
+            nv = NvidiaClient(self.config.nim)
+            rendered = "\n".join(m.get("content", "") for m in messages)
+            system = messages[0].get("content") if messages[0].get("role") == "system" else None
+            out = nv.chat(
+                rendered,
+                system=system,
+                temperature=temperature,
+                max_tokens=max_tokens or 3000,
+            )
+            if out is not None:
+                return out
+            # NVIDIA unavailable -> transparent fallback to local Ollama.
+
         options: dict[str, Any] = {"temperature": temperature}
         if max_tokens:
             options["num_predict"] = max_tokens

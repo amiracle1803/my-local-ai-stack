@@ -916,9 +916,70 @@ async function loadNimModels() {
     ).join('');
     $('studio-nim-status').textContent = data.enabled ? '● enabled' : '○ disabled';
     $('studio-nim-status').style.color = data.enabled ? 'var(--green)' : 'var(--dim)';
+    _engine = data.engine === 'nvidia' ? 'nvidia' : 'local';
+    renderEngineToggle(data);
   } catch {
     const sel = $('studio-nim-select');
     if (sel) sel.innerHTML = '<option>unavailable</option>';
+  }
+}
+
+// Engine selector (LOCAL vs NVIDIA offload). "nvidia" requires a key.
+let _engine = 'local';
+let _engineApplying = false;
+function renderEngineToggle(data) {
+  const sel = $('studio-engine-select');
+  const st = $('studio-engine-status');
+  if (!sel) return;
+  sel.value = _engine;
+  const key = data && data.api_key_present;
+  const off = (data && (data.offload_llm || data.offload_vision || data.offload_images));
+  if (_engine === 'nvidia') {
+    st.textContent = off ? '● offload active' : '● on (no offload yet)';
+    st.style.color = 'var(--green)';
+    if (!key) { st.textContent = '✗ no API key'; st.style.color = 'var(--red)'; }
+  } else {
+    st.textContent = '○ on-box';
+    st.style.color = 'var(--dim)';
+  }
+}
+
+async function setNimEngine(engine) {
+  const st = $('studio-engine-status');
+  if (_engineApplying) return;
+  _engineApplying = true;
+  st.textContent = 'applying…';
+  try {
+    const body = { engine };
+    // When enabling NVIDIA, default the offload flags on (LLM + vision); the
+    // user can tune via stack.toml. Disabling returns to local.
+    if (engine === 'nvidia') { body.offload_llm = true; body.offload_vision = true; }
+    const data = await postJson('/api/nim/engine', body);
+    _engine = data.engine === 'nvidia' ? 'nvidia' : 'local';
+    renderEngineToggle(data);
+    setLastMsg(engine === 'nvidia'
+      ? 'ENGINE → NVIDIA: LLM + vision offloaded to the free NVIDIA API (deepseek-v4-flash / llama-3.2-90b). ComfyUI stays free for images.'
+      : 'ENGINE → LOCAL: all generation runs on this machine (Ollama + ComfyUI).', 'ok');
+  } catch (e) {
+    st.textContent = '✗ ' + (e.message || e).slice(0, 60);
+    st.style.color = 'var(--red)';
+    alert('Engine switch failed: ' + (e.message || e));
+    loadNimModels();
+  } finally {
+    _engineApplying = false;
+  }
+}
+
+async function testNvidia() {
+  const btn = $('nvidia-test-btn');
+  setLastMsg('testing NVIDIA API…', '');
+  try {
+    await withLoading(btn, async () => {
+      const r = await postJson('/api/nim/test', {});
+      setLastMsg(`NVIDIA OK — ${r.model} → “${r.reply}”`, 'ok');
+    });
+  } catch (e) {
+    setLastMsg('NVIDIA test failed: ' + (e.message || e).slice(0, 120), 'err');
   }
 }
 
@@ -1702,6 +1763,10 @@ if (nimSel) {
   nimSel.addEventListener('change', (e) => setNimModel(e.target.value));
   loadNimModels();
 }
+const engineSel = $('studio-engine-select');
+if (engineSel) engineSel.addEventListener('change', (e) => setNimEngine(e.target.value));
+const nvidiaTestBtn = $('nvidia-test-btn');
+if (nvidiaTestBtn) nvidiaTestBtn.addEventListener('click', testNvidia);
 
 // ---- studio polling: faster when something is running ----
 let _studioPoll = null;

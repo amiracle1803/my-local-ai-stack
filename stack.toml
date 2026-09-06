@@ -151,13 +151,25 @@ vram_gb = 8
 [nim]
 enabled = false
 base_url = "https://integrate.api.nvidia.com/v1"
-model = "meta/llama-3.2-11b-vision-instruct"
+model = "meta/llama-3.2-90b-vision-instruct"
 api_key = ""
 timeout_seconds = 120
+# Generation engine: "local" (Ollama + ComfyUI, default) or "nvidia" (offload
+# heavy LLM/vision/image work to the free NVIDIA Build API, freeing the 8GB
+# card for ComfyUI). Flip from the Studio banner ENGINE toggle (persisted here).
+engine = "local"
+offload_llm = true
+offload_vision = true
+offload_images = false
 
-# Available NIM models for selection (hosted VLMs; verified live)
-# 90b is the strongest QC judge (slowest/most expensive) — use it for calibration sweeps.
+# Available NIM models for selection (hosted; probed 2026-09-05 by
+# tools/nvidia_probe.py — deepseek-v4-flash was 529-overloaded, so text_model
+# defaults to the fast+reliable deepseek-v4-pro).
 models = [
+  "deepseek-ai/deepseek-v4-pro-0813",
+  "moonshotai/kimi-k3",
+  "minimaxai/minimax-m3",
+  "openai/gpt-oss-20b",
   "meta/llama-3.2-11b-vision-instruct",
   "meta/llama-3.2-90b-vision-instruct",
 ]

@@ -13,6 +13,15 @@ if str(STACK_ROOT) not in sys.path:
     sys.path.insert(0, str(STACK_ROOT))
 from stack.config import cfg as _cfg
 
+# Live access to the stack config singleton. The kernel reloads stack.config in
+# place (set_nim_engine / set_nim_model / set_animation_enabled write stack.toml
+# and call reload_config()). Reading `cfg` through the module attribute here --
+# instead of the import-time binding above -- means PipelineConfig.load() always
+# reflects the current config WITHOUT needing an importlib.reload (which was
+# recreating these pydantic classes mid-flight and causing old/new class
+# mismatches / ValidationError in stage runs).
+import stack.config as _sconfig
+
 ENGINE_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_CONFIG_PATH = ENGINE_ROOT / "pipeline.toml"
 
@@ -196,9 +205,17 @@ class NimConfig(BaseModel):
     """
     enabled: bool = False
     base_url: str = "https://integrate.api.nvidia.com/v1"
-    model: str = "nvidia/llama-3.1-nemotron-nano-vl-8b-v1"
+    model: str = "meta/llama-3.2-90b-vision-instruct"
     api_key: str = ""
     timeout_seconds: int = 120
+    # Generation engine: "local" (Ollama + ComfyUI) or "nvidia" (offload).
+    engine: str = "local"
+    offload_llm: bool = False
+    offload_vision: bool = False
+    offload_images: bool = False
+    text_model: str = "deepseek-ai/deepseek-v4-pro-0813"
+    vision_model: str = "meta/llama-3.2-11b-vision-instruct"
+    image_model: str = "google/diffusiongemma-26b-a4b-it"
     models: list[str] = Field(default_factory=list)
 
 
@@ -226,6 +243,10 @@ class PipelineConfig(BaseModel):
             cfg = cls.model_validate(raw)
             cfg.config_path = Path(path).resolve()
             return cfg
+        # Refresh the import-time binding from the live stack.config singleton so
+        # this always reflects the current stack.toml without importlib.reload.
+        global _cfg
+        _cfg = _sconfig.cfg
         return cls(
             models=ModelsConfig(
                 llm_script=_cfg.ollama.models.script,
@@ -321,9 +342,16 @@ class PipelineConfig(BaseModel):
             nim=NimConfig(
                 enabled=getattr(_cfg.nim, "enabled", False),
                 base_url=getattr(_cfg.nim, "base_url", "https://integrate.api.nvidia.com/v1"),
-                model=getattr(_cfg.nim, "model", "nvidia/llama-3.1-nemotron-nano-vl-8b-v1"),
+                model=getattr(_cfg.nim, "model", "meta/llama-3.2-90b-vision-instruct"),
                 api_key=getattr(_cfg.nim, "api_key", ""),
                 timeout_seconds=getattr(_cfg.nim, "timeout_seconds", 120),
+                engine=getattr(_cfg.nim, "engine", "local"),
+                offload_llm=getattr(_cfg.nim, "offload_llm", False),
+                offload_vision=getattr(_cfg.nim, "offload_vision", False),
+                offload_images=getattr(_cfg.nim, "offload_images", False),
+                text_model=getattr(_cfg.nim, "text_model", "deepseek-ai/deepseek-v4-pro-0813"),
+                vision_model=getattr(_cfg.nim, "vision_model", "meta/llama-3.2-11b-vision-instruct"),
+                image_model=getattr(_cfg.nim, "image_model", "google/diffusiongemma-26b-a4b-it"),
                 models=list(getattr(_cfg.nim, "models", []) or []),
             ),
             num_ctx=getattr(_cfg.ollama, "num_ctx", 16384),

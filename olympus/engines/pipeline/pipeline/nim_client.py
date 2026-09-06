@@ -57,8 +57,17 @@ def resolve_api_key(cfg: NimConfig) -> str:
 
 
 def nim_available(cfg: NimConfig) -> bool:
-    """True iff NIM judging is enabled AND an API key resolves."""
-    return bool(cfg.enabled and resolve_api_key(cfg))
+    """True iff NIM judging is enabled AND an API key resolves.
+
+    Also active when the generation engine is ``nvidia`` and vision offload is
+    on (Studio ENGINE toggle) -- the key alone gates it; ``enabled`` becomes
+    redundant under the engine switch.
+    """
+    if not resolve_api_key(cfg):
+        return False
+    if cfg.enabled:
+        return True
+    return getattr(cfg, "engine", "local") == "nvidia" and getattr(cfg, "offload_vision", False)
 
 
 class NIMClient:
