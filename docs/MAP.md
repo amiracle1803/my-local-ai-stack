@@ -176,7 +176,7 @@ my-local-ai-stack/
 | `comfyui-venv-pins.txt` | ComfyUI venv pin record |
 | `prompts/` | 21 versioned LLM `.md` prompt templates w/ YAML frontmatter |
 | `workflows/` | **LIVE** ComfyUI workflow JSONs + `manifest.json` + `ui/` (consumed by `pipeline/comfy_client.py::WORKFLOWS_DIR`). Despite `workflows_active/README.md`'s "deprecated" note, the code never migrated — `workflows/` is the source of truth. |
-| `workflows_active/` | curated subset / experimental staging area (NOT wired into code; do not delete without confirming `comfy_client.WORKFLOWS_DIR` is updated) |
+| `workflows_active/` | curated experimental/staging area (NOT wired into code; runtime uses `workflows/` only) |
 | `tests/` | 22 pytest files (169 passing per current run; README's "192" reflects pre-drift state) |
 | `tools/` | smoke-tests, `model_smoke.py`, `ltx_smoke.py`, validation scripts |
 | `assets/sfx/manifest.json` | empty placeholder `[]` (SFX catalog unbuilt) |

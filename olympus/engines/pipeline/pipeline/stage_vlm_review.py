@@ -20,6 +20,7 @@ from ._util import now_iso, read_json, write_json, load_screenplay, _shots_by_id
 from .blueprint import Blueprint
 from .config import NimConfig, PipelineConfig
 from .nim_client import NIMClient
+from .llm import PipelineLLM
 from .scores import Scores
 
 logger = logging.getLogger(__name__)
@@ -136,7 +137,7 @@ def _image_to_base64(path: Path) -> str:
 
 def _call_ollama(prompt: str, images: list[str], model: str = "qwen3:8b",
                  system: str = "", temperature: float = 0.3, timeout: int = _DEFAULT_TIMEOUT,
-                 nim_cfg: NimConfig | None = None) -> str:
+                 nim_cfg: NimConfig | None = None, endpoint: str = _OLLAMA_ENDPOINT) -> str:
     # Primary judge: NVIDIA NIM (local Ollama on standby as fallback).
     if nim_cfg is not None:
         nim = NIMClient(nim_cfg)
@@ -162,7 +163,7 @@ def _call_ollama(prompt: str, images: list[str], model: str = "qwen3:8b",
     # failures without masking real model errors (which fail twice).
     for attempt in (1, 2):
         try:
-            resp = requests.post(_OLLAMA_ENDPOINT, json=payload, timeout=timeout)
+            resp = requests.post(endpoint, json=payload, timeout=timeout)
             resp.raise_for_status()
             return resp.json().get("message", {}).get("content", "")
         except requests.RequestException as exc:
@@ -306,7 +307,9 @@ def run(project_dir: str | Path, config: PipelineConfig, scores: Scores, *, vlm_
 
     # Load audio info for audio+visual review
     audio_dir = project_dir / "audio"
-    has_audio = audio_dir.exists() and any(audio_dir.glob("*.wav"))
+    # Stage 4 stores narration/dialogue under role-specific subdirectories;
+    # include both the legacy flat layout and the canonical nested layout.
+    has_audio = audio_dir.exists() and any(audio_dir.rglob("*.wav"))
 
     if vlm_config is None:
         # Reviewer model: dedicated [ollama.models].review (qwen2.5vl:7b) —
@@ -328,13 +331,50 @@ def run(project_dir: str | Path, config: PipelineConfig, scores: Scores, *, vlm_
         }
 
     clips = sorted(clips_dir.glob("*.webp")) + sorted(clips_dir.glob("*.mp4"))
-    # stage5 writes per-shot segments (panel + LTX motion + synced audio) to
-    # ``video/segments/sh-*.mp4``; these are the real animation clips that
-    # should be reviewed for motion/physics/logic. Prefer segments over the
-    # raw stage3c ``clips/`` dir (which may be empty after stage5 ingestion).
+    # stage5 writes the real per-shot clips under video/segments. Discover them
+    # before capability checks so skipped reports still describe the work found.
     segments_dir = project_dir / "video" / "segments"
     if segments_dir.exists() and any(segments_dir.glob("sh-*.mp4")):
         clips = sorted(segments_dir.glob("sh-*.mp4"))
+
+    # Resolve the local vision capability once per stage. Do not issue one
+    # doomed image request per clip when the configured model is not installed
+    # or is text-only. A skipped report is explicit in the scorecard and can be
+    # rerun immediately after installing/enabling a real VLM.
+    local_vlm_available = False
+    local_endpoint = _OLLAMA_ENDPOINT
+    try:
+        llm = PipelineLLM(config, prompts_dir=Path(config.config_path).parent / "olympus" / "engines" / "pipeline" / "prompts")
+        local_endpoint = f"{llm.base_url}/api/chat"
+        model_name = llm._model_for_role("vision")
+        local_vlm_available = model_name in (llm._installed_models or set()) and any(
+            token in model_name.lower() for token in ("vl", "llava", "vision")
+        )
+        if local_vlm_available:
+            vlm_config["model"] = model_name
+    except Exception as exc:
+        logger.warning("could not resolve local VLM capability: %s", exc)
+
+    if not local_vlm_available and not NIMClient(config.nim).available():
+        report = {
+            "timestamp": now_iso(), "model": vlm_config.get("model", ""),
+            "total_clips": len(clips), "reviewed": 0, "pass": 0, "reject": 0,
+            "review": 0, "hard_rejects": 0, "avg_score": 0.0,
+            "pass_rate": 0.0, "review_coverage": 0.0,
+            "status": "skipped",
+            "reason": "no installed multimodal VLM and no available NIM provider",
+            "reviews": {},
+        }
+        write_json(review_dir / "vlm_review.json", report)
+        scores.record_globals("stage_vlm_review", {"review_coverage": 0.0, "vlm_unavailable": 1.0})
+        scores.stage_done("stage_vlm_review")
+        bp = Blueprint.load(project_dir)
+        bp.stages["stage_vlm_review"].status = "done"
+        bp.write(project_dir)
+        return {"stage": "stage_vlm_review", **report}
+
+    # stage5 segments are preferred above because they are the clips actually
+    # assembled with synced audio, rather than raw stage3c outputs.
     reviews, pass_c, reject_c, review_c = {}, 0, 0, 0
     total, reviewed = 0.0, 0
     hard_rejects = 0

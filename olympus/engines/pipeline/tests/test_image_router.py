@@ -37,7 +37,7 @@ def test_falls_back_without_lab_marker(tmp_path, monkeypatch):
     monkeypatch.setattr(image_router, "_krea2_lab_passed", lambda: False)
     _write_weights(tmp_path, 200)
     template, model = image_router.pick_template(_config(tmp_path), comfy=None)
-    assert template == "image_txt2img_flux_fallback.json"
+    assert (template, model) == ("image_txt2img_flux_fallback.json", "flux-2-klein-4b-Q4_K_M.gguf")
 
 
 def test_falls_back_when_weights_missing(tmp_path, monkeypatch):

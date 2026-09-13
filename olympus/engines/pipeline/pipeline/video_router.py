@@ -29,8 +29,8 @@ logger = logging.getLogger(__name__)
 
 # ── LTX-2B (default primary, validated) ───────────────────────────────────────
 _DEFAULT_TEMPLATE = "video_i2v_ltx_2b.json"
-_LTX2B_UNET_REL = "models/checkpoints/ltxv-2b-0.9.8-distilled-fp8-i2v.safetensors"
-_LTX2B_CLIP_REL = "models/clip/t5xxl_fp8_e4m3fn.safetensors"
+_LTX2B_UNET_REL = "models/diffusion_models/ltxv-2b-0.9.8-distilled-fp8-i2v.safetensors"
+_LTX2B_CLIP_REL = "models/text_encoders/t5xxl_fp8_e4m3fn.safetensors"
 _MIN_UNET_BYTES = 500_000_000
 _MIN_CLIP_BYTES = 100_000_000
 
@@ -151,14 +151,14 @@ def pick_ltx_template(config: PipelineConfig, tier: int, frames: int) -> str | N
         logger.error("video_router: engine=ltx23 but LTX-2.3 weights not on disk.")
         return None
     if engine == "wan22":
-        if _wan_weights_ready(config):
+        if _wan_weights_ready(config) and _wan_lab_passed():
             return _WAN_TEMPLATE
-        logger.error("video_router: engine=wan22 but Wan2.2 weights not on disk.")
+        logger.error("video_router: engine=wan22 requires weights and a passing Wan smoke marker.")
         return None
     if engine == "wan22_2f":
-        if _wan_weights_ready(config):
+        if _wan_weights_ready(config) and _wan_lab_passed():
             return "wan_ti2v_2f.json"
-        logger.error("video_router: engine=wan22_2f but Wan2.2 weights not on disk.")
+        logger.error("video_router: engine=wan22_2f requires weights and a passing Wan smoke marker.")
         return None
 
     # 1. LTX-2.3 tiled for director shots or long clips

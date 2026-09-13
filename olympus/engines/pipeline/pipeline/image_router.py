@@ -1,10 +1,9 @@
-"""Image template router (design 5.3b + M-AP-7).
+"""Image template router (local 8GB-safe default + optional Krea2 profile).
 
-krea2 is the mandated ``image_primary`` model, but its weights may still be
-mid-download (or wiped). ``pick_template`` is the single choke point every
-image stage must call ONCE per run -- it decides whether to route to the
-krea2 workflow or the design-permitted flux fallback, so no stage hardcodes
-either template name directly.
+Krea2 remains the preferred quality target, but native Krea2 requires too much
+VRAM for the default 8GB host profile. Flux2 Klein is the stable default;
+Krea2 routes only when an explicit smoke marker proves the selected host/model
+profile is safe.
 
 Anima 1.0 (2026-08-08): anime-tuned checkpoint adopted for PANELS. When its
 weights are on disk AND the model_lab anima gate has passed, ``panels`` route
@@ -83,8 +82,8 @@ def pick_template(config: PipelineConfig, comfy: ComfyClient, role: str = "prima
 
     Resolves ``config.resolve_image_model(role)`` -- ``BannedModelError``
     propagates unmodified; ban enforcement stays config's job, not ours.
-    Routes to the krea2 template only when krea2 is primary AND its weights
-    are fully on disk; otherwise falls back to the permitted flux template.
+    Routes to Krea2 only when its explicit smoke gate is present; otherwise
+    uses the stable Flux2 Klein fallback.
     """
     model = config.resolve_image_model(role)
     is_krea2 = model.startswith(_KREA2_PREFIX)
@@ -153,17 +152,15 @@ def pick_panel_template(config: PipelineConfig, comfy: ComfyClient) -> tuple[str
             "back to txt2img flux.",
             model,
         )
-    return _FALLBACK_TEMPLATE, model
+    # Report the model actually used by the fallback workflow, not the
+    # unavailable configured panel model.
+    return _FALLBACK_TEMPLATE, config.resolve_image_model("fallback")
 
 def pick_character_template(config: PipelineConfig, comfy: ComfyClient) -> tuple[str, str]:
     """Route the character sheet generation (design 5.3b + AGENTS.md model table).
 
-    krea2 is the mandated primary and, per the AGENTS.md image-model table, the
-    lighter model on the 8GB card (~5GB vs flux ~6GB + T5 text encoder, which
-    has crashed on load). When the character role names a krea2 model and its
-    weights + smoke gate are ready, route to ``image_txt2img_krea2.json``. The
-    flux character-sheet template is only tried when the role names a flux
-    model. Falls back to the permitted flux txt2img template.
+    Krea2 is an opt-in quality profile. The default character route is Flux2
+    Klein because the native Krea2 encoder/VAE/weights exceed safe 8GB headroom.
 
     Returns ``(template_name, model_name)``.
     """

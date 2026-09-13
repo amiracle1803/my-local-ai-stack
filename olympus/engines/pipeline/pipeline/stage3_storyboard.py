@@ -221,12 +221,19 @@ def run(
     dossier = load_dossier(project_dir)
 
     # --- scene segmentation + shot planning (moved from old stage2) ---
-    scenes = segment_scenes(script_text, wb, llm, references=references, dossier=dossier)
+    existing_screenplay = project_dir / "screenplay" / "screenplay.json"
+    if existing_screenplay.exists():
+        prior = json.loads(existing_screenplay.read_text(encoding="utf-8"))
+        scenes = prior.get("scenes", [])
+        logger.info("audio-first storyboard: enriching screenplay scenes instead of regenerating narrative structure")
+    else:
+        scenes = segment_scenes(script_text, wb, llm, references=references, dossier=dossier)
     if not scenes:
         raise Stage2Error("scene segmentation produced no scenes")
 
     for i, scene in enumerate(scenes, 1):
-        scene["shots"] = plan_shots(scene, i, len(scenes), wb, llm, references=references)
+        if not scene.get("shots"):
+            scene["shots"] = plan_shots(scene, i, len(scenes), wb, llm, references=references)
     total_shots = sum(len(s["shots"]) for s in scenes)
     if not 20 <= total_shots <= 60:
         logger.warning("shot count %d outside the 20-60 band (original spec warns)", total_shots)

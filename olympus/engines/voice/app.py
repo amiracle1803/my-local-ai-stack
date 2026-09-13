@@ -17,6 +17,7 @@ Run:  start.bat  (creates .venv on first run)
 from __future__ import annotations
 
 import io
+import subprocess
 import threading
 
 import numpy as np
@@ -51,10 +52,11 @@ def get_pipeline():
 
 @app.get("/api/health")
 def health():
+    engine = "kokoro" if _pipeline is not None else "kokoro+espeak-ng-fallback"
     return jsonify({
         "status": "ok",
         "service": "voice-studio",
-        "engine": "kokoro-82M",
+        "engine": engine,
         "model_loaded": _pipeline is not None,
     })
 
@@ -78,16 +80,29 @@ def tts():
     if voice not in VOICES:
         return jsonify({"error": f"unknown voice '{voice}'", "voices": VOICES}), 422
 
-    pipeline = get_pipeline()
-    chunks = [audio for _, _, audio in pipeline(text, voice=voice, speed=speed)]
-    if not chunks:
-        return jsonify({"error": "no audio produced"}), 500
-    audio = np.concatenate(chunks)
-
-    buf = io.BytesIO()
-    sf.write(buf, audio, SAMPLE_RATE, format="WAV")
-    buf.seek(0)
-    return send_file(buf, mimetype="audio/wav", download_name="tts.wav")
+    try:
+        pipeline = get_pipeline()
+        chunks = [audio for _, _, audio in pipeline(text, voice=voice, speed=speed)]
+        if not chunks:
+            raise RuntimeError("Kokoro produced no audio")
+        audio = np.concatenate(chunks)
+        buf = io.BytesIO()
+        sf.write(buf, audio, SAMPLE_RATE, format="WAV")
+        buf.seek(0)
+        return send_file(buf, mimetype="audio/wav", download_name="tts.wav")
+    except Exception as exc:
+        # Keep the local pipeline runnable when optional Kokoro dependencies
+        # are broken (for example a torch/torchvision ABI mismatch). espeak-ng
+        # is a local system fallback, never a cloud service.
+        app.logger.warning("Kokoro unavailable, using espeak-ng fallback: %s", exc)
+        try:
+            result = subprocess.run(
+                ["espeak-ng", "-v", "en-us", "-s", str(max(80, min(450, int(175 * speed)))), "--stdout", text],
+                check=True, capture_output=True, timeout=30,
+            )
+            return send_file(io.BytesIO(result.stdout), mimetype="audio/wav", download_name="tts.wav")
+        except (OSError, subprocess.SubprocessError) as fallback_exc:
+            return jsonify({"error": f"TTS unavailable: {fallback_exc}"}), 503
 
 
 @app.get("/")

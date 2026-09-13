@@ -50,14 +50,22 @@ def test_prompt_within_budget_and_nameless():
     assert "cel shading" in prompt  # style tail always survives
 
 
-def test_overflow_trims_composition_before_location():
+def test_overflow_keeps_composition_and_location_then_trims_characters():
+    """Composition + location must survive the word budget (they lead the prompt
+    so the image model honors the framing); character appearance is trimmed
+    instead. This is the fix for all-close-up panels: the old code trimmed
+    composition FIRST, so flux-2-klein never saw the wide/medium/close framing."""
     wb = _wb(anchor_words=80, loc_words=30)
     long_comp = " ".join(f"comp{i}" for i in range(40))
     prompt = assemble_sd_prompt(_shot(composition=long_comp, positioning=""), _scene(), wb)
     words = prompt.split()
     assert len(words) <= _PROMPT_WORD_BUDGET + 10  # commas join words; small slack
-    assert "tag79" in prompt  # anchors never trimmed
-    assert "loc0" in prompt  # location survives before composition does
+    # Composition leads and survives the budget (never trimmed before anchors).
+    assert "comp0" in prompt
+    # Location survives too.
+    assert "loc0" in prompt
+    # The character anchor tail is what gets trimmed to fit (front kept).
+    assert prompt.index("comp0") < prompt.index("tag0")  # framing before character
 
 
 def test_narration_filter_catches_banned_and_length(tmp_path):

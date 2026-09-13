@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -107,7 +108,7 @@ class PipelineLLM:
         self.config = config
         self.prompts_dir = Path(prompts_dir)
         self.logs_dir = Path(logs_dir) if logs_dir is not None else None
-        self.base_url = base_url.rstrip("/")
+        self.base_url = (getattr(config, "ollama_url", "") or base_url).rstrip("/")
         self.token_budget = token_budget
         # num_ctx: Ollama's vram-based default (4096) is too small for the
         # stage 0-2 prompts + their JSON output -- the pipeline now passes an
@@ -121,6 +122,8 @@ class PipelineLLM:
             else getattr(config, "ollama_timeout", 600.0)
         )
         self._session = session or requests.Session()
+        self._installed_models: set[str] | None = None
+        self._installed_models_at = 0.0
 
     # ---- model role resolution ------------------------------------------
     def _model_for_role(self, role: str) -> str:
@@ -128,7 +131,32 @@ class PipelineLLM:
         roles = {"script": m.llm_script, "vision": m.llm_vision, "default": m.llm_default}
         if role not in roles:
             raise ValueError(f"unknown model role {role!r}; want one of {list(roles)}")
-        return roles[role]
+        configured = roles[role]
+        try:
+            now = time.monotonic()
+            if self._installed_models is None or now - self._installed_models_at > 30:
+                response = self._session.get(f"{self.base_url}/api/tags", timeout=5)
+                response.raise_for_status()
+                self._installed_models = {m.get("name", "") for m in response.json().get("models", [])}
+                self._installed_models_at = now
+            if configured in self._installed_models:
+                return configured
+            # Prefer a local model that is installed and suitable for structured
+            # text. Vision roles require an actual multimodal model when one is
+            # available; otherwise the call fails clearly at the Ollama layer.
+            candidates = (
+                ("qwen3-vl", "qwen2.5vl", "llava", "qwen3", "llama3")
+                if role == "vision" else
+                ("qwen3", "qwen2.5", "llama3", "hermes", "ornith")
+            )
+            for prefix in candidates:
+                match = sorted(name for name in self._installed_models if name.lower().startswith(prefix))
+                if match:
+                    logger.warning("configured Ollama model %r is unavailable; using installed fallback %r for role %s", configured, match[0], role)
+                    return match[0]
+        except (requests.RequestException, ValueError, KeyError, TypeError) as exc:
+            logger.warning("could not inspect installed Ollama models; using configured %r: %s", configured, exc)
+        return configured
 
     # ---- token-budget guard ----------------------------------------------
     def _budget_context(self, context: dict[str, Any]) -> dict[str, Any]:
@@ -330,6 +358,7 @@ class PipelineLLM:
                 # Extract JSON from markdown code fences if present
                 json_text = _extract_json(raw)
                 data = json.loads(json_text)
+                data = _coerce_common_schema_shapes(data, schema)
                 return schema.model_validate(data)
             except (json.JSONDecodeError, ValidationError) as exc:
                 last_error = str(exc)
@@ -379,7 +408,13 @@ class PipelineLLM:
 
 
 def _extract_json(text: str) -> str:
-    """Extract JSON from text that may contain markdown code fences."""
+    """Extract the first complete JSON value from model output.
+
+    Local models often obey ``format=json`` for the object itself but append a
+    short explanation afterwards. ``json.loads`` rejects that trailing text;
+    ``raw_decode`` lets us preserve the complete object while still rejecting
+    malformed or truncated JSON.
+    """
     text = text.strip()
     # Handle ```json ... ``` or ``` ... ``` fences
     if text.startswith("```"):
@@ -390,7 +425,16 @@ def _extract_json(text: str) -> str:
             for i, line in enumerate(lines[1:], 1):
                 if line.strip() == "```":
                     return "\n".join(lines[1:i])
-            return "\n".join(lines[1:])
+            text = "\n".join(lines[1:]).strip()
+    decoder = json.JSONDecoder()
+    for index, char in enumerate(text):
+        if char not in "[{":
+            continue
+        try:
+            _, end = decoder.raw_decode(text[index:])
+            return text[index : index + end]
+        except json.JSONDecodeError:
+            continue
     return text
 
 
@@ -400,3 +444,37 @@ def _stringify(value: Any) -> str:
     if isinstance(value, list):
         return " ".join(str(v) for v in value)
     return str(value)
+
+
+def _coerce_common_schema_shapes(data: Any, schema: type[BaseModel]) -> Any:
+    """Repair harmless shape drift without changing prompt content.
+
+    Local models habitually wrap a single object in a list (``[{...}]``) when
+    the schema expects a bare object (``{...}``). Unwrap the single-element
+    list so the JSON repair loop doesn't burn all its attempts on a near-correct
+    answer. Also repairs ``CharacterDossier`` view items that arrive as bare
+    strings instead of ``{angle, description}`` objects.
+    """
+    if isinstance(data, list) and len(data) == 1 and isinstance(data[0], dict):
+        data = data[0]
+    if not isinstance(data, dict):
+        return data
+    if schema.__name__ == "StoryBlueprint":
+        # Some local models emit personality_core as a list-of-traits though the
+        # schema wants a single string. Join it so one flaky array doesn't sink
+        # the whole blueprint validation.
+        for ch in data.get("characters", []):
+            if isinstance(ch, dict) and isinstance(ch.get("personality_core"), list):
+                ch["personality_core"] = ", ".join(str(t) for t in ch["personality_core"])
+        return data
+    if schema.__name__ != "CharacterDossier":
+        return data
+    views = data.get("views")
+    if isinstance(views, list):
+        data = dict(data)
+        data["views"] = [
+            {"angle": f"view_{index + 1}", "description": item}
+            if isinstance(item, str) else item
+            for index, item in enumerate(views)
+        ]
+    return data

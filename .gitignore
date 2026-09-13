@@ -89,6 +89,18 @@ ComfyUI.zip
 # weekly auto-commit log
 .weekly-commit.log
 
+# local session transcripts and experimental generated datasets
+/session-ses_*.md
+/olympus/engines/pipeline/loras/gustav/
+
+# pipeline validation markers are machine state, not workflow source
+/olympus/engines/pipeline/workflows/.*_smoke_passed
+
+# Generated local reports and caches
+/olympus/engines/pipeline/tools/check_workflows_report.json
+**/.pytest_cache/
+**/__pycache__/
+
 # backup / scratch artifacts (not source)
 *.bak*
 *.current

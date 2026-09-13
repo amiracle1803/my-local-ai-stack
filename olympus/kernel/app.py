@@ -14,6 +14,7 @@ import hmac
 import io
 import json
 import logging
+import os
 import re
 import secrets
 import subprocess
@@ -36,7 +37,7 @@ import time
 _CONFIG_PATH = STACK_ROOT / "stack.toml"
 if str(STACK_ROOT) not in sys.path:
     sys.path.insert(0, str(STACK_ROOT))
-from stack.config import StackConfig, load_config, cfg
+from stack.config import cfg
 
 logger = logging.getLogger("olympus.kernel")
 logger.setLevel(logging.INFO)
@@ -105,7 +106,7 @@ async def limit_body_size(request: Request, call_next):
 
 @app.middleware("http")
 async def request_timeout(request: Request, call_next):
-    if request.url.path == "/api/voice/tts":
+    if request.url.path in {"/api/voice/tts", "/api/orchestrate", "/api/nim/test"}:
         return await call_next(request)  # TTS has its own 300s upstream timeout
     try:
         return await asyncio.wait_for(call_next(request), timeout=30.0)
@@ -409,10 +410,13 @@ def start_service(name: str):
     if name in unit_map:
         try:
             logger.info("Starting service: %s (%s)", name, unit_map[name])
-            subprocess.run(
+            result = subprocess.run(
                 ["systemctl", "--user", "start", unit_map[name]],
                 capture_output=True, timeout=30,
             )
+            if result.returncode != 0:
+                detail = (result.stderr or result.stdout).decode(errors="replace").strip()
+                raise HTTPException(503, detail or f"systemctl failed with exit code {result.returncode}")
             logger.info("Service started: %s", name)
             return {"name": name, "started": True}
         except Exception as e:
@@ -485,6 +489,8 @@ def retry_task(tid: int):
     if task["status"] != "failed":
         raise HTTPException(409, "only failed tasks can be retried")
     with _task_lock:
+        if len(_active_tasks) >= _MAX_CONCURRENT_TASKS:
+            raise HTTPException(429, "Too many concurrent tasks. Please try again later.")
         task["status"] = "queued"
         task["result"] = None
         task["error"] = None
@@ -494,7 +500,7 @@ def retry_task(tid: int):
 
 @app.post("/api/orchestrate", status_code=201)
 def orchestrate(body: GoalIn):
-    plans, _ = _call_ollama(cfg.ollama.agents.planner, f"Plan this goal as numbered steps:\n{body.goal}")
+    plans, _ = _call_ollama(_resolve_model("planner"), f"Plan this goal as numbered steps:\n{body.goal}")
     # Parse plan into individual tasks and submit them
     steps = [s.strip() for s in plans.split("\n") if s.strip() and s.strip()[0].isdigit()]
     created = []
@@ -514,6 +520,20 @@ def voice_voices():
             return json.load(r)
     except Exception:
         raise HTTPException(503, "Voice Studio offline")
+
+
+@app.get("/api/voice/config")
+def voice_config():
+    return {
+        "engine": getattr(cfg.voice, "engine", "auto"),
+        "default_voice": getattr(cfg.voice, "default_voice", "af_heart"),
+        "default_speed": getattr(cfg.voice, "default_speed", 1.0),
+        "options": [
+            {"id": "auto", "name": "Auto (Kokoro -> espeak-ng)", "local": True},
+            {"id": "kokoro", "name": "Kokoro 82M", "local": True},
+            {"id": "espeak-ng", "name": "espeak-ng", "local": True},
+        ],
+    }
 
 
 @app.post("/api/voice/tts")
@@ -928,6 +948,7 @@ _STAGE_ARTIFACT_GLOBS: dict[str, list[str]] = {
     "stage0": ["input/script.txt", "input/brief.md", "stage0_scenes.json"],
     "stage0_dossier": ["intake/dossier.json"],
     "stage1": ["worldbible/world_bible.json", "worldbible/contradictions.json", "voices.json"],
+    "stage1_world": ["worldbible/world_bible.json", "worldbible/contradictions.json", "worldbible/*.json"],
     "stage1r": ["worldbible/refs/*/ref_*.png", "worldbible/refs/_style/*", "worldbible/refs/*/voice_audition.wav"],
     "stage2": ["screenplay/screenplay.json"],
     "stage3": ["storyboard/storyboard.json"],
@@ -935,11 +956,11 @@ _STAGE_ARTIFACT_GLOBS: dict[str, list[str]] = {
     "stage3c": ["clips/*.mp4"],
     "stage_vlm_review": ["reviews/vlm_review.json"],
     "stage4": ["audio/**/*.wav"],
-    "stage5": ["video/final.mp4", "video/*.mp4"],
+    "stage5": ["video/final.mp4", "video/*.mp4", "video/*.srt", "video/*.ffmetadata", "video/*chapters*.txt"],
 }
 
 _ARTIFACT_MIME = {
-    "json": "application/json", "txt": "text/plain", "md": "text/plain",
+    "json": "application/json", "txt": "text/plain", "md": "text/plain", "srt": "text/plain", "ffmetadata": "text/plain",
     "png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "webp": "image/webp",
     "wav": "audio/wav", "mp3": "audio/mpeg", "mp4": "video/mp4",
 }
@@ -1182,57 +1203,141 @@ class NimEngineIn(BaseModel):
     offload_vision: bool | None = None
     offload_images: bool | None = None
 
-
 @app.post("/api/nim/engine")
 def set_nim_engine(body: NimEngineIn):
-    """Set the generation engine + offload flags permanently (writes stack.toml)."""
+    """Set the generation engine + offload flags (updates in-memory config)."""
     global cfg
     if body.engine not in ("local", "nvidia"):
         raise HTTPException(400, "engine must be 'local' or 'nvidia'")
     if body.engine == "nvidia" and not _nvidia_key_resolved():
         raise HTTPException(400, "no NVIDIA API key — set NVIDIA_API_KEY or .agent-secrets/nvidia_key")
-    toml_path = STACK_ROOT / "stack.toml"
     try:
+        # Update in-memory config only (TOML write is unreliable)
+        cfg.nim.engine = body.engine
+        if body.offload_llm is not None:
+            cfg.nim.offload_llm = body.offload_llm
+        if body.offload_vision is not None:
+            cfg.nim.offload_vision = body.offload_vision
+        if body.offload_images is not None:
+            cfg.nim.offload_images = body.offload_images
+        # Keep the selection available after a kernel restart. This updates
+        # only the [nim] block and preserves the rest of stack.toml.
+        toml_path = STACK_ROOT / "stack.toml"
         text = toml_path.read_text(encoding="utf-8")
         nim_start = text.find("[nim]")
-        if nim_start == -1:
-            raise HTTPException(500, "stack.toml missing [nim] section")
         next_section = text.find("\n[", nim_start + 5)
-        nim_block = text[nim_start:next_section if next_section != -1 else len(text)]
-
-        def set_kv(block, key, value):
-            if isinstance(value, bool):
-                rendered = "true" if value else "false"
-                pat = re.compile(rf'({key}\s*=\s*)([^\n]+)')
-            else:
-                rendered = f'"{value}"'
-                pat = re.compile(rf'({key}\s*=\s*)("[^"]*"|\w+)')
-            if pat.search(block):
-                return pat.sub(lambda m: m.group(1) + rendered, block, count=1)
-            header, _, rest = block.partition("\n")
-            return header + f"\n{key} = {rendered}" + "\n" + rest
-
-        new_block = set_kv(nim_block, "engine", body.engine)
-        new_block = set_kv(new_block, "offload_llm", body.offload_llm if body.offload_llm is not None else cfg.nim.offload_llm)
-        new_block = set_kv(new_block, "offload_vision", body.offload_vision if body.offload_vision is not None else cfg.nim.offload_vision)
-        new_block = set_kv(new_block, "offload_images", body.offload_images if body.offload_images is not None else cfg.nim.offload_images)
-        new_text = text[:nim_start] + new_block + (text[next_section:] if next_section != -1 else "")
-        toml_path.write_text(new_text, encoding="utf-8")
-
-        from stack.config import reload_config
-        cfg = reload_config()
-        # Note: pipeline.config reads stack config live via PipelineConfig.load()
-        # (see pipeline/config.py), so no importlib.reload is needed here. The
-        # previous importlib.reload recreated the pipeline pydantic classes
-        # mid-flight and caused old/new class mismatches -> ValidationError in
-        # the next stage run.
-        logger.info("NIM engine set to %s (written to stack.toml)", body.engine)
+        end = next_section if next_section != -1 else len(text)
+        block = text[nim_start:end]
+        block = re.sub(r"(engine\s*=\s*)\"[^\"]*\"", rf'\1"{body.engine}"', block, count=1)
+        for field in ("offload_llm", "offload_vision", "offload_images"):
+            value = getattr(cfg.nim, field)
+            block = re.sub(rf"({field}\s*=\s*)(true|false)", rf"\1{'true' if value else 'false'}", block, count=1)
+        toml_path.write_text(text[:nim_start] + block + text[end:], encoding="utf-8")
+        logger.info("NIM engine set to %s (in-memory update)", body.engine)
         return nim_models()
     except HTTPException:
         raise
     except Exception as e:
         logger.error("failed to update NIM engine: %s", e)
         raise HTTPException(500, str(e))
+
+
+def _provider_registry_payload() -> dict:
+    """Return registry data without exposing credentials or secret values."""
+    selections = {
+        capability: getattr(cfg.providers, capability).model_dump()
+        for capability in ("llm", "vision", "t2i", "i2i", "i2v", "tts")
+    }
+    providers = {}
+    for provider_id, definition in cfg.providers.registry.items():
+        credential_present = bool(definition.credential_env and os.environ.get(definition.credential_env))
+        if provider_id == "nvidia_nim":
+            credential_present = bool(_nvidia_key_resolved())
+        providers[provider_id] = {
+            **definition.model_dump(),
+            "id": provider_id,
+            "credential_present": credential_present,
+        }
+    return {
+        "selections": selections,
+        "providers": providers,
+        "fallback": cfg.fallback.model_dump(),
+    }
+
+
+def _persist_provider_selections() -> None:
+    """Persist capability selections without rewriting unrelated TOML content."""
+    toml_path = STACK_ROOT / "stack.toml"
+    text = toml_path.read_text(encoding="utf-8")
+    start = text.find("[providers]\n")
+    if start < 0:
+        raise RuntimeError("stack.toml missing [providers] section")
+    end = text.find("\n[providers.registry", start)
+    if end < 0:
+        end = len(text)
+    block = text[start:end]
+    for capability in ("llm", "vision", "t2i", "i2i", "i2v", "tts"):
+        selection = getattr(cfg.providers, capability)
+        replacement = rf'\1{{ provider = "{selection.provider}"' + (
+            rf', model = "{selection.model}"' if selection.model else ""
+        ) + " }"
+        pattern = rf"(?m)^({capability}\s*=\s*)\{{[^\n]*\}}"
+        block, count = re.subn(pattern, replacement, block, count=1)
+        if not count:
+            block += f'\n{capability} = {{ provider = "{selection.provider}" }}'
+    toml_path.write_text(text[:start] + block + text[end:], encoding="utf-8")
+
+
+@app.get("/api/providers")
+def list_providers():
+    return _provider_registry_payload()
+
+
+class ProviderSettingsIn(BaseModel):
+    selections: dict[str, dict[str, str]] = Field(default_factory=dict)
+
+
+@app.post("/api/providers/settings")
+def set_provider_settings(body: ProviderSettingsIn):
+    global cfg
+    capabilities = {"llm", "vision", "t2i", "i2i", "i2v", "tts"}
+    for capability, selection in body.selections.items():
+        if capability not in capabilities:
+            raise HTTPException(400, f"unsupported capability: {capability}")
+        provider_id = selection.get("provider", "")
+        provider = cfg.providers.registry.get(provider_id)
+        if provider is None:
+            raise HTTPException(400, f"unknown provider: {provider_id}")
+        if capability not in provider.capabilities:
+            raise HTTPException(400, f"provider {provider_id!r} does not support {capability}")
+        if not provider.enabled:
+            raise HTTPException(400, f"provider {provider_id!r} is disabled")
+        if provider.kind == "hosted" and not _provider_registry_payload()["providers"][provider_id]["credential_present"]:
+            raise HTTPException(400, f"provider {provider_id!r} has no configured credentials")
+        selected = getattr(cfg.providers, capability)
+        selected.provider = provider_id
+        selected.model = selection.get("model", "")
+    try:
+        _persist_provider_selections()
+    except Exception as exc:
+        logger.error("failed to persist provider selections: %s", exc)
+        raise HTTPException(500, f"provider settings applied in memory but could not be saved: {exc}")
+    return _provider_registry_payload()
+
+
+@app.post("/api/providers/reset-local")
+def reset_provider_settings():
+    defaults = {"llm": "ollama", "vision": "ollama", "t2i": "comfyui", "i2i": "comfyui", "i2v": "comfyui", "tts": "voice_studio"}
+    for capability, provider_id in defaults.items():
+        selected = getattr(cfg.providers, capability)
+        selected.provider = provider_id
+        selected.model = ""
+    try:
+        _persist_provider_selections()
+    except Exception as exc:
+        logger.error("failed to persist local provider defaults: %s", exc)
+        raise HTTPException(500, f"local defaults applied in memory but could not be saved: {exc}")
+    return _provider_registry_payload()
 
 
 @app.post("/api/nim/test")

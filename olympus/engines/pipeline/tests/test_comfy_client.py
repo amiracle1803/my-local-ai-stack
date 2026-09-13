@@ -32,6 +32,16 @@ def test_unknown_patch_title_rejected():
         t.patched({"NOT_A_TITLE": 1})
 
 
+def test_krea2_plate_keeps_sharpen_before_save():
+    """The plate workflow must retain its post-decode sharpen node."""
+    t = WorkflowTemplate.load("panel_i2img_plate_krea2.json")
+    graph = t.patched({"SHARPEN_RADIUS": 2, "SHARPEN_SIGMA": 1.5, "SHARPEN_ALPHA": 0.25})
+    assert graph["10"]["class_type"] == "ImageSharpen"
+    assert graph["10"]["inputs"]["sharpen_radius"] == 2
+    assert graph["11"]["class_type"] == "SaveImage"
+    assert graph["11"]["inputs"]["images"] == ["10", 0]
+
+
 def test_ban_check_matches_with_and_without_extension():
     graph = {"1": {"inputs": {"ckpt_name": "NoobAI-XL-v1.1.safetensors"}}}
     assert _banned_models_in(graph, ["NoobAI-XL-v1.1"]) == ["NoobAI-XL-v1.1.safetensors"]

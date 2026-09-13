@@ -367,8 +367,14 @@ def write_voice_registry(project_dir: Path, wb: WorldBible, script_text: str) ->
     ranked = sorted(wb.characters, key=lambda c: mentions(c.name), reverse=True)
     voices: dict[str, Any] = {}
     used_bases: dict[str, int] = {}
+    from .stage1_worldbible import _ALL_VOICE_IDS  # canonical valid voice table
+
     for char in ranked:
         base = char.voice_id_suggestion or "am_adam"
+        # Guard against invalid/stale voice suggestions (e.g. "am_michael_2")
+        # that are not in Voice Studio's 11-voice registry; otherwise TTS 422s.
+        if base not in _ALL_VOICE_IDS:
+            base = "am_adam"
         speed = 0.97 + (int(hashlib.sha256(char.id.encode()).hexdigest(), 16) % 11) / 100.0
         collisions = used_bases.get(base, 0)
         if collisions:

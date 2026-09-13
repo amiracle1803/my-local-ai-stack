@@ -30,7 +30,7 @@ MANDATORY_METRICS: dict[str, list[str]] = {
     "stage1_world": ["world_coverage"],     # M2b: world enrichment
     "stage1r": ["refs_per_character"],      # reference images
     "stage3": ["block_count"],              # storyboard (w/ refs as context)
-    "stage2": ["narration_avg_score"],      # screenplay (w/ storyboard+refs)
+    "stage2": ["narration_avg_score", "source_fidelity_score", "source_fidelity_pass", "story_beats"],  # screenplay fidelity gate
     "stage3b": ["prompt_adherence_avg"],    # panels (krea2 + refs)
     "stage4": ["alignment_coverage"],       # audio
     "stage3c": ["ltx_rendered"],            # animation (krea2 base)
@@ -176,5 +176,3 @@ class Scores:
                 "complete": self.is_done(stage) and not missing,
             }
         return {"db": str(self.db_path), "run_id": self.run_id, "stages": ledger}
-
-

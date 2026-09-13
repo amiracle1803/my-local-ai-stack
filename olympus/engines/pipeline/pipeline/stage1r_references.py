@@ -4,7 +4,8 @@ Role-scaled reference sets per character (mains 30 frames, minors 10),
 4-angle sets per recurring location, 10 style-lock refs, and a 5-second voice
 audition per character. Images run through :class:`~pipeline.comfy_client.ComfyClient`.
 
-**Image model note (design 5.3b)**: krea2 is the mandated primary.
+**Image model note**: Flux2 Klein is the default 8GB-safe reference model;
+Krea2 is an opt-in profile requiring a passing host-specific smoke gate.
 ``pipeline.image_router.pick_template()`` is called ONCE at the top of
 ``run()`` and routes to ``image_txt2img_krea2.json`` when krea2's weights are fully
 on disk, else the ONLY permitted fallback (flux-2-klein-4b GGUF) via

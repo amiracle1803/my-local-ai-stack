@@ -124,3 +124,23 @@ def test_falls_back_to_ltx2b_when_ltx23_not_ready():
         assert pick_ltx_template(config, 2, 81) == _DEFAULT_TEMPLATE
     finally:
         pass
+
+
+def test_wan_override_requires_smoke_gate():
+    config = _mock_config()
+    config.animation.engine = "wan22"
+    import pipeline.video_router as vr
+    vr._wan_weights_ready = lambda c: True
+    vr._wan_lab_passed = lambda: False
+    assert pick_ltx_template(config, 1, 81) is None
+
+
+def test_ltx2b_uses_current_comfyui_model_paths(monkeypatch):
+    from pathlib import Path
+    import pipeline.video_router as vr
+    cfg = _mock_config()
+    root = Path('/tmp/ltx2b-model-test')
+    monkeypatch.setattr(cfg, 'comfyui_dir', lambda: root)
+    monkeypatch.setattr(vr, '_ltx2b_lab_passed', lambda: True)
+    monkeypatch.setattr(vr, '_ltx2b_weights_ready', lambda c: True)
+    assert pick_ltx_template(cfg, 1, 81) == _DEFAULT_TEMPLATE

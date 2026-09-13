@@ -17,8 +17,12 @@ SCENE SUMMARY: {scene_summary}
 LOCATION: {location_name} -- {location_description}
 CHARACTERS PRESENT: {character_list}
 SCENE POSITION IN STORY: {scene_position} (of {scene_total})
+SHOT DENSITY TARGET: {target_shots}
 
-Return ONLY a single JSON object with exactly this shape (no markdown fences):
+Return ONLY a single JSON object with exactly this shape (no markdown fences).
+Keep every distinct action, reveal, reaction, and important dialogue exchange
+as a separate shot. Meet the shot density target when supplied; under-counting
+major beats is worse than adding a short reaction or establishing shot:
 
 {{
   "shots": [{{

@@ -17,6 +17,19 @@ from pydantic import BaseModel, Field
 
 from .llm import PipelineLLM
 from .config import PipelineConfig
+from pydantic import ValidationError
+from .llm import _extract_json
+
+def asdict(obj):
+    """Return a dict representation of a dataclass or pydantic model."""
+    if hasattr(obj, "dict"):
+        return obj.dict()
+    elif hasattr(obj, "__dataclass_fields__"):
+        from dataclasses import asdict as dataclass_asdict
+        return dataclass_asdict(obj)
+    else:
+        raise TypeError(f"Cannot asdict object of type {type(obj)}")
+
 
 logger = logging.getLogger(__name__)
 
@@ -181,16 +194,35 @@ def run_stage_critique(
         ),
     }
 
-    # Run critique LLM call
+    # Run critique LLM call as text, then parse JSON
     try:
-        result = llm.complete_json(
+        raw = llm.complete_text(
             prompt_file="stage_critique.md",
             context=context,
-            schema=StageCritiqueResult,
             role="script",
             stage_hint=f"critique_{stage_name}",
         )
+        # Extract JSON from the raw output
+        json_text = _extract_json(raw)
+        data = json.loads(json_text)
+        # Validate against schema
+        result = StageCritiqueResult.model_validate(data)
         result.stage_name = stage_name  # ensure stage_name is set
+    except (json.JSONDecodeError, ValidationError) as e:
+        logger.error("Critique JSON parsing/validation failed for %s: %s", stage_name, e)
+        logger.debug("Raw critique output: %s", raw)
+        # Return a failed critique on parsing error
+        result = StageCritiqueResult(
+            stage_name=stage_name,
+            consistency_score=0.0,
+            critical_issues=[CritiqueIssue(
+                type="technical",
+                description=f"Critique JSON parsing/validation failed: {e}",
+                severity="critical",
+                artifact_ref="llm_output",
+            )],
+            passes=False,
+        )
     except Exception as e:
         logger.error("Critique LLM call failed for %s: %s", stage_name, e)
         # Return a failed critique on transport error
@@ -212,8 +244,6 @@ def run_stage_critique(
                 stage_name, result.consistency_score, result.passes, saved_path)
 
     return result
-
-
 def should_retry_stage(result: StageCritiqueResult, config: PipelineConfig) -> bool:
     """Determine if a stage should be retried based on critique result.
 

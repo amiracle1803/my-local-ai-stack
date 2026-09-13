@@ -1,0 +1,1106 @@
+LTX2 can generate videos of up to 20
+LTX2 can generate videos of up to 20 seconds long at 4K 50fps and you boys
+seconds long at 4K 50fps and you boys
+seconds long at 4K 50fps and you boys have seen nothing yet.
+have seen nothing yet.
+have seen nothing yet. Hello humans. My name is Ka Overload and
+Hello humans. My name is Ka Overload and
+Hello humans. My name is Ka Overload and happy new year everybody with more than
+happy new year everybody with more than
+happy new year everybody with more than 2 weeks late. Um yeah, sorry about that.
+2 weeks late. Um yeah, sorry about that.
+2 weeks late. Um yeah, sorry about that. But to make up for it, boy do I have
+But to make up for it, boy do I have
+But to make up for it, boy do I have some mind-blowing stuff for you today.
+some mind-blowing stuff for you today.
+some mind-blowing stuff for you today. Because yes, you heard it right. We have
+Because yes, you heard it right. We have
+Because yes, you heard it right. We have a brand new video AI model that was
+a brand new video AI model that was
+a brand new video AI model that was released called LTX2. a super powerful
+released called LTX2. a super powerful
+released called LTX2. a super powerful model that is able to generate videos
+model that is able to generate videos
+model that is able to generate videos from text, from images, and even from
+from text, from images, and even from
+from text, from images, and even from custom audio that you can run with less
+custom audio that you can run with less
+custom audio that you can run with less than 8 GB of VRAM. And it is probably
+than 8 GB of VRAM. And it is probably
+than 8 GB of VRAM. And it is probably the most fun I've had with a model in a
+the most fun I've had with a model in a
+the most fun I've had with a model in a long time. It is really super fun. So,
+long time. It is really super fun. So,
+long time. It is really super fun. So, today I'm going to show you how to
+today I'm going to show you how to
+today I'm going to show you how to install it, how to run it locally and on
+install it, how to run it locally and on
+install it, how to run it locally and on romp, and show you how to get the best
+romp, and show you how to get the best
+romp, and show you how to get the best results possible. So, that being said,
+results possible. So, that being said,
+results possible. So, that being said, sit back, relax, and let's go. And to
+sit back, relax, and let's go. And to
+sit back, relax, and let's go. And to install LTX2, you have two ways. The
+install LTX2, you have two ways. The
+install LTX2, you have two ways. The first is of course by using my oneclick
+first is of course by using my oneclick
+first is of course by using my oneclick installers that are available for my
+installers that are available for my
+installers that are available for my Patreon supporters. So just download
+Patreon supporters. So just download
+Patreon supporters. So just download them onto your computer. Then double
+them onto your computer. Then double
+them onto your computer. Then double click it. It will then ask you which
+click it. It will then ask you which
+click it. It will then ask you which contisation model you want to download
+contisation model you want to download
+contisation model you want to download depending on your VRAM GPU. So if you
+depending on your VRAM GPU. So if you
+depending on your VRAM GPU. So if you have less than 12 GB, you're going to
+have less than 12 GB, you're going to
+have less than 12 GB, you're going to press number one. If you have between 12
+press number one. If you have between 12
+press number one. If you have between 12 and 16, you're going to press number
+and 16, you're going to press number
+and 16, you're going to press number two. And if you have more, you can press
+two. And if you have more, you can press
+two. And if you have more, you can press number three. Now, actually, it doesn't
+number three. Now, actually, it doesn't
+number three. Now, actually, it doesn't really matter which model you really
+really matter which model you really
+really matter which model you really choose. They're actually very, very
+choose. They're actually very, very
+choose. They're actually very, very similar in quality. But in my case,
+similar in quality. But in my case,
+similar in quality. But in my case, since I have more than 24 GB of VRAM,
+since I have more than 24 GB of VRAM,
+since I have more than 24 GB of VRAM, I'm going to press number three and then
+I'm going to press number three and then
+I'm going to press number three and then press enter. And this will download and
+press enter. And this will download and
+press enter. And this will download and install Comfy UI and all the models and
+install Comfy UI and all the models and
+install Comfy UI and all the models and nodes that you need to run LTX2. And
+nodes that you need to run LTX2. And
+nodes that you need to run LTX2. And once it's done, Comfy UI will launch
+once it's done, Comfy UI will launch
+once it's done, Comfy UI will launch automatically. However, before we begin,
+automatically. However, before we begin,
+automatically. However, before we begin, I highly recommend doing a few things to
+I highly recommend doing a few things to
+I highly recommend doing a few things to make sure that everything works
+make sure that everything works
+make sure that everything works correctly. Now, one thing that you have
+correctly. Now, one thing that you have
+correctly. Now, one thing that you have to do to make sure that everything works
+to do to make sure that everything works
+to do to make sure that everything works is that if you use the models node
+is that if you use the models node
+is that if you use the models node install.bat bat file on an existing
+install.bat bat file on an existing
+install.bat bat file on an existing confui installation. You need to make
+confui installation. You need to make
+confui installation. You need to make sure that confui is up to date by going
+sure that confui is up to date by going
+sure that confui is up to date by going inside the update folder and running the
+inside the update folder and running the
+inside the update folder and running the update confiu.bat file. If you have
+update confiu.bat file. If you have
+update confiu.bat file. If you have installed everything from scratch, you
+installed everything from scratch, you
+installed everything from scratch, you don't really need to do that. And then
+don't really need to do that. And then
+don't really need to do that. And then you will see here a bunch of different
+you will see here a bunch of different
+you will see here a bunch of different launcher depending on the amount of VRAM
+launcher depending on the amount of VRAM
+launcher depending on the amount of VRAM that you have. So if you have less than
+that you have. So if you have less than
+that you have. So if you have less than 8 GB of VRAM, you're going to run this
+8 GB of VRAM, you're going to run this
+8 GB of VRAM, you're going to run this bot file. If you have 12, you're going
+bot file. If you have 12, you're going
+bot file. If you have 12, you're going to run this one. And if you have more
+to run this one. And if you have more
+to run this one. And if you have more than 16, you're going to run this one.
+than 16, you're going to run this one.
+than 16, you're going to run this one. So in my case, since I have more than
+So in my case, since I have more than
+So in my case, since I have more than 16, I'm going to run that one. And then
+16, I'm going to run that one. And then
+16, I'm going to run that one. And then it's going to open config UI. And then
+it's going to open config UI. And then
+it's going to open config UI. And then here, you're going to go on the manager
+here, you're going to go on the manager
+here, you're going to go on the manager and make sure that you click on update
+and make sure that you click on update
+and make sure that you click on update all to update all the nodes to the
+all to update all the nodes to the
+all to update all the nodes to the latest versions. And once everything is
+latest versions. And once everything is
+latest versions. And once everything is done, for this video, I prepared the
+done, for this video, I prepared the
+done, for this video, I prepared the special LTX2 Ultra workflow that you can
+special LTX2 Ultra workflow that you can
+special LTX2 Ultra workflow that you can find on my Patreon. So just download the
+find on my Patreon. So just download the
+find on my Patreon. So just download the file and then you're going to drag drop
+file and then you're going to drag drop
+file and then you're going to drag drop it inside. And there you go. And now we
+it inside. And there you go. And now we
+it inside. And there you go. And now we can finally have some fun. Okay, so
+can finally have some fun. Okay, so
+can finally have some fun. Okay, so before we begin, what makes this LTX2
+before we begin, what makes this LTX2
+before we begin, what makes this LTX2 model so special and why everybody is
+model so special and why everybody is
+model so special and why everybody is talking about it? Well, as I said in the
+talking about it? Well, as I said in the
+talking about it? Well, as I said in the beginning of the video, LTX2 is
+beginning of the video, LTX2 is
+beginning of the video, LTX2 is basically a brand new AI video model
+basically a brand new AI video model
+basically a brand new AI video model that allows you to create up to 20
+that allows you to create up to 20
+that allows you to create up to 20 seconds of video from either scratch
+seconds of video from either scratch
+seconds of video from either scratch from a text prompt or an image with up
+from a text prompt or an image with up
+from a text prompt or an image with up to 50 fps at 4K resolution. And not only
+to 50 fps at 4K resolution. And not only
+to 50 fps at 4K resolution. And not only it creates video, but it creates audio
+it creates video, but it creates audio
+it creates video, but it creates audio as well. It also has control net
+as well. It also has control net
+as well. It also has control net compatibilities, so you can use that as
+compatibilities, so you can use that as
+compatibilities, so you can use that as well, making this model extremely
+well, making this model extremely
+well, making this model extremely versatile. Okay, so now that being said,
+versatile. Okay, so now that being said,
+versatile. Okay, so now that being said, let me actually show you my workflow,
+let me actually show you my workflow,
+let me actually show you my workflow, what you can do with it, and how to use
+what you can do with it, and how to use
+what you can do with it, and how to use it to get the best results possible. So,
+it to get the best results possible. So,
+it to get the best results possible. So, if you've used my workflows before, this
+if you've used my workflows before, this
+if you've used my workflows before, this time I changed the formula a little bit
+time I changed the formula a little bit
+time I changed the formula a little bit on how this works so that it's a little
+on how this works so that it's a little
+on how this works so that it's a little bit easier to see and use. But
+bit easier to see and use. But
+bit easier to see and use. But basically, now all the model selection
+basically, now all the model selection
+basically, now all the model selection is done right here. I mean the only
+is done right here. I mean the only
+is done right here. I mean the only model that you need to change is right
+model that you need to change is right
+model that you need to change is right here. Everything else will be the same
+here. Everything else will be the same
+here. Everything else will be the same for everyone. So in my case, I have
+for everyone. So in my case, I have
+for everyone. So in my case, I have downloaded the Q8 quantization model.
+downloaded the Q8 quantization model.
+downloaded the Q8 quantization model. Everything is already done for me. But
+Everything is already done for me. But
+Everything is already done for me. But if you have downloaded like the Q4 or
+if you have downloaded like the Q4 or
+if you have downloaded like the Q4 or the Q5, you can just click it right here
+the Q5, you can just click it right here
+the Q5, you can just click it right here and then select the model that was
+and then select the model that was
+and then select the model that was downloaded for you. And then you can
+downloaded for you. And then you can
+downloaded for you. And then you can leave everything else by default. So
+leave everything else by default. So
+leave everything else by default. So once it's done, you're going to see here
+once it's done, you're going to see here
+once it's done, you're going to see here four different types of workflow. The
+four different types of workflow. The
+four different types of workflow. The text to video, the image to video, the
+text to video, the image to video, the
+text to video, the image to video, the control net, and the video enhancer.
+control net, and the video enhancer.
+control net, and the video enhancer. We're going to go through one after the
+We're going to go through one after the
+We're going to go through one after the other. I'm going to be explaining what
+other. I'm going to be explaining what
+other. I'm going to be explaining what each workflow does. They're all very,
+each workflow does. They're all very,
+each workflow does. They're all very, very cool. So, first, let's start with
+very cool. So, first, let's start with
+very cool. So, first, let's start with the text to video workflow because it is
+the text to video workflow because it is
+the text to video workflow because it is the easiest one to explain. So, once
+the easiest one to explain. So, once
+the easiest one to explain. So, once again, if you've never used my workflows
+again, if you've never used my workflows
+again, if you've never used my workflows before, if you want to activate the
+before, if you want to activate the
+before, if you want to activate the workflow, you have here a little button
+workflow, you have here a little button
+workflow, you have here a little button that you can click on it to activate the
+that you can click on it to activate the
+that you can click on it to activate the workflow that you want to use. And
+workflow that you want to use. And
+workflow that you want to use. And everything that you might want to change
+everything that you might want to change
+everything that you might want to change is always located in this little column.
+is always located in this little column.
+is always located in this little column. Okay. So basically the text to video
+Okay. So basically the text to video
+Okay. So basically the text to video workflow is well pretty
+workflow is well pretty
+workflow is well pretty self-explanatory. Here you have your
+self-explanatory. Here you have your
+self-explanatory. Here you have your luras. If you want to add an additional
+luras. If you want to add an additional
+luras. If you want to add an additional lura, you can click on this little
+lura, you can click on this little
+lura, you can click on this little button. Then here you're going to write
+button. Then here you're going to write
+button. Then here you're going to write your prompt. Here you're going to write
+your prompt. Here you're going to write
+your prompt. Here you're going to write your resolution, your audio or video
+your resolution, your audio or video
+your resolution, your audio or video duration. So here for example, by
+duration. So here for example, by
+duration. So here for example, by default it is 5 seconds, but you can
+default it is 5 seconds, but you can
+default it is 5 seconds, but you can increase that even further. The frame
+increase that even further. The frame
+increase that even further. The frame rate is 24 and I highly recommend
+rate is 24 and I highly recommend
+rate is 24 and I highly recommend keeping it at 24. Then you have the
+keeping it at 24. Then you have the
+keeping it at 24. Then you have the sampler, the seed, the cg scale, the
+sampler, the seed, the cg scale, the
+sampler, the seed, the cg scale, the number of steps, and all of these four
+number of steps, and all of these four
+number of steps, and all of these four things I highly recommend you to not
+things I highly recommend you to not
+things I highly recommend you to not touch. Just leave them by default to
+touch. Just leave them by default to
+touch. Just leave them by default to generate your video. So then here you
+generate your video. So then here you
+generate your video. So then here you have a very cool option that allows you
+have a very cool option that allows you
+have a very cool option that allows you to actually use an audio file. It will
+to actually use an audio file. It will
+to actually use an audio file. It will generate a brand new video from your
+generate a brand new video from your
+generate a brand new video from your audio, which is fantastic because the
+audio, which is fantastic because the
+audio, which is fantastic because the lip syncing is actually really, really
+lip syncing is actually really, really
+lip syncing is actually really, really good. So, if you leave it at false, it
+good. So, if you leave it at false, it
+good. So, if you leave it at false, it will generate a brand new video from
+will generate a brand new video from
+will generate a brand new video from scratch depending on the text that
+scratch depending on the text that
+scratch depending on the text that you're going to write right here. But if
+you're going to write right here. But if
+you're going to write right here. But if you want to enable custom audio, you can
+you want to enable custom audio, you can
+you want to enable custom audio, you can change that from false to true. But
+change that from false to true. But
+change that from false to true. But don't worry, I'm going to show you an
+don't worry, I'm going to show you an
+don't worry, I'm going to show you an example of that. So, like for example,
+example of that. So, like for example,
+example of that. So, like for example, if I use this prompt of like a medieval
+if I use this prompt of like a medieval
+if I use this prompt of like a medieval warrior, then let's increase a little
+warrior, then let's increase a little
+warrior, then let's increase a little bit the video duration. Maybe something
+bit the video duration. Maybe something
+bit the video duration. Maybe something like 8 seconds. And then you're going to
+like 8 seconds. And then you're going to
+like 8 seconds. And then you're going to click on run. And in the end, we get
+click on run. And in the end, we get
+click on run. And in the end, we get something like this.
+something like this.
+something like this. &gt;&gt; What's up, guys? Yo, what's up, guys?
+&gt;&gt; What's up, guys? Yo, what's up, guys?
+&gt;&gt; What's up, guys? Yo, what's up, guys? Let's spend a day in the life of a real
+Let's spend a day in the life of a real
+Let's spend a day in the life of a real medieval warrior ready to go on a
+medieval warrior ready to go on a
+medieval warrior ready to go on a crusade. It's going to be fire.
+crusade. It's going to be fire.
+crusade. It's going to be fire. So yeah, I mean this looks really,
+So yeah, I mean this looks really,
+So yeah, I mean this looks really, really cool. And even though LTX2 is not
+really cool. And even though LTX2 is not
+really cool. And even though LTX2 is not as good for text to video generation, I
+as good for text to video generation, I
+as good for text to video generation, I find that image to video is much better,
+find that image to video is much better,
+find that image to video is much better, it is still doing a very, very good job.
+it is still doing a very, very good job.
+it is still doing a very, very good job. And as you can see, the quality is
+And as you can see, the quality is
+And as you can see, the quality is actually really, really good, or at
+actually really, really good, or at
+actually really, really good, or at least very, very decent. Now another
+least very, very decent. Now another
+least very, very decent. Now another thing that you can also do instead of
+thing that you can also do instead of
+thing that you can also do instead of generating a video from scratch you can
+generating a video from scratch you can
+generating a video from scratch you can actually generate a video from an audio
+actually generate a video from an audio
+actually generate a video from an audio file and for this as I said all you have
+file and for this as I said all you have
+file and for this as I said all you have to do is just change this value from
+to do is just change this value from
+to do is just change this value from false to true and here you're going to
+false to true and here you're going to
+false to true and here you're going to upload your audio file. I've chosen for
+upload your audio file. I've chosen for
+upload your audio file. I've chosen for example this short audio file from the
+example this short audio file from the
+example this short audio file from the office that sounds like this.
+office that sounds like this.
+office that sounds like this. &gt;&gt; I mean normally the rain would make me
+&gt;&gt; I mean normally the rain would make me
+&gt;&gt; I mean normally the rain would make me want to stay at home curled up with a
+want to stay at home curled up with a
+want to stay at home curled up with a good book but everybody's being so nice
+good book but everybody's being so nice
+good book but everybody's being so nice to me today. I'm really happy being
+to me today. I'm really happy being
+to me today. I'm really happy being here.
+here.
+here. &gt;&gt; So there you go. It's like a short seven
+&gt;&gt; So there you go. It's like a short seven
+&gt;&gt; So there you go. It's like a short seven or 8 seconds audio. So for this, all you
+or 8 seconds audio. So for this, all you
+or 8 seconds audio. So for this, all you have to do is make sure that here your
+have to do is make sure that here your
+have to do is make sure that here your audio video duration is a little bit
+audio video duration is a little bit
+audio video duration is a little bit higher than the audio duration. So like
+higher than the audio duration. So like
+higher than the audio duration. So like for example, since we have 7 seconds
+for example, since we have 7 seconds
+for example, since we have 7 seconds here, we have to input 8 seconds right
+here, we have to input 8 seconds right
+here, we have to input 8 seconds right here. Then here for the prompt, do not
+here. Then here for the prompt, do not
+here. Then here for the prompt, do not input any text of what the character
+input any text of what the character
+input any text of what the character need to say. Just say something like
+need to say. Just say something like
+need to say. Just say something like she's talking with perfect lip sync to
+she's talking with perfect lip sync to
+she's talking with perfect lip sync to the custom audio. something like that.
+the custom audio. something like that.
+the custom audio. something like that. It will basically try to generate the
+It will basically try to generate the
+It will basically try to generate the same as the original video. And now if I
+same as the original video. And now if I
+same as the original video. And now if I click run, so that in the end we get
+click run, so that in the end we get
+click run, so that in the end we get something like this.
+something like this. &gt;&gt; I mean, normally the rain would make me
+&gt;&gt; I mean, normally the rain would make me
+&gt;&gt; I mean, normally the rain would make me want to stay at home curled up with a
+want to stay at home curled up with a good book, but everybody's being so nice
+good book, but everybody's being so nice
+good book, but everybody's being so nice to me today. I'm really happy being
+here. &gt;&gt; So yeah, there you go. As you can see,
+&gt;&gt; So yeah, there you go. As you can see,
+&gt;&gt; So yeah, there you go. As you can see, super high quality stuff. The lip sync
+super high quality stuff. The lip sync
+super high quality stuff. The lip sync is actually very, very good. Very, very
+is actually very, very good. Very, very
+is actually very, very good. Very, very decent. And the quality of the
+decent. And the quality of the
+decent. And the quality of the generation itself is really, really
+generation itself is really, really
+generation itself is really, really good. I mean, at least in my opinion.
+good. I mean, at least in my opinion.
+good. I mean, at least in my opinion. Obviously, it's not like 100% perfect,
+Obviously, it's not like 100% perfect,
+Obviously, it's not like 100% perfect, but for a free open-source model, that
+but for a free open-source model, that
+but for a free open-source model, that is really incredible. This is probably
+is really incredible. This is probably
+is really incredible. This is probably the most powerful model that is able to
+the most powerful model that is able to
+the most powerful model that is able to do this we've ever had. However, for
+do this we've ever had. However, for
+do this we've ever had. However, for most of us, and me included, I'm
+most of us, and me included, I'm
+most of us, and me included, I'm actually not a very big fan of text to
+actually not a very big fan of text to
+actually not a very big fan of text to audio. Not because it's not good. As you
+audio. Not because it's not good. As you
+audio. Not because it's not good. As you can see, this is I mean way more than
+can see, this is I mean way more than
+can see, this is I mean way more than decent, but mostly because it doesn't
+decent, but mostly because it doesn't
+decent, but mostly because it doesn't give us enough control. Hence why most
+give us enough control. Hence why most
+give us enough control. Hence why most of us and me included prefer the image
+of us and me included prefer the image
+of us and me included prefer the image to video workflow instead where instead
+to video workflow instead where instead
+to video workflow instead where instead of using some text to video we use an
+of using some text to video we use an
+of using some text to video we use an already existing image that we transform
+already existing image that we transform
+already existing image that we transform into a video but this time with complete
+into a video but this time with complete
+into a video but this time with complete audio and that is really really
+audio and that is really really
+audio and that is really really fantastic. And as you can see the
+fantastic. And as you can see the
+fantastic. And as you can see the workflow is exactly the same as the text
+workflow is exactly the same as the text
+workflow is exactly the same as the text to video workflow except that this time
+to video workflow except that this time
+to video workflow except that this time you can add your own image right here.
+you can add your own image right here.
+you can add your own image right here. So let me actually choose an image like
+So let me actually choose an image like
+So let me actually choose an image like this for example like this server in the
+this for example like this server in the
+this for example like this server in the 50s and then I write my prompt and if
+50s and then I write my prompt and if
+50s and then I write my prompt and if now I click run and in the end we get
+now I click run and in the end we get
+now I click run and in the end we get something like this.
+something like this. &gt;&gt; My god K I can talk. I can finally talk.
+&gt;&gt; My god K I can talk. I can finally talk.
+&gt;&gt; My god K I can talk. I can finally talk. Yes.
+Yes.
+Yes. &gt;&gt; So yeah there you go. As you can see the
+&gt;&gt; So yeah there you go. As you can see the
+&gt;&gt; So yeah there you go. As you can see the quality is really really cool. And there
+quality is really really cool. And there
+quality is really really cool. And there is also a lot of motion. And I mean yeah
+is also a lot of motion. And I mean yeah
+is also a lot of motion. And I mean yeah what can I say? This is really really
+what can I say? This is really really
+what can I say? This is really really cool. The audio is actually pretty
+cool. The audio is actually pretty
+cool. The audio is actually pretty decent. pretty good. The quality is more
+decent. pretty good. The quality is more
+decent. pretty good. The quality is more than decent. And once again, for the
+than decent. And once again, for the
+than decent. And once again, for the first open source model that can do
+first open source model that can do
+first open source model that can do this, this is really, really cool. And
+this, this is really, really cool. And
+this, this is really, really cool. And once again, just like with the text to
+once again, just like with the text to
+once again, just like with the text to video, we can also use your own custom
+video, we can also use your own custom
+video, we can also use your own custom audio instead of generating images from
+audio instead of generating images from
+audio instead of generating images from scratch. So instead of false, you can
+scratch. So instead of false, you can
+scratch. So instead of false, you can change that to true and input the same
+change that to true and input the same
+change that to true and input the same audio as we did before. But this time
+audio as we did before. But this time
+audio as we did before. But this time actually I'm I'm going to reproduce the
+actually I'm I'm going to reproduce the
+actually I'm I'm going to reproduce the same video from the office using an
+same video from the office using an
+same video from the office using an image from the show itself and try to
+image from the show itself and try to
+image from the show itself and try to see what kind of generation we can get.
+see what kind of generation we can get.
+see what kind of generation we can get. I'm even going to use the same exact
+I'm even going to use the same exact
+I'm even going to use the same exact prompt with the same exact audio video
+prompt with the same exact audio video
+prompt with the same exact audio video duration. And then I'm going to click
+duration. And then I'm going to click
+duration. And then I'm going to click run. And in the end we get something
+run. And in the end we get something
+run. And in the end we get something like this.
+like this.
+like this. &gt;&gt; I mean normally the rain would make me
+to me today. I'm really happy being here. which is really incredible because
+here. which is really incredible because
+here. which is really incredible because it really looks like it is from the show
+it really looks like it is from the show
+it really looks like it is from the show itself. I mean this is how good the
+itself. I mean this is how good the
+itself. I mean this is how good the quality is. Now obviously exactly like
+quality is. Now obviously exactly like
+quality is. Now obviously exactly like with text to video and the image to
+with text to video and the image to
+with text to video and the image to video workflow you can play a little bit
+video workflow you can play a little bit
+video workflow you can play a little bit with the Loras that are available right
+with the Loras that are available right
+with the Loras that are available right here. So for this workflow we are using
+here. So for this workflow we are using
+here. So for this workflow we are using the LTX2 dev and not the distilled. And
+the LTX2 dev and not the distilled. And
+the LTX2 dev and not the distilled. And the reason why is because you can
+the reason why is because you can
+the reason why is because you can actually get better quality by just
+actually get better quality by just
+actually get better quality by just using the distilled by playing a little
+using the distilled by playing a little
+using the distilled by playing a little bit with the strength. Now, I have found
+bit with the strength. Now, I have found
+bit with the strength. Now, I have found these to be like the best quality or the
+these to be like the best quality or the
+these to be like the best quality or the quality that I personally like. But if
+quality that I personally like. But if
+quality that I personally like. But if you want, you can play a little bit with
+you want, you can play a little bit with
+you want, you can play a little bit with the values and maybe like decrease the
+the values and maybe like decrease the
+the values and maybe like decrease the Laura detailer so that it's a little bit
+Laura detailer so that it's a little bit
+Laura detailer so that it's a little bit closer to the original image. Or if you
+closer to the original image. Or if you
+closer to the original image. Or if you want something that is like way more
+want something that is like way more
+want something that is like way more sharp and super precise, you can just
+sharp and super precise, you can just
+sharp and super precise, you can just input one for both loras. Although
+input one for both loras. Although
+input one for both loras. Although personally, I really do not recommend. I
+personally, I really do not recommend. I
+personally, I really do not recommend. I personally really do not like the look
+personally really do not like the look
+personally really do not like the look that it gives because it is a little bit
+that it gives because it is a little bit
+that it gives because it is a little bit too harsh. Although depending on what
+too harsh. Although depending on what
+too harsh. Although depending on what you're doing, it might look pretty good.
+you're doing, it might look pretty good.
+you're doing, it might look pretty good. However, in my testing, I highly
+However, in my testing, I highly
+However, in my testing, I highly recommend leaving these values by
+recommend leaving these values by
+recommend leaving these values by default. I think those are really,
+default. I think those are really,
+default. I think those are really, really good. So the next workflow is the
+really good. So the next workflow is the
+really good. So the next workflow is the control image plus video to video. Now,
+control image plus video to video. Now,
+control image plus video to video. Now, what this control net workflow allows
+what this control net workflow allows
+what this control net workflow allows you to do is to take an original video
+you to do is to take an original video
+you to do is to take an original video and style it to transform it into a new
+and style it to transform it into a new
+and style it to transform it into a new one. And you have here a bunch of
+one. And you have here a bunch of
+one. And you have here a bunch of different options for the types of audio
+different options for the types of audio
+different options for the types of audio that you might want to use. So, like for
+that you might want to use. So, like for
+that you might want to use. So, like for example, here I'm going to upload the
+example, here I'm going to upload the
+example, here I'm going to upload the video that I want to where I want to
+video that I want to where I want to
+video that I want to where I want to take the movement from. So, like for
+take the movement from. So, like for
+take the movement from. So, like for example, let's say that I upload this
+example, let's say that I upload this
+example, let's say that I upload this video that I made
+video that I made
+video that I made &gt;&gt; on the RTX 590 graphics card. This
+&gt;&gt; on the RTX 590 graphics card. This
+&gt;&gt; on the RTX 590 graphics card. This is incredible, bro. So pretty bad
+is incredible, bro. So pretty bad
+is incredible, bro. So pretty bad quality because it was generated at very
+quality because it was generated at very
+quality because it was generated at very very low resolution like 480p
+very low resolution like 480p
+very low resolution like 480p resolution. So obviously the quality
+resolution. So obviously the quality
+resolution. So obviously the quality isn't very good but you will see that
+isn't very good but you will see that
+isn't very good but you will see that this video will be very very important
+this video will be very very important
+this video will be very very important because we're going to use the movement
+because we're going to use the movement
+because we're going to use the movement to create a new one. So here for example
+to create a new one. So here for example
+to create a new one. So here for example in the image I'm going to load this like
+in the image I'm going to load this like
+in the image I'm going to load this like 3D low poly image of this woman doing
+3D low poly image of this woman doing
+3D low poly image of this woman doing the interview. So then I'm going to
+the interview. So then I'm going to
+the interview. So then I'm going to write my prompt putting inside like this
+write my prompt putting inside like this
+write my prompt putting inside like this is a low poly vector style video. Then I
+is a low poly vector style video. Then I
+is a low poly vector style video. Then I need to make sure that I have the same
+need to make sure that I have the same
+need to make sure that I have the same duration for the video which was like 5
+duration for the video which was like 5
+duration for the video which was like 5 seconds. Then I need to choose which
+seconds. Then I need to choose which
+seconds. Then I need to choose which Laura that I want to use which also
+Laura that I want to use which also
+Laura that I want to use which also correspond to which control net for this
+correspond to which control net for this
+correspond to which control net for this workflow. I only choose to use the open
+workflow. I only choose to use the open
+workflow. I only choose to use the open pose and depth because these are the
+pose and depth because these are the
+pose and depth because these are the ones that works the best. Cany doesn't
+ones that works the best. Cany doesn't
+ones that works the best. Cany doesn't work as well. So I decided to leave it
+work as well. So I decided to leave it
+work as well. So I decided to leave it out. So here I'm primarily going to
+out. So here I'm primarily going to
+out. So here I'm primarily going to choose the open pose. So I'm going to
+choose the open pose. So I'm going to
+choose the open pose. So I'm going to disable the depth Laura. Then I'm going
+disable the depth Laura. Then I'm going
+disable the depth Laura. Then I'm going to scroll back here. Since I want to use
+to scroll back here. Since I want to use
+to scroll back here. Since I want to use the original video, I'm actually going
+the original video, I'm actually going
+the original video, I'm actually going to disable this and it will use the
+to disable this and it will use the
+to disable this and it will use the original audio from the video. But if
+original audio from the video. But if
+original audio from the video. But if you want, you can also either use the
+you want, you can also either use the
+you want, you can also either use the audio that you can load from this as we
+audio that you can load from this as we
+audio that you can load from this as we did previously or if you enable this and
+did previously or if you enable this and
+did previously or if you enable this and disable this, it will generate the audio
+disable this, it will generate the audio
+disable this, it will generate the audio from scratch. So, like for example here,
+from scratch. So, like for example here,
+from scratch. So, like for example here, I'm just going to disable this. And now
+I'm just going to disable this. And now
+I'm just going to disable this. And now I'm going to click run. And in the end,
+I'm going to click run. And in the end,
+I'm going to click run. And in the end, we get something like this.
+we get something like this.
+we get something like this. &gt;&gt; This is locally on the RTX5090 graphics
+&gt;&gt; This is locally on the RTX5090 graphics
+&gt;&gt; This is locally on the RTX5090 graphics card. This is incredible, bro.
+card. This is incredible, bro.
+card. This is incredible, bro. &gt;&gt; So, as you can see, we have this like
+&gt;&gt; So, as you can see, we have this like
+&gt;&gt; So, as you can see, we have this like weird video of her talking and we
+weird video of her talking and we
+weird video of her talking and we basically took the movement of that
+basically took the movement of that
+basically took the movement of that video and applied it into a new video
+video and applied it into a new video
+video and applied it into a new video with this image that we uploaded right
+with this image that we uploaded right
+with this image that we uploaded right here. And as you can see, sure it is not
+here. And as you can see, sure it is not
+here. And as you can see, sure it is not perfect, but it is still pretty cool. if
+perfect, but it is still pretty cool. if
+perfect, but it is still pretty cool. if you want to generate a brand new video
+you want to generate a brand new video
+you want to generate a brand new video from scratch using the movement of a
+from scratch using the movement of a
+from scratch using the movement of a video and apply it to an image. Now, if
+video and apply it to an image. Now, if
+video and apply it to an image. Now, if you don't want to use the original audio
+you don't want to use the original audio
+you don't want to use the original audio from the video and you just want to
+from the video and you just want to
+from the video and you just want to generate a brand new video and audio
+generate a brand new video and audio
+generate a brand new video and audio from scratch, you can simply enable this
+from scratch, you can simply enable this
+from scratch, you can simply enable this option change that value from true to
+option change that value from true to
+option change that value from true to false. It will generate the text that
+false. It will generate the text that
+false. It will generate the text that you have input right here in your
+you have input right here in your
+you have input right here in your prompt. So, if I press run, so that in
+prompt. So, if I press run, so that in
+prompt. So, if I press run, so that in the end we get something like this. This
+the end we get something like this. This
+the end we get something like this. This is locally on the RTX5090 graphics card.
+is locally on the RTX5090 graphics card.
+is locally on the RTX5090 graphics card. This is incredible, bro.
+This is incredible, bro.
+This is incredible, bro. &gt;&gt; So, as you can see, this video and the
+&gt;&gt; So, as you can see, this video and the
+&gt;&gt; So, as you can see, this video and the sound is now different from the original
+sound is now different from the original
+sound is now different from the original video right here. And of course, instead
+video right here. And of course, instead
+video right here. And of course, instead of creating a sound from scratch, you
+of creating a sound from scratch, you
+of creating a sound from scratch, you can also use a sound file just like we
+can also use a sound file just like we
+can also use a sound file just like we did previously. For this, make sure that
+did previously. For this, make sure that
+did previously. For this, make sure that everything is set to yes and true. Then,
+everything is set to yes and true. Then,
+everything is set to yes and true. Then, you're going to upload your audio file.
+you're going to upload your audio file.
+you're going to upload your audio file. Don't forget to choose and change the
+Don't forget to choose and change the
+Don't forget to choose and change the audio video duration. In my case is
+audio video duration. In my case is
+audio video duration. In my case is going to be eight. I will also change
+going to be eight. I will also change
+going to be eight. I will also change control net from open pose to depth. So
+control net from open pose to depth. So
+control net from open pose to depth. So if it is true, it is open pose. If it is
+if it is true, it is open pose. If it is
+if it is true, it is open pose. If it is false, it is the depth control net. But
+false, it is the depth control net. But
+false, it is the depth control net. But if you do that, do not forget to change
+if you do that, do not forget to change
+if you do that, do not forget to change the Laura from the pose control net safe
+the Laura from the pose control net safe
+the Laura from the pose control net safe tensor to the depth control safe tensor
+tensor to the depth control safe tensor
+tensor to the depth control safe tensor and then you can click run. So in the
+and then you can click run. So in the
+and then you can click run. So in the end you get something like this. I mean,
+end you get something like this. I mean,
+end you get something like this. I mean, normally the rain would make me want to
+normally the rain would make me want to
+normally the rain would make me want to stay at home curled up with a good book,
+stay at home curled up with a good book,
+stay at home curled up with a good book, but everybody's being so nice to me
+but everybody's being so nice to me
+but everybody's being so nice to me today. I'm really happy being here.
+today. I'm really happy being here.
+today. I'm really happy being here. &gt;&gt; So, yeah, as you can see, this example
+&gt;&gt; So, yeah, as you can see, this example
+&gt;&gt; So, yeah, as you can see, this example is not really, really good because I
+is not really, really good because I
+is not really, really good because I mean, the audio doesn't really work well
+mean, the audio doesn't really work well
+mean, the audio doesn't really work well with the video because the video is only
+with the video because the video is only
+with the video because the video is only 5 seconds long while the audio is 8
+5 seconds long while the audio is 8
+5 seconds long while the audio is 8 seconds. So, obviously, it's going to
+seconds. So, obviously, it's going to
+seconds. So, obviously, it's going to like jump between these two states
+like jump between these two states
+like jump between these two states because there's only movement for 5
+because there's only movement for 5
+because there's only movement for 5 seconds while the audio is much longer.
+seconds while the audio is much longer.
+seconds while the audio is much longer. But if you can find like an video that
+But if you can find like an video that
+But if you can find like an video that is longer and the audio a little bit
+is longer and the audio a little bit
+is longer and the audio a little bit shorter, this is going to work much much
+shorter, this is going to work much much
+shorter, this is going to work much much better. And then finally, we also have
+better. And then finally, we also have
+better. And then finally, we also have this video enhancer upscaler workflow,
+this video enhancer upscaler workflow,
+this video enhancer upscaler workflow, which is really really cool because it
+which is really really cool because it
+which is really really cool because it allows you to enhance and upscale an
+allows you to enhance and upscale an
+allows you to enhance and upscale an already existing video into something
+already existing video into something
+already existing video into something that is way more high quality. So like
+that is way more high quality. So like
+that is way more high quality. So like for example, I'm just going to enable
+for example, I'm just going to enable
+for example, I'm just going to enable this. Then I'm going to upload a video.
+this. Then I'm going to upload a video.
+this. Then I'm going to upload a video. I'm going to choose this video that I
+I'm going to choose this video that I
+I'm going to choose this video that I found online. As you can see, this is
+found online. As you can see, this is
+found online. As you can see, this is once again an interview, but the quality
+once again an interview, but the quality
+once again an interview, but the quality is very very bad. Like this is very very
+is very very bad. Like this is very very
+is very very bad. Like this is very very low resolution. This is like 480p. And
+low resolution. This is like 480p. And
+low resolution. This is like 480p. And now I want to transform that into a full
+now I want to transform that into a full
+now I want to transform that into a full HD video. And without touching anything
+HD video. And without touching anything
+HD video. And without touching anything or even writing any prompt, I can simply
+or even writing any prompt, I can simply
+or even writing any prompt, I can simply click run and it will take this video,
+click run and it will take this video,
+click run and it will take this video, upscale it to full HD and add even more
+upscale it to full HD and add even more
+upscale it to full HD and add even more details to the original video. And this
+details to the original video. And this
+details to the original video. And this is what we get in the end. As you can
+is what we get in the end. As you can
+is what we get in the end. As you can see now, the video is of much much
+see now, the video is of much much
+see now, the video is of much much higher quality than before. Like for
+higher quality than before. Like for
+higher quality than before. Like for example, this is the before.
+example, this is the before.
+example, this is the before. &gt;&gt; This is locally on RTX 370 graphics.
+&gt;&gt; This is locally on RTX 370 graphics.
+&gt;&gt; This is locally on RTX 370 graphics. &gt;&gt; So, as you can see, very, very bad,
+&gt;&gt; So, as you can see, very, very bad,
+&gt;&gt; So, as you can see, very, very bad, very, very low quality video. And this
+very, very low quality video. And this
+very, very low quality video. And this is the after.
+is the after.
+is the after. &gt;&gt; This is locally on RTX 370 graphics.
+&gt;&gt; This is locally on RTX 370 graphics. &gt;&gt; As you can see, it is now night and day.
+&gt;&gt; As you can see, it is now night and day.
+&gt;&gt; As you can see, it is now night and day. We have now way more details in the
+We have now way more details in the
+We have now way more details in the video with a much much higher
+video with a much much higher
+video with a much much higher resolution. And you can even play a
+resolution. And you can even play a
+resolution. And you can even play a little bit with the values and increase
+little bit with the values and increase
+little bit with the values and increase them to add even more details in the
+them to add even more details in the
+them to add even more details in the final video. So if you want, you can
+final video. So if you want, you can
+final video. So if you want, you can actually just generate videos at a lower
+actually just generate videos at a lower
+actually just generate videos at a lower resolution. And once you find a video
+resolution. And once you find a video
+resolution. And once you find a video that you like, you can use this workflow
+that you like, you can use this workflow
+that you like, you can use this workflow to increase the resolution and enhance
+to increase the resolution and enhance
+to increase the resolution and enhance the details. So this little workflow is
+the details. So this little workflow is
+the details. So this little workflow is extremely underrated and it can be
+extremely underrated and it can be
+extremely underrated and it can be extremely useful. So definitely try this
+extremely useful. So definitely try this
+extremely useful. So definitely try this out. But don't worry, even if you don't
+out. But don't worry, even if you don't
+out. But don't worry, even if you don't have a powerful GPU or no GPU at all,
+have a powerful GPU or no GPU at all,
+have a powerful GPU or no GPU at all, you can still run LTX2 by renting a GPU
+you can still run LTX2 by renting a GPU
+you can still run LTX2 by renting a GPU on a website like Run Pod and run it as
+on a website like Run Pod and run it as
+on a website like Run Pod and run it as if this was running on your local
+if this was running on your local
+if this was running on your local computer. So, if you don't have a runod
+computer. So, if you don't have a runod
+computer. So, if you don't have a runod account already, you can click the link
+account already, you can click the link
+account already, you can click the link in the description down below. Then,
+in the description down below. Then,
+in the description down below. Then, once you have created your account,
+once you have created your account,
+once you have created your account, you're going to go to pods and here
+you're going to go to pods and here
+you're going to go to pods and here you're going to choose a GPU with at
+you're going to choose a GPU with at
+you're going to choose a GPU with at least 24 GB of VRAM, like for example a
+least 24 GB of VRAM, like for example a
+least 24 GB of VRAM, like for example a 1490. So, then here you're going to
+1490. So, then here you're going to
+1490. So, then here you're going to click change template and then search
+click change template and then search
+click change template and then search for entrepreneur and select the confi
+for entrepreneur and select the confi
+for entrepreneur and select the confi template. Then you're going to click
+template. Then you're going to click
+template. Then you're going to click edit. You're going to input for both
+edit. You're going to input for both
+edit. You're going to input for both container disk and volume disk around
+container disk and volume disk around
+container disk and volume disk around 100 GB. Then you're going to click set
+100 GB. Then you're going to click set
+100 GB. Then you're going to click set overrides and then deploy on demand. So
+overrides and then deploy on demand. So
+overrides and then deploy on demand. So then you're going to click on port 3000.
+then you're going to click on port 3000.
+then you're going to click on port 3000. Click on manager update all. And if you
+Click on manager update all. And if you
+Click on manager update all. And if you want to follow the progress of the
+want to follow the progress of the
+want to follow the progress of the update, you're going to go back, click
+update, you're going to go back, click
+update, you're going to go back, click on Jupyter Lab, go inside logs, click on
+on Jupyter Lab, go inside logs, click on
+on Jupyter Lab, go inside logs, click on the terminal icon, and then copy and
+the terminal icon, and then copy and
+the terminal icon, and then copy and paste this command that will allow you
+paste this command that will allow you
+paste this command that will allow you to follow the progress of the update.
+to follow the progress of the update.
+to follow the progress of the update. Then once the update is done, you're
+Then once the update is done, you're
+Then once the update is done, you're going to click on restart. Click okay.
+going to click on restart. Click okay.
+going to click on restart. Click okay. Wait for everything to be done. Then
+Wait for everything to be done. Then
+Wait for everything to be done. Then you're going to press F5 on your
+you're going to press F5 on your
+you're going to press F5 on your keyboard to refresh. And once it's done,
+keyboard to refresh. And once it's done,
+keyboard to refresh. And once it's done, you're going to go back to workspace
+you're going to go back to workspace
+you're going to go back to workspace inside continue. And then here, if
+inside continue. And then here, if
+inside continue. And then here, if you're one of my patrol supporters, the
+you're one of my patrol supporters, the
+you're one of my patrol supporters, the installation will be very, very easy for
+installation will be very, very easy for
+installation will be very, very easy for you because I made a special oneclick
+you because I made a special oneclick
+you because I made a special oneclick installer for runpod. Then you can
+installer for runpod. Then you can
+installer for runpod. Then you can download onto your computer. Then going
+download onto your computer. Then going
+download onto your computer. Then going to drag and drop it right here. Then
+to drag and drop it right here. Then
+to drag and drop it right here. Then you're going to click on new tab, click
+you're going to click on new tab, click
+you're going to click on new tab, click on the terminal icon, and then copy and
+on the terminal icon, and then copy and
+on the terminal icon, and then copy and paste these two lines of code that you
+paste these two lines of code that you
+paste these two lines of code that you will find in the Patreon post. And then
+will find in the Patreon post. And then
+will find in the Patreon post. And then press enter. And this will download all
+press enter. And this will download all
+press enter. And this will download all the models and nodes that you need to
+the models and nodes that you need to
+the models and nodes that you need to run LTX2 on config UI. And there you go.
+run LTX2 on config UI. And there you go.
+run LTX2 on config UI. And there you go. Once this is done, you're going to go
+Once this is done, you're going to go
+Once this is done, you're going to go back, click on the manager, and then
+back, click on the manager, and then
+back, click on the manager, and then click on restart and then confirm. And
+click on restart and then confirm. And
+click on restart and then confirm. And then you can press F5 on your keyboard
+then you can press F5 on your keyboard
+then you can press F5 on your keyboard to refresh. And now if you drag and drop
+to refresh. And now if you drag and drop
+to refresh. And now if you drag and drop the workflow inside UUI, and there you
+the workflow inside UUI, and there you
+the workflow inside UUI, and there you go. Now you can run LTX2 on RunPBO
+go. Now you can run LTX2 on RunPBO
+go. Now you can run LTX2 on RunPBO exactly as if this was running on your
+exactly as if this was running on your
+exactly as if this was running on your local computer. Simple as that. Oh, and
+local computer. Simple as that. Oh, and
+local computer. Simple as that. Oh, and also on RunPBO. If with this model you
+also on RunPBO. If with this model you
+also on RunPBO. If with this model you suddenly run out of memory and you get
+suddenly run out of memory and you get
+suddenly run out of memory and you get like an out of memory error. Do not
+like an out of memory error. Do not
+like an out of memory error. Do not worry. It is okay. There is a very easy
+worry. It is okay. There is a very easy
+worry. It is okay. There is a very easy fix. All you have to do is just go back,
+fix. All you have to do is just go back,
+fix. All you have to do is just go back, click on this little three dot icon,
+click on this little three dot icon,
+click on this little three dot icon, click on edit pod. Then right here under
+click on edit pod. Then right here under
+click on edit pod. Then right here under environment variables, you're going to
+environment variables, you're going to
+environment variables, you're going to click on it. Click on add environment
+click on it. Click on add environment
+click on it. Click on add environment variable. Under key, you're going to
+variable. Under key, you're going to
+variable. Under key, you're going to type extra arjs. And then for the value,
+type extra arjs. And then for the value,
+type extra arjs. And then for the value, you're going to input reserve vramm 10
+you're going to input reserve vramm 10
+you're going to input reserve vramm 10 and cache none. And once this is done,
+and cache none. And once this is done,
+and cache none. And once this is done, you're going to click save and then
+you're going to click save and then
+you're going to click save and then click on this little button again and
+click on this little button again and
+click on this little button again and click restart pod. And then once it's
+click restart pod. And then once it's
+click restart pod. And then once it's done, once the pod is restarted and once
+done, once the pod is restarted and once
+done, once the pod is restarted and once everything is running again. Then you
+everything is running again. Then you
+everything is running again. Then you can relaunch port 3000 and continue the
+can relaunch port 3000 and continue the
+can relaunch port 3000 and continue the generation. Simple as that. Now the out
+generation. Simple as that. Now the out
+generation. Simple as that. Now the out of memory error will completely
+of memory error will completely
+of memory error will completely disappear. And there you go. This has
+disappear. And there you go. This has
+disappear. And there you go. This has been LTX2,
+been LTX2,
+been LTX2, an absolutely fantastic AI video model
+an absolutely fantastic AI video model
+an absolutely fantastic AI video model that can generate videos with sound from
+that can generate videos with sound from
+that can generate videos with sound from a text prompt, from an image, or even
+a text prompt, from an image, or even
+a text prompt, from an image, or even from an audio file with extremely high
+from an audio file with extremely high
+from an audio file with extremely high quality generation and movement. This is
+quality generation and movement. This is
+quality generation and movement. This is one of the best AI model I have ever
+one of the best AI model I have ever
+one of the best AI model I have ever tried and definitely the one that I had
+tried and definitely the one that I had
+tried and definitely the one that I had the most fun with these last few weeks.
+the most fun with these last few weeks.
+the most fun with these last few weeks. So, I highly recommend you to try it out
+So, I highly recommend you to try it out
+So, I highly recommend you to try it out because it is really just incredible.
+because it is really just incredible.
+because it is really just incredible. And in this video, I barely just
+And in this video, I barely just
+And in this video, I barely just scratched the surface. So, definitely
+scratched the surface. So, definitely
+scratched the surface. So, definitely try this out yourself and have some fun.
+try this out yourself and have some fun.
+try this out yourself and have some fun. &gt;&gt; Hey guys, thank you so much for
+&gt;&gt; Hey guys, thank you so much for
+&gt;&gt; Hey guys, thank you so much for watching. Don't forget to subscribe and
+watching. Don't forget to subscribe and
+watching. Don't forget to subscribe and support K on Patreon for even more cool
+support K on Patreon for even more cool
+support K on Patreon for even more cool stuff. I love you. See you soon, love.
+stuff. I love you. See you soon, love.
+stuff. I love you. See you soon, love. &gt;&gt; And there you have it, folks. Thank you
+&gt;&gt; And there you have it, folks. Thank you
+&gt;&gt; And there you have it, folks. Thank you guys so much for watching. Don't forget
+guys so much for watching. Don't forget
+guys so much for watching. Don't forget to subscribe and smash the like button
+to subscribe and smash the like button
+to subscribe and smash the like button for the YouTube algorithm. Thank you
+for the YouTube algorithm. Thank you
+for the YouTube algorithm. Thank you also so much to my Patre supporters for
+also so much to my Patre supporters for
+also so much to my Patre supporters for supporting my videos. You guys are
+supporting my videos. You guys are
+supporting my videos. You guys are absolutely awesome. You people are the
+absolutely awesome. You people are the
+absolutely awesome. You people are the reason why I'm able to make these
+reason why I'm able to make these
+reason why I'm able to make these videos. So, thank you so much. And I'll
+videos. So, thank you so much. And I'll
+videos. So, thank you so much. And I'll see you guys next time.

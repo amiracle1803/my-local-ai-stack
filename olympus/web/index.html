@@ -144,6 +144,7 @@
     <div class="hud"><div class="hud-title">VOICES</div><div id="voice-list"></div></div>
     <div>
       <div class="hud p-md">
+        <div class="flex mb-sm"><label class="label">TTS ENGINE</label><select id="voice-engine-select" class="min-w-200"><option>loading...</option></select><span id="voice-engine-status" class="hint-sm"></span></div>
         <textarea id="voice-text" rows="5" class="w-full" placeholder="Text to synthesize…">The Olympus cortex is live and all systems are connected.</textarea>
         <div class="flex mt-sm">
           <label class="label">SPEED <span id="speed-val">1.0</span></label>
@@ -177,16 +178,8 @@
       <div class="flex">
         <label class="label" title="Animation master switch — OFF (default) assembles panels with Ken Burns zoom/pan + fades; ON runs stage3c GPU video">ANIMATION</label>
         <button class="ghost" id="studio-anim-toggle" title="Toggle GPU animation on/off (writes stack.toml [animation].enabled)">…</button>
-        <span class="label" style="margin-left:1.1rem" title="Generation engine — LOCAL runs everything on this machine (Ollama + ComfyUI). NVIDIA offloads heavy LLM/vision/image work to the free NVIDIA Build API so the 8GB card stays free for ComfyUI.">ENGINE</span>
-        <select id="studio-engine-select" class="min-w-120" title="LOCAL = on-box models; NVIDIA = offload to the free NVIDIA API (persisted in stack.toml [nim].engine)">
-          <option value="local">LOCAL</option>
-          <option value="nvidia">NVIDIA</option>
-        </select>
-        <span id="studio-engine-status" class="hint-sm"></span>
-        <button class="ghost" id="nvidia-test-btn" title="Live-test the NVIDIA Build API (key + endpoint + model)">TEST NVIDIA</button>
-        <span class="hint-sm">NIM MODEL</span>
-        <select id="studio-nim-select" class="min-w-280"></select>
-        <span id="studio-nim-status" class="hint-sm"></span>
+        <button class="ghost" id="provider-settings-btn" title="Configure providers by capability">PROVIDERS</button>
+        <span class="hint-sm">local-first · hosted providers are opt-in</span>
       </div>
     </div>
   </div>
@@ -266,6 +259,16 @@
     </div>
   </div>
 
+  <div id="provider-modal" role="dialog" aria-modal="true" aria-labelledby="provider-modal-title">
+    <div id="provider-modal-box">
+      <div id="stage-modal-head">
+        <span id="provider-modal-title">PROVIDER ROUTING</span>
+        <button id="provider-modal-close" aria-label="close">CLOSE ✕</button>
+      </div>
+      <div id="provider-modal-body"><div class="sm-empty">loading…</div></div>
+    </div>
+  </div>
+
   <div class="flex">
     <p class="hint-sm">pipeline engine: olympus/engines/pipeline/ · kernel: olympus/kernel/</p>
     <p class="hint-sm">design: docs/planning/anime-pipeline-v2-design.md</p>
@@ -301,3 +304,4 @@
 <script src="/app.js" defer></script>
 </body>
 </html>
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               

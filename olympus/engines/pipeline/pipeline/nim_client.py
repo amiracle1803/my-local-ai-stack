@@ -91,7 +91,14 @@ class NIMClient:
     def _image_data_uri(self, image: Path | bytes) -> str:
         raw = image if isinstance(image, bytes) else Path(image).read_bytes()
         b64 = base64.b64encode(raw).decode("ascii")
-        return f"data:image/png;base64,{b64}"
+        mime = "image/png"
+        if raw.startswith(b"\xff\xd8\xff"):
+            mime = "image/jpeg"
+        elif raw.startswith(b"GIF87a") or raw.startswith(b"GIF89a"):
+            mime = "image/gif"
+        elif raw.startswith(b"RIFF") and raw[8:12] == b"WEBP":
+            mime = "image/webp"
+        return f"data:{mime};base64,{b64}"
 
     def judge_vision(
         self,

@@ -47,6 +47,8 @@ def validate_workflow(workflow_name: str, workflow: dict, patchable_map: dict) -
     # Build set of all workflow input paths
     workflow_inputs = set()
     for node_id, node in workflow.items():
+        if not isinstance(node, dict):
+            continue
         if "inputs" in node:
             for field, value in node["inputs"].items():
                 workflow_inputs.add(f"{node_id}.{field}")
@@ -109,9 +111,12 @@ def main():
                 continue
 
             try:
-                with open(workflow_path) as f:
-                    workflow = json.load(f)
-            except json.JSONDecodeError as e:
+                # Use the same normalization and runtime path policy as the
+                # actual client, including modern UI-format graphs.
+                sys.path.insert(0, str(workflows_dir.parent))
+                from pipeline.comfy_client import WorkflowTemplate
+                workflow = WorkflowTemplate.load(template_name).graph
+            except (json.JSONDecodeError, RuntimeError, ValueError, KeyError) as e:
                 print(f"\n{template_name}: INVALID JSON - {e}")
                 all_ok = False
                 continue

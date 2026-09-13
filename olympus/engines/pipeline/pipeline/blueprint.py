@@ -13,25 +13,23 @@ import hashlib
 import re
 import uuid
 import warnings
-from datetime import datetime, timezone
 from pathlib import Path
 
 from pydantic import BaseModel, Field
 
 # Canonical stage execution order (design 3.9): 
-# 0 -> 1 (chars) -> 1M2b (world) -> 1R (refs) -> 3 (storyboard w/ refs) 
-# -> 2 (screenplay w/ storyboard+refs) -> 3B (panels w/ krea2+refs) 
-# -> 4 (audio) -> 3C (animation w/ krea2 base) -> VLM Review (audio+visual) -> 5 (assembly)
+# Faithful audio-first order: source -> story structure -> narration/audio ->
+# visual references/prompts/panels -> animation -> review -> assembly.
 STAGE_ORDER: list[str] = [
     "stage0",
     "stage0_dossier",  # rich intake extraction (characters/locations/360-views/scenes/dialogue)
     "stage1",       # M2a: character scan + profiles
     "stage1_world", # M2b: world enrichment (locations, era, magic, economy, relationships)
+    "stage2",       # narration + dialogue screenplay, before image generation
+    "stage4",       # TTS + alignment establishes the editorial spine
+    "stage3",       # visual storyboard/shot enrichment from timed screenplay
     "stage1r",      # reference images: character, location, asset style refs
-    "stage3",       # storyboard: shots+blocks using refs as context, detail per scene
-    "stage2",       # screenplay: narration+dialogue using storyboard+refs as context
     "stage3b",      # panels: krea2 img2img from plates using refs (identity/style)
-    "stage4",       # audio: TTS + alignment
     "stage3c",      # animation: krea2 base LTX I2V from panels
     "stage_vlm_review",  # VLM reviews audio+visual together
     "stage5",       # assembly: final MP4 with chapters+SRT+timeline
@@ -109,7 +107,7 @@ class Blueprint(BaseModel):
     title_hash: str
     created: str
     fps: int
-    mode: str = "0b"  # stage0 intake mode: 0b (generate) | 0a (transform) | 0i (import)
+    mode: str = "0b"  # 0b generate | 0a transform | 0s faithful source | 0i import
     style: Style = Field(default_factory=Style)
     target: Target = Field(default_factory=Target)
     stages: dict[str, StageEntry] = Field(default_factory=dict)

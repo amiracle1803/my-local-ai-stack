@@ -36,7 +36,7 @@ _ENV_KEYS = ("NVIDIA_API_KEY", "NVIDIA_NIM_API_KEY")
 
 # default / verified model roles on the free NVIDIA Build tier
 DEFAULT_TEXT_MODEL = "deepseek-ai/deepseek-v4-flash-0731"
-DEFAULT_VISION_MODEL = "meta/llama-3.2-90b-vision-instruct"
+DEFAULT_VISION_MODEL = "meta/llama-3.2-11b-vision-instruct"
 DEFAULT_IMAGE_MODEL = "google/diffusiongemma-26b-a4b-it"
 
 _SUPPORTED_IMAGE_MODELS = {"google/diffusiongemma-26b-a4b-it"}
@@ -106,11 +106,29 @@ class NvidiaClient:
         self.cfg = cfg
         self.base = str(getattr(cfg, "base_url", "")).rstrip("/") or "https://integrate.api.nvidia.com/v1"
         self.timeout = getattr(cfg, "timeout_seconds", 120)
-        # Shorter timeout for text LLM offload: deepseek answers fast; the free
-        # tier throttles with long read-timeouts, so don't block a stage on it.
-        self.llm_timeout = min(self.timeout, 30)
+        # Text LLM offload timeout. The throttle (below) prevents free-tier burst
+        # 529s, but under load deepseek-v4-pro can exceed 30s; give it the full
+        # configured window (default 120s) so the strong hosted model gets a real
+        # chance instead of timing out and silently falling back to local qwen3:8b.
+        self.llm_timeout = max(self.timeout, 30)
         self.api_key = resolve_api_key(cfg)
+        # Free-tier rate-limit throttle: the NVIDIA Build tier 529s / times out
+        # on BURST calls (2-3 rapid calls then Overloaded). Pipeline LLM stages
+        # make many sequential calls, so space them out to stay under the burst
+        # limit and let the strong hosted models (deepseek-v4-pro etc.) be used
+        # instead of falling back to local qwen3:8b. Verified: 6 calls with 8s
+        # spacing -> all succeed in 1-7s; burst -> 529 on the 2nd/3rd call.
+        self.min_interval = getattr(cfg, "min_interval", 6.0)
+        self._last_call = 0.0
         self.session = session or requests.Session()
+
+    def _throttle(self) -> None:
+        """Enforce a minimum interval between calls to avoid free-tier burst
+        rate-limiting. Returns immediately if enough time has passed."""
+        wait = self.min_interval - (time.time() - self._last_call)
+        if wait > 0:
+            time.sleep(wait)
+        self._last_call = time.time()
 
     def ready(self) -> bool:
         if _circuit_open():
@@ -126,7 +144,14 @@ class NvidiaClient:
     def _image_data_uri(self, image: Path | bytes) -> str:
         raw = image if isinstance(image, bytes) else Path(image).read_bytes()
         b64 = base64.b64encode(raw).decode("ascii")
-        return f"data:image/png;base64,{b64}"
+        mime = "image/png"
+        if raw.startswith(b"\xff\xd8\xff"):
+            mime = "image/jpeg"
+        elif raw.startswith(b"GIF87a") or raw.startswith(b"GIF89a"):
+            mime = "image/gif"
+        elif raw.startswith(b"RIFF") and raw[8:12] == b"WEBP":
+            mime = "image/webp"
+        return f"data:{mime};base64,{b64}"
 
     # ---- LLM text -----------------------------------------------------------
 
@@ -154,6 +179,7 @@ class NvidiaClient:
             "max_tokens": max_tokens,
         }
         try:
+            self._throttle()
             resp = self.session.post(
                 f"{self.base}/chat/completions",
                 json=payload,
@@ -214,6 +240,7 @@ class NvidiaClient:
             "max_tokens": max_tokens,
         }
         try:
+            self._throttle()
             resp = self.session.post(
                 f"{self.base}/chat/completions",
                 json=payload,
@@ -268,6 +295,7 @@ class NvidiaClient:
             "max_tokens": 1200,
         }
         try:
+            self._throttle()
             resp = self.session.post(
                 f"{self.base}/chat/completions",
                 json=payload,

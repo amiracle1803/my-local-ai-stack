@@ -125,7 +125,7 @@ def test_run_stage_critique_transport_error(tmp_path):
 
     config = PipelineConfig.load()
     mock_llm = MagicMock()
-    mock_llm.complete_json.side_effect = Exception("Ollama connection refused")
+    mock_llm.complete_text.side_effect = Exception("Ollama connection refused")
 
     from pipeline.stage_critique import run_stage_critique
 

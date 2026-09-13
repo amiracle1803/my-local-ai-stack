@@ -81,12 +81,17 @@ def test_stage4_runs_when_stage3c_proves_rendered(tmp_path):
     """Downstream gate for stage4 must pass once stage3c actually rendered
     a clip (ltx_rendered >= 1), not on the vacuous lipsync_overlap_avg=0.0."""
     with _scores(tmp_path) as s:
-        # Simulate stage3b/3c completion in the documented order.
-        s.record("stage3b", "global", "prompt_adherence_avg", 0.92)
-        s.stage_done("stage3b")
-        s.record("stage3c", "global", "ltx_rendered", 3.0)
-        s.stage_done("stage3c")
-        # stage_vlm_review precedes stage4 per STAGE_ORDER; mark it done too
-        # so stage4's require_stage call has its full chain satisfied.
-        s.stage_done("stage_vlm_review")
-        s.require_stage("stage4")  # must not raise
+            # Audio-first order: stage4 follows screenplay stage2.
+            s.record("stage2", "global", "narration_avg_score", 0.92)
+            s.stage_done("stage2")
+            s.record("stage4", "global", "alignment_coverage", 0.95)
+            s.stage_done("stage4")
+            s.record("stage1r", "global", "refs_per_character", 4.0)
+            s.stage_done("stage1r")
+            # Simulate later visual stages as well.
+            s.record("stage3b", "global", "prompt_adherence_avg", 0.92)
+            s.stage_done("stage3b")
+            s.record("stage3c", "global", "ltx_rendered", 3.0)
+            s.stage_done("stage3c")
+            s.stage_done("stage_vlm_review")
+            s.require_stage("stage3b")  # must not raise after audio-first stages

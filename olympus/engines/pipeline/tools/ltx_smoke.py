@@ -34,6 +34,8 @@ _DEST = Path("/tmp/ltx-smoke")
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--template", default="video_i2v_ltx_2b.json")
+    ap.add_argument("--seed", type=int, default=_SEED)
+    ap.add_argument("--label", default="smoke")
     args = ap.parse_args()
 
     config = PipelineConfig.load()
@@ -58,7 +60,7 @@ def main() -> int:
                 {
                     "PROMPT_POS": "anime character, simple background, test frame",
                     "WIDTH": _WIDTH, "HEIGHT": _HEIGHT,
-                    "SEED": _SEED,
+                    "SEED": args.seed,
                     "SAVE_PREFIX": "pipeline/ltx_smoke/test_panel",
                 },
                 dest=test_panel.parent,
@@ -79,8 +81,8 @@ def main() -> int:
                 "START_FRAME": uploaded,
                 "WIDTH": _WIDTH, "HEIGHT": _HEIGHT,
                 "FRAMES": _FRAMES, "STEPS": _STEPS,
-                "SEED": _SEED, "FPS": _FPS,
-                "SAVE_PREFIX": "pipeline/ltx_smoke/smoke",
+                "SEED": args.seed, "FPS": _FPS,
+                "SAVE_PREFIX": f"pipeline/ltx_smoke/{args.label}_seed{args.seed}",
             },
             dest=_DEST,
         )
@@ -93,11 +95,11 @@ def main() -> int:
     # video_router routes to LTX only once this marker exists.
     if args.template in ("video_i2v_ltx_2b.json", "video_i2v_ltx_22b.json", "ltx2b_i2v.json", "ltx22b_i2v.json"):
         marker = ENGINE_ROOT / "workflows" / ".ltx_smoke_passed"
-        marker.write_text(f"passed {elapsed:.1f}s seed={_SEED}\n", encoding="utf-8")
+        marker.write_text(f"passed {elapsed:.1f}s seed={args.seed}\n", encoding="utf-8")
         print(f"LTX lab gate marker written: {marker}")
     elif args.template in ("video_i2v_ltx_23b_tiled.json", "ltx23_i2v_8gb.json"):
         marker = ENGINE_ROOT / "workflows" / ".ltx23_smoke_passed"
-        marker.write_text(f"passed {elapsed:.1f}s seed={_SEED}\n", encoding="utf-8")
+        marker.write_text(f"passed {elapsed:.1f}s seed={args.seed}\n", encoding="utf-8")
         print(f"LTX23 lab gate marker written: {marker}")
 
     print(f"template={args.template} seconds={elapsed:.1f} output={paths[0]}")

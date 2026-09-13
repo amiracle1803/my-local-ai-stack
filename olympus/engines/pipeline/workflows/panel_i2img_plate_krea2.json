@@ -116,14 +116,14 @@
       "alpha": 0.35
     }
   },
-  "10": {
-    "class_type": "SaveImage",
+  "11": {
+   "class_type": "SaveImage",
     "_meta": {
       "title": "SAVE",
       "note": "Writes the panel PNG under ComfyUI/output/<SAVE_PREFIX>; ComfyClient copies it into the project panels dir."
     },
     "inputs": {
-      "images": ["9", 0],
+      "images": ["10", 0],
       "filename_prefix": "pipeline/out"
     }
   }

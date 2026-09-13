@@ -772,6 +772,19 @@ async function loadVoices() {
 $('voice-speed').addEventListener('input', (e) =>
   $('speed-val').textContent = Number(e.target.value).toFixed(2));
 
+async function loadVoiceConfig() {
+  try {
+    const data = await j('/api/voice/config');
+    const select = $('voice-engine-select');
+    if (!select) return;
+    select.innerHTML = data.options.map((o) => `<option value="${esc(o.id)}" ${o.id === data.engine ? 'selected' : ''}>${esc(o.name)}</option>`).join('');
+    $('voice-engine-status').textContent = 'local-only';
+  } catch {
+    if ($('voice-engine-status')) $('voice-engine-status').textContent = 'Voice Studio offline';
+  }
+}
+loadVoiceConfig();
+
 $('voice-gen').addEventListener('click', () => {
   const text = $('voice-text').value.trim();
   if (!text) return;
@@ -904,99 +917,58 @@ function setLastMsg(text, kind) {
   el.className = 'mono ' + (kind === 'ok' ? 'ok' : kind === 'err' ? 'err' : kind === 'warn' ? 'warn' : '');
 }
 
-// 11b. NIM model selector ------------------------------------------------------
+const PROVIDER_CAPABILITIES = ['llm', 'vision', 't2i', 'i2i', 'i2v', 'tts'];
+let _providerData = null;
 
-async function loadNimModels() {
-  try {
-    const data = await j('/api/nim/models');
-    const sel = $('studio-nim-select');
-    if (!sel) return;
-    sel.innerHTML = data.models.map((m) =>
-      `<option value="${esc(m)}" ${m === data.active ? 'selected' : ''}>${esc(m)}${m === data.active ? ' ● active' : ''}</option>`
-    ).join('');
-    $('studio-nim-status').textContent = data.enabled ? '● enabled' : '○ disabled';
-    $('studio-nim-status').style.color = data.enabled ? 'var(--green)' : 'var(--dim)';
-    _engine = data.engine === 'nvidia' ? 'nvidia' : 'local';
-    renderEngineToggle(data);
-  } catch {
-    const sel = $('studio-nim-select');
-    if (sel) sel.innerHTML = '<option>unavailable</option>';
-  }
+async function loadProviderRegistry() {
+  _providerData = await j('/api/providers');
+  return _providerData;
 }
 
-// Engine selector (LOCAL vs NVIDIA offload). "nvidia" requires a key.
-let _engine = 'local';
-let _engineApplying = false;
-function renderEngineToggle(data) {
-  const sel = $('studio-engine-select');
-  const st = $('studio-engine-status');
-  if (!sel) return;
-  sel.value = _engine;
-  const key = data && data.api_key_present;
-  const off = (data && (data.offload_llm || data.offload_vision || data.offload_images));
-  if (_engine === 'nvidia') {
-    st.textContent = off ? '● offload active' : '● on (no offload yet)';
-    st.style.color = 'var(--green)';
-    if (!key) { st.textContent = '✗ no API key'; st.style.color = 'var(--red)'; }
-  } else {
-    st.textContent = '○ on-box';
-    st.style.color = 'var(--dim)';
-  }
+function providerLabel(id, data) {
+  return data.providers[id]?.display_name || id;
 }
 
-async function setNimEngine(engine) {
-  const st = $('studio-engine-status');
-  if (_engineApplying) return;
-  _engineApplying = true;
-  st.textContent = 'applying…';
+async function openProviderSettings() {
+  const modal = $('provider-modal');
+  const body = $('provider-modal-body');
+  if (!modal || !body) return;
   try {
-    const body = { engine };
-    // When enabling NVIDIA, default the offload flags on (LLM + vision); the
-    // user can tune via stack.toml. Disabling returns to local.
-    if (engine === 'nvidia') { body.offload_llm = true; body.offload_vision = true; }
-    const data = await postJson('/api/nim/engine', body);
-    _engine = data.engine === 'nvidia' ? 'nvidia' : 'local';
-    renderEngineToggle(data);
-    setLastMsg(engine === 'nvidia'
-      ? 'ENGINE → NVIDIA: LLM + vision offloaded to the free NVIDIA API (deepseek-v4-flash / llama-3.2-90b). ComfyUI stays free for images.'
-      : 'ENGINE → LOCAL: all generation runs on this machine (Ollama + ComfyUI).', 'ok');
-  } catch (e) {
-    st.textContent = '✗ ' + (e.message || e).slice(0, 60);
-    st.style.color = 'var(--red)';
-    alert('Engine switch failed: ' + (e.message || e));
-    loadNimModels();
-  } finally {
-    _engineApplying = false;
-  }
-}
-
-async function testNvidia() {
-  const btn = $('nvidia-test-btn');
-  setLastMsg('testing NVIDIA API…', '');
-  try {
-    await withLoading(btn, async () => {
-      const r = await postJson('/api/nim/test', {});
-      setLastMsg(`NVIDIA OK — ${r.model} → “${r.reply}”`, 'ok');
+    const data = await loadProviderRegistry();
+    body.innerHTML = `<div class="sm-hint">Local providers are the default. Hosted providers require configured credentials and remain opt-in.</div>
+      <div class="provider-grid">${PROVIDER_CAPABILITIES.map((capability) => {
+        const selected = data.selections[capability] || { provider: '' };
+        const options = Object.entries(data.providers)
+          .filter(([, provider]) => provider.capabilities.includes(capability))
+          .map(([id, provider]) => `<option value="${esc(id)}" ${id === selected.provider ? 'selected' : ''} ${!provider.enabled ? 'disabled' : ''}>${esc(provider.display_name)}${provider.experimental ? ' · experimental' : ''}</option>`).join('');
+        return `<label class="provider-row"><span class="label">${esc(capability.toUpperCase())}</span><select class="provider-select" data-capability="${esc(capability)}">${options}</select><span class="hint-sm provider-health" data-provider-health="${esc(capability)}"></span></label>`;
+      }).join('')}</div>
+      <div class="flex mt-sm"><button class="primary" id="provider-apply">APPLY</button><button class="ghost" id="provider-reset">RESET TO LOCAL</button><span id="provider-error" class="err-sm"></span></div>`;
+    modal.classList.add('open');
+    const refreshHealth = () => body.querySelectorAll('.provider-select').forEach((select) => {
+      const provider = data.providers[select.value];
+      const health = body.querySelector(`[data-provider-health="${select.dataset.capability}"]`);
+      if (health) health.textContent = provider?.integration_status === 'unavailable'
+        ? 'not wired'
+        : provider?.credential_present === false && provider.kind === 'hosted'
+          ? '✗ credentials missing'
+          : provider?.kind === 'hosted' ? 'hosted · quota-limited' : 'local';
     });
-  } catch (e) {
-    setLastMsg('NVIDIA test failed: ' + (e.message || e).slice(0, 120), 'err');
-  }
-}
-
-async function setNimModel(model) {
-  const status = $('studio-nim-status');
-  status.textContent = 'switching…';
-  try {
-    await postJson('/api/nim/model', { model });
-    status.textContent = '● switched to ' + model.split('/').pop();
-    status.style.color = 'var(--green)';
-    setLastMsg('NIM model switched to ' + model + ' (permanent — saved to stack.toml)', 'ok');
-    await loadNimModels();
-  } catch (e) {
-    status.textContent = '✗ ' + (e.message || e).slice(0, 60);
-    status.style.color = 'var(--red)';
-    alert('Failed to switch NIM model: ' + (e.message || e));
-    await loadNimModels();
+    refreshHealth();
+    body.querySelectorAll('.provider-select').forEach((select) => select.addEventListener('change', refreshHealth));
+    $('provider-apply').onclick = async () => {
+      const selections = {};
+      body.querySelectorAll('.provider-select').forEach((select) => { selections[select.dataset.capability] = { provider: select.value }; });
+      try { _providerData = await postJson('/api/providers/settings', { selections }); modal.classList.remove('open'); setLastMsg('provider routing applied', 'ok'); }
+      catch (error) { $('provider-error').textContent = (error.message || error).slice(0, 200); }
+    };
+    $('provider-reset').onclick = async () => {
+      try { _providerData = await postJson('/api/providers/reset-local', {}); await openProviderSettings(); setLastMsg('provider routing reset to local defaults', 'ok'); }
+      catch (error) { $('provider-error').textContent = (error.message || error).slice(0, 200); }
+    };
+  } catch (error) {
+    body.innerHTML = `<div class="sm-empty">provider registry unavailable: ${esc(error.message || error)}</div>`;
+    modal.classList.add('open');
   }
 }
 
@@ -1066,9 +1038,9 @@ $('studio-new-form').addEventListener('submit', async (e) => {
   try {
     await postJson('/api/pipeline/projects', body);
     // Optional panels upload for 0i — send as a separate call after creation
-    const pf = $('np-panels-file').files[0];
+    const pf = $('np-panels').files[0];
     if (intake === '0i' && pf) await uploadPanels(slug, pf);
-    $('np-slug').value = ''; $('np-text').value = ''; $('np-panels-file').value = '';
+    $('np-slug').value = ''; $('np-text').value = ''; $('np-panels').value = '';
     $('studio-new-form').style.display = 'none';
     studioProject = slug;
     localStorage.setItem('studio-project', slug);
@@ -1107,7 +1079,7 @@ function pollStudioStatus() {
   j(pipeline('status'))
     .then((st) => {
       $('studio-project-meta').textContent =
-        `fps ${st.fps} · mode ${st.mode || '0b'} · story_id ${st.story_id.slice(0, 8)}…`;
+        `fps ${st.fps} · mode ${st.mode || '0b'} · story_id ${String(st.story_id || 'unknown').slice(0, 8)}…`;
       // Animation disabled = panels mode: stage3c + clip VLM review are skipped
       // by the backend, so treat them as done-without-clips on the board (no
       // misleading "no clips rendered" / "0% passed" warnings).
@@ -1432,6 +1404,19 @@ async function viewWorldBible(list) {
   return html;
 }
 
+async function viewDossier(list) {
+  const dossier = list.find((a) => a.path === 'intake/dossier.json');
+  if (!dossier) return '';
+  try {
+    const data = await fetchJson(dossier.path);
+    const people = asList(data.characters || data.people);
+    let html = '<div class="sm-section-title">INTAKE DOSSIER</div>';
+    if (data.title || data.synopsis) html += `<div class="char-card"><div class="cname">${esc(data.title || 'DOSSIER')}</div><div class="capp">${esc(data.synopsis || '')}</div></div>`;
+    if (people.length) html += people.map((person) => `<div class="char-card"><div class="cname">${esc(person.name || person.id || 'CHARACTER')}</div><div class="capp">${esc(person.appearance || person.description || person.role || '')}</div></div>`).join('');
+    return html + (!people.length && !data.synopsis ? smDocHtml(dossier.path) : '');
+  } catch { return smDocHtml(dossier.path); }
+}
+
 async function viewStoryboard(list) {
   let html = '';
   const sb = list.find((a) => a.path === 'storyboard/storyboard.json');
@@ -1565,7 +1550,7 @@ async function viewAssembly(list) {
   let html = '';
   const vid = list.find((a) => a.kind === 'video');
   if (vid) html += `<div class="sm-section-title">FINAL VIDEO</div>` + smFile(vid);
-  const srt = list.find((a) => a.path === 'video/final.srt');
+  const srt = list.find((a) => a.path === 'video/final.srt' || a.path === 'video/subtitles.srt');
   const chapters = list.find((a) => a.path === 'video/chapters.ffmetadata');
   if (srt) html += `<div class="sm-section-title">SUBTITLES (.srt)</div>` + smDocHtml(srt.path);
   if (chapters) html += `<div class="sm-section-title">CHAPTERS</div>` + smDocHtml(chapters.path);
@@ -1574,7 +1559,7 @@ async function viewAssembly(list) {
 
 // Map each stage to its human-readable viewer; fall back to a plain JSON doc
 const STAGE_VIEWERS = {
-  stage0: viewStage0, stage0_dossier: viewWorldBible, stage1: viewWorldBible,
+    stage0: viewStage0, stage0_dossier: viewDossier, stage1: viewWorldBible,
   stage1_world: viewWorldBible, stage1r: (l) => viewMedia(l, 'image', 'no reference images generated yet — run stage 1R'),
   stage3: viewStoryboard, stage2: viewScreenplay,
   stage3b: viewPanels,
@@ -1673,6 +1658,11 @@ $('setup-modal').addEventListener('click', (e) => {
   if (e.target === $('setup-modal')) $('setup-modal').classList.remove('open');
 });
 
+const providerModal = $('provider-modal');
+$('provider-settings-btn')?.addEventListener('click', openProviderSettings);
+$('provider-modal-close')?.addEventListener('click', () => providerModal.classList.remove('open'));
+providerModal?.addEventListener('click', (e) => { if (e.target === providerModal) providerModal.classList.remove('open'); });
+
 // ---- STOP / QUICK TEST controls (studio FULL PIPELINE banner) ----
 // STOP asks the run-all worker to abort at the next stage boundary.
 $('studio-stop-btn')?.addEventListener('click', async () => {
@@ -1758,15 +1748,7 @@ if (animToggleBtn) {
 }
 
 // ---- NIM model selector wiring ----
-const nimSel = $('studio-nim-select');
-if (nimSel) {
-  nimSel.addEventListener('change', (e) => setNimModel(e.target.value));
-  loadNimModels();
-}
-const engineSel = $('studio-engine-select');
-if (engineSel) engineSel.addEventListener('change', (e) => setNimEngine(e.target.value));
-const nvidiaTestBtn = $('nvidia-test-btn');
-if (nvidiaTestBtn) nvidiaTestBtn.addEventListener('click', testNvidia);
+loadProviderRegistry().catch(() => {});
 
 // ---- studio polling: faster when something is running ----
 let _studioPoll = null;
@@ -1781,7 +1763,7 @@ function startStudioPolling() {
 renderStageGrid();
 loadStudioProjects().then(() => { pollStudioStatus(); startStudioPolling(); });
 loadAnimationState();
-setInterval(() => { if (document.querySelector('#page-studio.active')) loadNimModels(); }, 30000);
+setInterval(() => { if (document.querySelector('#page-studio.active')) loadProviderRegistry().catch(() => {}); }, 30000);
 
 /* -- 12. System page ------------------------------------------------------------ */
 

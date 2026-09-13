@@ -15,7 +15,7 @@ from __future__ import annotations
 import tomllib
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -69,10 +69,59 @@ class ComfyUIConfig(BaseModel):
     models: ComfyUIModels = Field(default_factory=ComfyUIModels)
 
 
+ProviderKind = Literal["local", "hosted", "custom"]
+ProviderCapability = Literal["llm", "vision", "t2i", "i2i", "i2v", "tts"]
+
+
+class ProviderDefinition(BaseModel):
+    """A capability provider exposed to the dashboard and runtime resolver."""
+
+    display_name: str
+    kind: ProviderKind = "custom"
+    enabled: bool = True
+    experimental: bool = False
+    capabilities: list[ProviderCapability] = Field(default_factory=list)
+    credential_env: str = ""
+    endpoint: str = ""
+    models: list[str] = Field(default_factory=list)
+    integration_status: str = "registered"  # registered | experimental | unavailable
+    billing_note: str = ""
+    availability_note: str = ""
+
+
+class ProviderConfig(BaseModel):
+    """Selected provider/model for one pipeline capability."""
+
+    provider: str
+    model: str = ""
+
+
+class PipelinePathsConfig(BaseModel):
+    projects_dir: str = "olympus/engines/pipeline/projects"
+    loras_dir: str = "olympus/engines/pipeline/loras"
+    workflows: str = "olympus/engines/pipeline/workflows"
+    comfyui_dir: str = "ComfyUI"
+
+
+class ProvidersConfig(BaseModel):
+    """Generic provider registry and per-capability selections."""
+
+    llm: ProviderConfig = Field(default_factory=lambda: ProviderConfig(provider="ollama"))
+    vision: ProviderConfig = Field(default_factory=lambda: ProviderConfig(provider="ollama"))
+    t2i: ProviderConfig = Field(default_factory=lambda: ProviderConfig(provider="comfyui"))
+    i2i: ProviderConfig = Field(default_factory=lambda: ProviderConfig(provider="comfyui"))
+    i2v: ProviderConfig = Field(default_factory=lambda: ProviderConfig(provider="comfyui"))
+    tts: ProviderConfig = Field(default_factory=lambda: ProviderConfig(provider="voice_studio"))
+    registry: dict[str, ProviderDefinition] = Field(default_factory=dict)
+
+
 class VoiceConfig(BaseModel):
     host: str = "127.0.0.1"
     port: int = 5050
     url: str = "http://127.0.0.1:5050"
+    engine: str = "auto"  # auto | kokoro | espeak-ng
+    default_voice: str = "af_heart"
+    default_speed: float = 1.0
 
 
 class KernelConfig(BaseModel):
@@ -252,9 +301,11 @@ class NIMConfig(BaseModel):
     """
     enabled: bool = False
     base_url: str = "https://integrate.api.nvidia.com/v1"
-    model: str = "meta/llama-3.2-90b-vision-instruct"
+    model: str = "meta/llama-3.2-11b-vision-instruct"
     api_key: str = ""
-    timeout_seconds: int = 120
+    # Long NIM timeout so slow reasoning text models (deepseek-v4-pro ~110s
+    # on big world-inference prompts) finish instead of tripping local fallback.
+    timeout_seconds: int = 600
     # Generation engine: "local" (Ollama + ComfyUI) or "nvidia" (offload).
     # When "nvidia", the heavy LLM / vision / image work is routed to the free
     # NVIDIA Build API and the local 8GB card stays free for ComfyUI.
@@ -262,21 +313,30 @@ class NIMConfig(BaseModel):
     offload_llm: bool = False
     offload_vision: bool = False
     offload_images: bool = False
-    # Verified 2026-09-05 by tools/nvidia_probe.py. deepseek-v4-flash was the
-    # most 529/overloaded-prone; deepseek-v4-pro is fast+reliable for JSON+prose.
+    # Verified working NIM text models (fast+reliable for JSON+prose).
     text_model: str = "deepseek-ai/deepseek-v4-pro-0813"
-    # 90b is the strongest QC judge but ~288s/image (calibration only); 11b is
-    # ~3s and practical for per-panel volume QC.
+    # Verified working NIM vision models for panel QC.
     vision_model: str = "meta/llama-3.2-11b-vision-instruct"
     image_model: str = "google/diffusiongemma-26b-a4b-it"
+# Verified 2026-09-05 by tools/nvidia_probe.py — only models that
+    # successfully responded on free-tier NIM without 529 rate-limit errors.
     models: list[str] = Field(default_factory=lambda: [
         "deepseek-ai/deepseek-v4-pro-0813",
-        "moonshotai/kimi-k3",
-        "minimaxai/minimax-m3",
-        "openai/gpt-oss-20b",
         "meta/llama-3.2-11b-vision-instruct",
-        "meta/llama-3.2-90b-vision-instruct",
     ])
+
+
+class FallbackConfig(BaseModel):
+    """Per-capability local-first fallback policy."""
+
+    llm: str = "local_then_nim"
+    vision: str = "local_then_nim"
+    t2i: str = "local_only"
+    i2i: str = "local_only"
+    i2v: str = "local_only"
+    tts: str = "local_only"
+    max_retries: int = 1
+    log_path: str = "logs/provider_fallbacks.jsonl"
 
 
 # ── top-level config ───────────────────────────────────────────────────────
@@ -296,6 +356,9 @@ class StackConfig(BaseModel):
     gpu: GPUConfig = Field(default_factory=GPUConfig)
     obsidian: ObsidianConfig = Field(default_factory=ObsidianConfig)
     nim: NIMConfig = Field(default_factory=NIMConfig)
+    providers: ProvidersConfig = Field(default_factory=ProvidersConfig)
+    fallback: FallbackConfig = Field(default_factory=FallbackConfig)
+    pipeline: PipelinePathsConfig = Field(default_factory=PipelinePathsConfig)
 
     config_path: Path = Field(default=CONFIG_PATH, exclude=True)
 

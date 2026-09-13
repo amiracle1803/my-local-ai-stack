@@ -45,6 +45,8 @@ from .scores import Scores
 from ._util import now_iso
 from .schemas.worldbible import WorldBible
 from .schemas.dossier import StoryDossier, load_dossier
+from .story_contract import write_beats, write_source_manifest
+from .source_fidelity import _load_rules, repair_screenplay_from_rules, remove_prohibited_terms
 
 logger = logging.getLogger(__name__)
 
@@ -248,8 +250,28 @@ def _fix_consecutive_types(shots: list[_ShotOut]) -> None:
             shots[i].shot_type = nxt
 
 
+def _expand_shot_density(shots: list[dict[str, Any]], target: int) -> list[dict[str, Any]]:
+    """Split long compound beats when a local model under-plans a scene."""
+    out = list(shots)
+    index = 0
+    while len(out) < target and index < len(out) * 3:
+        original = out[index % len(out)]
+        words = str(original.get("beat", "")).split()
+        if len(words) >= 10:
+            midpoint = len(words) // 2
+            first = dict(original)
+            second = dict(original)
+            first["beat"] = " ".join(words[:midpoint]).rstrip(".,") + "."
+            second["beat"] = "reaction and consequence: " + " ".join(words[midpoint:]).rstrip(".,") + "."
+            out[index % len(out)] = first
+            out.insert((index % len(out)) + 1, second)
+        index += 1
+    return out
+
+
 def plan_shots(scene: dict[str, Any], scene_idx: int, scene_total: int,
-               wb: WorldBible, llm: PipelineLLM, references: dict | None = None) -> list[dict[str, Any]]:
+                wb: WorldBible, llm: PipelineLLM, references: dict | None = None,
+                target_shots: int | None = None) -> list[dict[str, Any]]:
     loc = next((l for l in wb.locations if l.id == scene["location"]), None)
     chars = {c.id: c for c in wb.characters}
     
@@ -277,6 +299,7 @@ def plan_shots(scene: dict[str, Any], scene_idx: int, scene_total: int,
             ) or "(none)",
             "scene_position": scene_idx,
             "scene_total": scene_total,
+            "target_shots": target_shots or "at least one shot per distinct action/dialogue beat",
             "reference_context": ref_context,
         },
         _ShotList,
@@ -308,49 +331,78 @@ def plan_shots(scene: dict[str, Any], scene_idx: int, scene_total: int,
 def assemble_sd_prompt(
     shot: dict[str, Any], scene: dict[str, Any], wb: WorldBible, references: dict | None = None
 ) -> str:
-    """``anchors + location + composition + style + reference_context`` under the 120-word budget.
-    Trim order when over: composition first, then location -- never anchors or
-    style (design Stage 2 Step 3). No character names appear in the prompt.
-    Includes reference context for visual consistency (character refs, location refs, style refs)."""
+    """``composition + location + trimmed character + style + reference_context``
+    under the word budget.
+
+    ORDER FIX (quality): the previous layout led with the full multi-character
+    appearance (~120+ words) and pushed the shot's composition/framing to the
+    very end, trimming it FIRST when over budget. flux-2-klein weights the front
+    of the prompt, so it produced a character portrait for every shot -- all
+    close-ups, and the vision judge kept flagging ``composition_matches:false``
+    (the framing it asked for never reached the model). Now the shot composition
+    + camera framing + positioning + environment lead the prompt and are always
+    kept; character appearance is trimmed to fit. Ref/consistency anchors are
+    unaffected. No character names appear in the prompt body (refs carry them).
+    """
     chars = {c.id: c for c in wb.characters}
-    anchors = [chars[cid].sd_prompt for cid in shot["characters_in_frame"] if cid in chars]
+    in_frame_ids = shot.get("characters_in_frame", [])
+    anchors = [chars[cid].sd_prompt for cid in in_frame_ids if cid in chars]
     loc = next((l for l in wb.locations if l.id == scene["location"]), None)
     location = loc.sd_prompt if loc else ""
     # Guard: location descriptions must never bleed "no people" into character
     # shots (design Stage 2). Empty plates add it themselves in stage3b.
-    if shot.get("characters_in_frame"):
+    if in_frame_ids:
         location = location.replace(", no people", "").replace("no people,", "")
+
+    # Lead with the shot itself: composition/framing + positioning + time lighting.
     composition = f"{shot['composition']}, {shot['positioning']}".strip(", ")
     time_od = scene.get("time_of_day", "")
     if time_od and time_od != "unclear":
         composition += f", {time_od} lighting"
 
-    # Add reference context to prompt for visual consistency
+    # Reference context for visual consistency (character refs, location refs).
     ref_context = ""
     if references:
         char_refs = references.get("characters", {})
         loc_refs = references.get("locations", {})
-        if shot.get("characters_in_frame"):
-            for cid in shot["characters_in_frame"]:
+        if in_frame_ids:
+            for cid in in_frame_ids:
                 if cid in char_refs:
                     ref_context += f" [ref: {cid}]"
         if scene.get("location") in loc_refs:
             ref_context += f" [loc_ref: {scene['location']}]"
 
-    anchor_part = ", ".join(anchors)
-    fixed_words = len(anchor_part.split()) + len(_STYLE_TAIL.split()) + len(_NO_TEXT_TAIL.split())
-    remaining = _PROMPT_WORD_BUDGET - fixed_words
+    # Composition + location + refs + style + no-text are NEVER trimmed.
+    fixed = (
+        len(composition.split()) + len(location.split()) + len(ref_context.split())
+        + len(_STYLE_TAIL.split()) + len(_NO_TEXT_TAIL.split())
+    )
+    anchor_budget = max(25, _PROMPT_WORD_BUDGET - fixed)
 
-    comp_words = composition.split()
-    loc_words = location.split()
-    ref_words = ref_context.split()
-    if len(comp_words) + len(loc_words) + len(ref_words) > remaining:
-        comp_budget = max(0, remaining - len(loc_words) - len(ref_words))
-        comp_words = comp_words[:comp_budget]
-        if len(comp_words) + len(loc_words) + len(ref_words) > remaining:
-            loc_words = loc_words[: max(0, remaining - len(comp_words) - len(ref_words))]
+    # Trim character appearance to fit (front of each sd_prompt = most
+    # distinctive; drop the verbose tail). Order of appearance in the prompt is
+    # now AFTER the framing + environment, so the model follows the shot.
+    anchor_parts: list[str] = []
+    used = 0
+    for a in anchors:
+        aw = a.split()
+        take = max(0, anchor_budget - used)
+        if take <= 0:
+            break
+        anchor_parts.append(" ".join(aw[:take]))
+        used += min(take, len(aw))
+    anchor_part = ", ".join(anchor_parts)
 
-    parts = [p for p in (anchor_part, " ".join(loc_words), " ".join(comp_words), ref_context, _STYLE_TAIL, _NO_TEXT_TAIL) if p]
+    parts = [
+        p for p in (
+            composition,
+            " ".join(location.split()),
+            anchor_part,
+            ref_context,
+            _STYLE_TAIL,
+            _NO_TEXT_TAIL,
+        ) if p
+    ]
     return ", ".join(parts)
 
 
@@ -374,10 +426,11 @@ def assemble_sd_prompt_simple(shot: dict[str, Any], scene: dict[str, Any], wb: W
     time_od = scene.get("time_of_day", "")
     tod = f", {time_od} lighting" if time_od and time_od != "unclear" else ""
 
+    # Camera framing leads (fixes all-close-up panels): the model reads the front.
     parts = [p for p in (
-        char_desc,
         str(camera),
         loc.sd_prompt if loc else "",
+        char_desc,
         f"anime 2d illustration, clean linework, cel shading{tod}",
         _NO_TEXT_TAIL,
     ) if p]
@@ -480,9 +533,15 @@ def write_narrations(
                     stage_hint=f"stage2_narrfix_{shot['id']}",
                 ).strip().strip('"')
                 if _narration_issues(text, banned, recent_openers[-3:]):
-                    logger.warning("narration for %s failed after rewrite; dropping (silence)", shot["id"])
-                    shot["narration"] = None
-                    continue
+                    # Never silently convert a story beat into dead air. Keep a
+                    # deterministic, script-grounded fallback so Stage 4 and
+                    # final assembly retain audio coverage even when the local
+                    # model fails the prose rewrite contract.
+                    fallback = f"{shot['beat'].strip().rstrip('.')} ."
+                    if len(fallback.split()) < _NARRATION_MIN_WORDS:
+                        fallback = f"{fallback} {scene_summary.strip().rstrip('.')} ."
+                    text = fallback
+                    logger.warning("narration for %s failed after rewrite; using beat-grounded fallback", shot["id"])
 
             recent_openers.append(" ".join(text.split()[:3]).lower())
             shot["narration"] = {"text": text, "technique": technique, "score": None}
@@ -647,9 +706,50 @@ def run(
     """
     project_dir = Path(project_dir)
     bp = Blueprint.load(project_dir)
-    storyboard = json.loads(
-        (project_dir / "storyboard" / "storyboard.json").read_text(encoding="utf-8")
-    )
+    manifest = write_source_manifest(project_dir)
+    if llm is None:
+        llm = PipelineLLM(config, prompts_dir=PROMPTS_DIR, logs_dir=project_dir / "logs")
+    existing_screenplay = project_dir / "screenplay" / "screenplay.json"
+    manifest_path = project_dir / "input" / "source_manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else manifest.model_dump()
+    existing_data = json.loads(existing_screenplay.read_text(encoding="utf-8")) if existing_screenplay.exists() else {}
+    if (
+        existing_screenplay.exists()
+        and existing_data.get("source_manifest_sha256") == manifest.get("sha256")
+        and existing_data.get("structure_version") == 4
+    ):
+        storyboard = existing_data
+    else:
+        # Audio-first mode: create the structural shot plan before narration.
+        # Stage 3 will enrich this same structure later with references, blocks,
+        # camera prompts, and motion tiers.
+        from .schemas.worldbible import WorldBible as _WorldBible
+        script_text = (project_dir / "input" / "script.txt").read_text(encoding="utf-8")
+        wb = _WorldBible.model_validate_json((project_dir / "worldbible" / "world_bible.json").read_text(encoding="utf-8"))
+        dossier = load_dossier(project_dir)
+        scenes = segment_scenes(script_text, wb, llm, references={}, dossier=dossier)
+        manifest = json.loads((project_dir / "input" / "source_manifest.json").read_text(encoding="utf-8")) if (project_dir / "input" / "source_manifest.json").exists() else {}
+        fidelity_rules = _load_rules(project_dir, script_text)
+        required_story_beats = "; ".join(
+            str(beat.get("label", "")) for beat in fidelity_rules.beats
+        ) or "preserve every source action, reveal, reaction, and dialogue exchange"
+        total_target = max(len(scenes), int(manifest.get("estimated_beat_count", len(scenes))))
+        for index, scene in enumerate(scenes, 1):
+            remaining = max(1, len(scenes) - index + 1)
+            target = max(2, round((total_target - sum(len(s.get("shots", [])) for s in scenes[:index - 1])) / remaining))
+            scene["shots"] = plan_shots(scene, index, len(scenes), wb, llm, references={}, target_shots=f"{target}; required story beats: {required_story_beats}")
+            # One bounded expansion pass prevents a local model from collapsing
+            # a long chapter into a handful of shots. Never loop indefinitely.
+            if len(scene["shots"]) < target:
+                expanded = plan_shots(
+                    scene, index, len(scenes), wb, llm, references={},
+                    target_shots=f"exactly {target}; required story beats: {required_story_beats}",
+                )
+                if len(expanded) > len(scene["shots"]):
+                    scene["shots"] = expanded
+            if len(scene["shots"]) < target:
+                scene["shots"] = _expand_shot_density(scene["shots"], target)
+        storyboard = {"story_id": bp.story_id, "fps": bp.fps, "scenes": scenes}
     # Load references for visual context in narration/dialogue
     refs_path = project_dir / "references" / "references.json"
     references = {}
@@ -659,28 +759,42 @@ def run(
         logger.warning("references/references.json not found - running without visual context")
     scenes = storyboard["scenes"]
     if not scenes:
-        raise Stage2Error("storyboard has no scenes -- run stage3 first")
-
-    if llm is None:
-        llm = PipelineLLM(config, prompts_dir=PROMPTS_DIR, logs_dir=project_dir / "logs")
+        raise Stage2Error("source produced no scenes for screenplay")
 
     from .stage3_storyboard import tag_sfx  # local import avoids circular dep
     wb = WorldBible.model_validate_json(
         (project_dir / "worldbible" / "world_bible.json").read_text(encoding="utf-8")
     )
     dossier = load_dossier(project_dir)  # intake dossier for dialogue grounding
+    rules = _load_rules(project_dir, (project_dir / "input" / "script.txt").read_text(encoding="utf-8"))
+    repair_screenplay_from_rules({"scenes": scenes}, rules)
+    remove_prohibited_terms({"scenes": scenes}, rules)
     rewrites = write_narrations(scenes, wb, llm, project_dir, references=references)
     dedup_drops = write_dialogue(scenes, wb, llm, references=references, dossier=dossier)
+    # LLM prose can reintroduce a project-prohibited prop after the initial
+    # structure repair; scrub only explicit project rules before persisting.
+    remove_prohibited_terms({"scenes": scenes}, rules)
     avg_before, avg_after = audit_narrations(scenes, llm, project_dir)
+    remove_prohibited_terms({"scenes": scenes}, rules)
 
     shots = [shot for scene in scenes for shot in scene["shots"]]
     sfx = tag_sfx(shots)
 
-    screenplay = {"story_id": bp.story_id, "scenes": scenes, "sfx": sfx}
+    screenplay = {"story_id": bp.story_id, "structure_version": 4, "source_manifest_sha256": manifest.get("sha256", ""), "scenes": scenes, "sfx": sfx}
+    # Final project-rule scrub after all narration/audit rewrites and before the
+    # screenplay is persisted or evaluated.
+    remove_prohibited_terms(screenplay, rules)
     out_dir = project_dir / "screenplay"
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / "screenplay.json"
     out_path.write_text(json.dumps(screenplay, indent=2, ensure_ascii=False), encoding="utf-8")
+    beats = write_beats(project_dir, screenplay)
+
+    # Stop expensive audio/visual work when the generated screenplay has lost
+    # the source story. The report is retained for editor/agent repair loops.
+    from .source_fidelity import run_gate
+    fidelity = run_gate(project_dir, scores)
+    scores.record("stage2", "global", "story_beats", float(len(beats)))
 
     total_shots = len(shots)
     scores.record("stage2", "global", "scenes", float(len(scenes)))
@@ -700,6 +814,7 @@ def run(
         "stage": "stage2", "status": "done",
         "scenes": len(scenes), "shots": total_shots,
         "narration_avg_score": round(avg_after, 1),
+        "source_fidelity_score": fidelity.score,
         "narration_avg_before_audit": round(avg_before, 1),
         "screenplay_path": str(out_path),
     }

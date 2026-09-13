@@ -1,6 +1,6 @@
 """NIM hosted-VLM calibration sweep (one-shot, then retire).
 
-Borrows an NVIDIA NIM hosted VLM (default ``meta/llama-3.2-90b-vision-instruct``,
+Borrows an NVIDIA NIM hosted VLM (default ``meta/llama-3.2-11b-vision-instruct``,
 a much stronger judge than the local qwen2.5vl:7b) to verify EVERY generated
 image in a project against pipeline ground truth (screenplay + world bible), so
 the local judge and the quality-gate thresholds can be dialed in against a

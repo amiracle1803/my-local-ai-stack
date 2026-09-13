@@ -450,6 +450,11 @@ h2.pg { font-family: Consolas, monospace; font-size: .72rem; letter-spacing: .25
 .scorebar.gold > i { background: var(--gold); }
 .scorebar.green > i { background: var(--green); }
 .sm-section-title { font-family: Consolas, monospace; font-size: .72rem; letter-spacing: .14em; color: var(--cyan); border-bottom: 1px solid var(--line); padding-bottom: .3rem; margin: 1rem 0 .5rem; }
+.provider-grid { display: grid; gap: .55rem; margin-top: .8rem; }
+.provider-row { display: grid; grid-template-columns: 90px minmax(180px, 1fr) 150px; align-items: center; gap: .6rem; padding: .45rem 0; border-bottom: 1px solid var(--line); }
+.provider-row select { min-width: 0; background: #0b1522; color: var(--text); border: 1px solid var(--line); padding: .35rem; }
+.provider-health { text-align: right; }
+#provider-modal { overflow: auto; }
 
 /* -- 13. System ------------------------------------------------------------ */
 #sys-services, #auto-services { display: flex; flex-wrap: wrap; }
@@ -463,8 +468,8 @@ h2.pg { font-family: Consolas, monospace; font-size: .72rem; letter-spacing: .25
 @media (max-width: 992px) {
   header { flex-wrap: wrap; gap: 1rem; }
   #hdr-right { width: 100%; margin-top: 1rem; text-align: center; }
-  #jarvis-panel { width: 100%; height: 150px; }
-  #rail { width: 100%; height: 150px; margin-top: 1rem; }
+  #jarvis-panel { width: 100%; height: 150px; top: 5.5rem; left: 1rem; right: 1rem; }
+  #rail { width: 100%; height: 150px; top: 15.8rem; left: 1rem; right: 1rem; margin-top: 0; }
   .browser { grid-template-columns: 1fr; }
   #voice-grid { grid-template-columns: 1fr; }
   .stages { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
@@ -481,6 +486,8 @@ h2.pg { font-family: Consolas, monospace; font-size: .72rem; letter-spacing: .25
   .kcard { padding: .4rem .5rem; font-size: .75rem; }
   .notepane { padding: .75rem 1rem; }
   .sm-doc { font-size: .65rem; }
+  .provider-row { grid-template-columns: 1fr; gap: .25rem; }
+  .provider-health { text-align: left; }
 }
 @media (max-width: 480px) {
   body { font-size: 11px; }
@@ -495,3 +502,4 @@ h2.pg { font-family: Consolas, monospace; font-size: .72rem; letter-spacing: .25
   .kcard { padding: .35rem .4rem; font-size: .7rem; }
   #studio-project-select { min-width: 150px; }
 }
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    

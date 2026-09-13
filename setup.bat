@@ -77,17 +77,18 @@ REM --- 4. Models -----------------------------------------------------------
 echo.
 echo [..] Pulling models. First time downloads a few GB - grab a coffee.
 echo      (Skips instantly if you already have them.)
-for /f "usebackq tokens=* delims=" %%M in (`".venv\Scripts\python.exe" -c "from olympus.shared.lib.config import load_config as c;x=c();print(x['chat_model']);print(x['embed_model'])"`) do (
+for /f "usebackq tokens=* delims=" %%M in (`".venv\Scripts\python.exe" -c "from stack.config import cfg;print(cfg.ollama.models.default);print(cfg.ollama.models.embed)"`) do (
     echo     pulling %%M ...
     ollama pull %%M
 )
 
-REM --- 5. config.json ------------------------------------------------------
-if not exist "config.json" (
-    copy /y "config.example.json" "config.json" >nul
-    echo [ok] Created config.json  ^(edit "vault_path" to point at your Obsidian vault^)
+REM --- 5. stack.toml -------------------------------------------------------
+if not exist "stack.toml" (
+    echo [X] stack.toml is missing. Restore the repository before continuing.
+    pause
+    exit /b 1
 ) else (
-    echo [ok] config.json already exists - leaving it alone.
+    echo [ok] stack.toml present - edit it for local paths and model choices.
 )
 
 echo.
@@ -95,8 +96,7 @@ echo ============================================================
 echo   Setup complete.
 echo ============================================================
 echo   Next:
-echo     - Edit config.json and set "vault_path" to your Obsidian vault
-echo       (or leave it to use the sample vault in olympus\engines\vault-sample).
+echo     - Edit stack.toml for model roles, provider routing, and local paths.
 echo     - Or just run start.bat -- it brings up the whole stack, including
 echo       the unified dashboard, in one go.
 echo     - Read docs\GUIDE.md for the full walkthrough.

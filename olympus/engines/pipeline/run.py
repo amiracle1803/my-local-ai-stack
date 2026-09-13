@@ -26,6 +26,7 @@ if str(_ENGINE_ROOT) not in sys.path:
 
 from pipeline import (  # noqa: E402
     stage0_intake,
+    stage0_source,
     stage0_dossier,
     stage1_worldbible,
     stage1_world,
@@ -50,6 +51,12 @@ from pipeline.blueprint import StoryPollutionError  # noqa: E402
 from pipeline.config import BannedModelError, PipelineConfig  # noqa: E402
 from pipeline.scores import Scores, SkippedStageError  # noqa: E402
 from pipeline.stage0_intake import Stage0Error  # noqa: E402
+from pipeline.run_contract import build_run_contract, write_run_contract  # noqa: E402
+from pipeline.story_contract import (  # noqa: E402
+    SourceManifest,
+    write_source_manifest,
+    verify_source_manifest,
+)
 
 # Known pipeline failures reported cleanly (no traceback) with exit code 2.
 _CLEAN_ERRORS = (
@@ -119,6 +126,15 @@ def new_project(
 
     bp = create_blueprint(script_text, slug=slug, fps=fps, mode=mode)
     bp.write(project_dir)
+    # Preserve the exact intake text at project creation. Later stages may read
+    # it but must never rewrite input/script.txt.
+    if mode == "0s":
+        # Faithful mode has no second source copy; script.txt is authoritative.
+        pass
+    else:
+        # Keep the original external source separately for transform-mode audit.
+        (project_dir / "input" / "source.txt").write_text(script_text, encoding="utf-8")
+    write_source_manifest(project_dir)
 
     # Initialize the scorecard db so the gate has a store from the start.
     Scores(project_dir / "scores.sqlite").close()
@@ -169,6 +185,7 @@ def run_stage(
     project_dir = _projects_root(projects_dir) / slug
     if not project_dir.exists():
         raise FileNotFoundError(f"no such project: {project_dir}")
+    verify_source_manifest(project_dir)
 
     # 1. Pollution guard runs FIRST (before the gate) so a swapped script is
     #    caught regardless of ledger state. (stage0 itself writes/repins the
@@ -211,6 +228,8 @@ def run_stage(
                     source_path=source_path,
                     word_target=word_target or 900,
                 )
+            if mode == "0s":
+                return stage0_source.run(project_dir, cfg, scores)
             if mode == "0i":
                 return stage0i_import.run(
                     project_dir, cfg, scores,
@@ -327,6 +346,7 @@ def run_all(
     retry_on_critique: bool = True,
     step: bool = False,
     quick: bool = False,
+    profile: str | None = None,
     should_stop: Callable[[], bool] | None = None,
 ) -> list[dict | None]:
     """``run.py all`` (design 0.2): run every stage in STAGE_ORDER unattended,
@@ -350,6 +370,15 @@ def run_all(
     """
     project_dir = _projects_root(projects_dir) / slug
     config = PipelineConfig.load()
+    selected_profile = "smoke" if quick else (profile or "production")
+    if selected_profile not in ("smoke", "production"):
+        raise ValueError("profile must be 'smoke' or 'production'")
+    contract = build_run_contract(config, _ENGINE_ROOT / "prompts", selected_profile)
+    write_run_contract(project_dir, contract)
+    hard_blockers = [c for c in contract.capabilities if not c.available and c.capability in {"llm", "t2i"}]
+    if hard_blockers:
+        reasons = "; ".join(f"{c.capability}: {c.reason}" for c in hard_blockers)
+        raise RuntimeError(f"run preflight failed: {reasons}")
     if quick:
         # A quick test proves the pipeline end-to-end fast: trim the reference
         # images per character (the biggest GPU cost) and cap the panel
@@ -360,6 +389,34 @@ def run_all(
         if word_target is None:
             word_target = 300
     results: list[dict | None] = []
+
+    # Resume safety: a prior artifact can be marked done while its story
+    # contract has since changed or failed. Invalidate stage2 and downstream
+    # work before trusting the scorecard.
+    fidelity_path = project_dir / "fidelity_report.json"
+    screenplay_path = project_dir / "screenplay" / "screenplay.json"
+    source_manifest_path = project_dir / "input" / "source_manifest.json"
+    stale_story = False
+    if fidelity_path.exists() and screenplay_path.exists():
+        try:
+            fidelity = json.loads(fidelity_path.read_text(encoding="utf-8"))
+            screenplay = json.loads(screenplay_path.read_text(encoding="utf-8"))
+            manifest = json.loads(source_manifest_path.read_text(encoding="utf-8"))
+            stale_story = (
+                fidelity.get("passed") is False
+                or screenplay.get("structure_version") != SourceManifest.model_fields["structure_version"].default
+                or screenplay.get("source_manifest_sha256") != manifest.get("sha256")
+            )
+            if fidelity.get("passed") is not True:
+                stale_story = True
+        except (OSError, ValueError, json.JSONDecodeError):
+            stale_story = True
+    if stale_story:
+        with Scores(project_dir / "scores.sqlite") as scores:
+            reset_from = STAGE_ORDER.index("stage2")
+            for downstream in STAGE_ORDER[reset_from:]:
+                scores.clear_stage(downstream)
+        print("[invalidate] stage2+ resume state is stale or failed source/story contract")
 
     # Initialize LLM for critique
     from pipeline.llm import PipelineLLM
@@ -465,7 +522,6 @@ def _cmd_train_loras(args: argparse.Namespace) -> int:
     if args.skip_train:
         return 0
 
-    from pipeline import lora_docker
     from pipeline.model_lab import train_lora
 
     results = {}
@@ -498,6 +554,7 @@ def _cmd_all(args: argparse.Namespace) -> int:
         retry_on_critique=not args.no_retry,
         step=args.step,
         quick=args.quick,
+        profile=args.profile,
     )
     print("[ok] all stages complete")
     return 0
@@ -511,8 +568,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_new.add_argument("slug")
     p_new.add_argument("--script", required=True, help="path to the source script .txt (or a placeholder seed for 0i)")
     p_new.add_argument("--fps", type=int, default=24, help="24-60, snapped to 24/30/60")
-    p_new.add_argument("--mode", default="0b", choices=["0b", "0a", "0i"],
-                       help="stage0 intake mode: 0b generate-from-brief (default) | 0a transform-from-source | 0i import-from-panels")
+    p_new.add_argument("--mode", default="0b", choices=["0b", "0a", "0s", "0i"],
+                       help="stage0 intake: 0b brief | 0a transform | 0s faithful source | 0i panels")
     p_new.add_argument("--panels", default=None, help="0i only: zip or folder of panels to import")
     p_new.set_defaults(func=_cmd_new_project)
 
@@ -564,7 +621,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_all.add_argument("--no-critique", action="store_true", help="disable self-critique loop between stages")
     p_all.add_argument("--no-retry", action="store_true", help="disable auto-retry on critique failure")
     p_all.add_argument("--step", action="store_true", help="stop after each stage (review, then re-run to continue)")
-    p_all.add_argument("--quick", action="store_true", help="quick test run: cap reference images so the whole pipeline finishes < 1 hour")
+    p_all.add_argument("--quick", action="store_true", help="smoke profile: bounded references/resolution and no optional identity refinement")
+    p_all.add_argument("--profile", choices=("smoke", "production"), default=None, help="explicit run profile")
     p_all.set_defaults(func=_cmd_all)
 
     p_lora = sub.add_parser("train-loras", help="build persistent style + scene LoRAs (once, not per-run)")

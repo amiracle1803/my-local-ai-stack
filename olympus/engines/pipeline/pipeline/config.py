@@ -185,6 +185,20 @@ class PathsConfig(BaseModel):
     comfyui: str = "../../../ComfyUI"
 
 
+class ProviderSelection(BaseModel):
+    provider: str
+    model: str = ""
+
+
+class ProvidersConfig(BaseModel):
+    llm: ProviderSelection = Field(default_factory=lambda: ProviderSelection(provider="ollama"))
+    vision: ProviderSelection = Field(default_factory=lambda: ProviderSelection(provider="ollama"))
+    t2i: ProviderSelection = Field(default_factory=lambda: ProviderSelection(provider="comfyui"))
+    i2i: ProviderSelection = Field(default_factory=lambda: ProviderSelection(provider="comfyui"))
+    i2v: ProviderSelection = Field(default_factory=lambda: ProviderSelection(provider="comfyui"))
+    tts: ProviderSelection = Field(default_factory=lambda: ProviderSelection(provider="voice_studio"))
+
+
 class AgiConfig(BaseModel):
     """AGI script scorer wiring (from stack.toml ``[agi]``)."""
 
@@ -205,7 +219,7 @@ class NimConfig(BaseModel):
     """
     enabled: bool = False
     base_url: str = "https://integrate.api.nvidia.com/v1"
-    model: str = "meta/llama-3.2-90b-vision-instruct"
+    model: str = "meta/llama-3.2-11b-vision-instruct"
     api_key: str = ""
     timeout_seconds: int = 120
     # Generation engine: "local" (Ollama + ComfyUI) or "nvidia" (offload).
@@ -228,6 +242,10 @@ class PipelineConfig(BaseModel):
     paths: PathsConfig = Field(default_factory=PathsConfig)
     agi: AgiConfig = Field(default_factory=AgiConfig)
     nim: NimConfig = Field(default_factory=NimConfig)
+    providers: ProvidersConfig = Field(default_factory=ProvidersConfig)
+    comfyui_url: str = "http://127.0.0.1:8188"
+    ollama_url: str = "http://127.0.0.1:11434"
+    voice_url: str = "http://127.0.0.1:5050"
     num_ctx: int = 16384
     # Ollama request timeout (seconds) used by PipelineLLM for LLM stages.
     # Structured JSON generation on qwen3:8b can exceed 5 minutes; stack.toml
@@ -331,7 +349,19 @@ class PipelineConfig(BaseModel):
                 character_lora_dir=getattr(_cfg.animation, "character_lora_dir", "models/loras/characters/"),
                 style_lora=getattr(_cfg.animation, "style_lora", "models/loras/anime_style.safetensors"),
             ),
-            paths=PathsConfig(),
+            paths=PathsConfig(
+                projects=_cfg.pipeline.projects_dir,
+                loras=_cfg.pipeline.loras_dir,
+                comfyui=_cfg.pipeline.comfyui_dir,
+            ),
+            providers=ProvidersConfig(
+                llm=ProviderSelection(provider=_cfg.providers.llm.provider, model=_cfg.providers.llm.model),
+                vision=ProviderSelection(provider=_cfg.providers.vision.provider, model=_cfg.providers.vision.model),
+                t2i=ProviderSelection(provider=_cfg.providers.t2i.provider, model=_cfg.providers.t2i.model),
+                i2i=ProviderSelection(provider=_cfg.providers.i2i.provider, model=_cfg.providers.i2i.model),
+                i2v=ProviderSelection(provider=_cfg.providers.i2v.provider, model=_cfg.providers.i2v.model),
+                tts=ProviderSelection(provider=_cfg.providers.tts.provider, model=_cfg.providers.tts.model),
+            ),
             agi=AgiConfig(
                 enabled=_cfg.agi.enabled,
                 checkpoint_path=_cfg.agi.checkpoint_path,
@@ -342,7 +372,7 @@ class PipelineConfig(BaseModel):
             nim=NimConfig(
                 enabled=getattr(_cfg.nim, "enabled", False),
                 base_url=getattr(_cfg.nim, "base_url", "https://integrate.api.nvidia.com/v1"),
-                model=getattr(_cfg.nim, "model", "meta/llama-3.2-90b-vision-instruct"),
+                model=getattr(_cfg.nim, "model", "meta/llama-3.2-11b-vision-instruct"),
                 api_key=getattr(_cfg.nim, "api_key", ""),
                 timeout_seconds=getattr(_cfg.nim, "timeout_seconds", 120),
                 engine=getattr(_cfg.nim, "engine", "local"),
@@ -356,6 +386,10 @@ class PipelineConfig(BaseModel):
             ),
             num_ctx=getattr(_cfg.ollama, "num_ctx", 16384),
             ollama_timeout=getattr(_cfg.ollama, "timeout_seconds", 600),
+            comfyui_url=_cfg.comfyui.url,
+            ollama_url=_cfg.ollama.url,
+            voice_url=_cfg.voice.url,
+            config_path=STACK_ROOT / "stack.toml",
         )
 
     def resolve_image_model(self, role: str = "primary") -> str:

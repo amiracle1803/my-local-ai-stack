@@ -77,9 +77,7 @@ TEXT_MODELS = [
 ]
 
 VISION_MODELS = [
-    "meta/llama-3.2-90b-vision-instruct",    # configured default
-    "meta/llama-3.2-11b-vision-instruct",
-    "nvidia/neva-22b",
+    "meta/llama-3.2-11b-vision-instruct",   # verified working (200)
 ]
 
 

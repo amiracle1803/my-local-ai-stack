@@ -1,7 +1,8 @@
-# Active Pipeline Workflows (Organized by Stage)
+# Experimental Pipeline Workflows (Organized by Stage)
 
-This folder contains only the ComfyUI workflows actively used by the Anime Pipeline v2.
-The original `workflows/` folder contains deprecated/experimental files; this is the curated set.
+This folder contains curated experimental and staging workflows. It is **not**
+the runtime source. The canonical API-format runtime workflows live in
+`../workflows/` and are selected through its `manifest.json`.
 
 ## Structure
 
@@ -84,7 +85,9 @@ then pass the captioned dataset folder to `pipeline/lora_docker.py::train_lora_p
 - **Manifest**: `manifest.json` defines `patchable` keys for every template. The `ComfyClient` validates on load.
 - **Routing**: No stage hardcodes template names. Routers check weight presence + smoke gates before selecting.
 - **Banned models**: `manifest.json` lists banned checkpoints; `ComfyClient` refuses to queue them.
-- **Original folder**: `../workflows/` retains all files (including deprecated SDXL templates, test workflows, krea2 LTX experiments) for reference.
+- **Runtime folder**: `../workflows/` is the only folder loaded by `ComfyClient`.
+- **This folder**: keep for experiments, UI-oriented grouping, and comparison;
+  do not add runtime dependencies on it without updating the canonical manifest.
 
 ## Two Format Versions
 

@@ -31,7 +31,6 @@ from .config import ENGINE_ROOT, PipelineConfig
 logger = logging.getLogger(__name__)
 
 WORKFLOWS_DIR = ENGINE_ROOT / "workflows"
-_FALLBACK_WORKFLOWS_DIR = ENGINE_ROOT / "workflows_active"
 DEFAULT_COMFY_URL = "http://127.0.0.1:8188"
 
 _POLL_INTERVAL_S = 1.0
@@ -61,27 +60,24 @@ class WorkflowTemplate:
     def load(cls, name: str) -> "WorkflowTemplate":
         if name in cls._cache:
             return cls._cache[name]
-        # Prefer workflows/ (deepseek-maintained manifest), fall back to workflows_active/
+        # Runtime always uses the canonical workflow tree. Experimental
+        # workflows_active files are reference material, never implicit runtime fallbacks.
         manifest_path = WORKFLOWS_DIR / "manifest.json"
         if not manifest_path.exists():
-            manifest_path = _FALLBACK_WORKFLOWS_DIR / "manifest.json"
+            raise ComfyError(f"runtime workflow manifest missing: {manifest_path}")
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         entry = manifest["templates"].get(name)
         if entry is None:
             raise ComfyError(f"workflow {name!r} not in manifest.json ({manifest_path})")
-        # Resolve graph path: try workflows flat, then recursive search, then workflows_active
+        # Resolve graph path within the canonical runtime tree only.
         graph_path = WORKFLOWS_DIR / name
         if not graph_path.exists():
             # Search recursively in workflows (e.g. stage3b/image_krea2_txt2img.json)
             found = list(WORKFLOWS_DIR.rglob(name))
             if found:
                 graph_path = found[0]
-            else:
-                graph_path = _FALLBACK_WORKFLOWS_DIR / name
-                if not graph_path.exists():
-                    found2 = list(_FALLBACK_WORKFLOWS_DIR.rglob(name))
-                    if found2:
-                        graph_path = found2[0]
+        if not graph_path.exists():
+            raise ComfyError(f"runtime workflow {name!r} is listed in {manifest_path} but missing from {WORKFLOWS_DIR}")
         graph = json.loads(graph_path.read_text(encoding="utf-8"))
         # New ComfyUI serialization: top-level dict with a "nodes" list.
         # Convert to the legacy node_id→node dict so patching/validation work.
@@ -206,12 +202,12 @@ class ComfyClient:
         self,
         config: PipelineConfig,
         *,
-        base_url: str = DEFAULT_COMFY_URL,
+        base_url: str | None = None,
         timeout_s: float = 600.0,
         session: requests.Session | None = None,
     ) -> None:
         self.config = config
-        self.base_url = base_url.rstrip("/")
+        self.base_url = (base_url or config.comfyui_url or DEFAULT_COMFY_URL).rstrip("/")
         self.timeout_s = timeout_s
         self._session = session or requests.Session()
         self._consecutive_failures = 0
@@ -286,16 +282,17 @@ class ComfyClient:
         logger.warning("ComfyUI restart did not become healthy within %.0fs", wait_s)
         return False
 
-    def unload_ollama(self, base_url: str = "http://127.0.0.1:11434") -> None:
+    def unload_ollama(self, base_url: str | None = None) -> None:
         """GPU scheduling rule (design section 1): never run Ollama and
         ComfyUI generation simultaneously. Called by image stages before
         their first generation -- asks Ollama to evict every loaded model
         (keep_alive: 0). Non-fatal if Ollama is down."""
         try:
-            loaded = self._session.get(f"{base_url}/api/ps", timeout=10).json()
+            ollama_url = (base_url or self.config.ollama_url).rstrip("/")
+            loaded = self._session.get(f"{ollama_url}/api/ps", timeout=10).json()
             for m in loaded.get("models", []):
                 self._session.post(
-                    f"{base_url}/api/generate",
+                    f"{ollama_url}/api/generate",
                     json={"model": m["name"], "keep_alive": 0},
                     timeout=30,
                 )

@@ -112,6 +112,22 @@ def test_judge_vision_success(tmp_path, monkeypatch):
     assert client.judge_vision("check", [img]) == '{"ok": 1}'
 
 
+def test_judge_vision_preserves_jpeg_mime_type(monkeypatch):
+    monkeypatch.setenv("NVIDIA_API_KEY", "test-key")
+    client = NIMClient(_nim_cfg())
+
+    def fake_post(url, json=None, headers=None, timeout=None):
+        uri = json["messages"][1]["content"][1]["image_url"]["url"]
+        assert uri.startswith("data:image/jpeg;base64,")
+        resp = MagicMock()
+        resp.raise_for_status.return_value = None
+        resp.json.return_value = {"choices": [{"message": {"content": "ok"}}]}
+        return resp
+
+    client.session.post = fake_post
+    assert client.judge_vision("check", [b"\xff\xd8\xff\xe0jpeg"]) == "ok"
+
+
 def test_judge_vision_disabled_returns_none(monkeypatch):
     monkeypatch.setenv("NVIDIA_API_KEY", "test-key")
     client = NIMClient(_nim_cfg(enabled=False))

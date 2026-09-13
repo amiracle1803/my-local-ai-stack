@@ -310,7 +310,7 @@ def _write_alignment(aligner: _Aligner, wav_path: Path, transcript: str, align_p
 
 def run(project_dir: str | Path, config: PipelineConfig, scores: Scores, force: bool = False) -> dict[str, Any]:
     project_dir = Path(project_dir)
-    base_url = _VOICE_STUDIO_URL
+    base_url = getattr(config, "voice_url", "") or _VOICE_STUDIO_URL
     if not _voice_studio_healthy(base_url):
         raise RuntimeError(
             f"Voice Studio is not reachable at {base_url} - "
@@ -319,7 +319,17 @@ def run(project_dir: str | Path, config: PipelineConfig, scores: Scores, force: 
 
     screenplay_path = project_dir / "screenplay" / "screenplay.json"
     screenplay = json.loads(screenplay_path.read_text(encoding="utf-8"))
-    voices = json.loads((project_dir / "voices.json").read_text(encoding="utf-8"))
+    voices_path = project_dir / "voices.json"
+    if voices_path.exists():
+        voices = json.loads(voices_path.read_text(encoding="utf-8"))
+    else:
+        # Audio-first mode assigns stable local voices before visual references.
+        voices = {"_narrator": {"base": "af_heart", "speed": 1.0}}
+        for scene in screenplay.get("scenes", []):
+            for shot in scene.get("shots", []):
+                for line in shot.get("dialogue", []):
+                    voices.setdefault(line["char"], {"base": "am_michael", "speed": 1.0})
+        voices_path.write_text(json.dumps(voices, indent=2), encoding="utf-8")
     narrator_voice = voices.get("_narrator")
     if narrator_voice is None:
         raise Stage4Error("voices.json is missing the required '_narrator' entry")

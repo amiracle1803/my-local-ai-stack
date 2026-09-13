@@ -14,6 +14,10 @@ def test_loads_default_toml():
     assert cfg.automation.auto_advance_stages is True
     assert cfg.animation.drift_axis == "vertical"
     assert cfg.animation.max_animated_seconds_per_block == 60.0
+    assert cfg.nim.engine == "local"
+    assert cfg.providers.llm.provider == "ollama"
+    assert cfg.providers.t2i.provider == "comfyui"
+    assert cfg.comfyui_url == "http://127.0.0.1:8188"
 
 
 def test_resolve_image_model_primary_ok():
@@ -70,3 +74,10 @@ def test_unknown_role_raises():
     cfg = PipelineConfig.load()
     with pytest.raises(ValueError):
         cfg.resolve_image_model("bogus")
+
+
+def test_pipeline_paths_come_from_stack_toml():
+    cfg = PipelineConfig.load()
+    assert cfg.projects_dir().as_posix().endswith("olympus/engines/pipeline/projects")
+    assert cfg.loras_dir().as_posix().endswith("olympus/engines/pipeline/loras")
+    assert cfg.comfyui_dir().name == "ComfyUI"

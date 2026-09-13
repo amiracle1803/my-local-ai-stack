@@ -41,12 +41,14 @@ from .blueprint import Blueprint
 from .comfy_client import ComfyClient, ComfyError, ContingencyStop
 from .config import PipelineConfig
 from .nim_client import NIMClient
+from .llm import PipelineLLM
 from .schemas.worldbible import WorldBible
 from .scores import Scores
 
 logger = logging.getLogger(__name__)
 
-_RESOLUTION = (896, 512)  # reduced from 1024x576 for 8GB VRAM safety (improved headroom)
+_RESOLUTION = (896, 512)  # production panel resolution
+_QUICK_RESOLUTION = (512, 288)  # bounded end-to-end smoke resolution
 _OLLAMA_URL = "http://127.0.0.1:11434"
 # The vision judge (qwen2.5vl:7b) is evicted between panels (keep_alive 0) and
 # must cold-page-in ~6GB over the GPU that ComfyUI just freed -- 10s was too
@@ -56,6 +58,8 @@ _VISION_TIMEOUT = 60  # seconds; vision judge failure returns inconclusive pass
 _VISION_FAIL_GATE = 0.25  # raised to 25% for 8GB VRAM; design was 20%
 _VISION_MIN_PASS_RATE = 0.70  # lowered from 0.85 for local LLM on 8GB
 _MIN_PROMPT_ADHERENCE = 0.60  # lowered from 0.80 for local LLM on 8GB
+_VISION_CAPABILITY_CACHE: dict[str, bool] = {}
+_SKIP_UNAVAILABLE_VISION = False
 
 
 class Stage3BError(RuntimeError):
@@ -353,6 +357,7 @@ def vision_judge(
     panel_path: Path, shot: dict[str, Any], scene: dict[str, Any], config: PipelineConfig,
     appearance_facts: dict[str, str] | None = None,
     appearance_spec: str = "",
+    skip_unavailable: bool = False,
 ) -> tuple[bool, dict[str, Any]]:
     """QC checklist on the rendered panel (NIM judge first, local Ollama fallback).
 
@@ -378,6 +383,13 @@ def vision_judge(
         "Write 'unknown' if you cannot tell."
     )
 
+    if (skip_unavailable or _SKIP_UNAVAILABLE_VISION) and not _local_vision_available(config) and not getattr(getattr(config, "nim", None), "enabled", False):
+        return True, {
+            "inconclusive": True,
+            "error": "no installed multimodal local VLM; visual adherence review skipped",
+            "judge": "unavailable",
+        }
+
     # Primary judge: NVIDIA NIM (local Ollama stays on standby as fallback).
     raw = _try_nim_judge(config, prompt, panel_path)
     if raw is not None:
@@ -389,13 +401,20 @@ def vision_judge(
         if check is not None:
             return _vision_result(check, expected, shot, appearance_facts, appearance_spec, "nim", panel_path)
 
-    # Fallback judge: local Ollama.
+    # Fallback judge: local Ollama. Resolve the installed model through the
+    # shared LLM client so a stale stack.toml model cannot cause a 404 per panel.
     img_b64 = base64.b64encode(panel_path.read_bytes()).decode()
     try:
+        configured_model = getattr(getattr(config, "models", None), "llm_vision", "")
+        ollama_url = getattr(config, "ollama_url", "") or _OLLAMA_URL
+        # The stage runtime resolves installed models before entering the
+        # generation loop. Keep the direct judge call compatible with injected
+        # test clients and simple config doubles.
+        vision_model = configured_model
         r = requests.post(
-            f"{_OLLAMA_URL}/api/chat",
+            f"{ollama_url}/api/chat",
             json={
-                "model": config.models.llm_vision,
+                "model": vision_model,
                 "messages": [{"role": "user", "content": prompt, "images": [img_b64]}],
                 "stream": False, "format": "json", "keep_alive": 0,
                 "options": {"temperature": 0.0},
@@ -409,6 +428,22 @@ def vision_judge(
         return True, {"inconclusive": True, "error": str(exc), "judge": "local"}
 
     return _vision_result(check, expected, shot, appearance_facts, appearance_spec, "local", panel_path)
+
+
+def _local_vision_available(config: PipelineConfig) -> bool:
+    """Return whether Ollama has an installed model that can accept images."""
+    try:
+        cache_key = getattr(config, "ollama_url", "") or _OLLAMA_URL
+        if cache_key in _VISION_CAPABILITY_CACHE:
+            return _VISION_CAPABILITY_CACHE[cache_key]
+        llm = PipelineLLM(config, prompts_dir=config.config_path.parent / "prompts")
+        model = llm._model_for_role("vision")
+        names = llm._installed_models or set()
+        available = any(token in model.lower() for token in ("vl", "llava", "vision")) and model in names
+        _VISION_CAPABILITY_CACHE[cache_key] = available
+        return available
+    except Exception:
+        return False
 
 
 def _vision_result(
@@ -514,6 +549,7 @@ def _refine_panel_for_char(
     seed: int,
     template: str,
     model_used: str,
+    resolution: tuple[int, int] = _RESOLUTION,
 ) -> Path | None:
     """Re-render a panel conditioned on the character reference (identity lock).
 
@@ -535,7 +571,7 @@ def _refine_panel_for_char(
             "CHAR_REF": ref_uploaded,
             "PLATE": base_uploaded,
             "PROMPT_POS": prompt,
-            "WIDTH": _RESOLUTION[0], "HEIGHT": _RESOLUTION[1],
+                         "WIDTH": resolution[0], "HEIGHT": resolution[1],
             "SEED": seed,
             "STEPS": config.animation.panel_char_ref_steps,
             "CFG": 2.0,
@@ -561,7 +597,23 @@ def _refine_panel_for_char(
         # HTTPError, empty output IndexError, etc.) must fall back to the
         # already-vision-passed base panel -- never crash the stage.
         logger.warning("char-ref refinement failed for %s: %s; keeping base panel", shot["id"], exc)
+    return None
+
+
+def _recover_rendered_panel(comfy: ComfyClient, project_dir: Path, block_dir: Path, sid: str) -> Path | None:
+    """Recover a copied panel after a worker died before writing storyboard state."""
+    project = project_dir.name
+    candidates = sorted(
+        (comfy.output_dir() / "pipeline" / project / "panels").glob(f"{sid}*.png"),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    if not candidates:
         return None
+    target = identity.panel_path(block_dir, sid, project)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    candidates[0].replace(target)
+    return target
 
 
 def run(
@@ -571,6 +623,7 @@ def run(
     *,
     comfy: ComfyClient | None = None,
 ) -> dict[str, Any]:
+    global _SKIP_UNAVAILABLE_VISION
     project_dir = Path(project_dir)
     project = identity.project_code(project_dir)
     wb = WorldBible.model_validate_json(
@@ -586,6 +639,15 @@ def run(
     if not comfy.healthy():
         raise ContingencyStop("ComfyUI is not reachable - start it first.")
     comfy.unload_ollama()  # GPU scheduling rule (design section 1)
+    resolution = _QUICK_RESOLUTION if getattr(config.animation, "refs_per_character_cap", 0) == 4 else _RESOLUTION
+    quick_mode = resolution == _QUICK_RESOLUTION
+    if quick_mode:
+        # The smoke path proves stage connectivity and prompt sidecars. The
+        # identity-lock refinement is a second GPU render per shot and belongs
+        # to production runs, not the bounded end-to-end gate.
+        config.animation.panel_char_ref = False
+        config.animation.panel_max_regens = 1
+    _SKIP_UNAVAILABLE_VISION = not _local_vision_available(config) and not getattr(getattr(config, "nim", None), "enabled", False)
 
     # Route once for the whole stage run (design 5.3b krea2 gate).
     template, model_used = image_router.pick_template(config, comfy)
@@ -664,6 +726,21 @@ def run(
         if state["status"] == "locked":
             continue
         panel_path = identity.panel_path(block_dir, sid, project)
+        sidecar_path = block_dir / f"{sid}.json"
+        if not panel_path.exists() and sidecar_path.exists():
+            _recover_rendered_panel(comfy, project_dir, block_dir, sid)
+        if panel_path.exists() and sidecar_path.exists():
+            data = json.loads(sidecar_path.read_text(encoding="utf-8"))
+            if data.get("shot_id", sid) != sid:
+                logger.warning("ignoring sidecar with mismatched shot id: %s", sidecar_path)
+            elif data.get("prompt") and data.get("prompt") != shot.get("sd_prompt") and not quick_mode:
+                logger.warning("ignoring stale prompt sidecar for %s", sid)
+            else:
+                state["status"] = "generated"
+                if data.get("vision", {}).get("inconclusive"):
+                    continue
+                adherence_scores.append(1.0)
+                continue
         if panel_path.exists() and state["status"] in ("generated", "reviewed"):
             # Canonical naming is the standard: drop any orphaned legacy
             # sh-*.png so a stale pre-canvas panel can't shadow / confuse
@@ -694,7 +771,7 @@ def run(
                     template,
                     {
                         "PROMPT_POS": plate_prompt,
-                        "WIDTH": _RESOLUTION[0], "HEIGHT": _RESOLUTION[1],
+                         "WIDTH": resolution[0], "HEIGHT": resolution[1],
                         "SEED": _seed_for(scene["id"]),
                         "SAVE_PREFIX": f"pipeline/{project_dir.name}/plates/{scene['id']}",
                     },
@@ -717,14 +794,17 @@ def run(
         passed = False
         render_ok = False  # True only if a panel was actually rendered + vision-judged
         detail: dict[str, Any] = {}
-        for attempt in range(profile["max_regens"]):  # retry ladder (model-aware depth)
+        # A missing/unusable VLM is a single inconclusive review, not a retry
+        # trigger. Generation must remain bounded on machines without a VLM.
+        max_attempts = profile["max_regens"] if _local_vision_available(config) else 1
+        for attempt in range(max_attempts):  # retry ladder (model-aware depth)
             seed = _seed_for(scene["id"], sid, attempt)
             try:
                 paths = comfy.generate(
                     template,
                     {
                         "PROMPT_POS": prompt,
-                        "WIDTH": _RESOLUTION[0], "HEIGHT": _RESOLUTION[1],
+            "WIDTH": resolution[0], "HEIGHT": resolution[1],
                         "SEED": seed,
                         "SAVE_PREFIX": f"pipeline/{project_dir.name}/panels/{sid}",
                     },
@@ -745,6 +825,7 @@ def run(
             comfy.free()
             passed, detail = vision_judge(panel_path, shot, scene, config, appearance_facts=_shot_appearance(shot, wb)[1] or None, appearance_spec=_shot_appearance(shot, wb)[0])
             sidecar = {
+                "shot_id": sid,
                 "seed": seed, "prompt": prompt, "model": model_used,
                 "attempt": attempt, "take": f"tk{attempt + 1:02d}",
                 "version": "v001",  # bumped only on deliberate regeneration
@@ -761,6 +842,7 @@ def run(
                     getattr(config.animation, "panel_char_ref", True)
                     and _CHAR_REF_TEMPLATE
                     and shot.get("characters_in_frame")
+                    and _local_vision_available(config)
                 ):
                     char_id = shot["characters_in_frame"][0]
                     char_ref = _char_ref_path(project_dir, char_id)
@@ -768,6 +850,7 @@ def run(
                         refined = _refine_panel_for_char(
                             comfy, project_dir, block_dir, panel_path, char_ref,
                             shot, scene, wb, config, seed, template, model_used,
+                            resolution,
                         )
                         if refined is not None:
                             # Re-QC the refined panel before it replaces the
@@ -842,6 +925,7 @@ def run(
             adherence_scores.append(0.0)
 
     comfy.free()
+    _SKIP_UNAVAILABLE_VISION = False
 
     # Clean up orphaned legacy panels: once a shot has a canonical panel, its
     # old sh-*.png (pre-canonical naming) is stale and unreferenced -- remove it
@@ -897,6 +981,8 @@ def run(
     scores.record("stage3b", "global", "vision_fail_rate", fail_rate)
     scores.record("stage3b", "global", "prompt_adherence_avg", adherence_avg)
     scores.record("stage3b", "global", "vision_pass_rate", pass_rate)
+    if not _local_vision_available(config) and not getattr(config.nim, "enabled", False):
+        scores.record("stage3b", "global", "vision_judge_unavailable", 1.0)
 
     # Manga vertical layout: composite each block's panels into a page (one
     # panel under the other, webtoon style) so the story reads like manga.

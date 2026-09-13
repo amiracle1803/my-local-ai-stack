@@ -603,6 +603,14 @@ def generate_from_blueprint(
     (project_dir / "input").mkdir(parents=True, exist_ok=True)
     (project_dir / "input" / "script.txt").write_text(full_script, encoding="utf-8")
 
+    # Re-pin the immutable-source fingerprint to the generated script (mode 0B
+    # GENERATE legitimately produces a new script.txt from the brief; it becomes
+    # the immutable source for every downstream stage). Mirrors the title_hash
+    # re-pin below -- without it verify_source_manifest trips on the next stage.
+    from .story_contract import repin_source_manifest
+
+    repin_source_manifest(project_dir)
+
     # Re-pin the story identity to the generated script.
     bp = Blueprint.load(project_dir)
     bp.title_hash = compute_title_hash(full_script)

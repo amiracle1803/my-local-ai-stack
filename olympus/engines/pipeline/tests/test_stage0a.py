@@ -272,12 +272,12 @@ def test_run_happy_path_writes_script_and_metric(tmp_path):
     scores.close()
 
 
-def test_run_requires_source_on_first_call(tmp_path):
+def test_run_reuses_persisted_source_on_first_call(tmp_path):
     proj_dir, _ = _make_project(tmp_path)
     scores = Scores(proj_dir / "scores.sqlite")
     cfg = PipelineConfig.load()
-    with pytest.raises(Stage0AError):
-        run_stage0a(proj_dir, cfg, scores, llm=FakeLLM())
+    result = run_stage0a(proj_dir, cfg, scores, llm=FakeLLM())
+    assert result["status"] == "done"
     scores.close()
 
 

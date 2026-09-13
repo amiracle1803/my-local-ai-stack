@@ -26,7 +26,7 @@ fences, no commentary before or after):
     {{
       "name": "character name",
       "role": "protagonist | antagonist | mentor | ally | obstacle | neutral",
-      "personality_core": "3 specific traits -- not generic (not brave/smart) but specific (e.g. reckless-when-protecting-others, reads-people-too-accurately-for-comfort, performs-calm-while-calculating-escape)",
+      "personality_core": "a single string of 3 specific comma-separated traits -- not generic (not brave/smart) but specific (e.g. 'reckless-when-protecting-others, reads-people-too-accurately-for-comfort'). Must be ONE string, never a JSON array.",
       "episode_want": "what they are explicitly trying to achieve this episode",
       "episode_fear": "what they are trying to avoid this episode",
       "episode_arc_end": "where they are emotionally/situationally by episode end -- must be different from where they started",
