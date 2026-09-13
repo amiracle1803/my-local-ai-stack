@@ -455,10 +455,6 @@ async function refreshSystems() {
   }).join('');
 
   // Studio + Voice per-page status chips
-  const comfy = svcs.find((s) => s.name === 'comfyui');
-  $('studio-status').innerHTML = `<span class="chip"><span class="${comfy.running ? 'ok' : 'bad'}">●</span> ComfyUI ${comfy.running ? 'UP' : 'DOWN'}`
-    + (comfy.running ? '' : '<button class="ghost" onclick="startSvc(\'comfyui\')">start</button>') + '</span>';
-  window._comfyUp = comfy.running;
   const voice = svcs.find((s) => s.name === 'voice');
   $('voice-status').innerHTML = `<span class="chip"><span class="${voice.running ? 'ok' : 'bad'}">●</span> Voice Studio ${voice.running ? 'UP' : 'DOWN'}`
     + (voice.running ? '' : '<button class="ghost" onclick="startSvc(\'voice\')">start</button>') + '</span>';
@@ -1696,18 +1692,6 @@ function renderRunAllLabel() {
 }
 $('studio-step-check')?.addEventListener('change', renderRunAllLabel);
 renderRunAllLabel();
-
-// ---- Embedded ComfyUI iframe toggle ----
-// The studio page lets you open ComfyUI inline (via an <iframe>) instead of a
-// separate tab. Clicking the button toggles the iframe's visibility and label.
-const comfyBtn = $('comfy-embed-btn'), comfyFrame = $('comfy-frame');
-if (comfyBtn && comfyFrame) {
-  comfyBtn.addEventListener('click', () => {
-    const hidden = comfyFrame.style.display === 'none';
-    comfyFrame.style.display = hidden ? 'block' : 'none';
-    comfyBtn.textContent = hidden ? 'HIDE COMFYUI ▲' : 'OPEN COMFYUI HERE ▼';
-  });
-}
 
 // ---- Animation master switch (studio banner toggle) ----
 // OFF (default) = panels mode: stage3c + clip VLM review skipped, final video
