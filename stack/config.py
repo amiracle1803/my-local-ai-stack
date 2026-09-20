@@ -94,9 +94,12 @@ class VoiceConfig(BaseModel):
     host: str = "127.0.0.1"
     port: int = 5050
     url: str = "http://127.0.0.1:5050"
-    engine: str = "auto"  # auto | kokoro | espeak-ng
+    engine: str = "auto"  # auto | kokoro | f5-tts | espeak-ng
     default_voice: str = "af_heart"
     default_speed: float = 1.0
+    f5_python: str = "/home/amire/Downloads/tts-f5-venv/bin/python"
+    f5_model: str = "F5TTS_v1_Base"
+    f5_device: str = "cuda"
 
 
 class KernelConfig(BaseModel):
@@ -193,6 +196,12 @@ class FallbackConfig(BaseModel):
     log_path: str = "logs/provider_fallbacks.jsonl"
 
 
+class AnimationConfig(BaseModel):
+    """Studio animation master switch (persisted, not localStorage)."""
+
+    enabled: bool = False  # OFF = panels mode (Ken Burns); ON = GPU clips
+
+
 # ── top-level config ───────────────────────────────────────────────────────
 
 class StackConfig(BaseModel):
@@ -208,6 +217,7 @@ class StackConfig(BaseModel):
     nim: NIMConfig = Field(default_factory=NIMConfig)
     providers: ProvidersConfig = Field(default_factory=ProvidersConfig)
     fallback: FallbackConfig = Field(default_factory=FallbackConfig)
+    animation: AnimationConfig = Field(default_factory=AnimationConfig)
 
     config_path: Path = Field(default=CONFIG_PATH, exclude=True)
 

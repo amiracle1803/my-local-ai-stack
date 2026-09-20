@@ -34,9 +34,12 @@ jarvis   = "ornith-1.5-9b-fast:latest"
 
 # ── Voice Studio ──────────────────────────────────────────────────────────
 [voice]
-engine = "auto" # auto selects Kokoro when healthy, otherwise local espeak-ng
+engine = "auto" # auto | kokoro | f5-tts | espeak-ng
 default_voice = "af_heart"
 default_speed = 1.0
+f5_python = "/home/amire/Downloads/tts-f5-venv/bin/python"
+f5_model = "F5TTS_v1_Base"
+f5_device = "cuda"
 
 # ── Olympus Kernel ────────────────────────────────────────────────────────
 [kernel]
@@ -137,6 +140,12 @@ wiki_root   = "llm-wiki-workflow"
 # ── GPU ───────────────────────────────────────────────────────────────────
 [gpu]
 vram_gb = 8
+
+# ── Studio animation master switch ──────────────────────────────────────
+# OFF (default): panels mode — stage5 assembles panels with Ken Burns
+# zoom/pan + fades, no GPU video. ON: stage3c renders motion clips.
+[animation]
+enabled = true
 
 # ── NVIDIA NIM (hosted judge) ─────────────────────────────────────────────
 # Two-mode operation:

@@ -3,7 +3,7 @@
 Standalone Flask app wrapping Kokoro-82M (fully local; the model weights
 (~330 MB) auto-download from Hugging Face on first synthesis and are cached).
 GPU is NOT used — Kokoro-82M is fast enough on CPU and this keeps the 8 GB
-RTX 4070 free for ComfyUI.
+RTX 4070 free for other GPU work.
 
     GET  /api/health          {"status": "ok", ...}
     GET  /api/voices          available voice ids
@@ -19,6 +19,7 @@ from __future__ import annotations
 import io
 import subprocess
 import threading
+import wave
 
 import numpy as np
 import soundfile as sf
@@ -38,6 +39,24 @@ app = Flask(__name__)
 
 _pipeline = None
 _pipeline_lock = threading.Lock()
+
+
+def _normalize_wav(data: bytes) -> bytes:
+    """Rewrite streamed WAV headers using the actual frames received."""
+    source = io.BytesIO(data)
+    try:
+        with wave.open(source, "rb") as wav:
+            params = wav.getparams()
+            frames = wav.readframes(wav.getnframes())
+    except (wave.Error, EOFError):
+        return data
+    out = io.BytesIO()
+    with wave.open(out, "wb") as wav:
+        wav.setnchannels(params.nchannels)
+        wav.setsampwidth(params.sampwidth)
+        wav.setframerate(params.framerate)
+        wav.writeframes(frames)
+    return out.getvalue()
 
 
 def get_pipeline():
@@ -100,7 +119,8 @@ def tts():
                 ["espeak-ng", "-v", "en-us", "-s", str(max(80, min(450, int(175 * speed)))), "--stdout", text],
                 check=True, capture_output=True, timeout=30,
             )
-            return send_file(io.BytesIO(result.stdout), mimetype="audio/wav", download_name="tts.wav")
+            normalized = _normalize_wav(result.stdout)
+            return send_file(io.BytesIO(normalized), mimetype="audio/wav", download_name="tts.wav")
         except (OSError, subprocess.SubprocessError) as fallback_exc:
             return jsonify({"error": f"TTS unavailable: {fallback_exc}"}), 503
 

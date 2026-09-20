@@ -1,7 +1,7 @@
 """Olympus Kernel — central hub for the Local AI Stack.
 
-FastAPI service on :4600. Connects Ollama, Voice Studio, ComfyUI, and the
-Anime Pipeline engine. Serves the Olympus dashboard UI.
+FastAPI service on :4600. Connects Ollama and Voice Studio. Serves the
+Olympus dashboard UI.
 
 Run:
     .venv/bin/uvicorn kernel.app:app --host 0.0.0.0 --port 4600
@@ -631,11 +631,13 @@ def brain_note(path: str):
 def system_info():
     from collections import Counter
     counts = Counter(t["status"] for t in _tasks.values())
+    animation_enabled = bool(getattr(getattr(cfg, "animation", None), "enabled", False))
     return {
         "kernel": {"version": app.version, "port": cfg.kernel.port,
                    "core_agents": cfg.kernel.core_agents},
         "models": cfg.ollama.models.model_dump(),
         "nim": cfg.nim.model_dump(),
+        "animation": {"enabled": animation_enabled},
         "paths": cfg.paths.model_dump(),
         "tasks": {
             "queued": counts.get("queued", 0),
@@ -646,6 +648,41 @@ def system_info():
         "agents": _AGENTS,
         "gpu": gpu_status(),
     }
+
+
+class AnimationIn(BaseModel):
+    enabled: bool = False
+
+
+@app.get("/api/animation")
+def get_animation():
+    return {"enabled": bool(getattr(getattr(cfg, "animation", None), "enabled", False))}
+
+
+@app.post("/api/animation")
+def set_animation(body: AnimationIn):
+    """Studio ANIMATION master switch (persisted to stack.toml [animation])."""
+    global cfg
+    try:
+        cfg.animation.enabled = body.enabled
+    except Exception:
+        raise HTTPException(500, "animation config unavailable")
+    try:
+        toml_path = STACK_ROOT / "stack.toml"
+        text = toml_path.read_text(encoding="utf-8")
+        if "[animation]" not in text:
+            text = text.rstrip() + "\n\n[animation]\nenabled = false\n"
+        start = text.find("[animation]")
+        end = text.find("\n[", start + len("[animation]"))
+        end = end if end != -1 else len(text)
+        block = text[start:end]
+        block = re.sub(r"(enabled\s*=\s*)(true|false)",
+                       rf"\1{'true' if body.enabled else 'false'}", block, count=1)
+        toml_path.write_text(text[:start] + block + text[end:], encoding="utf-8")
+    except Exception as e:
+        logger.error("failed to persist [animation]: %s", e)
+        raise HTTPException(500, f"applied in memory but could not save: {e}")
+    return {"enabled": body.enabled}
 
 
 # ── NIM model selection (permanent, no agent) ────────────────────────────
@@ -889,6 +926,425 @@ def set_nim_model(body: NimModelIn):
     except Exception as e:
         logger.error("failed to update NIM model: %s", e)
         raise HTTPException(500, str(e))
+
+
+# ── Studio pipeline bridge (anime/manga: script intake -> video) ──────────
+
+PIPELINE_ENGINE = STACK_ROOT / "olympus" / "engines" / "pipeline"
+if str(PIPELINE_ENGINE) not in sys.path:
+    sys.path.insert(0, str(PIPELINE_ENGINE))
+
+from pipeline.blueprint import Blueprint, STAGE_ORDER
+from pipeline.scores import Scores
+
+_locks: dict[tuple, threading.Thread] = {}
+_lock_map = threading.Lock()
+_stop_requests: set[str] = set()
+
+
+@app.get("/api/pipeline/projects")
+def pipeline_projects():
+    projects_dir = PIPELINE_ENGINE / "projects"
+    if not projects_dir.exists():
+        return []
+    results = []
+    for d in sorted(projects_dir.iterdir()):
+        bp_path = d / "blueprint.json"
+        if not bp_path.exists():
+            continue
+        try:
+            bp = Blueprint.load(d)
+            results.append({"slug": bp.slug, "story_id": bp.story_id,
+                            "fps": bp.fps, "created": bp.created})
+        except Exception:
+            continue
+    results.sort(key=lambda p: p.get("created", ""), reverse=True)
+    return results
+
+
+class ProjectIn(BaseModel):
+    slug: str = Field(min_length=1, max_length=64)
+    brief_text: str | None = None
+    script_text: str | None = None
+    fps: int = 24
+    mode: str = "0b"
+
+
+@app.post("/api/pipeline/projects", status_code=201)
+def pipeline_create(body: ProjectIn):
+    import run as prun
+    import tempfile
+
+    slug = body.slug.strip()
+    if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_-]*", slug):
+        raise HTTPException(400, "slug must be alphanumeric (letters, digits, _ , -)")
+    project_dir = PIPELINE_ENGINE / "projects" / slug
+    if project_dir.exists():
+        raise HTTPException(409, f"project {slug!r} exists")
+    seed = body.brief_text or body.script_text or ""
+    with tempfile.TemporaryDirectory() as tmp:
+        seed_path = Path(tmp) / "seed.txt"
+        seed_path.write_text(seed, encoding="utf-8")
+        try:
+            prun.new_project(slug, seed_path, fps=body.fps,
+                             projects_dir=project_dir.parent, mode=body.mode)
+        except Exception as e:
+            raise HTTPException(400, str(e))
+    (project_dir / "input").mkdir(parents=True, exist_ok=True)
+    if body.mode == "0b" and body.brief_text:
+        brief_md = body.brief_text
+        if "word_target:" not in brief_md:
+            brief_md = "---\nword_target: 800\n---\n\n" + brief_md
+        (project_dir / "input" / "brief.md").write_text(brief_md, encoding="utf-8")
+    elif body.mode in ("0a", "0s") and body.script_text:
+        (project_dir / "input" / "source.txt").write_text(body.script_text, encoding="utf-8")
+    bp = Blueprint.load(project_dir)
+    return {"slug": bp.slug, "story_id": bp.story_id, "fps": bp.fps,
+            "created": bp.created, "mode": bp.mode}
+
+
+@app.get("/api/pipeline/{slug}/status")
+def pipeline_status(slug: str):
+    project_dir = PIPELINE_ENGINE / "projects" / slug
+    if not (project_dir / "blueprint.json").exists():
+        raise HTTPException(404, f"no project: {slug!r}")
+    bp = Blueprint.load(project_dir)
+    try:
+        ledger = Scores(project_dir / "scores.sqlite").report()["stages"]
+    except Exception:
+        ledger = {}
+    stages = {}
+    for stage in STAGE_ORDER:
+        st = bp.stages.get(stage)
+        status = st.status if st else "pending"
+        info: dict = {"status": status}
+        li = ledger.get(stage) or {}
+        info["done"] = bool(li.get("done"))
+        info["complete"] = bool(li.get("complete"))
+        info["missing_metrics"] = li.get("missing_metrics", [])
+        if status == "done":
+            info["metrics"] = li.get("metrics", {})
+        stages[stage] = info
+    return {"slug": bp.slug, "story_id": bp.story_id, "fps": bp.fps, "mode": bp.mode,
+            "animation_enabled": bool(getattr(getattr(cfg, "animation", None), "enabled", False)),
+            "stages": stages}
+
+
+class StageRunIn(BaseModel):
+    source: str | None = None
+    source_text: str | None = None
+    panels: str | None = None
+    word_target: int | None = None
+    brief: str | None = None
+    force: bool = False
+
+
+@app.post("/api/pipeline/{slug}/run/{stage}")
+def pipeline_run_stage(slug: str, stage: str, body: StageRunIn | None = None):
+    project_dir = PIPELINE_ENGINE / "projects" / slug
+    if not (project_dir / "blueprint.json").exists():
+        raise HTTPException(404, f"no project: {slug!r}")
+    if stage not in STAGE_ORDER:
+        raise HTTPException(404, f"unknown stage: {stage!r}")
+    key = (slug, stage)
+    with _lock_map:
+        t = _locks.get(key)
+        if t and t.is_alive():
+            raise HTTPException(409, f"{slug}/{stage} already running")
+        import run as prun
+        body = body or StageRunIn()
+
+        def worker():
+            ok = False
+            err_msg = ""
+            if body.force:
+                try:
+                    with Scores(project_dir / "scores.sqlite") as _sc:
+                        _sc.clear_stage(stage)
+                except Exception:
+                    pass
+            try:
+                bp = Blueprint.load(project_dir)
+                entry = bp.stages.get(stage)
+                if entry is not None:
+                    entry.status = "running"
+                    bp.write(project_dir)
+            except Exception:
+                pass
+            try:
+                brief_path = None
+                source_path = body.source
+                if body.brief:
+                    (project_dir / "input").mkdir(parents=True, exist_ok=True)
+                    brief_md = body.brief
+                    if "word_target:" not in brief_md:
+                        brief_md = "---\nword_target: 800\n---\n\n" + brief_md
+                    (project_dir / "input" / "brief.md").write_text(brief_md, encoding="utf-8")
+                    brief_path = project_dir / "input" / "brief.md"
+                if body.source_text:
+                    (project_dir / "input").mkdir(parents=True, exist_ok=True)
+                    (project_dir / "input" / "source.txt").write_text(body.source_text, encoding="utf-8")
+                    source_path = project_dir / "input" / "source.txt"
+                prun.run_stage(slug, stage, projects_dir=project_dir.parent,
+                               source_path=source_path, panel_upload=body.panels,
+                               word_target=body.word_target, brief_path=brief_path,
+                               force=body.force)
+                ok = True
+            except Exception as exc:
+                err_msg = f"{type(exc).__name__}: {exc}"
+            finally:
+                with _lock_map:
+                    _locks.pop(key, None)
+                if not ok:
+                    (project_dir / "logs").mkdir(parents=True, exist_ok=True)
+                    (project_dir / "logs" / f"{stage}.error").write_text(err_msg, encoding="utf-8")
+                    try:
+                        bp = Blueprint.load(project_dir)
+                        entry = bp.stages.get(stage)
+                        if entry is not None:
+                            entry.status = "failed"
+                            entry.ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+                            bp.write(project_dir)
+                    except Exception:
+                        pass
+        t = threading.Thread(target=worker, daemon=True, name=f"pipe-{slug}-{stage}")
+        _locks[key] = t
+        t.start()
+    return {"slug": slug, "stage": stage, "status": "running"}
+
+
+class RunAllIn(BaseModel):
+    brief: str | None = None
+    source_text: str | None = None
+    source: str | None = None
+    panels: str | None = None
+    word_target: int | None = None
+    step: bool = False
+    quick: bool = False
+
+
+@app.post("/api/pipeline/{slug}/run-all")
+def pipeline_run_all(slug: str, body: RunAllIn | None = None):
+    """Run every remaining stage in STAGE_ORDER (resume-safe)."""
+    project_dir = PIPELINE_ENGINE / "projects" / slug
+    if not (project_dir / "blueprint.json").exists():
+        raise HTTPException(404, f"no project: {slug!r}")
+    key = (slug, "_all")
+    with _lock_map:
+        t = _locks.get(key)
+        if t and t.is_alive():
+            raise HTTPException(409, f"{slug} full run already in progress")
+        import run as prun
+        body = body or RunAllIn()
+
+        def worker():
+            try:
+                source_path = body.source
+                if body.brief:
+                    (project_dir / "input").mkdir(parents=True, exist_ok=True)
+                    brief_md = body.brief
+                    if "word_target:" not in brief_md:
+                        brief_md = "---\nword_target: 800\n---\n\n" + brief_md
+                    (project_dir / "input" / "brief.md").write_text(brief_md, encoding="utf-8")
+                if body.source_text:
+                    (project_dir / "input").mkdir(parents=True, exist_ok=True)
+                    (project_dir / "input" / "source.txt").write_text(body.source_text, encoding="utf-8")
+                    source_path = project_dir / "input" / "source.txt"
+                _stop_requests.discard(slug)
+                prun.run_all(slug, projects_dir=project_dir.parent,
+                             brief_path=project_dir / "input" / "brief.md"
+                             if (project_dir / "input" / "brief.md").exists() else None,
+                             source_path=source_path, panel_upload=body.panels,
+                             word_target=body.word_target, run_critique=False,
+                             step=body.step, quick=body.quick,
+                             should_stop=lambda: slug in _stop_requests)
+            except Exception as exc:
+                (project_dir / "logs").mkdir(parents=True, exist_ok=True)
+                (project_dir / "logs" / "run_all.error").write_text(
+                    f"{type(exc).__name__}: {exc}", encoding="utf-8")
+            finally:
+                _stop_requests.discard(slug)
+                with _lock_map:
+                    _locks.pop(key, None)
+        t = threading.Thread(target=worker, daemon=True, name=f"pipe-{slug}-all")
+        _locks[key] = t
+        t.start()
+    return {"slug": slug, "status": "running"}
+
+
+@app.post("/api/pipeline/{slug}/stop")
+def pipeline_stop_run(slug: str):
+    project_dir = PIPELINE_ENGINE / "projects" / slug
+    if not (project_dir / "blueprint.json").exists():
+        raise HTTPException(404, f"no project: {slug!r}")
+    _stop_requests.add(slug)
+    return {"slug": slug, "status": "stop requested"}
+
+
+@app.post("/api/pipeline/quick-test", status_code=201)
+def pipeline_quick_test():
+    import run as prun
+    import tempfile
+    from datetime import datetime
+
+    slug = f"quicktest_{datetime.now().strftime('%H%M%S')}"
+    project_dir = PIPELINE_ENGINE / "projects" / slug
+    if project_dir.exists():
+        raise HTTPException(409, f"project {slug!r} exists — wait and retry")
+    brief = ("---\nword_target: 300\n---\n\nA short anime test: a lone swordsman "
+             "defends a mountain village from a shadow wolf on a stormy night. "
+             "Protagonist Kael (silver hair, green eyes, worn armor).")
+    with tempfile.TemporaryDirectory() as tmp:
+        seed_path = Path(tmp) / "seed.txt"
+        seed_path.write_text(brief, encoding="utf-8")
+        try:
+            prun.new_project(slug, seed_path, fps=24,
+                             projects_dir=PIPELINE_ENGINE / "projects", mode="0b")
+        except Exception as e:
+            raise HTTPException(400, str(e))
+    (project_dir / "input").mkdir(parents=True, exist_ok=True)
+    (project_dir / "input" / "brief.md").write_text(brief, encoding="utf-8")
+    key = (slug, "_all")
+    with _lock_map:
+        def worker():
+            try:
+                prun.run_all(slug, projects_dir=PIPELINE_ENGINE / "projects",
+                             brief_path=project_dir / "input" / "brief.md",
+                             run_critique=False, step=False, quick=True,
+                             should_stop=lambda: slug in _stop_requests)
+            except Exception as exc:
+                (project_dir / "logs").mkdir(parents=True, exist_ok=True)
+                (project_dir / "logs" / "run_all.error").write_text(
+                    f"{type(exc).__name__}: {exc}", encoding="utf-8")
+            finally:
+                _stop_requests.discard(slug)
+                with _lock_map:
+                    _locks.pop(key, None)
+        t = threading.Thread(target=worker, daemon=True, name=f"pipe-{slug}-all")
+        _locks[key] = t
+        t.start()
+    return {"slug": slug, "status": "running", "mode": "0b", "quick": True}
+
+
+@app.get("/api/pipeline/{slug}/log/{stage}")
+def pipeline_stage_log(slug: str, stage: str):
+    project_dir = PIPELINE_ENGINE / "projects" / slug
+    if not (project_dir / "blueprint.json").exists():
+        raise HTTPException(404, f"no project: {slug!r}")
+    for p in [project_dir / "logs" / f"{stage}.error",
+              project_dir / "logs" / f"{stage}.log",
+              project_dir / "logs" / "run_all.error"]:
+        if p.exists():
+            return {"log": p.read_text(encoding="utf-8", errors="replace")[-20000:],
+                    "exists": True, "path": str(p)}
+    return {"log": "", "exists": False}
+
+
+_STAGE_ARTIFACT_GLOBS: dict[str, list[str]] = {
+    "stage0": ["input/script.txt", "input/brief.md", "stage0_scenes.json"],
+    "stage0_dossier": ["intake/dossier.json"],
+    "stage1": ["worldbible/world_bible.json", "worldbible/contradictions.json"],
+    "stage1_world": ["worldbible/world_bible.json", "worldbible/contradictions.json"],
+    "stage1r": ["worldbible/refs/*/*.png", "worldbible/refs/_manifest.json"],
+    "stage3": ["storyboard/storyboard.json"],
+    "stage2": ["screenplay/screenplay.json"],
+    "stage3b": ["panels/*_manga.png", "panels/*.png"],
+    "stage4": ["audio/**/*.wav", "audio/timeline.json"],
+    "stage3c": ["clips/*.mp4"],
+    "stage_vlm_review": ["reviews/vlm_review.json"],
+    "stage5": ["video/final.mp4", "video/*.srt", "video/*.ffmetadata"],
+}
+
+_ARTIFACT_MIME = {
+    "json": "application/json", "txt": "text/plain", "md": "text/plain",
+    "srt": "text/plain", "ffmetadata": "text/plain",
+    "png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "webp": "image/webp",
+    "wav": "audio/wav", "mp3": "audio/mpeg", "mp4": "video/mp4",
+}
+
+
+def _safe_project_path(project_dir: Path, rel: str) -> Path:
+    p = (project_dir / rel).resolve()
+    if not p.is_relative_to(project_dir.resolve()):
+        raise HTTPException(400, "path escapes project dir")
+    return p
+
+
+@app.get("/api/pipeline/{slug}/artifacts")
+def pipeline_artifacts(slug: str):
+    project_dir = PIPELINE_ENGINE / "projects" / slug
+    if not project_dir.is_dir():
+        raise HTTPException(404, f"no project: {slug!r}")
+    out: dict[str, list[dict]] = {}
+    for stage, globs in _STAGE_ARTIFACT_GLOBS.items():
+        found: list[dict] = []
+        seen: set[str] = set()
+        for g in globs:
+            for p in sorted(project_dir.glob(g)):
+                if p.is_file():
+                    rel = str(p.relative_to(project_dir))
+                    if rel in seen:
+                        continue
+                    seen.add(rel)
+                    ext = p.suffix.lower().lstrip(".")
+                    found.append({
+                        "path": rel,
+                        "kind": "image" if ext in ("png", "jpg", "jpeg", "webp")
+                        else "video" if ext == "mp4"
+                        else "audio" if ext in ("wav", "mp3")
+                        else "text" if ext in ("txt", "md")
+                        else "json",
+                        "name": p.name,
+                    })
+        out[stage] = found
+    return out
+
+
+@app.get("/api/pipeline/{slug}/file")
+def pipeline_file(slug: str, path: str):
+    project_dir = PIPELINE_ENGINE / "projects" / slug
+    if not project_dir.is_dir():
+        raise HTTPException(404, f"no project: {slug!r}")
+    p = _safe_project_path(project_dir, path)
+    if not p.is_file():
+        raise HTTPException(404, f"no such file: {path!r}")
+    mime = _ARTIFACT_MIME.get(p.suffix.lower().lstrip("."), "application/octet-stream")
+    return FileResponse(p, media_type=mime)
+
+
+from fastapi import UploadFile, File as _File  # noqa: E402
+
+_PANEL_EXTS = {".png", ".jpg", ".jpeg", ".webp"}
+
+
+@app.post("/api/pipeline/{slug}/panels")
+def pipeline_upload_panels(slug: str, file: UploadFile = _File(...)):
+    import zipfile
+
+    project_dir = PIPELINE_ENGINE / "projects" / slug
+    if not project_dir.is_dir():
+        raise HTTPException(404, f"no project: {slug!r}")
+    panels_dir = project_dir / "input" / "panels"
+    panels_dir.mkdir(parents=True, exist_ok=True)
+    fname = Path(file.filename or "panel.png")
+    ext = fname.suffix.lower()
+    data = file.file.read()
+    if ext == ".zip":
+        with zipfile.ZipFile(io.BytesIO(data)) as zf:
+            written = 0
+            for m in zf.namelist():
+                if m.endswith("/"):
+                    continue
+                if Path(m).suffix.lower() in _PANEL_EXTS:
+                    (panels_dir / Path(m).name).write_bytes(zf.read(m))
+                    written += 1
+        if not written:
+            raise HTTPException(400, "zip contained no panel images")
+        return {"written": written}
+    if ext not in _PANEL_EXTS:
+        raise HTTPException(400, f"unsupported file type {ext!r}")
+    (panels_dir / fname.name).write_bytes(data)
+    return {"written": 1}
 
 
 # ── static dashboard ───────────────────────────────────────────────────────

@@ -19,9 +19,15 @@ ComfyUI/            ← Image/animation generation (external, port 8188)
 Stage order (source of truth: `pipeline/blueprint.py STAGE_ORDER`):
 
 ```
-stage0 → stage0_dossier → stage1 → stage1_world → stage1r → stage3
-       → stage2 → stage3b → stage4 → stage3c → stage_vlm_review → stage5
+stage0 → stage0_dossier → stage1 → stage1_world → stage2 → stage4
+       → stage3 → stage1r → stage3b → stage3c → stage_vlm_review → stage5
 ```
+
+Audio-first: the source script controls the editorial spine. Stage 2 writes
+narration/dialogue beats, stage 4 renders the timed audio spine, and stage 3
+enriches that timed screenplay with shots/composition — it does not regenerate
+story beats. The Studio cards (`olympus/web/app.js STAGE_META`) render in this
+same order.
 
 - **stage0_dossier** (intake enrichment): reads the finished `input/script.txt`
   (read-only) and extracts `intake/dossier.json` — rich character profiles

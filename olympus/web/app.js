@@ -827,18 +827,18 @@ const STAGE_META = [
     sst: 'chunked full-script character extraction · era/tech · relationships · outfits · contradictions' },
   { id: 'stage1_world',     icon: '🗺️', title: 'STAGE 1W · WORLD',
     sst: 'world enrichment — locations, era, magic, economy, lore, power system' },
+  { id: 'stage2',           icon: '📝', title: 'STAGE 2 · SCREENPLAY',
+    sst: 'narration + dialogue + SFX · story beats · pacing · source-fidelity gate' },
+  { id: 'stage4',           icon: '🎙', title: 'STAGE 4 · AUDIO',
+    sst: 'Kokoro TTS · narration + per-character voices · timed editorial spine' },
+  { id: 'stage3',           icon: '🎞️', title: 'STAGE 3 · STORYBOARD',
+    sst: 'enrich the timed screenplay · blocks · shot direction · composition prompts' },
   { id: 'stage1r',          icon: '👤', title: 'STAGE 1R · REFERENCES',
     sst: '10+ refs per character (360° full body) · locations + assets · style pick · voice ID' },
-  { id: 'stage3',           icon: '🎞️', title: 'STAGE 2 · STORYBOARD',
-    sst: 'scene blocks · last-frame seeds next · panel lock + regenerate · shot direction' },
-  { id: 'stage2',           icon: '📝', title: 'STAGE 3A · SCREENPLAY',
-    sst: 'narration + dialogue + SFX · composition prompts · pacing · quality audit' },
   { id: 'stage3b',          icon: '🎨', title: 'STAGE 3B · IMAGES',
-    sst: 'one krea2 image per shot · same anchors = consistent characters' },
-  { id: 'stage4',           icon: '🎙', title: 'STAGE 4 · AUDIO',
-    sst: 'Kokoro TTS · narration + per-character voices · thinking pauses' },
+    sst: 'one image per shot · same anchors = consistent characters' },
   { id: 'stage3c',          icon: '🎞️', title: 'STAGE 3C · ANIMATION',
-    sst: 'LTX-Video motion per panel → clips · motion tiers · facial anchors' },
+    sst: 'motion per panel → clips · motion tiers · facial anchors (panels mode skips)' },
   { id: 'stage_vlm_review', icon: '🔍', title: 'STAGE · VLM REVIEW',
     sst: 'vision-model consistency check · prompt-adherence scoring · blunder gating' },
   { id: 'stage5',           icon: '🎬', title: 'STAGE 5 · ASSEMBLY',
@@ -888,6 +888,7 @@ const DOT_CLASSES = new Set(['pending', 'running', 'done', 'failed', 'awaiting_a
 const INTAKE_HINTS = {
   '0b': 'GENERATE — from a creative brief (frontmatter word_target). Paste the brief below.',
   '0a': 'TRANSFORM — from a source story. Paste the source text below; the pipeline designs an original rewrite.',
+  '0s': 'FAITHFUL — from a finished script. Pasted verbatim, never rewritten; scenes split only.',
   '0i': 'IMPORT — from existing panels (PNG/JPG/WEBP zip). Upload a zip below; the pipeline reads panels into a screenplay.',
 };
 
@@ -1010,6 +1011,10 @@ function syncIntakeHint() {
     $('np-panels-file').style.display = 'none';
   } else if (intake === '0a') {
     text.placeholder = 'Source story text — the pipeline extracts mechanics and designs an original transformation…';
+    text.style.display = '';
+    $('np-panels-file').style.display = 'none';
+  } else if (intake === '0s') {
+    text.placeholder = 'Finished script — used verbatim (SCENE/Chapter headings + NAME: dialogue lines preserved)…';
     text.style.display = '';
     $('np-panels-file').style.display = 'none';
   } else {
@@ -1253,6 +1258,9 @@ function openStage0Setup(collectOnly = false, force = false) {
           <div class="sm-step">SOURCE TEXT</div>
           <textarea id="setup-source" placeholder="Paste the source story text here…"></textarea>
           <div class="sm-hint" style="margin-top:.4rem">word target: <input type="number" id="setup-wordtarget" value="800" min="200" step="50" style="width:90px;background:#0b1522;color:#cfe3f0;border:1px solid var(--line)"></div>` : ''}
+        ${mode === '0s' ? `
+          <div class="sm-step">FAITHFUL SCRIPT (verbatim — never rewritten)</div>
+          <textarea id="setup-source" placeholder="Paste the finished script here…"></textarea>` : ''}
         ${mode === '0i' ? `
           <div class="sm-step">PANEL UPLOAD</div>
           <input type="file" id="setup-panels" accept=".zip,.png,.jpg,.jpeg,.webp" multiple>
@@ -1284,6 +1292,10 @@ function openStage0Setup(collectOnly = false, force = false) {
             if (!source.trim()) throw new Error('source text is required');
             out.source_text = source;
             out.word_target = Number(($('setup-wordtarget') || {}).value || 800);
+          } else if (mode === '0s') {
+            const source = ($('setup-source') || {}).value || '';
+            if (!source.trim()) throw new Error('script text is required');
+            out.source_text = source;
           } else if (mode === '0i') {
             const pf = ($('setup-panels') || {}).files && $('setup-panels').files[0];
             if (pf) await uploadPanels(studioProject, pf);

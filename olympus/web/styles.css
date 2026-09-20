@@ -381,8 +381,6 @@ h2.pg { font-family: Consolas, monospace; font-size: .72rem; letter-spacing: .25
 /* the per-stage RUN / VIEW / FORCE button row */
 .stage .sbtns { display: flex; gap: .35rem; justify-content: center; margin-top: .45rem; flex-wrap: wrap; }
 
-#comfy-frame { width: 100%; height: calc(100vh - 21rem); border: 1px solid var(--line2); background: #000; display: none; }
-
 /* Studio stage artifact viewer modal */
 #stage-modal, #setup-modal { display: none; position: fixed; inset: 0; background: rgba(4, 8, 14, .72); backdrop-filter: blur(4px); z-index: 60; }
 #stage-modal.open, #setup-modal.open { display: flex; align-items: center; justify-content: center; padding: 1.5rem; }

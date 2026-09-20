@@ -160,13 +160,6 @@
 <!-- ===== STUDIO — anime / manga pipeline ================================== -->
 <div class="page" id="page-studio">
   <h1 class="pg">STUDIO · ANIME / MANGA PIPELINE v2</h1>
-  <div class="flex mb-sm">
-    <span id="studio-status"></span>
-    <button class="primary" id="comfy-embed-btn">OPEN COMFYUI HERE ▼</button>
-    <a href="http://127.0.0.1:8188" target="_blank" class="cyan-sm">open in new tab ↗</a>
-    <span class="hint-sm">--novram --disable-cuda-malloc · RTX 4070 8GB</span>
-  </div>
-  <iframe id="comfy-frame" title="ComfyUI"></iframe>
 
   <!-- Studio banner — no agent needed, everything runs from here -->
   <div class="hud p-md mb-md" style="background:linear-gradient(90deg,rgba(87,199,227,.08),transparent);border-color:rgba(87,199,227,.25)">
@@ -201,6 +194,7 @@
         <select id="np-intake" class="min-w-200">
           <option value="0b" selected>0B · generate (brief)</option>
           <option value="0a">0A · transform (source)</option>
+          <option value="0s">0S · faithful (script verbatim)</option>
           <option value="0i">0I · import (panels)</option>
         </select>
         <label class="label" style="font-size:.78rem"><input type="radio" name="np-mode" value="brief" checked> brief</label>
