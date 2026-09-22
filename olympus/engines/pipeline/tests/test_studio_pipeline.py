@@ -89,3 +89,79 @@ def test_faithful_intake_is_verbatim(tmp_path):
 
     scenes = json.loads((pdir / "stage0_scenes.json").read_text(encoding="utf-8"))
     assert "Kael: We hold tonight." in scenes[0]["content"]
+
+
+def test_storyboard_enriches_screenplay_shots(tmp_path):
+    """Stage 3 must preserve the timed screenplay's shot contract."""
+    import json
+    from pipeline.blueprint import create_blueprint
+    from pipeline.stages import run_storyboard
+
+    project = tmp_path / "project"
+    (project / "screenplay").mkdir(parents=True)
+    (project / "scores.sqlite").touch()
+    create_blueprint("source", slug="storyboard_t").write(project)
+    screenplay = {
+        "scenes": [{
+            "location": "The pass",
+            "summary": "A storm gathers.",
+            "shots": [{
+                "id": "sh-001-07",
+                "description": "A close-up of Kael's hand on the hilt.",
+                "narration": "The storm had arrived.",
+                "dialogue": "",
+                "sfx": "thunder",
+            }],
+        }]
+    }
+    (project / "screenplay" / "screenplay.json").write_text(
+        json.dumps(screenplay), encoding="utf-8"
+    )
+
+    result = run_storyboard(project)
+
+    storyboard = json.loads(
+        (project / "storyboard" / "storyboard.json").read_text(encoding="utf-8")
+    )
+    assert result == {"shots": 1}
+    assert storyboard["shot_detail"][0]["id"] == "sh-001-07"
+    assert storyboard["shot_detail"][0]["narration"] == "The storm had arrived."
+    assert storyboard["shot_detail"][0]["sfx"] == "thunder"
+
+
+def test_canonical_artifact_identity():
+    from pipeline.identity import canonical_name
+
+    assert canonical_name("bloodline", "sh-001-02", "panel", "png") == (
+        "bloodline_sc001_sh002_panel_v001.png"
+    )
+
+
+def test_review_unavailable_does_not_pass(monkeypatch, tmp_path):
+    from pipeline import stages
+
+    panel_dir = tmp_path / "panels"
+    panel_dir.mkdir()
+    stages.render_panel(panel_dir / "sh_001_01.png", "shot", seed="test")
+    monkeypatch.setattr(
+        "pipeline.nim_vision.review_image",
+        lambda *_args, **_kwargs: {"available": False, "verdict": "UNAVAILABLE", "score": 0},
+    )
+    (tmp_path / "scores.sqlite").touch()
+    from pipeline.blueprint import create_blueprint
+
+    create_blueprint("source", slug="review_t").write(tmp_path)
+    try:
+        stages.run_review(tmp_path)
+    except RuntimeError as exc:
+        assert "blocked" in str(exc)
+    else:
+        raise AssertionError("unavailable review must block stage5")
+
+
+def test_tts_provider_manifest_prefers_chatterbox():
+    from pipeline.voice_client import provider_status
+
+    status = provider_status()
+    assert status["recommended"] == "chatterbox-turbo"
+    assert "exclusive lock" in status["gpu_policy"]

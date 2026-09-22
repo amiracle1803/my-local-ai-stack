@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import sys
 import zipfile
+import json
 from pathlib import Path
 from typing import Callable
 
@@ -26,6 +27,7 @@ from pipeline.blueprint import STAGE_ORDER, Blueprint, create_blueprint  # noqa:
 from pipeline.scores import Scores  # noqa: E402
 from pipeline import stages as S  # noqa: E402
 from pipeline.optimizer import HardwareOptimizer  # noqa: E402
+from pipeline.contracts import preflight, validate_stage_outputs  # noqa: E402
 
 
 def _projects_root(projects_dir: str | Path | None) -> Path:
@@ -96,13 +98,14 @@ def run_stage(slug: str, stage: str, *, projects_dir: str | Path | None = None,
               config=None, source_path: str | Path | None = None,
               panel_upload: str | Path | None = None,
               word_target: int | None = None, brief_text: str | None = None,
-              source_text: str | None = None) -> dict | None:
+              source_text: str | None = None, quick: bool = False) -> dict | None:
     if stage not in STAGE_ORDER:
         raise ValueError(f"unknown stage {stage!r}; valid: {STAGE_ORDER}")
     project_dir = _projects_root(projects_dir) / slug
     if not (project_dir / "blueprint.json").exists():
         raise FileNotFoundError(f"no such project: {project_dir}")
-    HardwareOptimizer.default().write_manifest(project_dir)
+    optimizer = HardwareOptimizer.default()
+    optimizer.write_manifest(project_dir)
     if stage != "stage0":
         from pipeline.blueprint import verify_story_guard
 
@@ -116,6 +119,10 @@ def run_stage(slug: str, stage: str, *, projects_dir: str | Path | None = None,
     finally:
         scores.close()
 
+    contract = preflight(project_dir, stage, optimizer)
+    if not contract.preflight.accepted:
+        raise RuntimeError(f"preflight blocked {stage}: {contract.preflight.reason}")
+
     brief = brief_text
     if brief_path is not None:
         brief = Path(brief_path).read_text(encoding="utf-8", errors="replace")
@@ -124,31 +131,41 @@ def run_stage(slug: str, stage: str, *, projects_dir: str | Path | None = None,
         source_txt = Path(source_path).read_text(encoding="utf-8", errors="replace")
 
     if stage == "stage0":
-        return S.run_stage0(project_dir, brief=brief, source_text=source_txt,
-                            word_target=word_target or 800)
-    if stage == "stage0_dossier":
-        return S.run_dossier(project_dir)
-    if stage == "stage1":
-        return S.run_worldbible(project_dir)
-    if stage == "stage1_world":
-        return S.run_world_enrich(project_dir)
-    if stage == "stage1r":
-        return S.run_references(project_dir)
-    if stage == "stage3":
-        return S.run_storyboard(project_dir)
-    if stage == "stage2":
-        return S.run_screenplay(project_dir)
-    if stage == "stage3b":
-        return S.run_images(project_dir)
-    if stage == "stage4":
-        return S.run_audio(project_dir)
-    if stage == "stage3c":
-        return S.run_animation(project_dir, enabled=_animation_enabled())
-    if stage == "stage_vlm_review":
-        return S.run_review(project_dir)
-    if stage == "stage5":
-        return S.run_assembly(project_dir)
-    raise ValueError(f"no implementation for {stage!r}")
+        result = S.run_stage0(project_dir, brief=brief, source_text=source_txt,
+                              word_target=word_target or 800)
+    elif stage == "stage0_dossier":
+        result = S.run_dossier(project_dir)
+    elif stage == "stage1":
+        result = S.run_worldbible(project_dir)
+    elif stage == "stage1_world":
+        result = S.run_world_enrich(project_dir)
+    elif stage == "stage1r":
+        result = S.run_references(project_dir, quick=quick)
+    elif stage == "stage3":
+        result = S.run_storyboard(project_dir)
+    elif stage == "stage2":
+        result = S.run_screenplay(project_dir)
+    elif stage == "stage3b":
+        result = S.run_images(project_dir)
+    elif stage == "stage4":
+        result = S.run_audio(project_dir)
+    elif stage == "stage3c":
+        result = S.run_animation(project_dir, enabled=_animation_enabled())
+    elif stage == "stage_vlm_review":
+        result = S.run_review(project_dir)
+    elif stage == "stage5":
+        result = S.run_assembly(project_dir)
+    else:
+        raise ValueError(f"no implementation for {stage!r}")
+    output_check = validate_stage_outputs(project_dir, stage)
+    contract.artifacts = output_check
+    run_contract = project_dir / "run_contract.json"
+    existing = json.loads(run_contract.read_text(encoding="utf-8")) if run_contract.exists() else {"stages": {}}
+    existing["stages"][stage] = contract.model_dump(mode="json")
+    run_contract.write_text(json.dumps(existing, indent=2), encoding="utf-8")
+    if not output_check.valid:
+        raise RuntimeError(f"stage {stage} output validation failed: {output_check.reason}")
+    return result
 
 
 def run_all(slug: str, *, projects_dir: str | Path | None = None,
@@ -174,21 +191,12 @@ def run_all(slug: str, *, projects_dir: str | Path | None = None,
             done = False
         if done:
             continue
-        if stage == "stage1r" and quick:
-            S.run_references(project_dir, quick=True)
-            results[stage] = {"quick": True}
-        elif stage == "stage0":
-            bp = Blueprint.load(project_dir)
-            btxt = None
-            if brief_path is not None and Path(brief_path).exists():
-                btxt = Path(brief_path).read_text(encoding="utf-8", errors="replace")
-            results[stage] = S.run_stage0(
-                project_dir,
-                brief=btxt or ((project_dir / "input" / "brief.md").read_text(encoding="utf-8") if (project_dir / "input" / "brief.md").exists() and bp.mode == "0b" else None),
-                source_text=(Path(source_path).read_text(encoding="utf-8") if source_path and Path(source_path).exists() else None),
-                word_target=word_target or (300 if quick else 800))
-        else:
-            results[stage] = run_stage(slug, stage, projects_dir=projects_dir) or {}
+        results[stage] = run_stage(
+            slug, stage, projects_dir=projects_dir,
+            brief_path=brief_path, source_path=source_path,
+            word_target=word_target or (300 if quick else 800),
+            quick=quick,
+        ) or {}
         verify_story_guard(project_dir)
         if step:
             break

@@ -10,6 +10,8 @@ import urllib.request
 import uuid
 from pathlib import Path
 
+from .gpu_lock import gpu_batch
+
 
 def _request(url: str, payload: dict | None = None) -> dict:
     body = json.dumps(payload).encode() if payload is not None else None
@@ -33,7 +35,7 @@ def _graph(prompt: str, seed: int, prefix: str) -> dict:
     }
 
 
-def render_panel(prompt: str, destination: Path, seed: int, base_url: str = "http://127.0.0.1:8188", timeout: int = 900) -> Path:
+def _render_panel(prompt: str, destination: Path, seed: int, base_url: str = "http://127.0.0.1:8188", timeout: int = 900) -> Path:
     base_url = base_url.rstrip("/")
     prompt_id = _request(f"{base_url}/prompt", {"prompt": _graph(prompt, seed, "olympus_panel"), "client_id": str(uuid.uuid4())})["prompt_id"]
     deadline = time.monotonic() + timeout
@@ -59,6 +61,12 @@ def render_panel(prompt: str, destination: Path, seed: int, base_url: str = "htt
     return destination
 
 
+def render_panel(prompt: str, destination: Path, seed: int,
+                 base_url: str = "http://127.0.0.1:8188", timeout: int = 900) -> Path:
+    with gpu_batch("comfyui:panel"):
+        return _render_panel(prompt, destination, seed, base_url, timeout)
+
+
 def _svd_graph(input_image: str, seed: int, frames: int = 14, fps: float = 6.0,
                width: int = 1024, height: int = 576) -> dict:
     return {
@@ -74,7 +82,7 @@ def _svd_graph(input_image: str, seed: int, frames: int = 14, fps: float = 6.0,
     }
 
 
-def animate_panel(panel_path: str | Path, destination: Path, seed: int,
+def _animate_panel(panel_path: str | Path, destination: Path, seed: int,
                   base_url: str = "http://127.0.0.1:8188", timeout: int = 1200,
                   frames: int = 14, fps: float = 6.0) -> Path:
     """Animate a panel via SVD (Stable Video Diffusion) and fetch the MP4 clip."""
@@ -103,3 +111,10 @@ def animate_panel(panel_path: str | Path, destination: Path, seed: int,
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_bytes(src.read_bytes())
     return destination
+
+
+def animate_panel(panel_path: str | Path, destination: Path, seed: int,
+                  base_url: str = "http://127.0.0.1:8188", timeout: int = 1200,
+                  frames: int = 14, fps: float = 6.0) -> Path:
+    with gpu_batch("comfyui:animation"):
+        return _animate_panel(panel_path, destination, seed, base_url, timeout, frames, fps)

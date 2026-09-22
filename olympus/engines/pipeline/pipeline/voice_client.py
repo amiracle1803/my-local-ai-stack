@@ -4,12 +4,35 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import tempfile
 import urllib.error
 import urllib.request
 import wave
+import shutil
 from pathlib import Path
+
+from .gpu_lock import gpu_batch
+
+_KOKORO_VOICE_RE = re.compile(r"^[ab][mf]_[a-z0-9_]+$")
+
+
+def _require_gpu_headroom(min_free_gb: float = 4.5) -> None:
+    """Refuse GPU TTS while ComfyUI or another process occupies the card."""
+    if not shutil.which("nvidia-smi"):
+        return
+    result = subprocess.run(
+        ["nvidia-smi", "--query-gpu=memory.free", "--format=csv,noheader,nounits"],
+        capture_output=True, text=True, check=False, timeout=10,
+    )
+    if result.returncode != 0 or not result.stdout.strip():
+        return
+    free_gb = float(result.stdout.splitlines()[0].strip()) / 1024.0
+    if free_gb < min_free_gb:
+        raise RuntimeError(
+            f"GPU TTS blocked: only {free_gb:.2f} GiB free; stop/unload ComfyUI first"
+        )
 
 
 def _silent_wav(path: Path, seconds: float = 2.0, rate: int = 22050) -> Path:
@@ -23,7 +46,8 @@ def _silent_wav(path: Path, seconds: float = 2.0, rate: int = 22050) -> Path:
     return path
 
 
-def synth(text: str, dest: Path, voice: str = "af_heart", speed: float = 1.0) -> tuple[Path, bool]:
+def synth(text: str, dest: Path, voice: str = "af_heart", speed: float = 1.0,
+          reference: Path | None = None, style: str = "") -> tuple[Path, bool]:
     """Synthesize via Voice Studio (:5050). Returns (path, used_tts).
 
     Falls back to a duration-scaled silent wav so assembly never blocks.
@@ -32,14 +56,33 @@ def synth(text: str, dest: Path, voice: str = "af_heart", speed: float = 1.0) ->
     try:
         from stack.config import cfg
 
-        engine = getattr(cfg.voice, "engine", "auto")
+        engine = getattr(cfg.voice, "engine", "kokoro")
+        if engine in {"chatterbox-turbo", "qwen3-tts-0.6b"}:
+            command = getattr(cfg.voice, "chatterbox_command", "") if engine == "chatterbox-turbo" else getattr(cfg.voice, "qwen3_tts_command", "")
+            if command:
+                try:
+                    with gpu_batch(f"tts:{engine}", getattr(cfg.voice, "gpu_lock_timeout_seconds", 900)):
+                        _require_gpu_headroom()
+                        return _synth_external(command, text, dest, voice, speed, reference, style)
+                except Exception:
+                    # GPU-backed provider is unavailable (busy/VRAM); degrade to
+                    # the CPU Kokoro fallback so a run is never blocked.
+                    engine = "kokoro"
+            else:
+                # Provider is selected, but no isolated command is configured yet.
+                # Use Voice Studio rather than silently pretending it ran.
+                engine = "kokoro"
         if engine == "f5-tts":
-            return _synth_f5(text, dest, cfg.voice)
+            try:
+                with gpu_batch("tts:f5", getattr(cfg.voice, "gpu_lock_timeout_seconds", 900)):
+                    _require_gpu_headroom()
+                    return _synth_f5(text, dest, cfg.voice)
+            except Exception:
+                engine = "kokoro"
+        safe_voice = voice if _KOKORO_VOICE_RE.match(voice) else getattr(cfg.voice, "default_voice", "af_heart")
         url = cfg.voice.url + "/api/tts"
-        payload = json.dumps({"text": text[:800], "voice": voice, "speed": speed}).encode()
-        if engine and engine != "auto":
-            payload = json.dumps({"text": text[:800], "voice": voice,
-                                  "speed": speed, "engine": engine}).encode()
+        payload = json.dumps({"text": text[:800], "voice": safe_voice, "speed": speed,
+                              "style": style}).encode()
         req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
         with urllib.request.urlopen(req, timeout=120) as r:
             dest.write_bytes(r.read())
@@ -81,6 +124,24 @@ def _synth_f5(text: str, dest: Path, voice_config) -> tuple[Path, bool]:
     return dest, True
 
 
+def _synth_external(command: str, text: str, dest: Path, voice: str, speed: float,
+                    reference: Path | None, style: str) -> tuple[Path, bool]:
+    """Run a configured isolated TTS adapter using a small JSON request file."""
+    with tempfile.TemporaryDirectory(prefix="olympus-tts-") as tmp:
+        request_path = Path(tmp) / "request.json"
+        request_path.write_text(json.dumps({"text": text[:2000], "voice": voice,
+                                            "speed": speed, "style": style,
+                                            "reference": str(reference) if reference else "",
+                                            "output": str(dest)}), encoding="utf-8")
+        env = os.environ.copy()
+        env["OLYMPUS_TTS_REQUEST"] = str(request_path)
+        subprocess.run(command, shell=True, check=True, timeout=300, env=env,
+                       capture_output=True, text=True)
+    if not dest.exists():
+        raise RuntimeError("configured TTS adapter produced no WAV")
+    return dest, True
+
+
 def provider_matrix() -> list[dict[str, object]]:
     """Return the local TTS candidates and their hardware strategy.
 
@@ -91,6 +152,8 @@ def provider_matrix() -> list[dict[str, object]]:
         {"id": "kokoro", "expressiveness": "medium", "device": "cpu", "status": "installed"},
         {"id": "f5-tts", "expressiveness": "high", "device": "cuda_or_cpu", "status": "candidate"},
         {"id": "indextts2", "expressiveness": "high", "device": "cuda_or_cpu", "status": "candidate"},
+        {"id": "chatterbox-turbo", "expressiveness": "very_high", "device": "cuda", "status": "recommended"},
+        {"id": "qwen3-tts-0.6b", "expressiveness": "very_high", "device": "cuda", "status": "recommended"},
         {"id": "chatterbox", "expressiveness": "high", "device": "cuda", "status": "candidate"},
         {"id": "xtts-v2", "expressiveness": "high", "device": "cuda_or_cpu", "status": "candidate"},
         {"id": "espeak-ng", "expressiveness": "low", "device": "cpu", "status": "fallback"},
@@ -109,5 +172,7 @@ def provider_status() -> dict[str, object]:
         "spark_env": "/home/amire/Downloads/tts-spark-venv",
         "chatterbox_env": "/home/amire/Downloads/tts-chatterbox-venv",
         "f5_model_cache": "/home/amire/Downloads/tts-hf-cache",
-        "recommended": "spark-tts-or-f5-tts",
+        "recommended": "chatterbox-turbo",
+        "recommendation_reason": "best expressive English narration/dialogue fit for 8GB local GPU; MIT licensed",
+        "gpu_policy": "exclusive lock with ComfyUI; stop/unload ComfyUI before first model load",
     }

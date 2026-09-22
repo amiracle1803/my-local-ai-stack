@@ -18,10 +18,10 @@ num_ctx = 16384
 
 # Model roles — change these to swap models without touching code
 [ollama.models]
-script    = "ornith-1.5-9b-fast:latest" # installed local model for structured story work
+script    = "qwen3:8b" # installed local model for structured story work (ornith-1.5-9b-fast not installed; qwen3:8b is the documented heavy-stage model)
 vision = "qwen2.5vl:7b"       # panel vision judge — must be a VLM (qwen3:8b rejects image payloads with 400; qwen2.5vl occasionally miscounts dense panels but retry cap accepts best attempt)
 review    = "qwen2.5vl:7b"       # stage_vlm_review 10-dim physics/logic gate (non‑reasoning; reliable fast structured output — qwen3‑vl:8b reasoning model returns empty content on some frames)
-default   = "ornith-1.5-9b-fast:latest" # installed local fallback
+default   = "qwen3:8b" # installed local fallback (ornith-1.5-9b-fast not installed)
 embed     = "nomic-embed-text"   # embeddings
 
 # Agent roles — maps kernel agent roles → Ollama models
@@ -34,12 +34,19 @@ jarvis   = "ornith-1.5-9b-fast:latest"
 
 # ── Voice Studio ──────────────────────────────────────────────────────────
 [voice]
-engine = "auto" # auto | kokoro | f5-tts | espeak-ng
+engine = "chatterbox-turbo" # chatterbox-turbo | qwen3-tts-0.6b | kokoro | espeak-ng
 default_voice = "af_heart"
 default_speed = 1.0
 f5_python = "/home/amire/Downloads/tts-f5-venv/bin/python"
 f5_model = "F5TTS_v1_Base"
 f5_device = "cuda"
+chatterbox_python = "/home/amire/Downloads/tts-chatterbox-venv/bin/python"
+chatterbox_command = "/home/amire/Downloads/tts-chatterbox-venv/bin/python /home/amire/Downloads/my-local-ai-stack/scripts/tts_chatterbox_adapter.py"
+chatterbox_model = "ResembleAI/chatterbox-turbo"
+qwen3_tts_python = ""
+qwen3_tts_command = ""
+qwen3_tts_model = "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice"
+gpu_lock_timeout_seconds = 900
 
 # ── Olympus Kernel ────────────────────────────────────────────────────────
 [kernel]
