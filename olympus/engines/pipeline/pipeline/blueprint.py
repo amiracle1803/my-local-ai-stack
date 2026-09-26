@@ -17,17 +17,15 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
-# Canonical execution order: source -> timed audio spine -> visual planning ->
-# generation -> assembly. UI stage cards may retain historical IDs, but this
-# order is the dependency contract.
+# Canonical execution order: intake -> world bible -> storyboard -> screenplay -> audio -> generation -> assembly
 STAGE_ORDER: list[str] = [
     "stage0",          # intake: script.txt -> blueprint + scenes
     "stage0_dossier",  # intake enrichment: characters/locations/dialogue log
     "stage1",          # world bible: characters/outfits/relationships
     "stage1_world",    # world enrichment: locations/era/lore
-    "stage2",          # screenplay: narration + dialogue + SFX
-    "stage4",          # audio: TTS narration + voices
-    "stage3",          # storyboard: enrich timed screenplay with shot direction
+    "stage3",          # storyboard: shot direction + composition from scenes
+    "stage2",          # screenplay: narration/dialogue timed to shot durations
+    "stage4",          # audio: TTS narration + voices timed to shots
     "stage1r",         # references: per-character visual refs
     "stage3b",         # images: one panel per shot
     "stage3c",         # animation: motion clips (or skipped in panels mode)

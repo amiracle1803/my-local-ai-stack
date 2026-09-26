@@ -1,0 +1,18 @@
+[
+  {
+    "shot": "sh-001-01",
+    "kind": "narration",
+    "file": "audio/narration/sh_001_01_narration.wav",
+    "start": 0.0,
+    "dur": 8.26,
+    "text": "SCENE 1 - The Bloodline  Kael enters the ruined city beneath a red moon.  Kael: The bloodline ends tonight.  A shadow beast rises from the gate."
+  },
+  {
+    "shot": "sh-001-01",
+    "kind": "dialogue",
+    "file": "audio/dialogue/sh_001_01_dialogue.wav",
+    "start": 8.56,
+    "dur": 1.66,
+    "text": "The bloodline ends tonight."
+  }
+]

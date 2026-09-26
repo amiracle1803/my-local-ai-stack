@@ -1,0 +1,12 @@
+{
+  "provider": "chatterbox-turbo",
+  "environment": "/home/amire/Downloads/tts-chatterbox-venv",
+  "device": "cuda",
+  "model": "ChatterboxTurboTTS",
+  "sample_rate": 24000,
+  "audio_seconds": 6.66,
+  "bytes": 319724,
+  "reference_audio": "Spark-TTS/example/prompt_audio.wav",
+  "watermark": "DummyWatermarker isolated compatibility patch",
+  "caveat": "reference mel length warning"
+}

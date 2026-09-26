@@ -105,6 +105,9 @@ This machine runs Nobara Linux (Fedora-based) with OpenCode running
 | Olympus Kernel | 4600 | `olympus-kernel.service` | User unit |
 | OpenCode MCP | 4720 | `opencode-mcp.service` | User unit |
 | llama.cpp | 8081 | `llama-server.service` | User unit (optional) |
+| n8n plane | 5679 | docker compose (`~/n8n-stack`, see `[automation]` in stack.toml) | Compose project |
+| SGW proxy | 8787 | `sgw-proxy.service` | User unit (paced ShopGoodwill relay for n8n) |
+| Stack dashboard | 8790 | `stack-dashboard.service` | User unit (read-only repo+status UI, `~/bin/stack-dashboard.py`) |
 
 ## GPU scheduling
 
@@ -131,7 +134,8 @@ simultaneously — they will OOM each other. Rules:
 - Pipeline: `olympus/engines/pipeline/`
 - Voice: `olympus/engines/voice/`
 - Dashboard: `olympus/web/index.html`
-- Docs: `docs/`
+- Docs: `docs/` (incl. `docs/n8n-automation.md` — n8n plane contract)
+- n8n plane: `stack.toml [automation]` → compose project at `~/n8n-stack` (NOT moved into repo); see `docs/n8n-automation.md` before touching n8n workflows
 - AGENTS.md: This file.
 - DeepSeek Harness: `harness-deepseek/` (local clone of `deepseek-ai/deepseek-harness` v0.1, 80M) + `~/Documents/harness` (second copy)
 - Git history: `git log --oneline` (80 commits since 2026-07-02); `origin` at `github.com/amiracle1803/my-local-ai-stack`

@@ -21,6 +21,30 @@ def _request(url: str, payload: dict | None = None) -> dict:
         return json.loads(response.read())
 
 
+def upload_image(image_path: str | Path, base_url: str) -> str:
+    """Upload an image to the server's input dir; returns the server-side
+    filename usable as ``imageFile``/LoadImage values. Works for local and
+    remote (e.g. Lightning AI) ComfyUI alike."""
+    image_path = Path(image_path)
+    base_url = base_url.rstrip("/")
+    boundary = "olympus" + uuid.uuid4().hex[:12]
+    body = b"\r\n".join([
+        f"--{boundary}".encode(),
+        f'Content-Disposition: form-data; name="image"; filename="{image_path.name}"'.encode(),
+        b"Content-Type: image/png",
+        b"",
+        image_path.read_bytes(),
+        f"--{boundary}--".encode(),
+        b"",
+    ])
+    req = urllib.request.Request(
+        f"{base_url}/upload/image", data=body,
+        headers={"Content-Type": f"multipart/form-data; boundary={boundary}"})
+    with urllib.request.urlopen(req, timeout=120) as response:
+        result = json.loads(response.read())
+    return result["name"]
+
+
 def _graph(prompt: str, seed: int, prefix: str) -> dict:
     return {
         "1": {"class_type": "UnetLoaderGGUF", "inputs": {"unet_name": "flux-2-klein-4b-Q4_K_M.gguf", "weight_dtype": "default"}},

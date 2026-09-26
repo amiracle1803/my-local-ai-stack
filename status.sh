@@ -92,6 +92,13 @@ check_docker "Memory Hub" "tdai-memory-hub"
 check_docker "Memory Proxy" "tdai-proxy"
 
 echo ""
+echo "--- n8n Automation Plane (stack.toml [automation]) ---"
+check_http "n8n UI/API (5679)" "http://localhost:5679/healthz"
+check_docker "n8n" "n8n-stack-n8n-1"
+check_docker "n8n Postgres" "n8n-stack-postgres-1"
+check_docker "Qdrant (RAG vectors)" "n8n-stack-qdrant-1"
+
+echo ""
 echo "=== GPU Status ==="
 nvidia-smi --query-gpu=name,memory.used,memory.total,utilization.gpu --format=csv,noheader 2>/dev/null || echo "nvidia-smi not available"
 

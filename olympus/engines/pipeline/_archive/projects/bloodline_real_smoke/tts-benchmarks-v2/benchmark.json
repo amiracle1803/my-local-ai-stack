@@ -1,0 +1,10 @@
+{
+  "output": "olympus/engines/pipeline/projects/bloodline_real_smoke/tts-benchmarks-v2/voice_studio.wav",
+  "bytes": 295236,
+  "content_type": "audio/wav",
+  "latency_seconds": 1.728,
+  "audio_seconds": 6.694,
+  "provider": "voice-studio",
+  "voice": "af_heart",
+  "text": "The bloodline was not a legend. It was a promise carried through every wound, every silence, and every impossible dawn."
+}

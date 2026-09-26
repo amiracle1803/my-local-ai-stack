@@ -103,10 +103,18 @@ class VoiceConfig(BaseModel):
     chatterbox_python: str = "/home/amire/Downloads/tts-chatterbox-venv/bin/python"
     chatterbox_command: str = ""  # optional isolated-provider executable/script
     chatterbox_model: str = "ResembleAI/chatterbox-turbo"
+    kokoro_command: str = ""  # optional isolated-provider executable/script
     qwen3_tts_python: str = ""
     qwen3_tts_command: str = ""
     qwen3_tts_model: str = "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice"
     gpu_lock_timeout_seconds: int = 900
+
+
+class ComfyUIConfig(BaseModel):
+    """Local ComfyUI render endpoint."""
+    host: str = "127.0.0.1"
+    port: int = 8188
+    url: str = "http://127.0.0.1:8188"
 
 
 class KernelConfig(BaseModel):
@@ -152,6 +160,25 @@ class ObsidianConfig(BaseModel):
 class GPUConfig(BaseModel):
     name: str = ""
     vram_gb: int = 8
+
+
+class AutomationConfig(BaseModel):
+    """n8n automation plane (docker compose stack, see stack.toml [automation]).
+
+    The compose project lives outside this repo (``compose_dir``); this is a
+    registration + lifecycle hook only — nothing n8n-side moves here.
+    """
+    enabled: bool = False
+    kind: str = "docker-compose"
+    compose_dir: str = ""
+    name: str = "n8n Automation Plane"
+    host: str = "127.0.0.1"
+    port: int = 5679
+    url: str = "http://127.0.0.1:5679"
+    healthcheck: str = "http://127.0.0.1:5679/healthz"
+    containers: list[str] = Field(default_factory=list)
+    vault_mount: str = ""
+    notes: str = ""
 
 
 class NIMConfig(BaseModel):
@@ -207,6 +234,7 @@ class AnimationConfig(BaseModel):
     """Studio animation master switch (persisted, not localStorage)."""
 
     enabled: bool = False  # OFF = panels mode (Ken Burns); ON = GPU clips
+    engine: str = "svd"    # svd | ltx_director (LTX-2.3 Q6_K, needs ~18GB VRAM host)
 
 
 # ── top-level config ───────────────────────────────────────────────────────
@@ -214,6 +242,7 @@ class AnimationConfig(BaseModel):
 class StackConfig(BaseModel):
     ollama: OllamaConfig = Field(default_factory=OllamaConfig)
     voice: VoiceConfig = Field(default_factory=VoiceConfig)
+    comfyui: ComfyUIConfig = Field(default_factory=ComfyUIConfig)
     kernel: KernelConfig = Field(default_factory=KernelConfig)
     mcp: MCPConfig = Field(default_factory=MCPConfig)
     webui: WebUIConfig = Field(default_factory=WebUIConfig)
@@ -225,6 +254,7 @@ class StackConfig(BaseModel):
     providers: ProvidersConfig = Field(default_factory=ProvidersConfig)
     fallback: FallbackConfig = Field(default_factory=FallbackConfig)
     animation: AnimationConfig = Field(default_factory=AnimationConfig)
+    automation: AutomationConfig = Field(default_factory=AutomationConfig)
 
     config_path: Path = Field(default=CONFIG_PATH, exclude=True)
 
@@ -242,6 +272,19 @@ class StackConfig(BaseModel):
             env_key = os.environ.get("OBSIDIAN_API_KEY", "")
             if env_key:
                 cfg.obsidian.api_key = env_key
+        # Same rule for NIM: env first, then the untracked
+        # .agent-secrets/nvidia_invoke_key file, then the toml value.
+        if not cfg.nim.api_key:
+            env_key = os.environ.get("NVIDIA_API_KEY", "") or os.environ.get(
+                "NVIDIA_NIM_API_KEY", "")
+            if not env_key:
+                try:
+                    env_key = (STACK_ROOT / ".agent-secrets"
+                               / "nvidia_invoke_key").read_text().strip()
+                except OSError:
+                    env_key = ""
+            if env_key:
+                cfg.nim.api_key = env_key
         return cfg
 
 

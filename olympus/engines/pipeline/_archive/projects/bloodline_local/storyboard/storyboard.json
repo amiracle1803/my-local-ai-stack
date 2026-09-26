@@ -1,0 +1,210 @@
+{
+  "blocks": [
+    {
+      "id": "block_00",
+      "title": "SCENE 1 - The Village at Dusk",
+      "summary": "SCENE 1 - The Village at Dusk  Kael sharpens a worn blade on the hill above the valley as storm clouds gather. The village below is quiet, lanterns being lit one by one. He has not slept in two nights.  Kael: We hold the pass tonight. No ma"
+    },
+    {
+      "id": "block_01",
+      "title": "SCENE 2 - The Shadow in the Pines",
+      "summary": "SCENE 2 - The Shadow in the Pines  A shadow beast moves between the pines below, too fast to be a wolf, too large to be a man. Villagers bar their doors; mothers pull children inside. The wind carries a low, hungry sound.  Kael: Stay inside"
+    },
+    {
+      "id": "block_02",
+      "title": "SCENE 3 - The Fight on the Ridge",
+      "summary": "SCENE 3 - The Fight on the Ridge  The beast attacks. Kael meets it with steel, trading cuts on the slick ridge as rain falls. Sparks fly where claws meet the blade. The beast is relentless, but Kael refuses to fall.  Kael: Not tonight. Not "
+    },
+    {
+      "id": "block_03",
+      "title": "SCENE 4 - Dawn",
+      "summary": "SCENE 4 - Dawn  Quiet after the storm. Kael binds a wound and watches the sun rise over the valley. The village endures. The beast is gone, for now.  Kael: The bloodline holds."
+    }
+  ],
+  "shot_detail": [
+    {
+      "id": "sh-001-01",
+      "block": "block_00",
+      "frame_index": 0,
+      "tier": 1,
+      "location_id": "loc_00",
+      "character_ids": [
+        "kael"
+      ],
+      "action": "SCENE 1 - The Village at Dusk  Kael sharpens a worn blade on the hill above the valley as storm clouds gather. The village below is quiet, lanterns being lit one by one. He has not slept in two nights.  Kael: We hold the pass tonight. No ma",
+      "composition": "wide establishing shot",
+      "camera": "slow push-in",
+      "continuity": {
+        "outfit": "default",
+        "lighting": "unspecified",
+        "screen_direction": "left_to_right"
+      },
+      "reference_assets": [
+        "worldbible/refs/kael/ref_00.png",
+        "worldbible/refs/kael/ref_01.png",
+        "worldbible/refs/kael/ref_02.png"
+      ]
+    },
+    {
+      "id": "sh-001-02",
+      "block": "block_00",
+      "frame_index": 1,
+      "tier": 2,
+      "location_id": "loc_00",
+      "character_ids": [
+        "kael"
+      ],
+      "action": "SCENE 1 - The Village at Dusk  Kael sharpens a worn blade on the hill above the valley as storm clouds gather. The village below is quiet, lanterns being lit one by one. He has not slept in two nights.  Kael: We hold the pass tonight. No ma",
+      "composition": "medium action shot",
+      "camera": "subtle tracking movement",
+      "continuity": {
+        "outfit": "default",
+        "lighting": "unspecified",
+        "screen_direction": "left_to_right"
+      },
+      "reference_assets": [
+        "worldbible/refs/kael/ref_00.png",
+        "worldbible/refs/kael/ref_01.png",
+        "worldbible/refs/kael/ref_02.png"
+      ]
+    },
+    {
+      "id": "sh-002-01",
+      "block": "block_01",
+      "frame_index": 0,
+      "tier": 1,
+      "location_id": "loc_01",
+      "character_ids": [
+        "kael"
+      ],
+      "action": "SCENE 2 - The Shadow in the Pines  A shadow beast moves between the pines below, too fast to be a wolf, too large to be a man. Villagers bar their doors; mothers pull children inside. The wind carries a low, hungry sound.  Kael: Stay inside",
+      "composition": "wide establishing shot",
+      "camera": "slow push-in",
+      "continuity": {
+        "outfit": "default",
+        "lighting": "unspecified",
+        "screen_direction": "left_to_right"
+      },
+      "reference_assets": [
+        "worldbible/refs/kael/ref_00.png",
+        "worldbible/refs/kael/ref_01.png",
+        "worldbible/refs/kael/ref_02.png"
+      ]
+    },
+    {
+      "id": "sh-002-02",
+      "block": "block_01",
+      "frame_index": 1,
+      "tier": 2,
+      "location_id": "loc_01",
+      "character_ids": [
+        "kael"
+      ],
+      "action": "SCENE 2 - The Shadow in the Pines  A shadow beast moves between the pines below, too fast to be a wolf, too large to be a man. Villagers bar their doors; mothers pull children inside. The wind carries a low, hungry sound.  Kael: Stay inside",
+      "composition": "medium action shot",
+      "camera": "subtle tracking movement",
+      "continuity": {
+        "outfit": "default",
+        "lighting": "unspecified",
+        "screen_direction": "left_to_right"
+      },
+      "reference_assets": [
+        "worldbible/refs/kael/ref_00.png",
+        "worldbible/refs/kael/ref_01.png",
+        "worldbible/refs/kael/ref_02.png"
+      ]
+    },
+    {
+      "id": "sh-003-01",
+      "block": "block_02",
+      "frame_index": 0,
+      "tier": 1,
+      "location_id": "loc_02",
+      "character_ids": [
+        "kael"
+      ],
+      "action": "SCENE 3 - The Fight on the Ridge  The beast attacks. Kael meets it with steel, trading cuts on the slick ridge as rain falls. Sparks fly where claws meet the blade. The beast is relentless, but Kael refuses to fall.  Kael: Not tonight. Not ",
+      "composition": "wide establishing shot",
+      "camera": "slow push-in",
+      "continuity": {
+        "outfit": "default",
+        "lighting": "unspecified",
+        "screen_direction": "left_to_right"
+      },
+      "reference_assets": [
+        "worldbible/refs/kael/ref_00.png",
+        "worldbible/refs/kael/ref_01.png",
+        "worldbible/refs/kael/ref_02.png"
+      ]
+    },
+    {
+      "id": "sh-003-02",
+      "block": "block_02",
+      "frame_index": 1,
+      "tier": 2,
+      "location_id": "loc_02",
+      "character_ids": [
+        "kael"
+      ],
+      "action": "SCENE 3 - The Fight on the Ridge  The beast attacks. Kael meets it with steel, trading cuts on the slick ridge as rain falls. Sparks fly where claws meet the blade. The beast is relentless, but Kael refuses to fall.  Kael: Not tonight. Not ",
+      "composition": "medium action shot",
+      "camera": "subtle tracking movement",
+      "continuity": {
+        "outfit": "default",
+        "lighting": "unspecified",
+        "screen_direction": "left_to_right"
+      },
+      "reference_assets": [
+        "worldbible/refs/kael/ref_00.png",
+        "worldbible/refs/kael/ref_01.png",
+        "worldbible/refs/kael/ref_02.png"
+      ]
+    },
+    {
+      "id": "sh-004-01",
+      "block": "block_03",
+      "frame_index": 0,
+      "tier": 1,
+      "location_id": "loc_03",
+      "character_ids": [
+        "kael"
+      ],
+      "action": "SCENE 4 - Dawn  Quiet after the storm. Kael binds a wound and watches the sun rise over the valley. The village endures. The beast is gone, for now.  Kael: The bloodline holds.",
+      "composition": "wide establishing shot",
+      "camera": "slow push-in",
+      "continuity": {
+        "outfit": "default",
+        "lighting": "unspecified",
+        "screen_direction": "left_to_right"
+      },
+      "reference_assets": [
+        "worldbible/refs/kael/ref_00.png",
+        "worldbible/refs/kael/ref_01.png",
+        "worldbible/refs/kael/ref_02.png"
+      ]
+    },
+    {
+      "id": "sh-004-02",
+      "block": "block_03",
+      "frame_index": 1,
+      "tier": 2,
+      "location_id": "loc_03",
+      "character_ids": [
+        "kael"
+      ],
+      "action": "SCENE 4 - Dawn  Quiet after the storm. Kael binds a wound and watches the sun rise over the valley. The village endures. The beast is gone, for now.  Kael: The bloodline holds.",
+      "composition": "medium action shot",
+      "camera": "subtle tracking movement",
+      "continuity": {
+        "outfit": "default",
+        "lighting": "unspecified",
+        "screen_direction": "left_to_right"
+      },
+      "reference_assets": [
+        "worldbible/refs/kael/ref_00.png",
+        "worldbible/refs/kael/ref_01.png",
+        "worldbible/refs/kael/ref_02.png"
+      ]
+    }
+  ]
+}

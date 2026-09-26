@@ -1,0 +1,49 @@
+{
+  "title": "bloodline_real_smoke",
+  "synopsis": "SCENE 1 - The Bloodline  Kael enters the ruined city beneath a red moon.  Kael: The bloodline ends tonight.  A shadow beast rises from the gate.",
+  "characters": [
+    {
+      "id": "kael",
+      "name": "Kael",
+      "role": "protagonist",
+      "aliases": [],
+      "appearance": {
+        "hair": "",
+        "eyes": "",
+        "skin": "",
+        "build": "",
+        "clothing_primary": "anime design, distinctive silhouette, expressive eyes (Kael)"
+      },
+      "sd_prompt": "anime key visual, Kael, anime design, distinctive silhouette, expressive eyes (Kael), clean lineart, cel shaded"
+    },
+    {
+      "id": "the_bloodline",
+      "name": "The Bloodline",
+      "role": "supporting",
+      "aliases": [],
+      "appearance": {
+        "hair": "",
+        "eyes": "",
+        "skin": "",
+        "build": "",
+        "clothing_primary": "anime design, distinctive silhouette, expressive eyes (The Bloodline)"
+      },
+      "sd_prompt": "anime key visual, The Bloodline, anime design, distinctive silhouette, expressive eyes (The Bloodline), clean lineart, cel shaded"
+    }
+  ],
+  "locations": [
+    {
+      "id": "loc_00",
+      "name": "SCENE 1 - The Bloodline",
+      "description": "SCENE 1 - The Bloodline  Kael enters the ruined city beneath a red moon.  Kael: The bloodline ends tonight.  A shadow beast rises from the gate."
+    }
+  ],
+  "relationships": [],
+  "contradictions": [],
+  "world": {
+    "era": "fantasy frontier",
+    "magic": "spirit-bound",
+    "economy": "mountain trade",
+    "lore": "the shadow wolf returns each storm season"
+  }
+}

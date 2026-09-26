@@ -1,0 +1,9 @@
+{
+  "shot": "sh-001-02",
+  "seed": "sh_001_02",
+  "anchors": "Kess: anime design, distinctive silhouette, expressive eyes (Kess), Brann: anime design, distinctive silhouette, expressive eyes (Brann), And: anime design, distinctive silhouette, expressive eyes (And), Below: anime design, distinctive silhouette, expressive eyes (Below)",
+  "prompt": "anime recap panel, Dawn Raid, Kess: anime design, distinctive silhouette, expressive eyes (Kess), Brann: anime design, distinctive silhouette, expressive eyes (Brann), And: anime design, distinctive silhouette, expressive eyes (And), Below: anime design, distinctive silhouette, expressive eyes (Below), Beat 2: Dawn Raid  Kess crouched on the rooftop of the old clocktower, a young scout with wind-tangled brown hair and a worn green scarf. Below, the harbor was already busy with iron ships, cinematic cel shading",
+  "backend": "comfyui",
+  "negative_prompt": "low quality, blurry, text, watermark, deformed",
+  "attempt": 1
+}

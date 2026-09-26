@@ -113,15 +113,101 @@
   </div>
 </div>
 
-<!-- ===== COMMERCE — Plutus agent ========================================== -->
+<!-- ===== COMMERCE — Plutus agent + product research ======================== -->
 <div class="page" id="page-commerce">
-  <h1 class="pg">COMMERCE · PLUTUS</h1>
+  <div class="cm-hero">
+    <div>
+      <div class="cm-eyebrow">COMMERCE · PRODUCT RESEARCH</div>
+      <h1>What should you sell next?</h1>
+      <p>Paste your Zik copy below — charts, a niche verdict, live eBay prices and sourcing links appear by themselves.</p>
+    </div>
+    <div class="cm-hero-num" id="cm-hero-num" hidden><div id="cm-kpi-rev">—</div><span>30d revenue in this intake</span></div>
+  </div>
+  <div id="commerce-error" class="cm-error" style="display:none"></div>
+  <div class="cm-steps">
+    <div class="cm-step active" id="cm-step-1"><span class="n">1</span>PASTE ZIK</div>
+    <div class="cm-step" id="cm-step-2"><span class="n">2</span>REVIEW INTAKE</div>
+    <div class="cm-step" id="cm-step-3"><span class="n">3</span>ANALYZE</div>
+    <div class="cm-step" id="cm-step-4"><span class="n">4</span>REPORT</div>
+  </div>
+  <div class="cm-kpis">
+    <div class="card hud"><div class="big" id="cm-kpi-kw">—</div><div class="lbl">keywords</div></div>
+    <div class="card hud"><div class="big" id="cm-kpi-sellers">—</div><div class="lbl">sellers</div></div>
+    <div class="card hud"><div class="big" id="cm-kpi-comps">—</div><div class="lbl">comps ok</div></div>
+  </div>
+  <div class="cm-panel-head"><span class="cm-badge">STEP 1–2</span><h2 class="pg">YOUR ZIK DATA</h2></div>
+  <div class="hud p-md cm-drop">
+    <textarea id="commerce-paste" rows="4" class="w-full mono" placeholder="Paste here — e.g.&#10;&#10;Kitchen Sink Faucet Sprayer&#10;$45,828&#10;Cuban Chain Necklace&#10;$27,973&#10;…"></textarea>
+    <div class="cm-drop-hint">Charts build themselves the moment you paste. Nothing to configure.</div>
+    <div class="flex mt-sm">
+      <label class="label">NAME THIS BATCH</label>
+      <input class="txt" id="commerce-category" placeholder="auto-suggested from your top keyword" style="max-width:280px">
+      <label class="label">EBAY PRICES FROM</label>
+      <select id="commerce-env" class="min-w-200">
+        <option value="sandbox" selected>sandbox (test)</option>
+        <option value="production">production (live)</option>
+      </select>
+    </div>
+    <details class="cm-keys">
+      <summary>eBay keys — optional, only needed for live prices. Kept in this tab, never stored.</summary>
+      <div class="flex mt-sm">
+        <label class="label">APP ID</label>
+        <input class="txt mono" id="commerce-appid" type="password" placeholder="paste for live prices" style="max-width:280px" autocomplete="off">
+        <label class="label">CERT ID</label>
+        <input class="txt mono" id="commerce-certid" type="password" placeholder="paste for live prices" style="max-width:280px" autocomplete="off">
+      </div>
+    </details>
+    <div class="flex mt-sm">
+      <button class="primary cm-cta" id="commerce-analyze-btn">Analyze my niche ▶</button>
+      <button class="ghost" id="commerce-deep-btn" title="Full pipeline: niches, live comps, trends, report (takes minutes)">Deep pipeline ▶▶</button>
+      <button class="ghost" id="commerce-parse-btn">re-check paste</button>
+      <span id="commerce-preview-count" class="mono-xs text-dim"></span>
+      <span id="commerce-progress" class="mono-xs text-cyan"></span>
+    </div>
+  </div>
+  <div id="cm-results" hidden>
+  <div class="hud cm-table-wrap"><table><thead><tr><th>KEYWORD</th><th>30D REVENUE</th></tr></thead>
+  <tbody id="commerce-preview-rows"></tbody></table></div>
+  <div class="cm-panel-head"><span class="cm-badge dim">VISUAL</span><h2 class="pg">REVENUE CHART · TOP 15</h2></div>
+  <div class="hud p-md cm-chart" id="commerce-chart-kw"><div class="sm-empty">Parse an intake to see the chart.</div></div>
+  <div class="cm-panel-head"><span class="cm-badge dim">VISUAL</span><h2 class="pg">SELLER LEADERBOARD · TOP 8</h2></div>
+  <div class="hud p-md cm-chart" id="commerce-chart-sellers"><div class="sm-empty">Parse an intake to see the leaderboard.</div></div>
+  <div class="cm-panel-head"><span class="cm-badge">STEP 3–4</span><h2 class="pg">ANALYSIS · NICHE VERDICT + EBAY COMPS + SOURCING</h2></div>
+  <div class="hud p-md cm-verdict" id="commerce-verdict"><div class="sm-empty">Run ANALYZE — Plutus verdict lands here.</div></div>
+  <div class="cm-cards" id="commerce-comps-cards"><div class="sm-empty">Run ANALYZE — keyword cards land here.</div></div>
+  <div class="flex mt-sm mb-lg">
+    <button class="ghost" id="commerce-save-btn">SAVE REPORT TO VAULT</button>
+    <span id="commerce-save-msg" class="mono-xs text-dim"></span>
+  </div>
+  </div>
+  <div class="hud p-md" id="commerce-detail" hidden></div>
+  <div class="cm-panel-head"><span class="cm-badge dim">INSIGHTS</span><h2 class="pg">RESEARCH NOTES · RANKED BY OPPORTUNITY</h2></div>
+  <div class="flex mb-md">
+    <div id="commerce-crumb" class="mono-sm cursor-pointer">/ Product Research · click to refresh</div>
+    <span id="commerce-ins-count" class="mono-xs text-dim"></span>
+  </div>
+  <div class="cm-cards" id="commerce-ins-cards"></div>
+  <div class="hud p-md" id="commerce-note" hidden>
+    <div class="sm-empty">Select a card above to read the full note.</div>
+  </div>
+  <div class="cm-panel-head"><span class="cm-badge dim">ANYTIME</span><h2 class="pg">ASK PLUTUS</h2></div>
   <form class="form-vertical" id="plutus-form">
     <textarea id="plutus-text" rows="3" placeholder="Ask Plutus — listings, invoices, pricing, budgets…"></textarea>
     <div><button class="primary">SEND TO PLUTUS</button></div>
   </form>
-  <div class="hud"><table><thead><tr><th>#</th><th>STATUS</th><th>TASK</th><th>RESULT</th></tr></thead>
+  <div class="hud cm-table-wrap"><table><thead><tr><th>#</th><th>STATUS</th><th>TASK</th><th>RESULT</th></tr></thead>
   <tbody id="plutus-rows"></tbody></table></div>
+  <div class="cm-panel-head"><span class="cm-badge dim">PIPELINE</span><h2 class="pg">DEEP RESEARCH · STATUS</h2></div>
+  <div id="commerce-n8n" class="mb-lg"></div>
+  <div class="link-row">
+    <a href="http://127.0.0.1:5679" target="_blank">open n8n :5679</a>
+    <a href="https://developer.ebay.com/api-explorer/" target="_blank">eBay API explorer</a>
+  </div>
+  <details class="cm-details">
+    <summary>eBay API · status &amp; checklist</summary>
+    <div class="hud"><table><tbody id="commerce-ebay-rows"></tbody></table></div>
+  </details>
+  <div id="commerce-status" class="mt-sm"></div>
 </div>
 
 <!-- ===== AUTOMATIONS — service chips + external links ===================== -->
@@ -282,6 +368,8 @@
       <div class="hud"><table id="sys-paths"><tbody></tbody></table></div>
       <h2 class="pg">SERVICES</h2>
       <div id="sys-services"></div>
+      <h2 class="pg">N8N WORKFLOWS</h2>
+      <div class="hud cm-table-wrap"><table><thead><tr><th>WORKFLOW</th><th>STATE</th></tr></thead><tbody id="sys-n8n"></tbody></table></div>
     </div>
     <div>
       <h2 class="pg">AGENTS</h2>

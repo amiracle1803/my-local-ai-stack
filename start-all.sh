@@ -70,11 +70,22 @@ else
     ok "Voice Studio started"
 fi
 
+# n8n Automation Plane (stack.toml [automation]) - docker compose in ~/n8n-stack
+if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx n8n-stack-n8n-1; then
+    ok "n8n Automation Plane already running"
+else
+    log "Starting n8n Automation Plane (docker compose)..."
+    docker compose --project-directory /home/amire/n8n-stack -f /home/amire/n8n-stack/docker-compose.yml up -d
+    sleep 5
+    ok "n8n Automation Plane started"
+fi
+
 echo ""
 log "All services started. Checking status..."
 sleep 2
 
 bash -c "
+  (curl -s http://localhost:5679/healthz >/dev/null && echo '✅ n8n (5679)') || echo '❌ n8n (5679)';
   (curl -s http://localhost:4600/health >/dev/null && echo '✅ Olympus Kernel (4600)') || echo '❌ Olympus Kernel (4600)';
   (curl -s http://localhost:11434/ >/dev/null && echo '✅ Ollama (11434)') || echo '❌ Ollama (11434)';
   (curl -s http://localhost:8125/health >/dev/null && echo '✅ Memory Hub (8125)') || echo '❌ Memory Hub (8125)';

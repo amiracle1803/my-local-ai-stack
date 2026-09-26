@@ -33,9 +33,11 @@ def required_paths(project_dir: Path, stage: str) -> list[Path]:
         "stage0_dossier": [project_dir / "stage0_scenes.json", project_dir / "intake" / "dossier.json"],
         "stage1": [project_dir / "intake" / "dossier.json", project_dir / "worldbible" / "world_bible.json"],
         "stage1_world": [project_dir / "worldbible" / "world_bible.json"],
-        "stage2": [project_dir / "stage0_scenes.json", project_dir / "screenplay" / "screenplay.json"],
+        "stage3": [project_dir / "worldbible" / "world_bible.json", project_dir / "stage0_scenes.json",
+                   project_dir / "storyboard" / "storyboard.json"],
+        "stage2": [project_dir / "stage0_scenes.json", project_dir / "storyboard" / "storyboard.json",
+                   project_dir / "screenplay" / "screenplay.json"],
         "stage4": [project_dir / "screenplay" / "screenplay.json", project_dir / "audio" / "timeline.json"],
-        "stage3": [project_dir / "screenplay" / "screenplay.json", project_dir / "storyboard" / "storyboard.json"],
         "stage1r": [project_dir / "worldbible" / "refs" / "_manifest.json"],
         "stage3b": [project_dir / "panels"],
         "stage3c": [project_dir / "panels"],
@@ -81,6 +83,11 @@ def preflight(project_dir: Path, stage: str, optimizer: HardwareOptimizer) -> St
             and os.environ.get("OLYMPUS_REAL_COMFY", "0") != "1"):
         decision.accepted = True
         decision.reason = "deterministic local fallback selected; GPU gates bypassed"
+    if (stage in {"stage1r", "stage3b", "stage3c"}
+            and not decision.accepted
+            and os.environ.get("OLYMPUS_ALLOW_LOCAL_REAL_COMFY", "0") == "1"):
+        decision.accepted = True
+        decision.reason = "local low-VRAM ComfyUI override selected"
     # A disabled animation profile is an explicit panels-mode decision, not an
     # accidental failure. Other disabled GPU profiles remain hard failures.
     if stage == "stage3c" and not decision.accepted and decision.reason == "profile disabled":

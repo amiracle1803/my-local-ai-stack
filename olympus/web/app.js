@@ -138,6 +138,7 @@ document.querySelectorAll('header nav a').forEach((a) =>
     a.classList.add('active');
     $(`page-${a.dataset.page}`).classList.add('active');
     if (a.dataset.page === 'wiki') loadWiki(wikiFolder);
+    if (a.dataset.page === 'commerce') loadCommerce();
   })
 );
 
@@ -744,6 +745,714 @@ bindTaskForm('plutus-form', 'button[type="submit"]', {
   inputId: 'plutus-text', agent: 'plutus',
   onDone() { refreshTasks(); },
 });
+
+/* -- 9b. Commerce research (Zik intake + notes + n8n) --------------------------- */
+// Plutus form/table stay as-is (see refreshTasks). This block adds the
+// product-research layer below: Zik keywords w/ client-side filter,
+// vault research notes w/ breadcrumb + rendered markdown, n8n pipeline
+// status, and a static eBay API checklist (no secrets in the frontend).
+let commerceNoteCache = {}, _commerceLoading = false;
+let _commerceLastN8n = '';
+// Workbench state: parsed intake + per-keyword comps. eBay keys are read
+// from the password inputs at analyze time and never persisted anywhere.
+let intake = { category: '', keywords: [], sellers: [] };
+let intakeSlug = '';
+
+function cmStep(n, state) {
+  const el = $('cm-step-' + n);
+  if (!el) return;
+  el.classList.remove('active', 'done');
+  if (state) el.classList.add(state);
+}
+
+function cmKpis(kwCount, revenue, sellerCount, compsText) {
+  if (kwCount !== undefined) $('cm-kpi-kw').textContent = kwCount;
+  if (revenue !== undefined) $('cm-kpi-rev').textContent = revenue;
+  if (sellerCount !== undefined) $('cm-kpi-sellers').textContent = sellerCount;
+  if (compsText !== undefined) $('cm-kpi-comps').textContent = compsText;
+}
+
+function commerceMoney(n) {
+  return '$' + Number(n || 0).toLocaleString();
+}
+
+// Parse raw Zik copy-paste: alternating name/$lines in keywords mode, then
+// CC/seller/feedback/$sales groups after the "Trending Dropshippers" header.
+function parseZik(text) {
+  const HEADERS = new Set(['trending ebay niches', 'trending dropshippers',
+    'last 30 days', 'keywords', 'revenue', 'seller', 'sellers',
+    'scan', 'feedback', 'sales']);
+  const kws = [], sellers = [];
+  let mode = 'kw', pending = null, grp = null, unpaired = 0;
+  const cleanName = (s) => s.replace(/\s*[,.;:]+\s*$/, '').replace(/\s+/g, ' ').trim();
+  for (const rawLine of String(text || '').split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    const low = line.toLowerCase();
+    if (HEADERS.has(low)) {
+      if (low === 'trending dropshippers') { mode = 'sellers'; pending = null; grp = null; }
+      continue;
+    }
+    const mVal = /^\$([\d,]+)$/.exec(line);
+    if (mVal) {
+      const v = parseInt(mVal[1].replace(/,/g, ''), 10);
+      if (mode === 'kw') {
+        if (pending) { kws.push({ keyword: pending, revenue_30d: v }); pending = null; }
+        else unpaired++;
+      } else if (grp && grp.seller && grp.feedback != null) {
+        sellers.push({ seller: grp.seller, country: grp.cc, feedback: grp.feedback, sales_30d: v });
+        grp = null;
+      } else unpaired++;
+      continue;
+    }
+    if (mode === 'kw') {
+      if (/^[a-z]{2}$/.test(low)) continue; // stray country header (us)
+      pending = cleanName(line);
+      continue;
+    }
+    if (/^[a-z]{2}$/.test(low)) { grp = { cc: line.toUpperCase() }; continue; }
+    if (grp && !grp.seller) { grp.seller = cleanName(line); continue; }
+    const nVal = /^[0-9][\d,]*$/.test(line) ? parseInt(line.replace(/,/g, ''), 10) : null;
+    if (grp && grp.seller && grp.feedback == null && nVal != null) { grp.feedback = nVal; continue; }
+    unpaired++;
+  }
+  if (pending) unpaired++;
+  const seen = new Map();
+  for (const k of kws) {
+    const key = k.keyword.toLowerCase();
+    if (!seen.has(key) || seen.get(key).rev < k.revenue_30d) seen.set(key, { name: k.keyword, rev: k.revenue_30d });
+  }
+  const deduped = [...seen.values()]
+    .map((v) => ({ keyword: v.name, revenue_30d: v.rev }))
+    .sort((a, b) => b.revenue_30d - a.revenue_30d);
+  sellers.sort((a, b) => b.sales_30d - a.sales_30d);
+  return { keywords: deduped, sellers, unpaired };
+}
+
+function sourceLinks(kw) {
+  const q = encodeURIComponent(kw);
+  return `<a href="https://www.amazon.com/s?k=${q}" target="_blank">A</a> · `
+    + `<a href="https://www.walmart.com/search?q=${q}" target="_blank">W</a> · `
+    + `<a href="https://www.ebay.com/sch/i.html?_nkw=${q}" target="_blank">e</a>`;
+}
+
+// Infographics: horizontal SVG bar charts (offline-safe, no CDN) + keyword
+// cards with min/med/max range bars. Rendered from the parsed intake.
+let _cmGradN = 0;
+// Rank-medal palette: gold / silver / bronze / cyan for the rest.
+const CM_RANK = [
+  ['#8a6a1f', '#e8b84b'],
+  ['#5a6b7d', '#c3d0dd'],
+  ['#7a4a22', '#d29a5b'],
+  ['#2a7d99', '#57c7e3'],
+];
+function svgBars(rows, fmt) {
+  const W = 660, rowH = 26, padL = 220, padR = 90;
+  const max = Math.max(1, ...rows.map((r) => r.value));
+  const base = 'cmg' + (++_cmGradN);
+  const defs = CM_RANK.map((c, i) =>
+    `<linearGradient id="${base}-${i}" x1="0" y1="0" x2="1" y2="0">`
+    + `<stop offset="0" stop-color="${c[0]}"/><stop offset="1" stop-color="${c[1]}"/></linearGradient>`
+  ).join('');
+  let y = 6, body = '';
+  rows.forEach((r, idx) => {
+    const w = Math.max(2, Math.round((W - padL - padR) * r.value / max));
+    const g = idx < 3 ? idx : 3;
+    body += `<text class="cx-lbl" x="0" y="${y + 15}">${esc((r.label || '').slice(0, 30))}</text>`
+      + `<rect class="cx-track" x="${padL}" y="${y + 4}" width="${W - padL - padR}" height="12" rx="3"/>`
+      + `<rect x="${padL}" y="${y + 4}" width="${w}" height="12" rx="3" fill="url(#${base}-${g})"/>`
+      + `<text class="cx-val" x="${W - padR + 8}" y="${y + 15}">${esc(fmt(r.value))}</text>`;
+    y += rowH;
+  });
+  return `<svg viewBox="0 0 ${W} ${y}" role="img"><defs>${defs}</defs>${body}</svg>`;
+}
+const fmtMoney = (n) => '$' + Number(n || 0).toLocaleString();
+
+// Keyword detail (Zik-style): stat strip + trend sparkline + product rows.
+// Comps carry live listings only — sold history needs Terapeak/prod order
+// data, so the strip labels counts honestly.
+let detailComps = [];
+let detailItems = [];
+
+const DONUT_COLORS = ['#8f7bff', '#57c7e3', '#4ade80', '#e8b84b', '#ff5ca8', '#ff9f45', '#7bd4ff'];
+
+function donutChart(segs) {
+  // segs: [{label, value}] — SVG donut, top sellers + Other.
+  const R = 54, C = 2 * Math.PI * R;
+  const total = Math.max(1, segs.reduce((a, s) => a + s.value, 0));
+  let start = 0, rings = '';
+  segs.forEach((s, i) => {
+    const len = (s.value / total) * C;
+    rings += `<circle cx="70" cy="70" r="${R}" fill="none" `
+      + `stroke="${DONUT_COLORS[i % DONUT_COLORS.length]}" stroke-width="18" `
+      + `stroke-dasharray="${len.toFixed(1)} ${C.toFixed(1)}" `
+      + `stroke-dashoffset="${(-start * C).toFixed(1)}" transform="rotate(-90 70 70)"/>`;
+    start += s.value / total;
+  });
+  const top = segs[0];
+  const legend = segs.map((s, i) =>
+    `<div class="mono-xs" style="margin:.15rem 0"><span style="color:${DONUT_COLORS[i % DONUT_COLORS.length]}">●</span> `
+    + `${esc(s.label)} · ${Math.round(100 * s.value / total)}%</div>`).join('');
+  return `<div class="flex"><svg viewBox="0 0 140 140" style="width:150px;height:auto" role="img">${rings}`
+    + `<text x="70" y="66" text-anchor="middle" fill="#dfe9f2" font-size="11" font-family="Consolas,monospace">${esc((top.label || '').slice(0, 16))}</text>`
+    + `<text x="70" y="82" text-anchor="middle" fill="#8b9fb3" font-size="11" font-family="Consolas,monospace">${Math.round(100 * top.value / total)}%</text></svg>`
+    + `<div>${legend}</div></div>`;
+}
+
+function areaChart(points) {
+  // Google-interest area chart w/ date axis (weekly points back from today).
+  if (!points || !points.length) return '<span class="text-dim">no trend data</span>';
+  const W = 620, H = 150, padL = 30, padB = 18;
+  const max = Math.max(...points, 1);
+  const X = (i) => padL + (i * (W - padL - 8)) / Math.max(1, points.length - 1);
+  const Y = (v) => 8 + (H - padB - 8) * (1 - v / max);
+  const line = points.map((v, i) => `${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');
+  const d = new Date();
+  const fmt = (weeksAgo) => new Date(d - weeksAgo * 7 * 864e5).toISOString().slice(0, 10);
+  const n = points.length;
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" role="img">`
+    + [0, 0.5, 1].map((f) =>
+      `<line x1="${padL}" y1="${(Y(max * f)).toFixed(1)}" x2="${W - 4}" y2="${(Y(max * f)).toFixed(1)}" stroke="#123347"/>`
+      + `<text x="2" y="${(Y(max * f) + 3).toFixed(1)}" font-size="9" fill="#8b9fb3" font-family="Consolas,monospace">${Math.round(max * f)}</text>`
+    ).join('')
+    + `<polygon points="${padL},${H - padB} ${line} ${X(n - 1).toFixed(1)},${H - padB}" fill="rgba(87,199,227,.18)"/>`
+    + `<polyline points="${line}" fill="none" stroke="#57c7e3" stroke-width="1.5"/>`
+    + `<text x="${padL}" y="${H - 4}" font-size="9" fill="#8b9fb3" font-family="Consolas,monospace">${fmt(n - 1)}</text>`
+    + `<text x="${W - 62}" y="${H - 4}" font-size="9" fill="#8b9fb3" font-family="Consolas,monospace">${fmt(0)}</text></svg>`;
+}
+
+async function openKwDetail(kw) {
+  const c = detailComps.find((x) => x.keyword === kw);
+  const el = $('commerce-detail');
+  if (!c) return;
+  el.hidden = false;
+  el.scrollIntoView({ block: 'nearest' });
+  detailItems = c.items || [];
+  const s = c.stats || {};
+  const sellers = new Set(detailItems.map((i) => i.seller || i.seller_feedback).filter((v) => v != null && v !== '')).size;
+  const stat = (v, l, title) =>
+    `<div class="card hud" title="${esc(title || '')}"><div class="big">${v}</div><div class="lbl">${l}</div></div>`;
+  el.innerHTML =
+    `<div class="cm-detail-head"><h3>${esc(c.keyword)}</h3>`
+    + `<span class="chip">searched on ebay.com</span>`
+    + `<button class="ghost" id="cm-detail-close">close ✕</button></div>`
+    + `<div class="cm-kpis">`
+    + stat(Number(c.total || 0).toLocaleString(), 'LIVE LISTINGS', 'Live eBay listings right now — not sold history')
+    + stat(s.med != null ? '$' + Number(s.med).toFixed(2) : '—', 'MED PRICE', 'Median of sampled listings')
+    + stat(s.avg != null ? '$' + Number(s.avg).toFixed(2) : '—', 'AVG PRICE', 'Mean of sampled listings')
+    + stat(sellers || '—', 'SELLERS SEEN', 'Distinct sellers in the sample')
+    + (c.revenue_30d != null
+      ? stat(commerceMoney(c.revenue_30d), 'ZIK 30D', 'Zik estimated 30-day revenue') : '')
+    + `</div>`
+    + `<div class="grid-2">`
+    + `<div class="hud p-md"><div class="hud-title">MARKET SHARE · SAMPLE</div><div id="cm-detail-donut"><em class="text-dim">…</em></div></div>`
+    + `<div class="hud p-md"><div class="hud-title">SALES TREND · GOOGLE INTEREST</div><div id="cm-detail-trend"><em class="text-dim">loading trend…</em></div></div>`
+    + `</div>`
+    + `<div class="flex mt-sm mb-sm"><input class="txt" id="cm-detail-filter" placeholder="Search products…" style="max-width:280px"></div>`
+    + `<div class="hud cm-table-wrap"><table><thead><tr><th></th><th>PRODUCT</th><th>PRICE</th><th>SELLER</th><th>★</th></tr></thead>`
+    + `<tbody id="cm-detail-rows"></tbody></table></div>`
+    + `<div class="mono-xs text-dim" style="margin-top:.6rem">Sold counts need Terapeak/production order data — listings above are live comps.</div>`;
+  $('cm-detail-close').addEventListener('click', () => { el.hidden = true; });
+  const renderRows = () => {
+    const f = ($('cm-detail-filter').value || '').trim().toLowerCase();
+    const rows = detailItems.filter((i) => !f || (i.title || '').toLowerCase().includes(f));
+    $('cm-detail-rows').innerHTML = rows.map((i) =>
+      `<tr><td>${i.thumb ? `<a href="${esc(i.url || '#')}" target="_blank"><img src="${esc(i.thumb)}" alt="" loading="lazy" style="width:44px;height:44px;object-fit:cover;border-radius:6px"></a>` : ''}</td>`
+      + `<td><a href="${esc(i.url || '#')}" target="_blank">${esc(i.title || '')}</a></td>`
+      + `<td class="mono">$${Number(i.price).toFixed(2)}</td>`
+      + `<td class="mono-sm">${esc(i.seller || '')}</td>`
+      + `<td class="mono">${i.seller_feedback != null ? Number(i.seller_feedback).toLocaleString() : '—'}</td></tr>`
+    ).join('') || '<tr><td colspan="5" class="text-dim">no matches</td></tr>';
+  };
+  $('cm-detail-filter').addEventListener('input', renderRows);
+  renderRows();
+  // Seller share donut from the sample (listing counts, not sales).
+  const share = {};
+  detailItems.forEach((i) => {
+    const k = i.seller || 'unknown';
+    share[k] = (share[k] || 0) + 1;
+  });
+  const segs = Object.entries(share).sort((a, b) => b[1] - a[1]).slice(0, 6)
+    .map(([label, value]) => ({ label, value }));
+  const rest = Object.entries(share).slice(6).reduce((a, [, v]) => a + v, 0);
+  if (rest) segs.push({ label: 'other', value: rest });
+  const dz = $('cm-detail-donut');
+  if (dz) dz.innerHTML = segs.length ? donutChart(segs) : '<span class="text-dim">no seller data</span>';
+  try {
+    const t = await j('/api/commerce/trends?keyword=' + encodeURIComponent(c.keyword));
+    const box = $('cm-detail-trend');
+    if (box) box.innerHTML = areaChart(t.points)
+      + `<div class="mono-xs text-dim">avg ${t.trend_90d_avg} · ${t.trending ? '↗ trending' : '→ flat'}</div>`;
+  } catch {
+    const box = $('cm-detail-trend');
+    if (box) box.innerHTML = '<span class="text-dim">trend unavailable</span>';
+  }
+}
+
+function renderKwChart() {
+  const top = intake.keywords.slice(0, 15);
+  $('commerce-chart-kw').innerHTML = top.length
+    ? svgBars(top.map((k) => ({ label: k.keyword, value: k.revenue_30d })), fmtMoney)
+    : '<div class="sm-empty">No keywords parsed.</div>';
+}
+
+function renderSellerChart() {
+  const top = intake.sellers.slice(0, 8);
+  $('commerce-chart-sellers').innerHTML = top.length
+    ? svgBars(top.map((s) => ({ label: s.seller, value: s.sales_30d })), fmtMoney)
+    : '<div class="sm-empty">No seller data in this paste.</div>';
+}
+
+async function openCommerceNote(path) {
+  $('commerce-note').hidden = false;
+  if (commerceNoteCache[path]) {
+    $('commerce-note').innerHTML = `<div class="mono-sm text-cyan-dim mb-sm">${esc(path)}</div>` + commerceNoteCache[path];
+    try { localStorage.setItem('commerce-note', path); } catch { /* ignore */ }
+    return;
+  }
+  $('commerce-note').innerHTML = '<em class="text-dim">loading…</em>';
+  try {
+    const n = await j('/api/brain/note?path=' + encodeURIComponent(path));
+    commerceNoteCache[path] = n.html || '<em>empty note</em>';
+    $('commerce-note').innerHTML = `<div class="mono-sm text-cyan-dim mb-sm">${esc(path)}</div>` + commerceNoteCache[path];
+    try { localStorage.setItem('commerce-note', path); } catch { /* ignore */ }
+  } catch {
+    $('commerce-note').innerHTML = '<em>could not load note — check vault path in stack.toml</em>';
+  }
+}
+
+async function loadCommerce() {
+  if (_commerceLoading) return;
+  _commerceLoading = true;
+  try {
+    // Status line: Plutus model + n8n reachability (per-panel error states)
+    let statusHtml = '';
+    try {
+      const agents = await j('/api/agents');
+      const plutus = (agents || []).find((a) => (a.name || '').toLowerCase() === 'plutus');
+      statusHtml += plutus
+        ? `<span class="chip"><span class="ok">●</span> PLUTUS · ${esc(plutus.resolved_model || plutus.model || '')}</span>`
+        : `<span class="chip"><span class="bad">●</span> PLUTUS agent missing</span>`;
+    } catch {
+      statusHtml += `<span class="chip"><span class="bad">●</span> agents unreachable</span>`;
+    }
+    let n8n = null;
+    try {
+      n8n = await j('/api/commerce/n8n');
+      statusHtml += n8n && n8n.reachable
+        ? `<span class="chip"><span class="ok">●</span> n8n · ${n8n.workflows} workflows (${n8n.active} active)</span>`
+        : `<span class="chip"><span class="bad">●</span> n8n unreachable</span>`;
+    } catch {
+      statusHtml += `<span class="chip"><span class="bad">●</span> n8n unreachable</span>`;
+    }
+    statusHtml += `<span class="chip">eBay sandbox · tested via curl</span>`;
+    $('commerce-status').innerHTML = statusHtml;
+
+    // eBay checklist (static — keys are per-session, never stored)
+    $('commerce-ebay-rows').innerHTML = [
+      ['Live comps (above)', 'live listings via per-session App ID/Cert — price spread + listing counts'],
+      ['Sold history (30d)', 'needs production user token — OAuth consent with seller account (phase 2)'],
+      ['Trending verdict', 'Plutus/Ollama local analysis + eBay comp velocity — no cloud calls'],
+      ['Sourcing', 'Amazon / Walmart / eBay search links per keyword — compare landed cost manually'],
+    ].map(([k, v]) => `<tr><td class="mono text-cyan-dim">${esc(k)}</td><td>${esc(v)}</td></tr>`).join('');
+
+    // Research insights: one ranked card grid (score, revenue, bar).
+    // The old separate chart duplicated this list — removed. Clicking a
+    // card opens the full note below (existing reader, hidden till then).
+    try {
+      const ins = await j('/api/commerce/insights?limit=200');
+      const items = ins.items || [];
+      $('commerce-ins-count').textContent =
+        `${items.length} notes ranked`;
+      let insShowAll = false;
+      const renderInsCards = () => {
+        const list = insShowAll ? items : items.slice(0, 8);
+        const tierOf = (o) => o == null ? 'none' : o >= 85 ? 'ok' : o >= 70 ? 'warn' : 'low';
+        const pill = (o) => o == null ? `<span class="cm-pill warn">unscored</span>`
+          : o >= 85 ? `<span class="cm-pill ok">${o}/100</span>`
+          : o >= 70 ? `<span class="cm-pill warn">${o}/100</span>`
+          : `<span class="cm-pill">${o}/100</span>`;
+        $('commerce-ins-cards').innerHTML = (list.map((n) => {
+          const p = 'Product Research/' + n.file;
+          const pct = n.opportunity != null ? Math.max(2, n.opportunity) : 0;
+          return `<div class="hud cm-kcard" data-note="${esc(p)}" style="cursor:pointer">`
+            + `<div class="kw">${esc(n.keyword || n.file.replace(/\.md$/, ''))}</div>`
+            + (n.revenue_30d != null
+              ? `<div class="rev">${commerceMoney(n.revenue_30d)} <small>ZIK 30D</small></div>` : '')
+            + `<div class="row">${pill(n.opportunity)}`
+            + (n.category ? `<span class="mono-xs text-dim">${esc(n.category)}</span>` : '')
+            + `</div>`
+            + (n.opportunity != null
+              ? `<div class="cm-bar tier-${tierOf(n.opportunity)}"><div style="width:${pct}%"></div></div>` : '')
+            + `</div>`;
+        }).join('') || '<div class="sm-empty">No research notes yet.</div>')
+          + (items.length > 8
+            ? `<div style="grid-column:1/-1;text-align:center;margin-top:.4rem">`
+              + `<button class="ghost" id="cm-ins-toggle">`
+              + `${insShowAll ? 'show less ↑' : `show all ${items.length} ↓`}</button></div>` : '');
+        $('commerce-ins-cards').querySelectorAll('[data-note]').forEach((el) =>
+          el.addEventListener('click', () => openCommerceNote(el.dataset.note)));
+        const tgl = $('cm-ins-toggle');
+        if (tgl) tgl.addEventListener('click', () => { insShowAll = !insShowAll; renderInsCards(); });
+      };
+      renderInsCards();
+      const saved = localStorage.getItem('commerce-note');
+      if (saved && items.some((n) => 'Product Research/' + n.file === saved)) openCommerceNote(saved);
+    } catch {
+      $('commerce-ins-cards').innerHTML = '<div class="sm-empty">Insights unavailable.</div>';
+    }
+
+    // Deep-research pipeline only — the full workflow roster lives on SYSTEM.
+    if (n8n && n8n.reachable) {
+      const pr = n8n.product_research;
+      const last = pr && pr.last;
+      const nh = pr
+        ? `<div class="sys-row"><span class="dot" style="background:${pr.active ? 'var(--green)' : '#2a3a4a'}"></span>`
+          + `<span class="nm">${esc(pr.name)}</span>`
+          + (last && last.status
+            ? `<span class="st ${last.status === 'success' ? 'up' : 'down'}">${esc(last.status)}${last.stoppedAt ? ' · ' + esc(last.stoppedAt.slice(0, 10)) : ''}</span>`
+            : `<span class="st ${pr.active ? 'up' : 'down'}">${pr.active ? 'ACTIVE' : 'PAUSED'}</span>`)
+          + `</div>`
+        : `<div class="text-dim mono-sm">deep-research workflow not found in n8n</div>`;
+      if (nh !== _commerceLastN8n) {
+        $('commerce-n8n').innerHTML = nh;
+        _commerceLastN8n = nh;
+      }
+    } else {
+      $('commerce-n8n').innerHTML = '<span class="text-dim">n8n unreachable — runs daily 06:10, or trigger manually in the n8n UI</span>';
+      _commerceLastN8n = '';
+    }
+
+  } finally {
+    _commerceLoading = false;
+  }
+}
+
+// Commerce workbench wiring: parse → analyze (Plutus + eBay comps) → save
+(() => {
+  const parseBtn = $('commerce-parse-btn'), analyzeBtn = $('commerce-analyze-btn');
+  if (!parseBtn || !analyzeBtn) return;
+
+  // Friendly inline errors — never alert() popups on this page.
+  function cmError(msg) {
+    const el = $('commerce-error');
+    el.textContent = msg;
+    el.style.display = 'block';
+    el.scrollIntoView({ block: 'nearest' });
+  }
+  function cmClearError() {
+    const el = $('commerce-error');
+    el.style.display = 'none';
+    el.textContent = '';
+  }
+  function suggestCategory(topKw) {
+    const s = (topKw || '').toLowerCase().replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '').slice(0, 40);
+    return s || ('intake-' + new Date().toISOString().slice(0, 10));
+  }
+
+  function doParse() {
+    cmClearError();
+    const parsed = parseZik($('commerce-paste').value);
+    intake = { category: $('commerce-category').value.trim(),
+               keywords: parsed.keywords, sellers: parsed.sellers };
+    intakeSlug = '';
+    if (!intake.keywords.length) {
+      $('commerce-preview-rows').innerHTML =
+        '<tr><td colspan="2" class="text-dim">Nothing readable yet — paste your Zik copy above.</td></tr>';
+      $('commerce-preview-count').textContent = '';
+      $('cm-results').hidden = true;
+      $('cm-hero-num').hidden = true;
+      return;
+    }
+    const catInput = $('commerce-category');
+    if (!catInput.value.trim() && parsed.keywords.length) {
+      catInput.value = suggestCategory(parsed.keywords[0].keyword);
+      intake.category = catInput.value;
+    }
+    const show = parsed.keywords.slice(0, 30);
+    const maxRev = (parsed.keywords[0] && parsed.keywords[0].revenue_30d) || 1;
+    const totalRev = parsed.keywords.reduce((a, k) => a + k.revenue_30d, 0);
+    $('commerce-preview-rows').innerHTML = show.map((k) => {
+      const pct = Math.max(2, Math.round(100 * k.revenue_30d / maxRev));
+      return `<tr><td>${esc(k.keyword)}</td><td class="mono">${commerceMoney(k.revenue_30d)}`
+        + `<div class="cm-bar"><div style="width:${pct}%"></div></div></td></tr>`;
+    }).join('');
+    $('commerce-preview-count').textContent =
+      `${parsed.keywords.length} keywords · ${parsed.sellers.length} sellers`
+      + (parsed.unpaired ? ` · ${parsed.unpaired} stray lines skipped` : '')
+      + (parsed.keywords.length > 30 ? ' · showing top 30' : '');
+    cmKpis(String(parsed.keywords.length), commerceMoney(totalRev),
+      String(parsed.sellers.length), undefined);
+    $('cm-results').hidden = false;
+    $('cm-hero-num').hidden = false;
+    renderKwChart();
+    renderSellerChart();
+    cmStep(1, 'done');
+    cmStep(2, 'active');
+    cmStep(3, '');
+    cmStep(4, '');
+  }
+
+  parseBtn.addEventListener('click', doParse);
+  // Charts build themselves the moment you paste — no button needed.
+  $('commerce-paste').addEventListener('paste', () => setTimeout(doParse, 0));
+
+  analyzeBtn.addEventListener('click', async () => {
+    cmClearError();
+    if (analyzeBtn.disabled) return;
+    if (!intake.keywords.length) {
+      cmError('Paste your Zik data in the box above first — your charts will build themselves.');
+      return;
+    }
+    const cat = $('commerce-category').value.trim()
+      || suggestCategory(intake.keywords[0].keyword);
+    $('commerce-category').value = cat;
+    const appId = $('commerce-appid').value.trim();
+    const certId = $('commerce-certid').value.trim();
+    const wantComps = !!(appId && certId);
+    const env = $('commerce-env').value;
+    const origLabel = analyzeBtn.textContent;
+    analyzeBtn.disabled = true;
+    analyzeBtn.textContent = 'Working…';
+    try {
+      $('commerce-progress').textContent = 'saving your batch…';
+      const saved = await postJson('/api/commerce/intakes', {
+        category: cat, keywords: intake.keywords.slice(0, 300),
+        sellers: intake.sellers.slice(0, 100).map((s) => ({
+          seller: s.seller, country: s.country || '',
+          feedback: s.feedback || 0, sales_30d: s.sales_30d || 0,
+        })),
+      });
+      intakeSlug = saved.slug;
+      intake.category = cat;
+      // Seed keyword cards (top 8 by revenue), then fill them as calls land.
+      // Without eBay keys the cards still render — verdict + sourcing only.
+      const top = intake.keywords.slice(0, 8);
+      $('commerce-comps-cards').innerHTML = top.length ? top.map((k, i) =>
+        `<div class="hud cm-kcard" id="compcard-${i}" data-kw="${esc(k.keyword)}" style="cursor:pointer"><div class="rank">#${i + 1}</div>`
+        + `<div class="kw">${esc(k.keyword)}</div>`
+        + `<div class="rev">${commerceMoney(k.revenue_30d)} <small>ZIK 30D</small></div>`
+        + `<div class="row" data-slot="status">`
+        + (wantComps ? `<span class="cm-pill warn">queued</span>`
+          : `<span class="cm-pill warn">no keys</span> <span class="mono-xs text-dim">verdict + sourcing only</span>`)
+        + `</div>`
+        + `<div data-slot="range"></div>`
+        + `<div class="row cm-src">${sourceLinks(k.keyword)}</div></div>`
+      ).join('') : '<div class="sm-empty">Nothing to analyze.</div>';
+      cmStep(2, 'done');
+      cmStep(3, 'active');
+      $('commerce-progress').textContent = 'asking Plutus…';
+      $('commerce-verdict').innerHTML = '<em class="text-dim">Plutus is analyzing…</em>';
+      const topLines = intake.keywords.slice(0, 15)
+        .map((k) => `- ${k.keyword}: $${k.revenue_30d.toLocaleString()}`).join('\n');
+      const sellerLines = intake.sellers.slice(0, 8)
+        .map((s) => `- ${s.seller}: $${s.sales_30d.toLocaleString()} sales`).join('\n');
+      const t = await postJson('/api/tasks', { text:
+        `You are Plutus, commerce analyst. Niche category: "${cat}".\n`
+        + `Zik last-30-day keyword revenues:\n${topLines}\n`
+        + `Top sellers:\n${sellerLines || '(none)'}\n`
+        + `Write exactly these sections, terse plain text, no tables:\n`
+        + `1) NICHE VERDICT (trending or not, why — 2 lines max)\n`
+        + `2) DEMAND SIGNALS 3) RISK FLAGS (up to 3)\n`
+        + `4) PRICE BAND to list under 5) SOURCING ANGLES (what to verify on Amazon/Walmart)`,
+        agent: 'plutus' });
+      const verdictDone = pollTask(t.id, (done) => {
+        const txt = done.result || ('⚠ ' + (done.error || 'failed'));
+        $('commerce-verdict').innerHTML =
+          `<div class="mono-sm text-cyan-dim mb-sm">PLUTUS · task ${done.id ?? t.id} · ${esc(done.status)}</div>`
+          + `<div style="white-space:pre-wrap">${esc(txt).slice(0, 4000)}</div>`;
+        refreshTasks();
+      });
+      $('commerce-progress').textContent = wantComps
+        ? 'asking Plutus + checking eBay…'
+        : 'asking Plutus… (no keys, so verdict + sourcing only)';
+      const card = (idx) => $('compcard-' + idx);
+      const fetchComp = async (k, idx) => {
+        try {
+          const c = await postJson('/api/commerce/ebay-comps', {
+            keyword: k.keyword, app_id: appId, cert_id: certId, env, limit: 10,
+          });
+          k.comp = c;
+          const el = card(idx);
+          if (!el) return;
+          const status = el.querySelector('[data-slot="status"]');
+          const range = el.querySelector('[data-slot="range"]');
+          if (c.stats) {
+            const s = c.stats;
+            const span = (s.max - s.min) || 1;
+            const medPct = Math.min(100, Math.max(0,
+              Math.round(100 * (s.med - s.min) / span)));
+            status.innerHTML =
+              `<span class="cm-pill ok">${c.total.toLocaleString()} live</span> `
+              + `<span class="mono-xs text-dim">${c.returned} sampled</span>`;
+            range.innerHTML =
+              `<div class="cm-range"><div class="med" style="left:${medPct}%"></div></div>`
+              + `<div class="cm-range-lbls"><span>$${s.min.toFixed(2)}</span>`
+              + `<span>med $${s.med.toFixed(2)}</span><span>$${s.max.toFixed(2)}</span></div>`;
+          } else {
+            status.innerHTML =
+              `<span class="cm-pill warn">${c.total.toLocaleString()} live</span> `
+              + `<span class="mono-xs text-dim">no prices</span>`;
+          }
+        } catch (err) {
+          const el = card(idx);
+          if (el) {
+            el.querySelector('[data-slot="status"]').innerHTML =
+              `<span class="cm-pill bad">failed</span> `
+              + `<span class="mono-xs text-dim">${esc((err.message || 'error').slice(0, 60))}</span>`;
+          }
+        }
+      };
+      const queue = wantComps ? top.map((k, i) => [k, i]) : [];
+      if (queue.length) {
+        $('commerce-progress').textContent = 'checking live eBay prices…';
+        await Promise.all(Array.from({ length: 3 }, async () => {
+          while (queue.length) { const [k, i] = queue.shift(); await fetchComp(k, i); }
+        }));
+      }
+      await verdictDone.catch(() => {});
+      const done_n = top.filter((k) => k.comp && k.comp.stats).length;
+      detailComps = top.filter((k) => k.comp).map((k) =>
+        ({ keyword: k.keyword, revenue_30d: k.revenue_30d, ...k.comp }));
+      cmKpis(undefined, undefined, undefined,
+        wantComps ? `${done_n}/${top.length}` : '—');
+      cmStep(3, 'done');
+      cmStep(4, 'active');
+      $('commerce-progress').textContent = wantComps
+        ? `done — ${done_n}/${top.length} live prices · your report is ready to save`
+        : 'verdict done — add eBay keys above and Analyze again for live prices';
+      refreshTasks();
+    } catch (err) {
+      cmError('Something hiccuped: ' + (err.message || err).slice(0, 200));
+    } finally {
+      analyzeBtn.disabled = false;
+      analyzeBtn.textContent = origLabel;
+    }
+  });
+
+  $('commerce-save-btn').addEventListener('click', () => {
+    withLoading($('commerce-save-btn'), async () => {
+      if (!intakeSlug) {
+        cmError('Hit “Analyze my niche” first — then your report will save here.');
+        return;
+      }
+      const top = intake.keywords.slice(0, 8);
+      const lines = [
+        `---`, `category: ${intake.category}`, `slug: ${intakeSlug}`,
+        `date: ${new Date().toISOString().slice(0, 10)}`,
+        `tags: [product-research, ebay]`, `---`, ``,
+        `# ${intake.category}`, ``,
+        `## Zik 30-day revenues (top ${intake.keywords.length})`,
+        ...intake.keywords.slice(0, 30).map((k) => `- ${k.keyword}: $${k.revenue_30d.toLocaleString()}`),
+        ``, `## eBay live comps`,
+        ...top.map((k) => k.comp && k.comp.stats
+          ? `- ${k.keyword}: ${k.comp.total.toLocaleString()} live, $${k.comp.stats.min.toFixed(2)}–$${k.comp.stats.max.toFixed(2)} (med $${k.comp.stats.med.toFixed(2)})`
+          : `- ${k.keyword}: comps unavailable`),
+        ``, `## Sourcing (check landed cost manually)`,
+        ...top.map((k) => `- ${k.keyword}: [Amazon](https://www.amazon.com/s?k=${encodeURIComponent(k.keyword)}) · [Walmart](https://www.walmart.com/search?q=${encodeURIComponent(k.keyword)}) · [eBay](https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(k.keyword)})`),
+        ``, `_Generated by Olympus Commerce workbench._`,
+      ];
+      const r = await postJson('/api/commerce/reports',
+        { slug: intakeSlug, markdown: lines.join('\n') });
+      $('commerce-save-msg').textContent = 'saved → ' + r.path;
+      cmStep(4, 'done');
+    });
+  });
+
+  const crumb = $('commerce-crumb');
+  if (crumb) crumb.addEventListener('click', loadCommerce);
+
+  // Clicking any comp card (quick or deep) opens the keyword detail view.
+  // Links inside cards still navigate normally.
+  $('commerce-comps-cards').addEventListener('click', (e) => {
+    if (e.target.closest('a')) return;
+    const card = e.target.closest('[data-kw]');
+    if (card) openKwDetail(card.dataset.kw);
+  });
+
+  // Deep pipeline: same intake through the n8n workflow (niches, live
+  // comps, trends, vault report). Takes minutes; keys ride along per-run.
+  const deepBtn = $('commerce-deep-btn');
+  if (deepBtn) deepBtn.addEventListener('click', async () => {
+    cmClearError();
+    if (deepBtn.disabled) return;
+    if (!intake.keywords.length) {
+      cmError('Paste your Zik data in the box above first — your charts will build themselves.');
+      return;
+    }
+    const appId = $('commerce-appid').value.trim();
+    const certId = $('commerce-certid').value.trim();
+    if (!appId || !certId) {
+      cmError('The deep pipeline needs eBay keys to check live prices — open “eBay keys” above and paste them (this tab only, never stored).');
+      return;
+    }
+    const cat = $('commerce-category').value.trim()
+      || suggestCategory(intake.keywords[0].keyword);
+    $('commerce-category').value = cat;
+    const origLabel = deepBtn.textContent;
+    deepBtn.disabled = true;
+    deepBtn.textContent = 'Running…';
+    $('commerce-progress').textContent =
+      'Deep pipeline running — niches, prices, trends, report. Several minutes…';
+    cmStep(2, 'done');
+    cmStep(3, 'active');
+    try {
+      const r = await postJson('/api/commerce/deep-research', {
+        category: cat, app_id: appId, cert_id: certId,
+        keywords: intake.keywords.slice(0, 30),
+        sellers: intake.sellers.slice(0, 12).map((s) => ({
+          seller: s.seller, country: s.country || '',
+          feedback: s.feedback || 0, sales_30d: s.sales_30d || 0,
+        })),
+      });
+      const revByKw = {};
+      intake.keywords.forEach((k) => { revByKw[k.keyword] = k.revenue_30d; });
+      const comps = r.comps || [];
+      $('commerce-verdict').innerHTML =
+        `<div class="mono-sm text-cyan-dim mb-sm">DEEP PIPELINE · ${esc(r.category || cat)}</div>`
+        + `<div style="white-space:pre-wrap">${esc(String(r.verdict || 'no verdict')).slice(0, 4000)}</div>`;
+      $('commerce-comps-cards').innerHTML = comps.length ? comps.map((c, i) => {
+        const rev = revByKw[c.keyword];
+        const trend = c.trending === true
+          ? `<span class="cm-pill ok">↗ trending</span>`
+          : c.trending === false
+            ? `<span class="cm-pill warn">→ flat</span>`
+            : `<span class="cm-pill warn">trend n/a</span>`;
+        const lo = c.min ?? 0, hi = c.max ?? 0;
+        const span = (hi - lo) || 1;
+        const medPct = Math.min(100, Math.max(0,
+          Math.round(100 * ((c.med ?? lo) - lo) / span)));
+        return `<div class="hud cm-kcard" data-kw="${esc(c.keyword || '')}" style="cursor:pointer"><div class="rank">#${i + 1}</div>`
+          + `<div class="kw">${esc(c.keyword || '')}</div>`
+          + (rev !== undefined ? `<div class="rev">${commerceMoney(rev)} <small>ZIK 30D</small></div>` : '')
+          + `<div class="row" data-slot="status">`
+          + `<span class="cm-pill ok">${Number(c.total || 0).toLocaleString()} live</span> ${trend}</div>`
+          + (c.min != null
+            ? `<div class="cm-range"><div class="med" style="left:${medPct}%"></div></div>`
+              + `<div class="cm-range-lbls"><span>$${c.min.toFixed(2)}</span>`
+              + `<span>med $${(c.med ?? c.min).toFixed(2)}</span><span>$${c.max.toFixed(2)}</span></div>`
+            : '')
+          + `<div class="row cm-src">${sourceLinks(c.keyword || '')}</div></div>`;
+      }).join('') : '<div class="sm-empty">Pipeline returned no comps.</div>';
+      cmKpis(undefined, undefined, undefined, `${comps.length} deep`);
+      detailComps = comps.map((c) => ({ ...c, revenue_30d: revByKw[c.keyword] }));
+      cmStep(3, 'done');
+      cmStep(4, 'done');
+      $('commerce-progress').textContent =
+        `done — deep report saved${r.reportFile ? ': ' + r.reportFile : ''}`;
+      $('commerce-save-msg').textContent = r.reportFile
+        ? 'vault → Product Research/_intakes/' + r.reportFile : '';
+      refreshTasks();
+      loadCommerce();
+    } catch (err) {
+      cmError('Deep pipeline: ' + (err.message || err).slice(0, 220));
+    } finally {
+      deepBtn.disabled = false;
+      deepBtn.textContent = origLabel;
+    }
+  });
+})();
 
 /* -- 10. Voice studio ------------------------------------------------------------- */
 
@@ -1783,6 +2492,17 @@ async function refreshSystemPage() {
        <td class="mono">${esc(a.domain)}</td><td class="mono">${esc(a.model)}</td><td class="mono">${esc(a.resolved_model)}</td></tr>`).join('');
     $('sys-taskstats').innerHTML = ['queued', 'running', 'done', 'failed'].map((st) =>
       `<span class="chip"><span class="dot" style="background:${STATUS_DOT[st]}"></span> ${st.toUpperCase()} ${s.tasks[st] || 0}</span>`).join('');
+    try {
+      const n8n = await j('/api/commerce/n8n');
+      $('sys-n8n').innerHTML = n8n && n8n.reachable
+        ? (n8n.items || []).map((w) =>
+          `<tr><td>${esc(w.name || '')}</td>`
+          + `<td><span class="cm-pill ${w.active ? 'ok' : ''}">${w.active ? 'ACTIVE' : 'PAUSED'}</span></td></tr>`
+        ).join('') || '<tr><td colspan="2" class="text-dim">no workflows</td></tr>'
+        : '<tr><td colspan="2" class="text-dim">n8n unreachable</td></tr>';
+    } catch {
+      $('sys-n8n').innerHTML = '<tr><td colspan="2" class="text-dim">n8n unreachable</td></tr>';
+    }
   } catch { /* system page unavailable */ }
 }
 

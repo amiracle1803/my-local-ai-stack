@@ -1,0 +1,9 @@
+{
+  "shot": "sh-001-02",
+  "seed": "sh_001_02",
+  "anchors": "Kess: anime design, distinctive silhouette, expressive eyes (Kess), Brann: anime design, distinctive silhouette, expressive eyes (Brann)",
+  "prompt": "anime recap panel, Dawn Raid, Kess: anime design, distinctive silhouette, expressive eyes (Kess), Brann: anime design, distinctive silhouette, expressive eyes (Brann), Dawn Raid  Kess crouched on the rooftop of the old clocktower, a young scout with wind-tangled brown hair and a worn green scarf. Below, the harbor was already busy with iron ships.  \"The signal flare goes up in one minu, cinematic cel shading",
+  "backend": "placeholder",
+  "negative_prompt": "low quality, blurry, text, watermark, deformed",
+  "attempt": 1
+}

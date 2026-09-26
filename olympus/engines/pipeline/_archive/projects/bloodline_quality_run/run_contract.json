@@ -1,0 +1,108 @@
+{
+  "stages": {
+    "stage3c": {
+      "stage": "stage3c",
+      "preflight": {
+        "profile": {
+          "stage": "stage3c",
+          "engine": "comfyui",
+          "model": "ltxv-2b-0.9.8-distilled-fp8-i2v.safetensors",
+          "variant": "optional-ltx2b",
+          "width": 768,
+          "height": 448,
+          "steps": 8,
+          "expected_vram_gb": 7.0,
+          "offload": "block_swap",
+          "enabled": false,
+          "requires_smoke_marker": true,
+          "notes": ""
+        },
+        "available_vram_gb": 2.1337890625,
+        "accepted": true,
+        "reason": "animation disabled; panels mode explicitly selected",
+        "smoke_marker": null
+      },
+      "artifacts": {
+        "required": [
+          "panels"
+        ],
+        "present": [
+          "panels"
+        ],
+        "missing": [],
+        "valid": true,
+        "reason": ""
+      }
+    },
+    "stage_vlm_review": {
+      "stage": "stage_vlm_review",
+      "preflight": {
+        "profile": {
+          "stage": "stage_vlm_review",
+          "engine": "ollama",
+          "model": "qwen2.5vl:7b",
+          "variant": "default",
+          "width": null,
+          "height": null,
+          "steps": null,
+          "expected_vram_gb": 0.0,
+          "offload": "cpu",
+          "enabled": true,
+          "requires_smoke_marker": false,
+          "notes": ""
+        },
+        "available_vram_gb": 2.0625,
+        "accepted": true,
+        "reason": "profile accepted",
+        "smoke_marker": "/home/amire/Downloads/my-local-ai-stack/olympus/engines/pipeline/projects/bloodline_quality_run/optimizer/stage_vlm_review_default.json"
+      },
+      "artifacts": {
+        "required": [
+          "reviews/vlm_review.json"
+        ],
+        "present": [
+          "reviews/vlm_review.json"
+        ],
+        "missing": [],
+        "valid": true,
+        "reason": ""
+      }
+    },
+    "stage5": {
+      "stage": "stage5",
+      "preflight": {
+        "profile": {
+          "stage": "stage5",
+          "engine": "ffmpeg",
+          "model": "libx264",
+          "variant": "default",
+          "width": null,
+          "height": null,
+          "steps": null,
+          "expected_vram_gb": 0.0,
+          "offload": "cpu",
+          "enabled": true,
+          "requires_smoke_marker": false,
+          "notes": ""
+        },
+        "available_vram_gb": 1.767578125,
+        "accepted": true,
+        "reason": "profile accepted",
+        "smoke_marker": "/home/amire/Downloads/my-local-ai-stack/olympus/engines/pipeline/projects/bloodline_quality_run/optimizer/stage5_default.json"
+      },
+      "artifacts": {
+        "required": [
+          "video/final.mp4",
+          "video/final.srt"
+        ],
+        "present": [
+          "video/final.mp4",
+          "video/final.srt"
+        ],
+        "missing": [],
+        "valid": true,
+        "reason": ""
+      }
+    }
+  }
+}

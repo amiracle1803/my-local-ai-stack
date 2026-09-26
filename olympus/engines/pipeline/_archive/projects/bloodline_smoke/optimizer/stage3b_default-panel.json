@@ -1,0 +1,20 @@
+{
+  "profile": "stage3b_default-panel",
+  "engine": "anima",
+  "seed": 12345,
+  "result": {
+    "prompt_id": "d5134858-8dcd-4e1c-a098-715429fbd255",
+    "outputs": {
+      "9": {
+        "images": [
+          {
+            "filename": "olympus_anima_smoke_00001_.png",
+            "subfolder": "",
+            "type": "output",
+            "id": "ea830955-44a2-4772-8510-a1281f2f2bf5"
+          }
+        ]
+      }
+    }
+  }
+}

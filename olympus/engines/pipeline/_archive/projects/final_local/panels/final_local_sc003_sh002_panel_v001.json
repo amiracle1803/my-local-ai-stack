@@ -1,0 +1,18 @@
+{
+  "shot": "sh-003-02",
+  "seed": "sh_003_02",
+  "anchors": "Kael: anime design, distinctive silhouette, expressive eyes (Kael)",
+  "prompt": "anime recap panel, SCENE 3 - The Fight on the Ridge, Kael: anime design, distinctive silhouette, expressive eyes (Kael), SCENE 3 - The Fight on the Ridge  The beast attacks. Kael meets it with steel, trading cuts on the slick ridge as rain falls. Sparks fly where claws meet the blade. The beast is relentless, but Kael refuses to fall.  Kae, medium action shot, subtle tracking movement, unspecified, cinematic cel shading",
+  "backend": "placeholder",
+  "reference_assets": [
+    "worldbible/refs/kael/ref_00.png",
+    "worldbible/refs/kael/ref_01.png"
+  ],
+  "continuity": {
+    "outfit": "default",
+    "lighting": "unspecified",
+    "screen_direction": "left_to_right"
+  },
+  "negative_prompt": "low quality, blurry, text, watermark, deformed",
+  "attempt": 1
+}

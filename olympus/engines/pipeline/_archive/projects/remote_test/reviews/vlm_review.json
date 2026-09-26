@@ -1,0 +1,43 @@
+{
+  "total_clips": 2,
+  "reviewed": 2,
+  "skipped_placeholder": 0,
+  "pass": 2,
+  "reject": 0,
+  "avg_score": 8.0,
+  "pass_rate": 1.0,
+  "reviews": {
+    "remote_test_sc001_sh001_panel_v001.mp4": {
+      "overall_score": 8.0,
+      "verdict": "PASS",
+      "details": {
+        "exists": 1,
+        "on_model": 8.0,
+        "prompt_adherence": 8.0,
+        "issues": [
+          "The character's hair appears slightly inconsistent in some panels.",
+          "There is a shadow panel that seems out of place and does not contribute to the story or character development."
+        ],
+        "backend": "comfyui"
+      },
+      "raw_response": "{\"score\": 8, \"issues\": [\"The character's hair appears slightly inconsistent in some panels.\", \"There is a shadow panel that seems out of place and does not contribute to the story or character development.\"], \"verdict\": \"PASS\", \"available\": true, \"provider\": \"ollama\"}"
+    },
+    "remote_test_sc001_sh002_panel_v001.mp4": {
+      "overall_score": 8.0,
+      "verdict": "PASS",
+      "details": {
+        "exists": 1,
+        "on_model": 8.0,
+        "prompt_adherence": 8.0,
+        "issues": [
+          "The character's expressions in the close-up panels do not match their body language, which could be seen as inconsistent.",
+          "The lighting and shadows on the characters' faces are inconsistent across different panels."
+        ],
+        "backend": "comfyui"
+      },
+      "raw_response": "{\"score\": 8, \"issues\": [\"The character's expressions in the close-up panels do not match their body language, which could be seen as inconsistent.\", \"The lighting and shadows on the characters' faces are inconsistent across different panels.\"], \"verdict\": \"PASS\", \"available\": true, \"provider\": \"ollama\"}"
+    }
+  },
+  "judge": "ollama",
+  "gate": "PASS"
+}

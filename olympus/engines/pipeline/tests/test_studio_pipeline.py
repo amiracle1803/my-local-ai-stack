@@ -12,8 +12,8 @@ from pipeline.blueprint import STAGE_ORDER, create_blueprint
 
 def test_stage_order_matches_studio_ui():
     # Runtime order is the dependency contract; the UI can display historical IDs.
-    ui_order = ["stage0", "stage0_dossier", "stage1", "stage1_world", "stage2",
-                "stage4", "stage3", "stage1r", "stage3b", "stage3c",
+    ui_order = ["stage0", "stage0_dossier", "stage1", "stage1_world", "stage3",
+                "stage2", "stage4", "stage1r", "stage3b", "stage3c",
                 "stage_vlm_review", "stage5"]
     assert STAGE_ORDER == ui_order
 
@@ -49,11 +49,11 @@ def test_optimizer_requires_smoke_marker_for_gpu_profiles(tmp_path):
 
 def test_gate_enforces_audio_first_order(tmp_path):
     """Plan acceptance: Scores.require_stage() enforces
-    stage2 -> stage4 -> stage3 -> stage1r (script -> audio -> visuals)."""
+    stage3 -> stage2 -> stage4 -> stage1r (visuals -> script -> audio -> refs)."""
     from pipeline.scores import Scores, SkippedStageError
 
     idx = {s: STAGE_ORDER.index(s) for s in STAGE_ORDER}
-    assert idx["stage2"] < idx["stage4"] < idx["stage3"] < idx["stage1r"]
+    assert idx["stage3"] < idx["stage2"] < idx["stage4"] < idx["stage1r"]
 
     with Scores(tmp_path / "scores.sqlite") as sc:
         sc.require_stage("stage0")  # first stage always allowed
@@ -63,8 +63,8 @@ def test_gate_enforces_audio_first_order(tmp_path):
         except SkippedStageError:
             pass
         try:
-            sc.require_stage("stage4")
-            raise AssertionError("gate should block stage4 before stage2")
+            sc.require_stage("stage2")
+            raise AssertionError("gate should block stage2 before stage3")
         except SkippedStageError:
             pass
         sc.stage_done("stage0")
@@ -92,30 +92,24 @@ def test_faithful_intake_is_verbatim(tmp_path):
 
 
 def test_storyboard_enriches_screenplay_shots(tmp_path):
-    """Stage 3 must preserve the timed screenplay's shot contract."""
+    """Stage 3 must create shot_detail from scenes, without screenplay."""
     import json
     from pipeline.blueprint import create_blueprint
     from pipeline.stages import run_storyboard
 
     project = tmp_path / "project"
-    (project / "screenplay").mkdir(parents=True)
+    (project / "worldbible").mkdir(parents=True)
     (project / "scores.sqlite").touch()
     create_blueprint("source", slug="storyboard_t").write(project)
-    screenplay = {
-        "scenes": [{
-            "location": "The pass",
-            "summary": "A storm gathers.",
-            "shots": [{
-                "id": "sh-001-07",
-                "description": "A close-up of Kael's hand on the hilt.",
-                "narration": "The storm had arrived.",
-                "dialogue": "",
-                "sfx": "thunder",
-            }],
-        }]
-    }
-    (project / "screenplay" / "screenplay.json").write_text(
-        json.dumps(screenplay), encoding="utf-8"
+    # Stage3 now runs BEFORE screenplay, reading from scenes + worldbible
+    scenes = [{
+        "location": "The Pass",
+        "summary": "A storm gathers.",
+        "content": "Kael sharpens his blade. The storm gathers."
+    }]
+    (project / "stage0_scenes.json").write_text(json.dumps(scenes), encoding="utf-8")
+    (project / "worldbible" / "world_bible.json").write_text(
+        json.dumps({"characters": [{"name": "Kael"}]}), encoding="utf-8"
     )
 
     result = run_storyboard(project)
@@ -123,10 +117,13 @@ def test_storyboard_enriches_screenplay_shots(tmp_path):
     storyboard = json.loads(
         (project / "storyboard" / "storyboard.json").read_text(encoding="utf-8")
     )
-    assert result == {"shots": 1}
-    assert storyboard["shot_detail"][0]["id"] == "sh-001-07"
-    assert storyboard["shot_detail"][0]["narration"] == "The storm had arrived."
-    assert storyboard["shot_detail"][0]["sfx"] == "thunder"
+    assert result == {"shots": 2}  # 2 shots per scene by default
+    assert storyboard["shot_detail"][0]["id"] == "sh-001-01"
+    assert "storm" in storyboard["shot_detail"][0]["action"].lower()
+    # Storyboard stays visual/internal; screenplay owns narration and dialogue.
+    assert storyboard["shot_detail"][0]["composition"] == "wide establishing shot"
+    assert storyboard["shot_detail"][0]["character_ids"] == ["char"]
+    assert storyboard["shot_detail"][0]["reference_assets"] == []
 
 
 def test_canonical_artifact_identity():

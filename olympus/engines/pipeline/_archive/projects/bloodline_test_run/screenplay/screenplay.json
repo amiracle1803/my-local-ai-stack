@@ -1,0 +1,27 @@
+{
+  "scenes": [
+    {
+      "heading": "SCENE 1 \u2014 SCENE 1 - The Bloodline",
+      "location": "SCENE 1 - The Bloodline",
+      "summary": "SCENE 1 - The Bloodline  Kael enters the ruined city beneath a red moon.  Kael: The bloodline ends tonight.  A shadow beast rises from the gate.",
+      "shots": [
+        {
+          "id": "sh-001-01",
+          "description": "Beat 1: SCENE 1 - The Bloodline  Kael enters the ruined city beneath a red moon.  Kael: The bloodline ends tonight.  A shadow beast rises from the gate.",
+          "narration": "SCENE 1 - The Bloodline  Kael enters the ruined city beneath a red moon.  Kael: The bloodline ends tonight.  A shadow beast rises from the gate.",
+          "character": "Kael",
+          "dialogue": "The bloodline ends tonight.",
+          "sfx": "ambience"
+        },
+        {
+          "id": "sh-001-02",
+          "description": "Beat 2: SCENE 1 - The Bloodline  Kael enters the ruined city beneath a red moon.  Kael: The bloodline ends tonight.  A shadow beast rises from the gate.",
+          "narration": "",
+          "character": "",
+          "dialogue": "",
+          "sfx": "ambience"
+        }
+      ]
+    }
+  ]
+}

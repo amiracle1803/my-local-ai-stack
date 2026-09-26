@@ -10,6 +10,7 @@ Run:
 from __future__ import annotations
 
 import asyncio
+import base64
 import hmac
 import io
 import json
@@ -18,6 +19,7 @@ import os
 import re
 import secrets
 import subprocess
+import urllib.parse
 import urllib.request
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
@@ -106,7 +108,8 @@ async def limit_body_size(request: Request, call_next):
 
 @app.middleware("http")
 async def request_timeout(request: Request, call_next):
-    if request.url.path in {"/api/voice/tts", "/api/orchestrate", "/api/nim/test"}:
+    if request.url.path in {"/api/voice/tts", "/api/orchestrate", "/api/nim/test",
+                              "/api/commerce/deep-research"}:
         return await call_next(request)  # TTS has its own 300s upstream timeout
     try:
         return await asyncio.wait_for(call_next(request), timeout=30.0)
@@ -623,6 +626,362 @@ def brain_note(path: str):
         attributes={"a": ["href"], "img": ["src", "alt"]},
     )
     return {"path": path, "html": safe}
+
+
+# ── commerce (read-only product-research + n8n status) ──────────────────────
+
+_ZIK_PATH = Path("/home/amire/n8n-stack/zik_data.json")
+_N8N_ENV_PATH = Path("/home/amire/n8n-stack/.env")
+_N8N_API = "http://127.0.0.1:5679"
+
+
+def _n8n_key() -> str:
+    try:
+        for line in _N8N_ENV_PATH.read_text().splitlines():
+            if line.startswith("N8N_API_KEY="):
+                return line.split("=", 1)[1].strip()
+    except OSError:
+        pass
+    return ""
+
+
+@app.get("/api/commerce/zik")
+def commerce_zik(limit: int = 50):
+    """Top Zik keywords/sellers from the n8n intake file (read-only)."""
+    try:
+        raw = _ZIK_PATH.read_text(encoding="utf-8")
+    except OSError:
+        raise HTTPException(503, "zik intake unavailable")
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        raise HTTPException(503, "zik intake corrupt")
+    kws = sorted(data.get("keywords", []),
+                 key=lambda k: k.get("revenue_30d", 0), reverse=True)
+    sellers = sorted(data.get("sellers", []),
+                     key=lambda s: s.get("sales_30d", 0), reverse=True)
+    limit = max(1, min(limit, 200))
+    return {
+        "keywords": kws[:limit],
+        "keyword_count": len(kws),
+        "sellers": sellers[:12],
+        "updated": int(_ZIK_PATH.stat().st_mtime),
+    }
+
+
+@app.get("/api/commerce/n8n")
+def commerce_n8n():
+    """n8n workflow roster + latest product-research execution (read-only)."""
+    key = _n8n_key()
+    if not key:
+        return {"reachable": False}
+    try:
+        req = urllib.request.Request(
+            _N8N_API + "/api/v1/workflows?limit=100",
+            headers={"X-N8N-API-KEY": key},
+        )
+        with urllib.request.urlopen(req, timeout=5) as r:
+            ws = json.load(r).get("data", [])
+    except Exception:
+        return {"reachable": False}
+    items = [{"id": w.get("id"), "name": w.get("name"),
+              "active": bool(w.get("active"))} for w in ws]
+    pr = next((w for w in ws if (w.get("name") or "") ==
+               "Product research pipeline (Zik -> LLM -> Obsidian)"), None)
+    last = None
+    try:
+        req = urllib.request.Request(
+            _N8N_API + "/api/v1/executions?limit=20",
+            headers={"X-N8N-API-KEY": key},
+        )
+        with urllib.request.urlopen(req, timeout=5) as r:
+            exs = json.load(r).get("data", [])
+        if pr:
+            mine = [e for e in exs if str(e.get("workflowId")) == str(pr.get("id"))]
+            if mine:
+                e = mine[0]
+                last = {"status": e.get("status"),
+                        "startedAt": e.get("startedAt"),
+                        "stoppedAt": e.get("stoppedAt")}
+    except Exception:
+        last = None
+    return {
+        "reachable": True,
+        "workflows": len(ws),
+        "active": sum(1 for w in ws if w.get("active")),
+        "product_research": ({
+            "id": pr.get("id"), "name": pr.get("name"),
+            "active": bool(pr.get("active")), "last": last,
+        } if pr else None),
+        "items": items,
+    }
+
+
+# ── commerce workbench (intake + eBay comps proxy + reports) ───────────────
+# Keys for the eBay comps proxy are per-request only (pasted per session in
+# the dashboard) and are never stored or logged. Intake/report writes are
+# confined to vault/Product Research/_intakes/.
+
+_INTAKES_DIRNAME = "Product Research/_intakes"
+
+
+def _commerce_slug(category: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", (category or "").lower()).strip("-")[:60]
+    if not slug or not re.fullmatch(r"[a-z0-9-]+", slug):
+        raise HTTPException(400, "category must contain letters/numbers")
+    return slug
+
+
+def _intakes_dir() -> Path:
+    root = _vault_root().resolve()
+    d = (root / _INTAKES_DIRNAME).resolve()
+    if not d.is_relative_to(root):
+        raise HTTPException(400, "intakes dir escapes vault")
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+class IntakeKw(BaseModel):
+    keyword: str = Field(max_length=200)
+    revenue_30d: int = Field(ge=0, le=10_000_000_000)
+
+
+class IntakeSeller(BaseModel):
+    seller: str = Field(max_length=200)
+    country: str = Field(default="", max_length=8)
+    feedback: int = Field(default=0, ge=0)
+    sales_30d: int = Field(default=0, ge=0)
+
+
+class IntakeIn(BaseModel):
+    category: str = Field(max_length=120)
+    keywords: list[IntakeKw] = Field(max_length=300)
+    sellers: list[IntakeSeller] = Field(default=[], max_length=100)
+
+
+@app.post("/api/commerce/intakes", status_code=201)
+def commerce_save_intake(body: IntakeIn):
+    slug = _commerce_slug(body.category)
+    p = (_intakes_dir() / f"{slug}.json").resolve()
+    if not p.is_relative_to(_vault_root().resolve()):
+        raise HTTPException(400, "path escapes vault")
+    seen: dict[str, int] = {}
+    kws = []
+    for k in body.keywords:
+        name = re.sub(r"\s*[,.;:]+\s*$", "", k.keyword.strip())
+        name = re.sub(r"\s+", " ", name)
+        if not name:
+            continue
+        key = name.lower()
+        if key in seen:
+            seen[key] = max(seen[key], k.revenue_30d)
+            continue
+        seen[key] = k.revenue_30d
+        kws.append({"keyword": name, "revenue_30d": k.revenue_30d})
+    kws.sort(key=lambda k: k["revenue_30d"], reverse=True)
+    p.write_text(json.dumps({
+        "category": body.category.strip(), "slug": slug,
+        "keywords": kws, "sellers": [s.model_dump() for s in body.sellers],
+    }, indent=1), encoding="utf-8")
+    return {"slug": slug, "keywords": len(kws), "sellers": len(body.sellers)}
+
+
+class EbayCompsIn(BaseModel):
+    keyword: str = Field(max_length=200)
+    app_id: str = Field(max_length=200)
+    cert_id: str = Field(max_length=200)
+    env: str = Field(default="sandbox", max_length=16)
+    limit: int = Field(default=10, ge=1, le=25)
+
+
+@app.post("/api/commerce/ebay-comps")
+def commerce_ebay_comps(body: EbayCompsIn):
+    """Live eBay comps for one keyword. Keys stay in memory, never stored."""
+    host = {"sandbox": "api.sandbox.ebay.com",
+            "production": "api.ebay.com"}.get(body.env)
+    if not host:
+        raise HTTPException(400, "env must be sandbox or production")
+    basic = base64.b64encode(
+        f"{body.app_id.strip()}:{body.cert_id.strip()}".encode()).decode()
+    try:
+        tok_req = urllib.request.Request(
+            f"https://{host}/identity/v1/oauth2/token",
+            data=b"grant_type=client_credentials&scope=https://api.ebay.com/oauth/api_scope",
+            headers={"Authorization": "Basic " + basic,
+                     "Content-Type": "application/x-www-form-urlencoded"},
+        )
+        with urllib.request.urlopen(tok_req, timeout=10) as r:
+            token = json.load(r).get("access_token", "")
+        if not token:
+            raise ValueError("no token")
+    except Exception:
+        raise HTTPException(502, "eBay auth failed — check keys/env")
+    try:
+        q = urllib.parse.quote(body.keyword.strip())
+        search = urllib.request.Request(
+            f"https://{host}/buy/browse/v1/item_summary/search"
+            f"?q={q}&limit={body.limit}",
+            headers={"Authorization": "Bearer " + token,
+                     "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"},
+        )
+        with urllib.request.urlopen(search, timeout=10) as r:
+            data = json.load(r)
+    except Exception:
+        raise HTTPException(502, "eBay search failed")
+    prices: list[float] = []
+    items = []
+    for it in data.get("itemSummaries", []) or []:
+        pr = (it.get("price") or {})
+        try:
+            v = float(pr.get("value", "nan"))
+        except (TypeError, ValueError):
+            continue
+        prices.append(v)
+        sl = it.get("seller") or {}
+        im = it.get("image") or {}
+        thumb = im.get("imageUrl", "")
+        if isinstance(thumb, list):
+            thumb = thumb[0] if thumb else ""
+        items.append({"title": it.get("title", "")[:140],
+                      "price": v, "currency": pr.get("currency", ""),
+                      "url": it.get("itemWebUrl", ""),
+                      "thumb": thumb,
+                      "seller": sl.get("username", ""),
+                      "seller_feedback": sl.get("feedbackScore"),
+                      "seller_pct": sl.get("feedbackPercentage")})
+    prices.sort()
+    stats = None
+    if prices:
+        mid = prices[len(prices) // 2]
+        stats = {"min": prices[0], "med": mid, "max": prices[-1],
+                 "avg": round(sum(prices) / len(prices), 2),
+                 "currency": (items[0].get("currency") if items else "")}
+    return {"keyword": body.keyword.strip(), "env": body.env,
+            "total": data.get("total", 0), "returned": len(items),
+            "stats": stats, "items": items[:body.limit]}
+
+
+@app.get("/api/commerce/trends")
+def commerce_trends(keyword: str):
+    """Google-interest trend for one keyword via the local trends proxy."""
+    kw = (keyword or "").strip()[:200]
+    if not kw:
+        raise HTTPException(400, "keyword required")
+    try:
+        url = ("http://127.0.0.1:8791/trends?keyword="
+               + urllib.parse.quote(kw))
+        with urllib.request.urlopen(url, timeout=45) as r:
+            return json.load(r)
+    except Exception:
+        raise HTTPException(502, "trends unavailable")
+
+
+class ReportIn(BaseModel):
+    slug: str = Field(max_length=70)
+    markdown: str = Field(max_length=100_000)
+
+
+@app.post("/api/commerce/reports", status_code=201)
+def commerce_save_report(body: ReportIn):
+    slug = _commerce_slug(body.slug)
+    p = (_intakes_dir() / f"{slug}-report.md").resolve()
+    if not p.is_relative_to(_vault_root().resolve()):
+        raise HTTPException(400, "path escapes vault")
+    p.write_text(body.markdown, encoding="utf-8")
+    return {"path": f"{_INTAKES_DIRNAME}/{slug}-report.md"}
+
+
+@app.get("/api/commerce/insights")
+def commerce_insights(limit: int = 200):
+    """Rank research notes by opportunity score (parsed from frontmatter)."""
+    root = _vault_root().resolve()
+    base = (root / "Product Research").resolve()
+    items: list[dict] = []
+    if base.is_relative_to(root) and base.is_dir():
+        for p in sorted(base.glob("*.md"))[:max(1, min(limit, 500))]:
+            try:
+                text = p.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            if not text.startswith("---"):
+                continue
+            end = text.find("\n---", 3)
+            if end < 0:
+                continue
+            fm: dict[str, str] = {}
+            for line in text[3:end].splitlines():
+                if ":" in line:
+                    k, v = line.split(":", 1)
+                    fm[k.strip().lower()] = v.strip()
+
+            def num(key: str):
+                m = re.search(r"[\d,]+", fm.get(key, ""))
+                return int(m.group(0).replace(",", "")) if m else None
+
+            items.append({"file": p.name,
+                          "keyword": fm.get("keyword", p.stem),
+                          "category": fm.get("category", ""),
+                          "revenue_30d": num("revenue_30d"),
+                          "opportunity": num("opportunity")})
+    items.sort(key=lambda i: (i["opportunity"] is None, -(i["opportunity"] or 0)))
+    return {"items": items, "count": len(items)}
+
+
+# ── commerce deep pipeline (proxy to the n8n zik-deep-research workflow) ──
+# Per-run eBay keys pass through kernel memory only: forwarded to the n8n
+# webhook in the POST body, never written anywhere. The webhook guard key
+# and n8n API key stay server-side (read from ~/n8n-stack/.env).
+
+_N8N_DEEP_WEBHOOK = "http://127.0.0.1:5679/webhook/zik-research"
+
+
+def _hook_key() -> str:
+    try:
+        for line in _N8N_ENV_PATH.read_text().splitlines():
+            if line.startswith("HOOK_KEY="):
+                return line.split("=", 1)[1].strip()
+    except OSError:
+        pass
+    return ""
+
+
+class DeepIn(BaseModel):
+    category: str = Field(max_length=120)
+    keywords: list[IntakeKw] = Field(max_length=30)
+    sellers: list[IntakeSeller] = Field(default=[], max_length=12)
+    app_id: str = Field(max_length=200)
+    cert_id: str = Field(max_length=200)
+
+
+@app.post("/api/commerce/deep-research")
+def commerce_deep_start(body: DeepIn):
+    guard = _hook_key()
+    if not guard:
+        raise HTTPException(503, "pipeline guard unavailable")
+    if not body.keywords:
+        raise HTTPException(400, "no keywords")
+    if not body.app_id.strip() or not body.cert_id.strip():
+        raise HTTPException(400, "eBay keys required for the deep pipeline")
+    payload = json.dumps({
+        "category": body.category.strip() or "general",
+        "app_id": body.app_id.strip(), "cert_id": body.cert_id.strip(),
+        "keywords": [{"keyword": k.keyword, "revenue_30d": k.revenue_30d}
+                     for k in body.keywords],
+        "sellers": [s.model_dump() for s in body.sellers],
+    }).encode()
+    req = urllib.request.Request(
+        _N8N_DEEP_WEBHOOK, data=payload,
+        headers={"X-Hook-Key": guard, "Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=280) as r:
+            return json.loads(r.read() or b"{}")
+    except urllib.error.HTTPError as e:
+        detail = e.read()[:150].decode(errors="replace")
+        if e.code == 404:
+            raise HTTPException(502, "pipeline offline — activate it in the n8n UI first")
+        raise HTTPException(502, f"pipeline failed: {detail}")
+    except Exception as e:
+        raise HTTPException(504, f"pipeline timed out or unreachable: {str(e)[:120]}")
 
 
 # ── system info ────────────────────────────────────────────────────────────
@@ -1351,7 +1710,8 @@ def pipeline_upload_panels(slug: str, file: UploadFile = _File(...)):
 
 @app.get("/", include_in_schema=False)
 def index():
-    return FileResponse(WEB_DIR / "index.html")
+    return FileResponse(WEB_DIR / "index.html",
+                        headers={"Cache-Control": "no-store"})
 
 
 # Serve the dashboard's split CSS/JS assets. Kept explicit (rather than a broad
@@ -1360,7 +1720,8 @@ def index():
 def web_asset(asset: str):
     if asset not in ("styles.css", "app.js"):
         raise HTTPException(404, f"unknown asset: {asset!r}")
-    return FileResponse(WEB_DIR / asset)
+    return FileResponse(WEB_DIR / asset,
+                        headers={"Cache-Control": "no-store"})
 
 
 app.mount("/web", StaticFiles(directory=WEB_DIR), name="web")

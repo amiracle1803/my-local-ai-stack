@@ -53,4 +53,12 @@ fi
 #     ok "Ollama stopped"
 # fi
 
+# n8n Automation Plane (optional - keep running; it runs the scheduled agents
+# and the Jarvis chat UI). Uncomment to stop it too:
+# if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx n8n-stack-n8n-1; then
+#     log "Stopping n8n Automation Plane..."
+#     docker compose --project-directory /home/amire/n8n-stack -f /home/amire/n8n-stack/docker-compose.yml down
+#     ok "n8n Automation Plane stopped"
+# fi
+
 ok "All services stopped"

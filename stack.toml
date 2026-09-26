@@ -34,7 +34,7 @@ jarvis   = "ornith-1.5-9b-fast:latest"
 
 # ── Voice Studio ──────────────────────────────────────────────────────────
 [voice]
-engine = "chatterbox-turbo" # chatterbox-turbo | qwen3-tts-0.6b | kokoro | espeak-ng
+engine = "kokoro" # chatterbox-turbo | qwen3-tts-0.6b | kokoro | espeak-ng — kokoro routes through kokoro_command (isolated, CPU) by default
 default_voice = "af_heart"
 default_speed = 1.0
 f5_python = "/home/amire/Downloads/tts-f5-venv/bin/python"
@@ -43,10 +43,20 @@ f5_device = "cuda"
 chatterbox_python = "/home/amire/Downloads/tts-chatterbox-venv/bin/python"
 chatterbox_command = "/home/amire/Downloads/tts-chatterbox-venv/bin/python /home/amire/Downloads/my-local-ai-stack/scripts/tts_chatterbox_adapter.py"
 chatterbox_model = "ResembleAI/chatterbox-turbo"
+# Isolated Kokoro-82M from the user's Kokoro WebUI venv (sidesteps the Voice
+# Studio ABI breakage that was degrading TTS to espeak-ng). CPU-only by design.
+kokoro_command = '"/home/amire/Downloads/spech webui copy/Kokoro-82M-WebUI/myenv/bin/python" /home/amire/Downloads/my-local-ai-stack/scripts/tts_kokoro_adapter.py'
 qwen3_tts_python = ""
 qwen3_tts_command = ""
 qwen3_tts_model = "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice"
 gpu_lock_timeout_seconds = 900
+
+# ── ComfyUI (image/video render backend) ────────────────────────────────────
+# Local-only ComfyUI render backend.
+[comfyui]
+host = "127.0.0.1"
+port = 8188
+url = "http://127.0.0.1:8188"
 
 # ── Olympus Kernel ────────────────────────────────────────────────────────
 [kernel]
@@ -152,7 +162,10 @@ vram_gb = 8
 # OFF (default): panels mode — stage5 assembles panels with Ken Burns
 # zoom/pan + fades, no GPU video. ON: stage3c renders motion clips.
 [animation]
-enabled = true
+enabled = false
+# Local 8GB default: panels mode with Ken Burns motion. Enable only after
+# installing a compatible local i2v model set.
+engine = "svd"
 
 # ── NVIDIA NIM (hosted judge) ─────────────────────────────────────────────
 # Two-mode operation:
@@ -195,3 +208,25 @@ models = [
   "deepseek-ai/deepseek-v4-pro-0813",
   "meta/llama-3.2-11b-vision-instruct",
 ]
+
+# ── n8n Automation Plane (added 2026-09-26, additive) ───────────────────────
+# Self-hosted n8n stack (workflows + Postgres + Qdrant) living at
+# /home/amire/n8n-stack — separate compose project, intentionally NOT moved
+# into this repo. This plane runs the agentic workflow layer: Jarvis command
+# center chat, RAG knowledge base, morning briefing, product-research
+# pipeline, ShopGoodwill monitors, MCP toolbox, self-repair.
+# Lifecycle: `docker compose -f /home/amire/n8n-stack/docker-compose.yml up -d`
+[automation]
+enabled = true
+kind = "docker-compose"
+compose_dir = "/home/amire/n8n-stack"
+name = "n8n Automation Plane"
+host = "127.0.0.1"
+port = 5679
+url = "http://127.0.0.1:5679"
+healthcheck = "http://127.0.0.1:5679/healthz"
+containers = ["n8n-stack-n8n-1", "n8n-stack-postgres-1", "n8n-stack-qdrant-1"]
+# The n8n container bind-mounts the vault at /home/node/vault (ro access via
+# N8N_RESTRICT_FILE_ACCESS_TO). Keep paths.vault as the canonical host path.
+vault_mount = "/home/node/vault"
+notes = "API key + passwords in /home/amire/n8n-stack/.env (gitignored there). Guarded webhooks use X-Hook-Key; chat UIs use basic auth (CHAT_USER/CHAT_PASS in that .env)."

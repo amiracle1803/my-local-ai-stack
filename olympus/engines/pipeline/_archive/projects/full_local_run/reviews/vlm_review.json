@@ -1,0 +1,198 @@
+{
+  "total_clips": 12,
+  "reviewed": 12,
+  "skipped_placeholder": 0,
+  "pass": 12,
+  "reject": 0,
+  "avg_score": 8.0,
+  "pass_rate": 1.0,
+  "reviews": {
+    "full_local_run_sc001_sh001_panel_v001.png": {
+      "overall_score": 8.0,
+      "verdict": "PASS",
+      "details": {
+        "exists": 1,
+        "on_model": 8.0,
+        "prompt_adherence": 8.0,
+        "issues": [
+          "The character's hand appears slightly disproportionate to the rest of their body.",
+          "The lighting on the character and background seems inconsistent, with some areas appearing brighter than others."
+        ],
+        "backend": "comfyui"
+      },
+      "raw_response": "{\"score\": 8, \"issues\": [\"The character's hand appears slightly disproportionate to the rest of their body.\", \"The lighting on the character and background seems inconsistent, with some areas appearing brighter than others.\"], \"verdict\": \"PASS\", \"available\": true, \"provider\": \"ollama\"}"
+    },
+    "full_local_run_sc001_sh002_panel_v001.png": {
+      "overall_score": 8.0,
+      "verdict": "PASS",
+      "details": {
+        "exists": 1,
+        "on_model": 8.0,
+        "prompt_adherence": 8.0,
+        "issues": [
+          "The character's silhouette in Scene 1 does not match the detailed appearance of Kal in Scene 2, which could be confusing for readers.",
+          "The text 'We hold the' is incomplete and should likely be part of a sentence or dialogue."
+        ],
+        "backend": "comfyui"
+      },
+      "raw_response": "{\"score\": 8, \"issues\": [\"The character's silhouette in Scene 1 does not match the detailed appearance of Kal in Scene 2, which could be confusing for readers.\", \"The text 'We hold the' is incomplete and should likely be part of a sentence or dialogue.\"], \"verdict\": \"PASS\", \"available\": true, \"provider\": \"ollama\"}"
+    },
+    "full_local_run_sc002_sh001_panel_v001.png": {
+      "overall_score": 8.0,
+      "verdict": "PASS",
+      "details": {
+        "exists": 1,
+        "on_model": 8.0,
+        "prompt_adherence": 8.0,
+        "issues": [
+          "The shadow of the wolf appears to be disproportionately large compared to its body, which might not align with realistic anatomy.",
+          "The expressions and poses of some characters seem inconsistent with their typical behavior in such a scenario."
+        ],
+        "backend": "comfyui"
+      },
+      "raw_response": "{\"score\": 8, \"issues\": [\"The shadow of the wolf appears to be disproportionately large compared to its body, which might not align with realistic anatomy.\", \"The expressions and poses of some characters seem inconsistent with their typical behavior in such a scenario.\"], \"verdict\": \"PASS\", \"available\": true, \"provider\": \"ollama\"}"
+    },
+    "full_local_run_sc002_sh002_panel_v001.png": {
+      "overall_score": 8.0,
+      "verdict": "PASS",
+      "details": {
+        "exists": 1,
+        "on_model": 8.0,
+        "prompt_adherence": 8.0,
+        "issues": [
+          "The character in the top left panel appears to be a wolf-like creature, which is inconsistent with the rest of the scene where humans are present.",
+          "The lighting and shadows in the panels do not consistently match each other."
+        ],
+        "backend": "comfyui"
+      },
+      "raw_response": "{\"score\": 8, \"issues\": [\"The character in the top left panel appears to be a wolf-like creature, which is inconsistent with the rest of the scene where humans are present.\", \"The lighting and shadows in the panels do not consistently match each other.\"], \"verdict\": \"REJECT\", \"available\": true, \"provider\": \"ollama\"}"
+    },
+    "full_local_run_sc003_sh001_panel_v001.png": {
+      "overall_score": 8.0,
+      "verdict": "PASS",
+      "details": {
+        "exists": 1,
+        "on_model": 8.0,
+        "prompt_adherence": 8.0,
+        "issues": [
+          "The character on the left appears to be in a different pose and setting compared to the right panel, which might indicate inconsistency.",
+          "The lighting and shadows are inconsistent between panels, especially noticeable with the character's face."
+        ],
+        "backend": "comfyui"
+      },
+      "raw_response": "{\"score\": 8, \"issues\": [\"The character on the left appears to be in a different pose and setting compared to the right panel, which might indicate inconsistency.\", \"The lighting and shadows are inconsistent between panels, especially noticeable with the character's face.\"], \"verdict\": \"PASS\", \"available\": true, \"provider\": \"ollama\"}"
+    },
+    "full_local_run_sc003_sh002_panel_v001.png": {
+      "overall_score": 8.0,
+      "verdict": "PASS",
+      "details": {
+        "exists": 1,
+        "on_model": 8.0,
+        "prompt_adherence": 8.0,
+        "issues": [
+          "The character on the left appears to be a werewolf or similar creature, but their anatomy and proportions seem exaggerated compared to typical werewolf depictions. The character's limbs are disproportionately long and thin.",
+          "The character on the right has purple hair and is wearing a dark outfit with gloves. Their sword skills appear fluid and precise, suggesting they are skilled in combat, which aligns well with the scene depicted."
+        ],
+        "backend": "comfyui"
+      },
+      "raw_response": "{\"score\": 8, \"issues\": [\"The character on the left appears to be a werewolf or similar creature, but their anatomy and proportions seem exaggerated compared to typical werewolf depictions. The character's limbs are disproportionately long and thin.\", \"The character on the right has purple hair and is wearing a dark outfit with gloves. Their sword skills appear fluid and precise, suggesting they are skilled in combat, which aligns well with the scene depicted.\"], \"verdict\": \"PASS\", \"available\": true, \"provider\": \"ollama\"}"
+    },
+    "full_local_run_sc004_sh001_panel_v001.png": {
+      "overall_score": 8.0,
+      "verdict": "PASS",
+      "details": {
+        "exists": 1,
+        "on_model": 8.0,
+        "prompt_adherence": 8.0,
+        "issues": [
+          "The character's posture and hand position seem slightly unnatural for a kneeling pose.",
+          "The lighting on the character's face is inconsistent with the overall scene, which appears to be lit by the setting sun."
+        ],
+        "backend": "comfyui"
+      },
+      "raw_response": "{\"score\": 8, \"issues\": [\"The character's posture and hand position seem slightly unnatural for a kneeling pose.\", \"The lighting on the character's face is inconsistent with the overall scene, which appears to be lit by the setting sun.\"], \"verdict\": \"PASS\", \"available\": true, \"provider\": \"ollama\"}"
+    },
+    "full_local_run_sc004_sh002_panel_v001.png": {
+      "overall_score": 8.0,
+      "verdict": "PASS",
+      "details": {
+        "exists": 1,
+        "on_model": 8.0,
+        "prompt_adherence": 8.0,
+        "issues": [
+          "The character's hair appears slightly uneven and lacks fine detail in the strands, which could be improved for a more polished look.",
+          "The lighting on the character's face is inconsistent with the background. The character seems to have a softer light source than the surrounding environment."
+        ],
+        "backend": "comfyui"
+      },
+      "raw_response": "{\"score\": 8, \"issues\": [\"The character's hair appears slightly uneven and lacks fine detail in the strands, which could be improved for a more polished look.\", \"The lighting on the character's face is inconsistent with the background. The character seems to have a softer light source than the surrounding environment.\"], \"verdict\": \"PASS\", \"available\": true, \"provider\": \"ollama\"}"
+    },
+    "block_00_manga.png": {
+      "overall_score": 8.0,
+      "verdict": "PASS",
+      "details": {
+        "exists": 1,
+        "on_model": 8.0,
+        "prompt_adherence": 8.0,
+        "issues": [
+          "The character's hair appears slightly inconsistent in the second panel compared to the first. The lighting and shadows also differ significantly, which might be intentional but could affect the overall consistency."
+        ],
+        "backend": "comfyui"
+      },
+      "raw_response": "{\"score\": 8, \"issues\": [\"The character's hair appears slightly inconsistent in the second panel compared to the first. The lighting and shadows also differ significantly, which might be intentional but could affect the overall consistency.\"], \"verdict\": \"PASS\", \"available\": true, \"provider\": \"ollama\"}"
+    },
+    "block_01_manga.png": {
+      "overall_score": 8.0,
+      "verdict": "PASS",
+      "details": {
+        "exists": 1,
+        "on_model": 8.0,
+        "prompt_adherence": 8.0,
+        "issues": [
+          {
+            "category": "character consistency",
+            "issue": "The character's hair color and style appear inconsistent across the panels, especially in Scene 2."
+          },
+          {
+            "category": "prompt adherence",
+            "issue": "The prompt mentions 'block_01_manga.png', but there are two scenes (Scene 1 and Scene 2) which might indicate a misalignment with the prompt's expectations."
+          }
+        ],
+        "backend": "comfyui"
+      },
+      "raw_response": "{\"score\": 8, \"issues\": [{\"category\": \"character consistency\", \"issue\": \"The character's hair color and style appear inconsistent across the panels, especially in Scene 2.\"}, {\"category\": \"prompt adherence\", \"issue\": \"The prompt mentions 'block_01_manga.png', but there are two scenes (Scene 1 and Scene 2) which might indicate a misalignment with the prompt's expectations.\"}], \"verdict\": \"PASS\", \"available\": true, \"provider\": \"ollama\"}"
+    },
+    "block_02_manga.png": {
+      "overall_score": 8.0,
+      "verdict": "PASS",
+      "details": {
+        "exists": 1,
+        "on_model": 8.0,
+        "prompt_adherence": 8.0,
+        "issues": [
+          "The character in the top left panel appears to be a silhouette and lacks detailed features which might affect consistency.",
+          "The background elements, such as the rain and rocky terrain, are consistent across panels but could benefit from more detail for better polish."
+        ],
+        "backend": "comfyui"
+      },
+      "raw_response": "{\"score\": 8, \"issues\": [\"The character in the top left panel appears to be a silhouette and lacks detailed features which might affect consistency.\", \"The background elements, such as the rain and rocky terrain, are consistent across panels but could benefit from more detail for better polish.\"], \"verdict\": \"PASS\", \"available\": true, \"provider\": \"ollama\"}"
+    },
+    "block_03_manga.png": {
+      "overall_score": 8.0,
+      "verdict": "PASS",
+      "details": {
+        "exists": 1,
+        "on_model": 8.0,
+        "prompt_adherence": 8.0,
+        "issues": [
+          "The lighting in the second panel is inconsistent compared to the first one.",
+          "The character's expression seems slightly different, which might be a minor inconsistency."
+        ],
+        "backend": "comfyui"
+      },
+      "raw_response": "{\"score\": 8, \"issues\": [\"The lighting in the second panel is inconsistent compared to the first one.\", \"The character's expression seems slightly different, which might be a minor inconsistency.\"], \"verdict\": \"PASS\", \"available\": true, \"provider\": \"ollama\"}"
+    }
+  },
+  "judge": "ollama",
+  "gate": "PASS"
+}

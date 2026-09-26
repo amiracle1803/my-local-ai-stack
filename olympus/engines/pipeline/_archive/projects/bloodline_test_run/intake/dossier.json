@@ -1,0 +1,35 @@
+{
+  "title": "bloodline_test_run",
+  "synopsis": "SCENE 1 - The Bloodline  Kael enters the ruined city beneath a red moon.  Kael: The bloodline ends tonight.  A shadow beast rises from the gate.",
+  "characters": [
+    {
+      "id": "kael",
+      "name": "Kael",
+      "role": "protagonist",
+      "appearance": "anime design, distinctive silhouette, expressive eyes (Kael)",
+      "description": "Key figure across 1 scenes."
+    },
+    {
+      "id": "the_bloodline",
+      "name": "The Bloodline",
+      "role": "supporting",
+      "appearance": "anime design, distinctive silhouette, expressive eyes (The Bloodline)",
+      "description": "Key figure across 1 scenes."
+    }
+  ],
+  "locations": [
+    {
+      "id": "loc_00",
+      "name": "SCENE 1 - The Bloodline",
+      "description": "SCENE 1 - The Bloodline  Kael enters the ruined city beneath a red moon.  Kael: The bloodline ends tonight.  A shadow beast rises from the gate."
+    }
+  ],
+  "dialogue_log": [
+    {
+      "speaker": "Kael",
+      "addressee": "",
+      "body_movement": "",
+      "line": "The bloodline ends tonight."
+    }
+  ]
+}

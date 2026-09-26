@@ -1,0 +1,66 @@
+[
+  {
+    "shot": "sh-001-01",
+    "kind": "narration",
+    "file": "audio/narration/final_local_sc001_sh001_narration_v001.wav",
+    "start": 0.0,
+    "dur": 12.88,
+    "text": "SCENE 1 - The Village at Dusk  Kael sharpens a worn blade on the hill above the valley as storm clouds gather. The village below is quiet, lanterns being lit on"
+  },
+  {
+    "shot": "sh-001-01",
+    "kind": "dialogue",
+    "file": "audio/dialogue/final_local_sc001_sh001_dialogue_v001.wav",
+    "start": 13.18,
+    "dur": 4.0,
+    "text": "We hold the pass tonight. No matter what comes through."
+  },
+  {
+    "shot": "sh-002-01",
+    "kind": "narration",
+    "file": "audio/narration/final_local_sc002_sh001_narration_v001.wav",
+    "start": 17.48,
+    "dur": 13.2,
+    "text": "SCENE 2 - The Shadow in the Pines  A shadow beast moves between the pines below, too fast to be a wolf, too large to be a man. Villagers bar their doors; mother"
+  },
+  {
+    "shot": "sh-002-01",
+    "kind": "dialogue",
+    "file": "audio/dialogue/final_local_sc002_sh001_dialogue_v001.wav",
+    "start": 30.98,
+    "dur": 3.75,
+    "text": "Stay inside. This is mine to answer for."
+  },
+  {
+    "shot": "sh-003-01",
+    "kind": "narration",
+    "file": "audio/narration/final_local_sc003_sh001_narration_v001.wav",
+    "start": 35.02,
+    "dur": 12.6,
+    "text": "SCENE 3 - The Fight on the Ridge  The beast attacks. Kael meets it with steel, trading cuts on the slick ridge as rain falls. Sparks fly where claws meet the bl"
+  },
+  {
+    "shot": "sh-003-01",
+    "kind": "dialogue",
+    "file": "audio/dialogue/final_local_sc003_sh001_dialogue_v001.wav",
+    "start": 47.92,
+    "dur": 2.48,
+    "text": "Not tonight. Not again."
+  },
+  {
+    "shot": "sh-004-01",
+    "kind": "narration",
+    "file": "audio/narration/final_local_sc004_sh001_narration_v001.wav",
+    "start": 50.7,
+    "dur": 13.22,
+    "text": "SCENE 4 - Dawn  Quiet after the storm. Kael binds a wound and watches the sun rise over the valley. The village endures. The beast is gone, for now.  Kael: The "
+  },
+  {
+    "shot": "sh-004-01",
+    "kind": "dialogue",
+    "file": "audio/dialogue/final_local_sc004_sh001_dialogue_v001.wav",
+    "start": 64.22,
+    "dur": 2.1,
+    "text": "The bloodline holds."
+  }
+]

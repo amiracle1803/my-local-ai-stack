@@ -72,6 +72,14 @@ def synth(text: str, dest: Path, voice: str = "af_heart", speed: float = 1.0,
                 # Provider is selected, but no isolated command is configured yet.
                 # Use Voice Studio rather than silently pretending it ran.
                 engine = "kokoro"
+        if engine == "kokoro":
+            kokoro_command = getattr(cfg.voice, "kokoro_command", "")
+            if kokoro_command:
+                try:
+                    return _synth_external(kokoro_command, text, dest, voice, speed,
+                                           reference, style)
+                except Exception:
+                    pass  # fall through to Voice Studio (kokoro or espeak-ng)
         if engine == "f5-tts":
             try:
                 with gpu_batch("tts:f5", getattr(cfg.voice, "gpu_lock_timeout_seconds", 900)):

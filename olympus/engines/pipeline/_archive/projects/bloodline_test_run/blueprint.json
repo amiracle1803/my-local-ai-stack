@@ -1,0 +1,82 @@
+{
+  "story_id": "a6248ae1-00ec-46a5-bcea-c6e2793fce72",
+  "slug": "bloodline_test_run",
+  "title_hash": "f044c5ff1702c23241278010933d84ec5976ff205185c5fea7f8e435022c4083",
+  "created": "2026-09-15T03:23:39Z",
+  "fps": 24,
+  "mode": "0a",
+  "style": {
+    "name": "z-anime",
+    "lora": null,
+    "negative": "lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, jpeg artifacts, signature, watermark, blurry"
+  },
+  "target": {
+    "resolution": [
+      1280,
+      720
+    ],
+    "max_block_seconds": 90
+  },
+  "stages": {
+    "stage0": {
+      "status": "done",
+      "ts": "2026-09-15T03:23:40Z",
+      "score": 1.0
+    },
+    "stage0_dossier": {
+      "status": "done",
+      "ts": "2026-09-15T03:23:40Z",
+      "score": 1.0
+    },
+    "stage1": {
+      "status": "done",
+      "ts": "2026-09-15T03:23:40Z",
+      "score": 1.0
+    },
+    "stage1_world": {
+      "status": "done",
+      "ts": "2026-09-15T03:23:40Z",
+      "score": 1.0
+    },
+    "stage2": {
+      "status": "done",
+      "ts": "2026-09-15T03:23:40Z",
+      "score": 1.0
+    },
+    "stage4": {
+      "status": "done",
+      "ts": "2026-09-15T03:23:40Z",
+      "score": 1.0
+    },
+    "stage3": {
+      "status": "done",
+      "ts": "2026-09-15T03:23:40Z",
+      "score": 1.0
+    },
+    "stage1r": {
+      "status": "done",
+      "ts": "2026-09-15T03:23:40Z",
+      "score": 1.0
+    },
+    "stage3b": {
+      "status": "done",
+      "ts": "2026-09-15T03:23:55Z",
+      "score": 1.0
+    },
+    "stage3c": {
+      "status": "done",
+      "ts": "2026-09-15T03:23:55Z",
+      "score": 1.0
+    },
+    "stage_vlm_review": {
+      "status": "done",
+      "ts": "2026-09-15T03:23:55Z",
+      "score": 1.0
+    },
+    "stage5": {
+      "status": "done",
+      "ts": "2026-09-15T03:23:55Z",
+      "score": 1.0
+    }
+  }
+}

@@ -60,6 +60,14 @@ select:focus-visible, a:focus-visible {
 
 .mono { font-family: Consolas, "Cascadia Mono", monospace; }
 
+/* Slim theme scrollbars everywhere (Firefox + WebKit). Keeps position
+   info, drops the chunky native look. */
+* { scrollbar-width: thin; scrollbar-color: var(--line2) transparent; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: var(--line2); border-radius: 4px; }
+*::-webkit-scrollbar-thumb:hover { background: var(--cyan-dim); }
+
 /* -- 2. Layout ------------------------------------------------------------ */
 header {
   display: flex; align-items: center; gap: 2rem;
@@ -342,6 +350,191 @@ h2.pg { font-family: Consolas, monospace; font-size: .72rem; letter-spacing: .25
 
 /* -- 10. Commerce ---------------------------------------------------------- */
 .form-vertical { display: flex; flex-direction: column; gap: .6rem; max-width: 760px; margin-bottom: 1.4rem; }
+
+/* Commerce workbench: stepper, KPI cards, panel badges, rich tables.
+   All selectors are scoped under #page-commerce so other pages keep
+   their exact look. Content column is capped so panels never stretch
+   full-bleed on wide screens. */
+#page-commerce { max-width: 1120px; margin-left: auto; margin-right: auto; }
+.cm-steps { display: flex; gap: .5rem; margin-bottom: .9rem; flex-wrap: wrap; }
+.cm-step {
+  flex: 1; min-width: 140px; padding: .55rem .8rem;
+  border: 1px solid var(--line); background: var(--panel);
+  font-family: Consolas, monospace; font-size: .72rem;
+  letter-spacing: .12em; color: var(--dim);
+}
+.cm-step .n {
+  display: inline-flex; width: 1.3rem; height: 1.3rem;
+  border: 1px solid var(--line2); border-radius: 50%;
+  align-items: center; justify-content: center;
+  margin-right: .5rem; font-size: .68rem;
+}
+.cm-step.active { border-color: var(--cyan); color: var(--cyan); }
+.cm-step.active .n { border-color: var(--cyan); }
+.cm-step.done { color: var(--green); }
+.cm-step.done .n { border-color: var(--green); color: var(--green); }
+.cm-kpis {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: .6rem; margin-bottom: .9rem;
+}
+.cm-kpis .card { padding: .6rem .8rem; }
+.cm-panel-head { display: flex; align-items: center; gap: .7rem; margin: 1rem 0 .5rem; }
+.cm-panel-head .pg { margin: 0; }
+.cm-badge {
+  font-family: Consolas, monospace; font-size: .66rem; letter-spacing: .1em;
+  color: #04121a; background: var(--cyan);
+  border-radius: 10px; padding: .15rem .6rem; white-space: nowrap;
+}
+.cm-badge.dim { background: none; color: var(--cyan-dim); border: 1px solid var(--line2); }
+#page-commerce .cm-table-wrap { max-height: none; overflow: visible; }
+.cm-table-wrap { max-height: 320px; overflow-y: auto; }
+.cm-table-wrap thead th { position: sticky; top: 0; background: #0a1420; z-index: 1; }
+#page-commerce table tbody tr:nth-child(even) { background: rgba(87, 199, 227, .03); }
+#page-commerce table tbody tr:hover { background: rgba(87, 199, 227, .07); }
+.cm-bar { height: 5px; background: #1d2c3d; border-radius: 3px; margin-top: 3px; overflow: hidden; max-width: 220px; }
+.cm-bar > div { height: 100%; background: linear-gradient(90deg, var(--cyan-dim), var(--cyan)); }
+.cm-bar.tier-ok > div { background: linear-gradient(90deg, #1f7a4d, var(--green)); }
+.cm-bar.tier-warn > div { background: linear-gradient(90deg, #8a6a1f, var(--gold)); }
+.cm-bar.tier-low > div, .cm-bar.tier-none > div { background: linear-gradient(90deg, var(--cyan-dim), var(--cyan)); }
+.cm-pill {
+  font-family: Consolas, monospace; font-size: .68rem; white-space: nowrap;
+  padding: .1rem .55rem; border-radius: 10px; border: 1px solid var(--line2);
+}
+.cm-pill.ok { color: var(--green); border-color: var(--green); }
+.cm-pill.warn { color: var(--gold); border-color: var(--gold); }
+.cm-pill.bad { color: var(--red); border-color: var(--red); }
+#commerce-paste { min-height: 88px; resize: none; }
+#plutus-text { resize: none; }
+.cm-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+@media (max-width: 900px) { .cm-grid-2 { grid-template-columns: 1fr; } }
+
+/* Commerce infographics: SVG charts + keyword cards. Scoped to
+   #page-commerce; no CDN, pure inline SVG so it works offline. */
+.cm-chart svg { width: 100%; height: auto; display: block; }
+.cm-chart .cx-lbl { font-family: Consolas, monospace; font-size: 11px; fill: var(--text); }
+.cm-chart .cx-val { font-family: Consolas, monospace; font-size: 11px; fill: var(--cyan); }
+.cm-chart .cx-track { fill: #1d2c3d; }
+.cm-cards {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: .7rem; margin-bottom: 1rem;
+}
+/* Insights board: 8 compact cards across (collapses on narrow screens). */
+#commerce-ins-cards { grid-template-columns: repeat(8, 1fr); gap: .5rem; }
+#commerce-ins-cards .cm-kcard { padding: .55rem .6rem; }
+#commerce-ins-cards .kw { font-size: .76rem; padding-right: 0; }
+#commerce-ins-cards .rev { font-size: .82rem; white-space: nowrap; }
+/* Ask Plutus: compact single-purpose form. */
+#plutus-form { max-width: 560px; gap: .45rem; margin-bottom: 1rem; }
+#plutus-text { min-height: 52px; resize: none; }
+#plutus-form .primary { padding: .4rem .9rem; font-size: .85rem; }
+#commerce-ins-cards .rank { display: none; }
+#commerce-ins-cards .cm-pill { font-size: .62rem; }
+@media (max-width: 1100px) { #commerce-ins-cards { grid-template-columns: repeat(4, 1fr); } }
+@media (max-width: 640px) { #commerce-ins-cards { grid-template-columns: repeat(2, 1fr); } }
+.cm-kcard { padding: .8rem .9rem; position: relative; }
+.cm-kcard .rank {
+  position: absolute; top: .6rem; right: .7rem;
+  font-family: Consolas, monospace; font-size: .68rem; color: var(--cyan-dim);
+}
+.cm-kcard .kw { font-weight: 600; font-size: .92rem; margin-bottom: .15rem; padding-right: 2.2rem; }
+.cm-kcard .rev { font-family: Consolas, monospace; color: var(--green); font-size: 1.05rem; }
+.cm-kcard .rev small { color: var(--dim); font-size: .66rem; }
+.cm-kcard .row { display: flex; align-items: center; gap: .5rem; margin-top: .45rem; flex-wrap: wrap; }
+.cm-range { position: relative; height: 6px; background: #1d2c3d; border-radius: 3px; margin: .55rem 0 .2rem; }
+.cm-range .fill { position: absolute; top: 0; bottom: 0; background: rgba(87, 199, 227, .35); border-radius: 3px; }
+.cm-range .med { position: absolute; top: -3px; width: 2px; height: 12px; background: var(--cyan); }
+.cm-range-lbls { display: flex; justify-content: space-between; font-family: Consolas, monospace; font-size: .66rem; color: var(--dim); }
+.cm-src { font-size: .78rem; }
+.cm-src a { color: var(--cyan); margin-right: .7rem; }
+.cm-verdict { border-left: 3px solid var(--gold); font-size: .92rem; }
+
+/* Commerce keyword detail: stat strip (Zik-style), sparkline, products. */
+.cm-stats {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  gap: .6rem; margin: .8rem 0;
+}
+.cm-stat {
+  border: 1px solid var(--line); border-radius: 10px; padding: .5rem .7rem;
+  background: rgba(8, 14, 24, .6);
+}
+.cm-stat b { display: block; font-family: Consolas, monospace; font-size: 1.05rem; color: var(--cyan); }
+.cm-stat span { font-size: .66rem; color: var(--dim); font-family: Consolas, monospace; letter-spacing: .1em; }
+.cm-detail-head { display: flex; align-items: baseline; gap: .8rem; flex-wrap: wrap; }
+.cm-detail-head h3 { margin: 0; font-size: 1.05rem; }
+
+/* Commerce visual punch: gradient KPI numerals, glowing active step,
+   rank-medal chart bars (gold/silver/bronze), lift-on-hover cards. */
+.cm-kpis .card { border-color: var(--line2); }
+.cm-kpis .big {
+  font-size: 1.3rem;
+  background: linear-gradient(135deg, #9fe3f7, #57c7e3 55%, #8f7bff);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.cm-step { padding: .7rem .9rem; font-size: .78rem; }
+.cm-step.active { box-shadow: 0 0 12px rgba(87, 199, 227, .25); }
+.cm-chart { background: linear-gradient(180deg, rgba(87, 199, 227, .05), transparent); }
+.cm-kcard { transition: border-color .15s, transform .15s; }
+.cm-kcard:hover { border-color: var(--cyan); transform: translateY(-2px); }
+.cm-kcard .rev { font-size: 1.05rem; }
+.cm-kcard .rank {
+  width: 1.7rem; height: 1.7rem; border-radius: 50%;
+  border: 1px solid var(--cyan-dim); color: var(--cyan);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: .7rem; top: .7rem; right: .8rem;
+}
+
+/* Commerce hero + friendly flow: rounded surfaces, soft depth, plain
+   language. Still scoped to #page-commerce. */
+#page-commerce .hud { border-radius: 14px; }
+.cm-hero {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 1.5rem; flex-wrap: wrap;
+  padding: .9rem 1.2rem; margin-bottom: 1rem;
+  border: 1px solid var(--line2); border-radius: 16px;
+  background:
+    radial-gradient(600px 200px at 85% 20%, rgba(143, 123, 255, .16), transparent 70%),
+    radial-gradient(500px 220px at 10% 90%, rgba(87, 199, 227, .12), transparent 70%),
+    var(--panel);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, .35);
+}
+.cm-hero h1 { font-size: 1.15rem; margin: .25rem 0 .3rem; letter-spacing: 0; }
+.cm-hero p { color: var(--dim); margin: 0; max-width: 560px; font-size: .85rem; }
+.cm-eyebrow {
+  font-family: Consolas, monospace; font-size: .68rem;
+  letter-spacing: .25em; color: var(--cyan);
+}
+.cm-hero-num { text-align: right; }
+.cm-hero-num div {
+  font-family: Consolas, monospace; font-size: 1.6rem; font-weight: 700;
+  background: linear-gradient(135deg, #9fe3f7, #57c7e3 55%, #8f7bff);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.cm-hero-num span { color: var(--dim); font-size: .75rem; }
+.cm-error {
+  border: 1px solid var(--gold); border-left-width: 4px;
+  border-radius: 10px; background: rgba(232, 184, 75, .08);
+  padding: .7rem 1rem; margin-bottom: 1rem; font-size: .88rem;
+}
+.cm-drop { box-shadow: 0 8px 30px rgba(0, 0, 0, .3); }
+.cm-drop textarea {
+  border-radius: 12px; border: 1px solid var(--line2);
+  background: rgba(4, 8, 14, .9); padding: .9rem 1rem;
+}
+.cm-drop textarea:focus { border-color: var(--cyan); outline: none; }
+.cm-drop-hint { color: var(--dim); font-size: .78rem; margin-top: .4rem; }
+.cm-keys { margin-top: .7rem; }
+.cm-keys summary { cursor: pointer; color: var(--cyan-dim); font-size: .8rem; }
+.cm-keys summary:hover { color: var(--cyan); }
+.cm-cta { font-size: .92rem; padding: .6rem 1.3rem; border-radius: 10px; }
+.cm-kcard { border-radius: 14px; box-shadow: 0 6px 22px rgba(0, 0, 0, .3); }
+.cm-kcard .kw { font-size: 1rem; }
+@media (max-width: 900px) { .cm-hero-num { text-align: left; } }
+.cm-details { margin: 1rem 0 .5rem; }
+.cm-details summary {
+  cursor: pointer; color: var(--cyan-dim); font-size: .82rem;
+  font-family: Consolas, monospace; letter-spacing: .12em; margin-bottom: .5rem;
+}
+.cm-details summary:hover { color: var(--cyan); }
 
 /* -- 11. Voice studio ------------------------------------------------------ */
 #voice-grid { display: grid; grid-template-columns: 340px 1fr; gap: 1.2rem; max-width: 1100px; }

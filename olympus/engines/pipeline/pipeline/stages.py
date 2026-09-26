@@ -8,6 +8,7 @@ local fallbacks keep the run green when services are down.
 
 from __future__ import annotations
 
+import base64
 import json
 import hashlib
 import os
@@ -28,7 +29,7 @@ from .identity import canonical_name, legacy_stem
 # shared text helpers
 # --------------------------------------------------------------------------
 
-_NAME_RE = re.compile(r"\b([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,})?)\b")
+_NAME_RE = re.compile(r"\b([A-Z][a-z]{2,}(?: [A-Z][a-z]{2,})?)\b")
 _STOP = {"The", "This", "That", "There", "They", "When", "Where", "What",
         "With", "From", "Into", "Night", "Morning", "Evening", "Scene",
         "Chapter", "Part", "Episode", "Village", "Mountain", "Shadow"}
@@ -69,13 +70,31 @@ def split_scenes(text: str, target_chars: int = 900) -> list[dict]:
 
 
 def extract_names(text: str, limit: int = 8) -> list[str]:
+    # SCENE headings are location labels, not characters — drop them up front.
+    text = re.sub(r"(?im)^\s*SCENE\s+\d+.*$", "", text)
     counts: dict[str, int] = {}
     for m in _NAME_RE.finditer(text):
         name = m.group(1).strip()
         if name in _STOP or len(name) < 3:
             continue
         counts[name] = counts.get(name, 0) + 1
-    ranked = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
+
+    def _used_as_name(n: str) -> bool:
+        """Kill sentence-initial false positives ("And", "Below"): a real name
+        shows up mid-sentence, in dialogue attribution, or as a speaker label."""
+        if re.search(rf"(?m)^\s*{re.escape(n)}\s*:", text):  # "Kael: ..."
+            return True
+        if re.search(rf"\b{re.escape(n)}\s+(?:said|asked|replied|whispered|shouted|"
+                     r"murmured|answered|sighed|nodded|smiled|added|cried)\b", text, re.I):
+            return True
+        for m in re.finditer(rf"\b{re.escape(n)}\b", text):
+            before = text[:m.start()].rstrip()
+            if before and before[-1] not in ".!?:\"”\n":
+                return True
+        return False
+
+    kept = {n: c for n, c in counts.items() if _used_as_name(n)}
+    ranked = sorted((kept or counts).items(), key=lambda kv: (-kv[1], kv[0]))
     return [n for n, _ in ranked[:limit]]
 
 
@@ -296,8 +315,28 @@ def run_references(project_dir: Path, quick: bool = False) -> dict:
                          subtitle=f"reference {i+1}/{n_refs} · 360 turnaround",
                          body=c.get("sd_prompt", "")[:200], seed=f"{c.get('id')}-{i}")
             made += 1
+    manifest = {
+        "refs": made,
+        "characters": {
+            c.get("id", "char"): [
+                str((project_dir / "worldbible" / "refs" / c.get("id", "char") /
+                     f"ref_{i:02d}.png").relative_to(project_dir))
+                for i in range(n_refs)
+            ]
+            for c in chars
+        },
+    }
     (project_dir / "worldbible" / "refs" / "_manifest.json").write_text(
-        json.dumps({"refs": made}, indent=2), encoding="utf-8")
+        json.dumps(manifest, indent=2), encoding="utf-8")
+    storyboard_path = project_dir / "storyboard" / "storyboard.json"
+    if storyboard_path.exists():
+        storyboard = json.loads(storyboard_path.read_text(encoding="utf-8"))
+        for shot in storyboard.get("shot_detail", []):
+            assets = []
+            for character_id in shot.get("character_ids", []):
+                assets.extend(manifest["characters"].get(character_id, []))
+            shot["reference_assets"] = assets
+        storyboard_path.write_text(json.dumps(storyboard, indent=2), encoding="utf-8")
     rpc = round(made / max(1, len(chars)), 2)
     with Scores(project_dir / "scores.sqlite") as sc:
         sc.record_globals("stage1r", {"refs_per_character": rpc, "failed_generations": 0.0})
@@ -307,41 +346,43 @@ def run_references(project_dir: Path, quick: bool = False) -> dict:
 
 
 # --------------------------------------------------------------------------
-# stage3 — storyboard enrichment (runs after timed screenplay/audio)
+# stage3 — storyboard enrichment (runs after world bible, before screenplay)
 # --------------------------------------------------------------------------
 
 def run_storyboard(project_dir: Path) -> dict:
     project_dir = Path(project_dir)
-    screenplay_path = project_dir / "screenplay" / "screenplay.json"
-    if screenplay_path.exists():
-        screenplay = json.loads(screenplay_path.read_text(encoding="utf-8"))
-        scenes = screenplay.get("scenes", [])
-    else:
-        # Keep the function useful for direct callers, while the runner gate
-        # requires stage2 (and stage4) before this stage in normal execution.
-        scenes = json.loads((project_dir / "stage0_scenes.json").read_text(encoding="utf-8"))
+    # Read from world bible and scenes, NOT screenplay (which runs after)
+    bible_path = project_dir / "worldbible" / "world_bible.json"
+    bible = json.loads(bible_path.read_text(encoding="utf-8")) if bible_path.exists() else {}
+    scenes = json.loads((project_dir / "stage0_scenes.json").read_text(encoding="utf-8"))
+    characters = bible.get("characters", [])
+    character_ids = [c.get("id", "char") for c in characters]
+
     blocks, shots = [], []
     for i, s in enumerate(scenes):
         bid = f"block_{i:02d}"
         blocks.append({"id": bid, "title": s.get("location", f"Scene {i+1}")[:80],
                        "summary": s.get("summary", "")[:240]})
-        screenplay_shots = s.get("shots", [])
-        if not screenplay_shots:
-            screenplay_shots = [{"id": f"sh-{i+1:03d}-01",
-                                 "description": s.get("summary", "")[:180]}]
-        for j, shot in enumerate(screenplay_shots):
-            description = shot.get("description", s.get("summary", ""))[:240]
-            dialogue = shot.get("dialogue", "")
-            narration = shot.get("narration", "")
+        # Storyboard is an internal visual plan. Screenplay text is produced
+        # later by stage2 from these shot contracts.
+        for j in range(2):
+            shot_id = f"sh-{i+1:03d}-{j+1:02d}"
             shots.append({
-                "id": shot.get("id", f"sh-{i+1:03d}-{j+1:02d}"),
+                "id": f"sh-{i+1:03d}-{j+1:02d}",
                 "block": bid,
+                "frame_index": j,
                 "tier": 1 if j == 0 else 2,
-                "direction": description,
-                "narration": narration,
-                "dialogue": dialogue,
-                "sfx": shot.get("sfx", ""),
-                "prompt": f"anime panel, {s.get('location', '')[:60]}, {description[:140]}, cinematic cel shading",
+                "location_id": f"loc_{i:02d}",
+                "character_ids": character_ids,
+                "action": s.get("summary", "")[:240],
+                "composition": "wide establishing shot" if j == 0 else "medium action shot",
+                "camera": "slow push-in" if j == 0 else "subtle tracking movement",
+                "continuity": {
+                    "outfit": "default",
+                    "lighting": s.get("setting", {}).get("time", "unspecified"),
+                    "screen_direction": "left_to_right",
+                },
+                "reference_assets": [],
             })
     sb = {"blocks": blocks, "shot_detail": shots}
     out = project_dir / "storyboard" / "storyboard.json"
@@ -355,38 +396,51 @@ def run_storyboard(project_dir: Path) -> dict:
 
 
 # --------------------------------------------------------------------------
-# stage2 — screenplay
+# stage2 — screenplay (narration + dialogue timed to storyboard shots)
 # --------------------------------------------------------------------------
 
 def run_screenplay(project_dir: Path) -> dict:
     project_dir = Path(project_dir)
     scenes = json.loads((project_dir / "stage0_scenes.json").read_text(encoding="utf-8"))
     storyboard_path = project_dir / "storyboard" / "storyboard.json"
-    sb = json.loads(storyboard_path.read_text(encoding="utf-8")) if storyboard_path.exists() else {
-        "shot_detail": [
-            {"id": f"sh-{i+1:03d}-{j+1:02d}", "block": f"block_{i:02d}",
-             "direction": f"Beat {j + 1}: {scene.get('summary', '')[:180]}"}
-            for i, scene in enumerate(scenes) for j in range(2)
-        ]
-    }
+    if not storyboard_path.exists():
+        raise RuntimeError("stage2 requires storyboard.json from stage3")
+    sb = json.loads(storyboard_path.read_text(encoding="utf-8"))
+    shot_detail = sb.get("shot_detail", [])
+    
+    # Group shots by scene (block)
     by_block: dict[str, list[dict]] = {}
-    for sh in sb.get("shot_detail", []):
+    for sh in shot_detail:
         by_block.setdefault(sh.get("block", ""), []).append(sh)
+    
     out_scenes = []
     for i, s in enumerate(scenes):
         bid = f"block_{i:02d}"
         content = s.get("content", "")
         dlg = _dialogue_lines(content)
         shots = []
-        for k, sh in enumerate(by_block.get(bid, [{"id": f"sh-{i+1:03d}-01"}])):
+        block_shots = by_block.get(bid, [{"id": f"sh-{i+1:03d}-01"}])
+        for k, sh in enumerate(block_shots):
             line = dlg[k] if k < len(dlg) else {}
+            # Estimate shot duration: ~3 seconds per shot as baseline
+            # (stage4 will refine this with actual TTS durations)
+            estimated_dur = 3.0
             shots.append({
                 "id": sh.get("id", f"sh-{i+1:03d}-{k+1:02d}"),
-                "description": sh.get("direction", s.get("summary", ""))[:240],
+                "description": sh.get("action", s.get("summary", ""))[:240],
                 "narration": f"{s.get('summary','')[:180]}" if k == 0 else "",
-                "character": line.get("speaker", ""),
-                "dialogue": line.get("text", ""),
+                "character": line.get("speaker", "") if k < len(dlg) else "",
+                "dialogue": line.get("text", "") if k < len(dlg) else "",
                 "sfx": "wind · thunder" if "storm" in content.lower() else "ambience",
+                "duration_estimate": estimated_dur,
+                "storyboard": {
+                    "location_id": sh.get("location_id", f"loc_{i:02d}"),
+                    "character_ids": sh.get("character_ids", []),
+                    "composition": sh.get("composition", "medium shot"),
+                    "camera": sh.get("camera", "static"),
+                    "continuity": sh.get("continuity", {}),
+                    "reference_assets": sh.get("reference_assets", []),
+                },
             })
         out_scenes.append({"heading": s.get("scene_heading", f"SCENE {i+1}"),
                            "location": s.get("location", ""), "summary": s.get("summary", ""),
@@ -414,6 +468,8 @@ def run_images(project_dir: Path) -> dict:
     project_dir = Path(project_dir)
     sp = json.loads((project_dir / "screenplay" / "screenplay.json").read_text(encoding="utf-8"))
     bible = json.loads((project_dir / "worldbible" / "world_bible.json").read_text(encoding="utf-8"))
+    storyboard = json.loads((project_dir / "storyboard" / "storyboard.json").read_text(encoding="utf-8"))
+    storyboard_by_id = {s.get("id"): s for s in storyboard.get("shot_detail", [])}
     anchors = ", ".join(
         f"{c.get('name', '')}: {c.get('appearance', {}).get('clothing_primary', '')}"
         for c in bible.get("characters", [])[:4]
@@ -425,21 +481,27 @@ def run_images(project_dir: Path) -> dict:
     comfy_render = None
     if real_comfy:
         from .comfy_client import render_panel as comfy_render
+        from stack.config import cfg as _cfg
+        _comfy_url = _cfg.comfyui.url
     for si, scene in enumerate(sp.get("scenes", [])):
         for shot in scene.get("shots", []):
             shot_id = shot.get("id", f"sh-{si+1:03d}-01")
             sid = legacy_stem(shot_id)
+            plan = storyboard_by_id.get(shot_id, {})
+            refs = plan.get("reference_assets", [])
+            continuity = plan.get("continuity", {})
             p = panels / canonical_name(Blueprint.load(project_dir).slug, shot_id, "panel", "png")
-            prompt = f"anime recap panel, {scene.get('location', '')[:80]}, {anchors}, {(shot.get('narration') or shot.get('dialogue') or shot.get('description', ''))[:220]}, cinematic cel shading"
+            prompt = f"anime recap panel, {scene.get('location', '')[:80]}, {anchors}, {(shot.get('narration') or shot.get('dialogue') or shot.get('description', ''))[:220]}, {plan.get('composition', 'medium shot')}, {plan.get('camera', 'static')}, {continuity.get('lighting', '')}, cinematic cel shading"
             if comfy_render:
                 seed = int(hashlib.sha256(sid.encode()).hexdigest()[:8], 16)
-                comfy_render(prompt, p, seed=seed)
+                comfy_render(prompt, p, seed=seed, base_url=_comfy_url)
             else:
                 render_panel(p, title=f"{shot.get('id','SHOT')} · {scene.get('location','')[:40]}",
                              subtitle=f"cast: {anchors or 'ensemble'}", body=prompt[:220], seed=sid)
             (panels / f"{p.stem}.json").write_text(json.dumps(
                 {"shot": shot.get("id"), "seed": sid, "anchors": anchors,
                  "prompt": prompt, "backend": "comfyui" if comfy_render else "placeholder",
+                 "reference_assets": refs, "continuity": continuity,
                  "negative_prompt": "low quality, blurry, text, watermark, deformed",
                  "attempt": 1}, indent=2), encoding="utf-8")
             made += 1
@@ -576,9 +638,19 @@ def run_animation(project_dir: Path, enabled: bool = False) -> dict:
         candidate = dest.with_suffix(".tmp.mp4")
         if os.environ.get("OLYMPUS_REAL_COMFY", "0") == "1":
             try:
-                from .comfy_client import animate_panel
+                from stack.config import cfg as _cfg
                 seed = int(hashlib.sha256(p.stem.encode()).hexdigest()[:8], 16)
-                animate_panel(p, candidate, seed=seed)
+                if getattr(_cfg.animation, "engine", "svd") == "ltx_director":
+                    from .ltx_director import render_director_clip
+                    meta = json.loads(p.with_suffix(".json").read_text(encoding="utf-8")) \
+                        if p.with_suffix(".json").exists() else {}
+                    beat = (meta.get("prompt") or "subtle motion, anime")[:400]
+                    motion = f"cinematic anime motion, gentle camera drift, {beat}"
+                    render_director_clip(p, candidate, seed=seed, base_url=_cfg.comfyui.url,
+                                         motion_prompt=motion)
+                else:
+                    from .comfy_client import animate_panel
+                    animate_panel(p, candidate, seed=seed, base_url=_cfg.comfyui.url)
             except Exception:
                 failed += 1
         if not candidate.exists():
@@ -661,6 +733,46 @@ def run_review(project_dir: Path) -> dict:
                 raw = json.dumps(r)
         except Exception:
             pass
+        # Local VLM fallback (Ollama qwen2.5vl:7b)
+        if verdict == "UNAVAILABLE":
+            try:
+                from .comfy_client import _request
+                import base64
+                with open(review_path, "rb") as f:
+                    img_b64 = base64.b64encode(f.read()).decode()
+                prompt = (
+                    "You are a visual consistency judge for an anime recap video. "
+                    "Score this frame 0-10 on: character consistency, prompt adherence, "
+                    "composition, and artifact freedom. Return JSON only: "
+                    '{"score": float, "verdict": "PASS"|"REJECT", "issues": [string]}'
+                )
+                payload = {
+                    "model": "qwen2.5vl:7b",
+                    "prompt": prompt,
+                    "images": [img_b64],
+                    "stream": False,
+                    "options": {"temperature": 0.0}
+                }
+                r = _request("http://127.0.0.1:11434/api/generate", payload)
+                try:
+                    resp = json.loads(r["response"])
+                    score = float(resp.get("score", 0))
+                    verdict = resp.get("verdict", "PASS" if score >= 6 else "REJECT")
+                    judge_provider = "ollama-qwen2.5vl"
+                    details = {"exists": 1, "on_model": score, "prompt_adherence": score,
+                               "issues": resp.get("issues", []), "backend": backend or "comfyui"}
+                    raw = json.dumps(resp)
+                except Exception:
+                    pass
+            except Exception:
+                pass
+        # The numeric score is authoritative; LLM verdict strings are
+        # unreliable (a scored panel can flip REJECT<->PASS between runs with
+        # temperature 0). Normalize so the gate keys deterministically off the
+        # score alone — a genuinely-unreviewable target keeps verdict
+        # UNAVAILABLE, which still demands review.
+        if verdict != "UNAVAILABLE":
+            verdict = "PASS" if score >= 6 else "REJECT"
         if verdict == "PASS" and score >= 6:
             passed += 1
         reviews[name] = {"overall_score": score, "verdict": verdict,

@@ -1,0 +1,11 @@
+{
+  "provider": "f5-tts",
+  "environment": "/home/amire/Downloads/tts-f5-venv",
+  "device": "cuda",
+  "model": "F5TTS_v1_Base",
+  "sample_rate": 24000,
+  "audio_seconds": 11.339,
+  "bytes": 544300,
+  "nfe_step": 16,
+  "reference_audio": "package_basic_ref_en"
+}

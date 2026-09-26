@@ -1,0 +1,430 @@
+{
+  "stages": {
+    "stage0": {
+      "stage": "stage0",
+      "preflight": {
+        "profile": {
+          "stage": "stage0",
+          "engine": "ollama",
+          "model": "qwen3:8b",
+          "variant": "default",
+          "width": null,
+          "height": null,
+          "steps": null,
+          "expected_vram_gb": 0.0,
+          "offload": "cpu",
+          "enabled": true,
+          "requires_smoke_marker": false,
+          "notes": ""
+        },
+        "available_vram_gb": 2.1201171875,
+        "accepted": true,
+        "reason": "profile accepted",
+        "smoke_marker": "/home/amire/Downloads/my-local-ai-stack/olympus/engines/pipeline/projects/bloodline_local/optimizer/stage0_default.json"
+      },
+      "artifacts": {
+        "required": [
+          "input/script.txt",
+          "stage0_scenes.json"
+        ],
+        "present": [
+          "input/script.txt",
+          "stage0_scenes.json"
+        ],
+        "missing": [],
+        "valid": true,
+        "reason": ""
+      }
+    },
+    "stage0_dossier": {
+      "stage": "stage0_dossier",
+      "preflight": {
+        "profile": {
+          "stage": "stage0_dossier",
+          "engine": "ollama",
+          "model": "qwen2.5vl:7b",
+          "variant": "default",
+          "width": null,
+          "height": null,
+          "steps": null,
+          "expected_vram_gb": 0.0,
+          "offload": "cpu",
+          "enabled": true,
+          "requires_smoke_marker": false,
+          "notes": ""
+        },
+        "available_vram_gb": 2.1201171875,
+        "accepted": true,
+        "reason": "profile accepted",
+        "smoke_marker": "/home/amire/Downloads/my-local-ai-stack/olympus/engines/pipeline/projects/bloodline_local/optimizer/stage0_dossier_default.json"
+      },
+      "artifacts": {
+        "required": [
+          "stage0_scenes.json",
+          "intake/dossier.json"
+        ],
+        "present": [
+          "stage0_scenes.json",
+          "intake/dossier.json"
+        ],
+        "missing": [],
+        "valid": true,
+        "reason": ""
+      }
+    },
+    "stage1": {
+      "stage": "stage1",
+      "preflight": {
+        "profile": {
+          "stage": "stage1",
+          "engine": "ollama",
+          "model": "qwen3:8b",
+          "variant": "default",
+          "width": null,
+          "height": null,
+          "steps": null,
+          "expected_vram_gb": 0.0,
+          "offload": "cpu",
+          "enabled": true,
+          "requires_smoke_marker": false,
+          "notes": ""
+        },
+        "available_vram_gb": 2.1201171875,
+        "accepted": true,
+        "reason": "profile accepted",
+        "smoke_marker": "/home/amire/Downloads/my-local-ai-stack/olympus/engines/pipeline/projects/bloodline_local/optimizer/stage1_default.json"
+      },
+      "artifacts": {
+        "required": [
+          "intake/dossier.json",
+          "worldbible/world_bible.json"
+        ],
+        "present": [
+          "intake/dossier.json",
+          "worldbible/world_bible.json"
+        ],
+        "missing": [],
+        "valid": true,
+        "reason": ""
+      }
+    },
+    "stage1_world": {
+      "stage": "stage1_world",
+      "preflight": {
+        "profile": {
+          "stage": "stage1_world",
+          "engine": "ollama",
+          "model": "qwen3:8b",
+          "variant": "default",
+          "width": null,
+          "height": null,
+          "steps": null,
+          "expected_vram_gb": 0.0,
+          "offload": "cpu",
+          "enabled": true,
+          "requires_smoke_marker": false,
+          "notes": ""
+        },
+        "available_vram_gb": 2.1201171875,
+        "accepted": true,
+        "reason": "profile accepted",
+        "smoke_marker": "/home/amire/Downloads/my-local-ai-stack/olympus/engines/pipeline/projects/bloodline_local/optimizer/stage1_world_default.json"
+      },
+      "artifacts": {
+        "required": [
+          "worldbible/world_bible.json"
+        ],
+        "present": [
+          "worldbible/world_bible.json"
+        ],
+        "missing": [],
+        "valid": true,
+        "reason": ""
+      }
+    },
+    "stage3": {
+      "stage": "stage3",
+      "preflight": {
+        "profile": {
+          "stage": "stage3",
+          "engine": "ollama",
+          "model": "qwen3:8b",
+          "variant": "default",
+          "width": null,
+          "height": null,
+          "steps": null,
+          "expected_vram_gb": 0.0,
+          "offload": "cpu",
+          "enabled": true,
+          "requires_smoke_marker": false,
+          "notes": ""
+        },
+        "available_vram_gb": 1.3828125,
+        "accepted": true,
+        "reason": "profile accepted",
+        "smoke_marker": "/home/amire/Downloads/my-local-ai-stack/olympus/engines/pipeline/projects/bloodline_local/optimizer/stage3_default.json"
+      },
+      "artifacts": {
+        "required": [
+          "worldbible/world_bible.json",
+          "stage0_scenes.json",
+          "storyboard/storyboard.json"
+        ],
+        "present": [
+          "worldbible/world_bible.json",
+          "stage0_scenes.json",
+          "storyboard/storyboard.json"
+        ],
+        "missing": [],
+        "valid": true,
+        "reason": ""
+      }
+    },
+    "stage2": {
+      "stage": "stage2",
+      "preflight": {
+        "profile": {
+          "stage": "stage2",
+          "engine": "ollama",
+          "model": "qwen3:8b",
+          "variant": "default",
+          "width": null,
+          "height": null,
+          "steps": null,
+          "expected_vram_gb": 0.0,
+          "offload": "cpu",
+          "enabled": true,
+          "requires_smoke_marker": false,
+          "notes": ""
+        },
+        "available_vram_gb": 1.3828125,
+        "accepted": true,
+        "reason": "profile accepted",
+        "smoke_marker": "/home/amire/Downloads/my-local-ai-stack/olympus/engines/pipeline/projects/bloodline_local/optimizer/stage2_default.json"
+      },
+      "artifacts": {
+        "required": [
+          "stage0_scenes.json",
+          "storyboard/storyboard.json",
+          "screenplay/screenplay.json"
+        ],
+        "present": [
+          "stage0_scenes.json",
+          "storyboard/storyboard.json",
+          "screenplay/screenplay.json"
+        ],
+        "missing": [],
+        "valid": true,
+        "reason": ""
+      }
+    },
+    "stage4": {
+      "stage": "stage4",
+      "preflight": {
+        "profile": {
+          "stage": "stage4",
+          "engine": "voice",
+          "model": "auto",
+          "variant": "default",
+          "width": null,
+          "height": null,
+          "steps": null,
+          "expected_vram_gb": 0.0,
+          "offload": "cpu",
+          "enabled": true,
+          "requires_smoke_marker": false,
+          "notes": ""
+        },
+        "available_vram_gb": 2.1201171875,
+        "accepted": true,
+        "reason": "profile accepted",
+        "smoke_marker": "/home/amire/Downloads/my-local-ai-stack/olympus/engines/pipeline/projects/bloodline_local/optimizer/stage4_default.json"
+      },
+      "artifacts": {
+        "required": [
+          "screenplay/screenplay.json",
+          "audio/timeline.json"
+        ],
+        "present": [
+          "screenplay/screenplay.json",
+          "audio/timeline.json"
+        ],
+        "missing": [],
+        "valid": true,
+        "reason": ""
+      }
+    },
+    "stage1r": {
+      "stage": "stage1r",
+      "preflight": {
+        "profile": {
+          "stage": "stage1r",
+          "engine": "comfyui",
+          "model": "anima-base-v1.0",
+          "variant": "vnccs-anima",
+          "width": 512,
+          "height": 512,
+          "steps": 8,
+          "expected_vram_gb": 5.0,
+          "offload": "novram",
+          "enabled": true,
+          "requires_smoke_marker": true,
+          "notes": ""
+        },
+        "available_vram_gb": 1.3828125,
+        "accepted": true,
+        "reason": "deterministic local fallback selected; GPU gates bypassed",
+        "smoke_marker": null
+      },
+      "artifacts": {
+        "required": [
+          "worldbible/refs/_manifest.json"
+        ],
+        "present": [
+          "worldbible/refs/_manifest.json"
+        ],
+        "missing": [],
+        "valid": true,
+        "reason": ""
+      }
+    },
+    "stage3b": {
+      "stage": "stage3b",
+      "preflight": {
+        "profile": {
+          "stage": "stage3b",
+          "engine": "comfyui",
+          "model": "flux-2-klein-4b-Q4_K_M.gguf",
+          "variant": "default-panel",
+          "width": 832,
+          "height": 512,
+          "steps": 16,
+          "expected_vram_gb": 6.0,
+          "offload": "lowvram",
+          "enabled": true,
+          "requires_smoke_marker": true,
+          "notes": "Flux.2 Klein 4B high-detail default; Anima/Krea remain experimental."
+        },
+        "available_vram_gb": 1.3828125,
+        "accepted": true,
+        "reason": "local low-VRAM ComfyUI override selected",
+        "smoke_marker": null
+      },
+      "artifacts": {
+        "required": [
+          "panels"
+        ],
+        "present": [
+          "panels"
+        ],
+        "missing": [],
+        "valid": true,
+        "reason": ""
+      }
+    },
+    "stage3c": {
+      "stage": "stage3c",
+      "preflight": {
+        "profile": {
+          "stage": "stage3c",
+          "engine": "comfyui",
+          "model": "ltxv-2b-0.9.8-distilled-fp8-i2v.safetensors",
+          "variant": "optional-ltx2b",
+          "width": 768,
+          "height": 448,
+          "steps": 8,
+          "expected_vram_gb": 7.0,
+          "offload": "block_swap",
+          "enabled": false,
+          "requires_smoke_marker": true,
+          "notes": ""
+        },
+        "available_vram_gb": 2.033203125,
+        "accepted": true,
+        "reason": "local low-VRAM ComfyUI override selected",
+        "smoke_marker": null
+      },
+      "artifacts": {
+        "required": [
+          "panels"
+        ],
+        "present": [
+          "panels"
+        ],
+        "missing": [],
+        "valid": true,
+        "reason": ""
+      }
+    },
+    "stage_vlm_review": {
+      "stage": "stage_vlm_review",
+      "preflight": {
+        "profile": {
+          "stage": "stage_vlm_review",
+          "engine": "ollama",
+          "model": "qwen2.5vl:7b",
+          "variant": "default",
+          "width": null,
+          "height": null,
+          "steps": null,
+          "expected_vram_gb": 0.0,
+          "offload": "cpu",
+          "enabled": true,
+          "requires_smoke_marker": false,
+          "notes": ""
+        },
+        "available_vram_gb": 2.119140625,
+        "accepted": true,
+        "reason": "profile accepted",
+        "smoke_marker": "/home/amire/Downloads/my-local-ai-stack/olympus/engines/pipeline/projects/bloodline_local/optimizer/stage_vlm_review_default.json"
+      },
+      "artifacts": {
+        "required": [
+          "reviews/vlm_review.json"
+        ],
+        "present": [
+          "reviews/vlm_review.json"
+        ],
+        "missing": [],
+        "valid": true,
+        "reason": ""
+      }
+    },
+    "stage5": {
+      "stage": "stage5",
+      "preflight": {
+        "profile": {
+          "stage": "stage5",
+          "engine": "ffmpeg",
+          "model": "libx264",
+          "variant": "default",
+          "width": null,
+          "height": null,
+          "steps": null,
+          "expected_vram_gb": 0.0,
+          "offload": "cpu",
+          "enabled": true,
+          "requires_smoke_marker": false,
+          "notes": ""
+        },
+        "available_vram_gb": 2.119140625,
+        "accepted": true,
+        "reason": "profile accepted",
+        "smoke_marker": "/home/amire/Downloads/my-local-ai-stack/olympus/engines/pipeline/projects/bloodline_local/optimizer/stage5_default.json"
+      },
+      "artifacts": {
+        "required": [
+          "video/final.mp4",
+          "video/final.srt"
+        ],
+        "present": [
+          "video/final.mp4",
+          "video/final.srt"
+        ],
+        "missing": [],
+        "valid": true,
+        "reason": ""
+      }
+    }
+  }
+}
