@@ -1711,7 +1711,11 @@ def pipeline_upload_panels(slug: str, file: UploadFile = _File(...)):
 @app.get("/", include_in_schema=False)
 def index():
     return FileResponse(WEB_DIR / "index.html",
-                        headers={"Cache-Control": "no-store"})
+                        headers={
+                            "Cache-Control": "no-store, max-age=0, must-revalidate, proxy-revalidate",
+                            "Pragma": "no-cache",
+                            "Expires": "0",
+                        })
 
 
 # Serve the dashboard's split CSS/JS assets. Kept explicit (rather than a broad
@@ -1721,7 +1725,11 @@ def web_asset(asset: str):
     if asset not in ("styles.css", "app.js"):
         raise HTTPException(404, f"unknown asset: {asset!r}")
     return FileResponse(WEB_DIR / asset,
-                        headers={"Cache-Control": "no-store"})
+                        headers={
+                            "Cache-Control": "no-store, max-age=0, must-revalidate, proxy-revalidate",
+                            "Pragma": "no-cache",
+                            "Expires": "0",
+                        })
 
 
 app.mount("/web", StaticFiles(directory=WEB_DIR), name="web")

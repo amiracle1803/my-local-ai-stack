@@ -494,9 +494,15 @@ async function refreshTasks() {
      </div>`).join('') || '<span class="text-dim">no activity yet</span>';
 
   // Kanban columns by status
+  const EMPTY_HINT = {
+    queued: 'nothing queued — describe a goal above',
+    running: 'nothing running',
+    done: 'nothing done yet',
+    failed: 'no failures — good',
+  };
   for (const st of ['queued', 'running', 'done', 'failed']) {
     const list = tasks.filter((t) => t.status === st);
-    $(`col-${st}`).innerHTML = list.map(kcard).join('') || '<div class="text-dim mono-sm">empty</div>';
+    $(`col-${st}`).innerHTML = list.map(kcard).join('') || `<div class="text-dim mono-sm">${EMPTY_HINT[st]}</div>`;
     $(`cnt-${st}`).textContent = list.length;
   }
 
@@ -683,8 +689,8 @@ function renderWiki() {
   const up = wikiFolder
     ? `<div class="wiki-up" data-dir="${esc(wikiFolder.split('/').slice(0, -1).join('/'))}">⬆ ..</div>` : '';
   $('wiki-files').innerHTML = up + items.map((it) => it.type === 'dir'
-    ? `<div class="wiki-dir" data-dir="${esc(wikiFolder ? wikiFolder + '/' + it.name : it.name)}"><span class="wiki-ic">📁</span><div><b>${esc(it.name)}</b><div class="mono-xs text-dim">folder</div></div></div>`
-    : `<div class="wiki-note" data-note="${esc(wikiFolder ? wikiFolder + '/' + it.name : it.name)}"><span class="wiki-ic">📄</span><div><b>${esc(it.name)}</b><div class="mono-xs text-dim">markdown note</div></div></div>`
+    ? `<div class="wiki-dir" data-dir="${esc(wikiFolder ? wikiFolder + '/' + it.name : it.name)}"><span class="wiki-ic">📁</span><b>${esc(it.name)}</b><span class="wiki-kind">folder</span></div>`
+    : `<div class="wiki-note" data-note="${esc(wikiFolder ? wikiFolder + '/' + it.name : it.name)}"><span class="wiki-ic">📄</span><b>${esc(it.name)}</b><span class="wiki-kind">md</span></div>`
   ).join('') || '<div class="sm-empty">nothing in this folder</div>';
   $('wiki-files').querySelectorAll('[data-dir]').forEach((el) =>
     el.addEventListener('click', () => loadWiki(el.dataset.dir)));
@@ -776,6 +782,80 @@ function commerceMoney(n) {
   return '$' + Number(n || 0).toLocaleString();
 }
 
+// Zik "Product Research" copy-paste: a header stat block (Sell through,
+// Listings, Sold Items, Sale Earnings, Successful listings, Average Price)
+// followed by seller/product rows (country, seller, feedback, title, sold,
+// total, price, ship-from). Returns null when the text isn't that format.
+function parseZikResearch(text) {
+  const raw = String(text || '');
+  if (!/sell through|sale earnings|successful listings|average price|market share|sales trend/i.test(raw)) return null;
+  const ne = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const low = (s) => s.toLowerCase();
+
+  const STAT = {
+    'sell through': 'sell_through', 'listings': 'listings',
+    'sold items': 'sold_items', 'sale earnings': 'sale_earnings',
+    'successful listings': 'successful_listings', 'average price': 'average_price',
+  };
+  const stats = {};
+  ne.forEach((l, i) => {
+    const key = STAT[low(l)];
+    if (key && stats[key] == null) {
+      const next = ne[i + 1];
+      if (next && /^\$?[\d.,]+%?$/.test(next)) stats[key] = next;
+    }
+  });
+
+  const isCountry = (s) => /^[A-Z]{2}$/.test(s);
+  const isNum = (s) => /^\d[\d,]*$/.test(s);
+  const isMoney = (s) => /^\$[\d.,]+$/.test(s);
+  const isSeller = (s) => /^[A-Za-z][A-Za-z0-9 ._&-]{1,38}$/.test(s)
+    && !isCountry(s) && !isMoney(s) && !isNum(s);
+
+  // Each product block starts at a country code directly above a seller name.
+  const starts = [];
+  for (let i = 0; i < ne.length - 1; i++) {
+    if (isCountry(ne[i]) && isSeller(ne[i + 1])) starts.push(i);
+  }
+  const products = [];
+  for (let s = 0; s < starts.length; s++) {
+    const block = ne.slice(starts[s], s + 1 < starts.length ? starts[s + 1] : ne.length);
+    const seller = block[1];
+    const priceLine = [...block].reverse().find(isMoney);
+    const price = priceLine ? Number(priceLine.replace(/[$,]/g, '')) : null;
+    let title = '';
+    block.forEach((l) => {
+      if (l !== seller && l.length > title.length && l.length > 10
+        && l.includes(' ') && /[A-Za-z]/.test(l) && !isSeller(l)) title = l;
+    });
+    const feedbackLine = block.find((l, idx) => idx > 1 && isNum(l));
+    const feedback = feedbackLine ? Number(feedbackLine.replace(/,/g, '')) : null;
+    const ti = block.indexOf(title);
+    const after = block.slice(ti + 1).filter(isNum).map((n) => Number(n.replace(/,/g, '')));
+    const ship = [...block].reverse().find(isCountry) || block[0];
+    if (seller && title) {
+      products.push({
+        seller, seller_feedback: feedback, title, price,
+        country: ship, sold: after[0] != null ? after[0] : null,
+        total: after[1] != null ? after[1] : null,
+      });
+    }
+  }
+
+  const CHROME = new Set(['product research', 'title analytics', 'price analytics',
+    'search', 'training videos', 'share', 'scan', 'save to watchlist', 'market share',
+    'sales trend', 'filters', 'sellers country', 'dropshippers only', 'exclude vero',
+    'search products', 'searched on: ebay.com']);
+  let keyword = '';
+  for (const l of ne) {
+    if (CHROME.has(low(l))) continue;
+    if (l === low(l) && /^[a-z0-9][a-z0-9 .'&-]{2,}$/.test(l) && l.split(' ').length <= 6) { keyword = l; break; }
+  }
+
+  if (!products.length && !Object.keys(stats).length) return null;
+  return { keyword, stats, products };
+}
+
 // Parse raw Zik copy-paste: alternating name/$lines in keywords mode, then
 // CC/seller/feedback/$sales groups after the "Trending Dropshippers" header.
 function parseZik(text) {
@@ -826,7 +906,7 @@ function parseZik(text) {
     .map((v) => ({ keyword: v.name, revenue_30d: v.rev }))
     .sort((a, b) => b.revenue_30d - a.revenue_30d);
   sellers.sort((a, b) => b.sales_30d - a.sales_30d);
-  return { keywords: deduped, sellers, unpaired };
+  return { keywords: deduped, sellers, unpaired, research: parseZikResearch(text) };
 }
 
 function sourceLinks(kw) {
@@ -921,79 +1001,190 @@ function areaChart(points) {
     + `<text x="${W - 62}" y="${H - 4}" font-size="9" fill="#8b9fb3" font-family="Consolas,monospace">${fmt(0)}</text></svg>`;
 }
 
-async function openKwDetail(kw) {
-  const c = detailComps.find((x) => x.keyword === kw);
-  const el = $('commerce-detail');
-  if (!c) return;
-  el.hidden = false;
-  el.scrollIntoView({ block: 'nearest' });
-  detailItems = c.items || [];
-  const s = c.stats || {};
-  const sellers = new Set(detailItems.map((i) => i.seller || i.seller_feedback).filter((v) => v != null && v !== '')).size;
-  const stat = (v, l, title) =>
-    `<div class="card hud" title="${esc(title || '')}"><div class="big">${v}</div><div class="lbl">${l}</div></div>`;
-  el.innerHTML =
-    `<div class="cm-detail-head"><h3>${esc(c.keyword)}</h3>`
-    + `<span class="chip">searched on ebay.com</span>`
-    + `<button class="ghost" id="cm-detail-close">close ✕</button></div>`
-    + `<div class="cm-kpis">`
-    + stat(Number(c.total || 0).toLocaleString(), 'LIVE LISTINGS', 'Live eBay listings right now — not sold history')
-    + stat(s.med != null ? '$' + Number(s.med).toFixed(2) : '—', 'MED PRICE', 'Median of sampled listings')
-    + stat(s.avg != null ? '$' + Number(s.avg).toFixed(2) : '—', 'AVG PRICE', 'Mean of sampled listings')
-    + stat(sellers || '—', 'SELLERS SEEN', 'Distinct sellers in the sample')
-    + (c.revenue_30d != null
-      ? stat(commerceMoney(c.revenue_30d), 'ZIK 30D', 'Zik estimated 30-day revenue') : '')
-    + `</div>`
-    + `<div class="grid-2">`
-    + `<div class="hud p-md"><div class="hud-title">MARKET SHARE · SAMPLE</div><div id="cm-detail-donut"><em class="text-dim">…</em></div></div>`
-    + `<div class="hud p-md"><div class="hud-title">SALES TREND · GOOGLE INTEREST</div><div id="cm-detail-trend"><em class="text-dim">loading trend…</em></div></div>`
-    + `</div>`
-    + `<div class="flex mt-sm mb-sm"><input class="txt" id="cm-detail-filter" placeholder="Search products…" style="max-width:280px"></div>`
-    + `<div class="hud cm-table-wrap"><table><thead><tr><th></th><th>PRODUCT</th><th>PRICE</th><th>SELLER</th><th>★</th></tr></thead>`
-    + `<tbody id="cm-detail-rows"></tbody></table></div>`
-    + `<div class="mono-xs text-dim" style="margin-top:.6rem">Sold counts need Terapeak/production order data — listings above are live comps.</div>`;
-  $('cm-detail-close').addEventListener('click', () => { el.hidden = true; });
-  const renderRows = () => {
-    const f = ($('cm-detail-filter').value || '').trim().toLowerCase();
-    const rows = detailItems.filter((i) => !f || (i.title || '').toLowerCase().includes(f));
-    $('cm-detail-rows').innerHTML = rows.map((i) =>
-      `<tr><td>${i.thumb ? `<a href="${esc(i.url || '#')}" target="_blank"><img src="${esc(i.thumb)}" alt="" loading="lazy" style="width:44px;height:44px;object-fit:cover;border-radius:6px"></a>` : ''}</td>`
-      + `<td><a href="${esc(i.url || '#')}" target="_blank">${esc(i.title || '')}</a></td>`
-      + `<td class="mono">$${Number(i.price).toFixed(2)}</td>`
-      + `<td class="mono-sm">${esc(i.seller || '')}</td>`
-      + `<td class="mono">${i.seller_feedback != null ? Number(i.seller_feedback).toLocaleString() : '—'}</td></tr>`
-    ).join('') || '<tr><td colspan="5" class="text-dim">no matches</td></tr>';
-  };
-  $('cm-detail-filter').addEventListener('input', renderRows);
-  renderRows();
-  // Seller share donut from the sample (listing counts, not sales).
-  const share = {};
-  detailItems.forEach((i) => {
-    const k = i.seller || 'unknown';
-    share[k] = (share[k] || 0) + 1;
-  });
+/* -- Zik-style Product Research view --------------------------------------- */
+// One selected keyword drives the whole view: stat band, market-share donut,
+// sales trend, filters and the product table. Data comes from the same eBay
+// comp payload the workbench already fetches.
+let zkState = { keyword: '', revenue_30d: null, total: null, stats: null, meta: null, items: [], ztab: 'research' };
+
+function zkSellerCounts() {
+  const set = {};
+  (zkState.items || []).forEach((i) => { const k = i.seller || 'unknown'; set[k] = (set[k] || 0) + 1; });
+  return set;
+}
+
+function renderZkStats() {
+  const s = zkState.stats || {};
+  const m = zkState.meta || {};
+  const cell = (v, l, t) => `<div class="zk-stat" title="${esc(t || '')}"><b>${v}</b><span>${esc(l)}</span></div>`;
+  const dash = '<span class="text-dim">—</span>';
+  const listings = m.listings != null ? m.listings
+    : (zkState.total != null ? Number(zkState.total).toLocaleString() : null);
+  const earnings = zkState.revenue_30d != null ? commerceMoney(zkState.revenue_30d)
+    : (m.saleEarnings || null);
+  const avg = s.avg != null ? '$' + Number(s.avg).toFixed(2) : (m.avgPrice || null);
+  $('zk-stats').innerHTML =
+    cell(m.sellThrough || dash, 'Sell through', 'Sold ÷ listings over the window (from Zik paste)')
+    + cell(listings || dash, 'Listings', 'Live eBay listings')
+    + cell(m.soldItems || dash, 'Sold items', 'Units sold in the window (from Zik paste)')
+    + cell(earnings || dash, 'Sale earnings', 'Zik 30-day revenue for this keyword')
+    + cell(m.successful || dash, 'Successful listings', 'Share of listings that sold (from Zik paste)')
+    + cell(avg || dash, 'Average price', 'Mean listing price');
+}
+
+function renderZkShare() {
+  const share = zkSellerCounts();
   const segs = Object.entries(share).sort((a, b) => b[1] - a[1]).slice(0, 6)
     .map(([label, value]) => ({ label, value }));
   const rest = Object.entries(share).slice(6).reduce((a, [, v]) => a + v, 0);
   if (rest) segs.push({ label: 'other', value: rest });
-  const dz = $('cm-detail-donut');
-  if (dz) dz.innerHTML = segs.length ? donutChart(segs) : '<span class="text-dim">no seller data</span>';
+  $('zk-share').innerHTML = segs.length
+    ? donutChart(segs) : '<span class="text-dim">no seller data — run Analyze with eBay keys</span>';
+}
+
+async function renderZkTrend() {
+  const el = $('zk-trend');
+  if (!zkState.keyword) { el.innerHTML = '<span class="text-dim">—</span>'; return; }
+  el.innerHTML = '<em class="text-dim">loading trend…</em>';
   try {
-    const t = await j('/api/commerce/trends?keyword=' + encodeURIComponent(c.keyword));
-    const box = $('cm-detail-trend');
-    if (box) box.innerHTML = areaChart(t.points)
+    const t = await j('/api/commerce/trends?keyword=' + encodeURIComponent(zkState.keyword));
+    el.innerHTML = areaChart(t.points)
       + `<div class="mono-xs text-dim">avg ${t.trend_90d_avg} · ${t.trending ? '↗ trending' : '→ flat'}</div>`;
   } catch {
-    const box = $('cm-detail-trend');
-    if (box) box.innerHTML = '<span class="text-dim">trend unavailable</span>';
+    el.innerHTML = '<span class="text-dim">trend unavailable</span>';
   }
 }
 
-function renderKwChart() {
-  const top = intake.keywords.slice(0, 15);
-  $('commerce-chart-kw').innerHTML = top.length
-    ? svgBars(top.map((k) => ({ label: k.keyword, value: k.revenue_30d })), fmtMoney)
-    : '<div class="sm-empty">No keywords parsed.</div>';
+function zkFilteredItems() {
+  const q = ($('zk-product-search').value || '').trim().toLowerCase();
+  const cc = $('zk-country').value;
+  const vero = $('zk-vero').checked;
+  return (zkState.items || []).filter((i) => {
+    if (q && !(i.title || '').toLowerCase().includes(q)) return false;
+    if (cc && (i.country || '').toUpperCase() !== cc) return false;
+    if (vero && /vero/i.test(i.title || '')) return false;
+    return true;
+  });
+}
+
+function renderZkTable() {
+  const n = parseInt($('zk-entries').value, 10) || 100;
+  const items = zkFilteredItems().slice(0, n);
+  $('zk-rows').innerHTML = items.map((i) => {
+    const loc = (i.country || 'US').toUpperCase();
+    return '<tr>'
+      + `<td class="mono-sm">${esc(loc)}</td>`
+      + `<td class="mono-sm">${esc(i.seller || '')}</td>`
+      + `<td class="mono">${i.seller_feedback != null ? Number(i.seller_feedback).toLocaleString() : '—'}</td>`
+      + `<td class="zk-prod">${i.thumb ? `<a href="${esc(i.url || '#')}" target="_blank"><img src="${esc(i.thumb)}" alt="" loading="lazy" style="width:34px;height:34px;object-fit:cover;border-radius:5px;vertical-align:middle;margin-right:.5rem"></a>` : ''}<a href="${esc(i.url || '#')}" target="_blank">${esc(i.title || '')}</a></td>`
+      + `<td class="mono">${i.sold != null ? Number(i.sold).toLocaleString() : '—'}</td>`
+      + `<td class="mono">${i.total != null ? Number(i.total).toLocaleString() : '—'}</td>`
+      + `<td class="mono">$${Number(i.price || 0).toFixed(2)}</td>`
+      + `<td class="mono-sm">${esc(loc)}</td></tr>`;
+  }).join('') || '<tr><td colspan="8" class="text-dim">no listings — run Analyze with eBay keys, or widen the filters</td></tr>';
+}
+
+function renderZkTitle() {
+  const freq = {};
+  zkFilteredItems().forEach((i) => {
+    new Set((i.title || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter((w) => w.length > 2))
+      .forEach((w) => { freq[w] = (freq[w] || 0) + 1; });
+  });
+  const rows = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 40);
+  const total = rows.reduce((a, [, v]) => a + v, 0) || 1;
+  $('zk-title-rows').innerHTML = rows.map(([w, v]) =>
+    `<tr><td class="mono">${esc(w)}</td><td class="mono">${v}</td>`
+    + `<td><div class="cm-bar" style="max-width:160px"><div style="width:${Math.round(100 * v / rows[0][1])}%"></div></div>`
+    + `<span class="mono-xs text-dim">${Math.round(100 * v / total)}%</span></td></tr>`
+  ).join('') || '<tr><td colspan="3" class="text-dim">no listings to analyse</td></tr>';
+}
+
+function renderZkPrice() {
+  const items = zkFilteredItems().filter((i) => i.price != null);
+  const bands = [[0, 5], [5, 10], [10, 20], [20, 50], [50, 100], [100, Infinity]];
+  const counts = bands.map(() => 0);
+  items.forEach((i) => {
+    const p = Number(i.price);
+    const idx = bands.findIndex(([lo, hi]) => p >= lo && p < hi);
+    if (idx >= 0) counts[idx]++;
+  });
+  const max = Math.max(1, ...counts);
+  const total = counts.reduce((a, v) => a + v, 0) || 1;
+  $('zk-price-rows').innerHTML = bands.map(([lo, hi], i) => {
+    const label = hi === Infinity ? `$${lo}+` : `$${lo}–$${hi}`;
+    return `<tr><td class="mono">${label}</td><td class="mono">${counts[i]}</td>`
+      + `<td><div class="cm-bar" style="max-width:160px"><div style="width:${Math.round(100 * counts[i] / max)}%"></div></div>`
+      + `<span class="mono-xs text-dim">${Math.round(100 * counts[i] / total)}%</span></td></tr>`;
+  }).join('');
+}
+
+function applyZkTab() {
+  const tab = zkState.ztab;
+  $('zk-table-wrap').hidden = tab !== 'research';
+  $('zk-title-wrap').hidden = tab !== 'title';
+  $('zk-price-wrap').hidden = tab !== 'price';
+  document.querySelectorAll('.zk-tab').forEach((b) => {
+    const on = b.dataset.ztab === tab;
+    b.classList.toggle('is-active', on);
+    b.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+}
+
+function zkRender() {
+  const countries = [...new Set((zkState.items || [])
+    .map((i) => (i.country || '').toUpperCase()).filter(Boolean))].sort();
+  const sel = $('zk-country');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">All</option>'
+    + countries.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  sel.value = countries.includes(cur) ? cur : '';
+  renderZkStats();
+  renderZkShare();
+  renderZkTrend();
+  renderZkTable();
+  renderZkTitle();
+  renderZkPrice();
+}
+
+function zkSetIntake(open) {
+  const panel = $('commerce-intake-panel');
+  const btn = $('commerce-intake-toggle');
+  if (!panel) return;
+  panel.hidden = !open;
+  if (btn) {
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    btn.textContent = open ? 'Paste Zik intake ▴' : 'Paste Zik intake ▾';
+  }
+}
+
+function zkShowKeyword(keyword, opts) {
+  const o = opts || {};
+  zkState.keyword = keyword || '';
+  zkState.revenue_30d = o.revenue_30d != null ? o.revenue_30d : null;
+  zkState.total = o.total != null ? o.total : null;
+  zkState.stats = o.stats || null;
+  zkState.meta = o.meta || null;
+  zkState.items = o.items || [];
+  $('zk-title').textContent = zkState.keyword || '—';
+  $('zk-prodmeta').textContent = [
+    zkState.total != null ? `${Number(zkState.total).toLocaleString()} live listings` : 'live listings —',
+    zkState.items.length ? `${zkState.items.length} sampled` : 'sample —',
+    zkState.revenue_30d != null ? `${commerceMoney(zkState.revenue_30d)} Zik 30d` : 'Zik 30d —',
+  ].join(' · ');
+  ['zk-prodhead', 'zk-stats', 'zk-two', 'zk-filters'].forEach((id) => { $(id).hidden = false; });
+  applyZkTab();
+  zkRender();
+  zkSetIntake(false); // results take focus; reopen via the “Paste Zik intake” button
+}
+
+async function openKwDetail(kw) {
+  const c = detailComps.find((x) => x.keyword === kw);
+  if (!c) return;
+  detailItems = c.items || [];
+  zkShowKeyword(c.keyword, {
+    revenue_30d: c.revenue_30d, total: c.total, stats: c.stats, items: c.items,
+  });
+  $('zk-prodhead').scrollIntoView({ block: 'start', behavior: 'smooth' });
 }
 
 function renderSellerChart() {
@@ -1096,6 +1287,12 @@ async function loadCommerce() {
         if (tgl) tgl.addEventListener('click', () => { insShowAll = !insShowAll; renderInsCards(); });
       };
       renderInsCards();
+      const lastRun = n8n && n8n.product_research && n8n.product_research.last
+        && n8n.product_research.last.stoppedAt
+        ? n8n.product_research.last.stoppedAt.slice(0, 10) : null;
+      $('cm-hero-meta').textContent =
+        `${items.length} notes · ${n8n && n8n.reachable ? `${n8n.workflows} workflows` : 'n8n offline'}`
+        + (lastRun ? ` · last deep run ${lastRun}` : '');
       const saved = localStorage.getItem('commerce-note');
       if (saved && items.some((n) => 'Product Research/' + n.file === saved)) openCommerceNote(saved);
     } catch {
@@ -1154,6 +1351,71 @@ async function loadCommerce() {
   function doParse() {
     cmClearError();
     const parsed = parseZik($('commerce-paste').value);
+    const r = parsed.research;
+    // Zik "Product Research" paste → one keyword plus its seller/product rows.
+    if (r && (r.products.length || Object.keys(r.stats).length)) {
+      const kw = r.keyword || 'product research';
+      const num = (v, pct) => {
+        if (v == null) return null;
+        const n = Number(String(v).replace(/[$,%]/g, ''));
+        return Number.isFinite(n) ? n : null;
+      };
+      const earn = num(r.stats.sale_earnings);
+      const listings = num(r.stats.listings);
+      const avg = num(r.stats.average_price);
+      intake = {
+        category: $('commerce-category').value.trim() || kw,
+        keywords: [{ keyword: kw, revenue_30d: earn || 0 }],
+        sellers: r.products.map((p) => ({
+          seller: p.seller, country: p.country || '',
+          feedback: p.seller_feedback || 0, sales_30d: p.sold || 0,
+        })),
+      };
+      intakeSlug = '';
+      const catInput = $('commerce-category');
+      if (!catInput.value.trim()) catInput.value = suggestCategory(kw);
+      intake.category = catInput.value;
+      $('commerce-preview-rows').innerHTML = r.products.slice(0, 30).map((p) =>
+        `<tr><td>${esc(p.title)}</td><td class="mono">$${Number(p.price || 0).toFixed(2)}</td></tr>`
+      ).join('') || '<tr><td colspan="2" class="text-dim">No product rows found.</td></tr>';
+      $('commerce-preview-count').textContent =
+        `${r.products.length} products · “${kw}”` + (listings ? ` · ${listings.toLocaleString()} listings` : '');
+      cmKpis('1', earn != null ? commerceMoney(earn) : '—',
+        String(r.products.length), undefined);
+      $('cm-results').hidden = false;
+      $('cm-hero-num').hidden = false;
+      $('cm-kpis').hidden = false;
+      renderSellerChart();
+      cmStep(1, 'done'); cmStep(2, 'active'); cmStep(3, ''); cmStep(4, '');
+      zkShowKeyword(kw, {
+        revenue_30d: earn, total: listings,
+        stats: avg != null ? { avg } : null,
+        items: r.products,
+        meta: {
+          sellThrough: r.stats.sell_through || null,
+          soldItems: r.stats.sold_items || null,
+          successful: r.stats.successful_listings || null,
+          listings: listings != null ? listings.toLocaleString() : null,
+          saleEarnings: earn != null ? commerceMoney(earn) : null,
+          avgPrice: avg != null ? '$' + avg.toFixed(2) : null,
+        },
+      });
+      $('commerce-search').value = kw;
+      // Feed the ANALYSIS cards from the same paste so they're coherent and
+      // clicking one re-opens the research view (no eBay keys required).
+      detailComps = [{
+        keyword: kw, revenue_30d: earn, total: listings,
+        stats: avg != null ? { avg } : null, items: r.products,
+      }];
+      $('commerce-comps-cards').innerHTML =
+        `<div class="hud cm-kcard" data-kw="${esc(kw)}" style="cursor:pointer">`
+        + `<div class="rank">#1</div><div class="kw">${esc(kw)}</div>`
+        + (earn != null ? `<div class="rev">${commerceMoney(earn)} <small>ZIK 30D</small></div>` : '')
+        + `<div class="row"><span class="cm-pill ok">${r.products.length} products</span>`
+        + (listings ? `<span class="cm-pill">${listings.toLocaleString()} live</span>` : '')
+        + `</div><div class="row cm-src">${sourceLinks(kw)}</div></div>`;
+      return;
+    }
     intake = { category: $('commerce-category').value.trim(),
                keywords: parsed.keywords, sellers: parsed.sellers };
     intakeSlug = '';
@@ -1163,6 +1425,7 @@ async function loadCommerce() {
       $('commerce-preview-count').textContent = '';
       $('cm-results').hidden = true;
       $('cm-hero-num').hidden = true;
+      $('cm-kpis').hidden = true;
       return;
     }
     const catInput = $('commerce-category');
@@ -1183,15 +1446,17 @@ async function loadCommerce() {
       + (parsed.unpaired ? ` · ${parsed.unpaired} stray lines skipped` : '')
       + (parsed.keywords.length > 30 ? ' · showing top 30' : '');
     cmKpis(String(parsed.keywords.length), commerceMoney(totalRev),
-      String(parsed.sellers.length), undefined);
+      parsed.sellers.length ? String(parsed.sellers.length) : '—', undefined);
     $('cm-results').hidden = false;
     $('cm-hero-num').hidden = false;
-    renderKwChart();
-    renderSellerChart();
+    $('cm-kpis').hidden = false;
+     renderSellerChart();
     cmStep(1, 'done');
     cmStep(2, 'active');
     cmStep(3, '');
     cmStep(4, '');
+    // Zik research view defaults to the top keyword by revenue.
+    zkShowKeyword(parsed.keywords[0].keyword, { revenue_30d: parsed.keywords[0].revenue_30d, items: [] });
   }
 
   parseBtn.addEventListener('click', doParse);
@@ -1252,7 +1517,8 @@ async function loadCommerce() {
         `You are Plutus, commerce analyst. Niche category: "${cat}".\n`
         + `Zik last-30-day keyword revenues:\n${topLines}\n`
         + `Top sellers:\n${sellerLines || '(none)'}\n`
-        + `Write exactly these sections, terse plain text, no tables:\n`
+        + `Every claim MUST cite a number from the input above. Ban generic phrases. `
+        + `If data is thin, say so instead of inventing. Write exactly these sections, terse plain text, no tables:\n`
         + `1) NICHE VERDICT (trending or not, why — 2 lines max)\n`
         + `2) DEMAND SIGNALS 3) RISK FLAGS (up to 3)\n`
         + `4) PRICE BAND to list under 5) SOURCING ANGLES (what to verify on Amazon/Walmart)`,
@@ -1315,6 +1581,12 @@ async function loadCommerce() {
       const done_n = top.filter((k) => k.comp && k.comp.stats).length;
       detailComps = top.filter((k) => k.comp).map((k) =>
         ({ keyword: k.keyword, revenue_30d: k.revenue_30d, ...k.comp }));
+      if (detailComps.length) {
+        const c0 = detailComps[0];
+        zkShowKeyword(c0.keyword, {
+          revenue_30d: c0.revenue_30d, total: c0.total, stats: c0.stats, items: c0.items,
+        });
+      }
       cmKpis(undefined, undefined, undefined,
         wantComps ? `${done_n}/${top.length}` : '—');
       cmStep(3, 'done');
@@ -1370,6 +1642,57 @@ async function loadCommerce() {
     const card = e.target.closest('[data-kw]');
     if (card) openKwDetail(card.dataset.kw);
   });
+
+  /* -- Zik view wiring ------------------------------------------------------ */
+  document.querySelectorAll('.zk-tab').forEach((b) => b.addEventListener('click', () => {
+    zkState.ztab = b.dataset.ztab;
+    applyZkTab();
+  }));
+  const zkRerender = () => { renderZkTable(); renderZkTitle(); renderZkPrice(); };
+  ['zk-product-search', 'zk-country', 'zk-vero', 'zk-dropship', 'zk-entries'].forEach((id) => {
+    const el = $(id);
+    if (el) el.addEventListener('input', zkRerender);
+    if (el) el.addEventListener('change', zkRerender);
+  });
+
+  const intakeToggle = $('commerce-intake-toggle');
+  if (intakeToggle) intakeToggle.addEventListener('click', () => {
+    zkSetIntake($('commerce-intake-panel').hidden);
+  });
+
+  const searchBtn = $('commerce-search-btn');
+  if (searchBtn) searchBtn.addEventListener('click', () => {
+    const kw = ($('commerce-search').value || '').trim();
+    if (!kw) return;
+    const c = detailComps.find((x) => (x.keyword || '').toLowerCase() === kw.toLowerCase());
+    if (c) {
+      zkShowKeyword(c.keyword, { revenue_30d: c.revenue_30d, total: c.total, stats: c.stats, items: c.items });
+      return;
+    }
+    const k = intake.keywords.find((x) => x.keyword.toLowerCase() === kw.toLowerCase()) || { keyword: kw, revenue_30d: null };
+    zkShowKeyword(k.keyword, { revenue_30d: k.revenue_30d, items: [] });
+  });
+
+  const zkShareBtn = $('zk-share-btn');
+  if (zkShareBtn) zkShareBtn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(location.href.split('#')[0] + '#' + encodeURIComponent(zkState.keyword));
+      zkShareBtn.textContent = 'Copied ✓';
+      setTimeout(() => { zkShareBtn.textContent = 'Share'; }, 1500);
+    } catch { /* clipboard blocked */ }
+  });
+  const zkSaveBtn = $('zk-save');
+  if (zkSaveBtn) zkSaveBtn.addEventListener('click', () => {
+    if (!zkState.keyword) return;
+    let list = [];
+    try { list = JSON.parse(localStorage.getItem('zk-watchlist') || '[]'); } catch { list = []; }
+    const has = list.includes(zkState.keyword);
+    const next = has ? list.filter((k) => k !== zkState.keyword) : [...list, zkState.keyword];
+    try { localStorage.setItem('zk-watchlist', JSON.stringify(next.slice(-50))); } catch { /* ignore */ }
+    zkSaveBtn.textContent = next.includes(zkState.keyword) ? 'Saved ★' : 'Save to Watchlist';
+  });
+  const zkScanBtn = $('zk-scan');
+  if (zkScanBtn) zkScanBtn.addEventListener('click', () => { zkRender(); zkScanBtn.textContent = 'Scanned ✓'; setTimeout(() => { zkScanBtn.textContent = 'Scan'; }, 1200); });
 
   // Deep pipeline: same intake through the n8n workflow (niches, live
   // comps, trends, vault report). Takes minutes; keys ride along per-run.
@@ -1436,7 +1759,18 @@ async function loadCommerce() {
           + `<div class="row cm-src">${sourceLinks(c.keyword || '')}</div></div>`;
       }).join('') : '<div class="sm-empty">Pipeline returned no comps.</div>';
       cmKpis(undefined, undefined, undefined, `${comps.length} deep`);
-      detailComps = comps.map((c) => ({ ...c, revenue_30d: revByKw[c.keyword] }));
+      detailComps = comps.map((c) => ({
+        ...c,
+        revenue_30d: revByKw[c.keyword],
+        stats: c.min != null ? { min: c.min, med: c.med, max: c.max, avg: c.avg } : null,
+        items: c.items || [],
+      }));
+      if (detailComps.length) {
+        const c0 = detailComps[0];
+        zkShowKeyword(c0.keyword, {
+          revenue_30d: c0.revenue_30d, total: c0.total, stats: c0.stats, items: c0.items,
+        });
+      }
       cmStep(3, 'done');
       cmStep(4, 'done');
       $('commerce-progress').textContent =

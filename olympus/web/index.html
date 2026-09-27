@@ -9,7 +9,7 @@
 <meta property="og:title" content="Olympus | Local AI Stack Dashboard">
 <meta property="og:description" content="Central hub for the Local AI Stack. Monitor agents, tasks, pipeline stages, voice studio, and system health.">
 <meta property="og:type" content="website">
-<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/styles.css?v=1790465776">
 </head>
 <body>
 
@@ -83,11 +83,17 @@
 <div class="page" id="page-tasks">
   <h1 class="pg">TASKS · AGENT WORK QUEUE</h1>
   <div id="orchestrate-bar">
-    <input class="txt" id="orchestrate-goal" placeholder="Give the Conductor a goal — it plans the steps and agents pick them up…">
-    <button class="primary" id="orchestrate-btn">ORCHESTRATE</button>
-    <input class="txt" id="quick-task" placeholder="…or drop a single task (auto-routed)">
-    <button class="ghost btn-pad" id="quick-btn">QUEUE</button>
-    <button class="ghost" id="clear-done-btn" title="Remove completed & failed tasks from the board">CLEAR DONE</button>
+    <div class="orc-row">
+      <label class="label" for="orchestrate-goal">CONDUCTOR GOAL</label>
+      <input class="txt" id="orchestrate-goal" placeholder="Give the Conductor a goal — it plans the steps and agents pick them up…">
+      <button class="primary" id="orchestrate-btn">ORCHESTRATE</button>
+    </div>
+    <div class="orc-row">
+      <label class="label" for="quick-task">SINGLE TASK</label>
+      <input class="txt" id="quick-task" placeholder="…or drop a single task (auto-routed)">
+      <button class="ghost btn-pad" id="quick-btn">QUEUE</button>
+      <button class="ghost" id="clear-done-btn" title="Remove completed & failed tasks from the board">CLEAR DONE</button>
+    </div>
   </div>
   <div class="kanban">
     <div class="kcol hud"><div class="hud-title">QUEUED <span class="cnt" id="cnt-queued">0</span></div><div class="kcards" id="col-queued"></div></div>
@@ -115,34 +121,37 @@
 
 <!-- ===== COMMERCE — Plutus agent + product research ======================== -->
 <div class="page" id="page-commerce">
-  <div class="cm-hero">
-    <div>
-      <div class="cm-eyebrow">COMMERCE · PRODUCT RESEARCH</div>
-      <h1>What should you sell next?</h1>
-      <p>Paste your Zik copy below — charts, a niche verdict, live eBay prices and sourcing links appear by themselves.</p>
+  <!-- Zik-style view tabs -->
+  <div class="zk-tabs" role="tablist" aria-label="Commerce views">
+    <button class="zk-tab is-active" data-ztab="research" role="tab" aria-selected="true">Product Research</button>
+    <button class="zk-tab" data-ztab="title" role="tab" aria-selected="false">Title Analytics</button>
+    <button class="zk-tab" data-ztab="price" role="tab" aria-selected="false">Price Analytics</button>
+  </div>
+
+  <!-- Query bar -->
+  <div class="zk-query">
+    <div class="zk-search">
+      <input id="commerce-search" class="txt mono" placeholder="Search a product keyword…" autocomplete="off" aria-label="Search a product keyword">
+      <button class="primary" id="commerce-search-btn">Search</button>
     </div>
-    <div class="cm-hero-num" id="cm-hero-num" hidden><div id="cm-kpi-rev">—</div><span>30d revenue in this intake</span></div>
+    <div class="zk-query-actions">
+      <button class="ghost" id="commerce-intake-toggle" aria-expanded="false" aria-controls="commerce-intake-panel">Paste Zik intake ▾</button>
+      <button class="ghost" id="commerce-parse-btn">re-check paste</button>
+      <button class="ghost" id="commerce-deep-btn" title="Full pipeline: niches, live comps, trends, report (takes minutes)">Deep pipeline ▶▶</button>
+      <span id="cm-hero-meta" class="mono-xs text-dim"></span>
+    </div>
   </div>
   <div id="commerce-error" class="cm-error" style="display:none"></div>
-  <div class="cm-steps">
-    <div class="cm-step active" id="cm-step-1"><span class="n">1</span>PASTE ZIK</div>
-    <div class="cm-step" id="cm-step-2"><span class="n">2</span>REVIEW INTAKE</div>
-    <div class="cm-step" id="cm-step-3"><span class="n">3</span>ANALYZE</div>
-    <div class="cm-step" id="cm-step-4"><span class="n">4</span>REPORT</div>
-  </div>
-  <div class="cm-kpis">
-    <div class="card hud"><div class="big" id="cm-kpi-kw">—</div><div class="lbl">keywords</div></div>
-    <div class="card hud"><div class="big" id="cm-kpi-sellers">—</div><div class="lbl">sellers</div></div>
-    <div class="card hud"><div class="big" id="cm-kpi-comps">—</div><div class="lbl">comps ok</div></div>
-  </div>
-  <div class="cm-panel-head"><span class="cm-badge">STEP 1–2</span><h2 class="pg">YOUR ZIK DATA</h2></div>
-  <div class="hud p-md cm-drop">
-    <textarea id="commerce-paste" rows="4" class="w-full mono" placeholder="Paste here — e.g.&#10;&#10;Kitchen Sink Faucet Sprayer&#10;$45,828&#10;Cuban Chain Necklace&#10;$27,973&#10;…"></textarea>
+
+  <!-- Intake paste panel (collapsible) -->
+  <div class="hud p-md cm-drop zk-intake" id="commerce-intake-panel">
+    <div class="cm-panel-head" style="margin-top:0"><span class="cm-badge">INTAKE</span><h2 class="pg">PASTE ZIK DATA</h2></div>
+    <textarea id="commerce-paste" rows="3" class="w-full mono" aria-label="Paste Zik analytics data" placeholder="Paste here — e.g.&#10;&#10;Kitchen Sink Faucet Sprayer&#10;$45,828&#10;Cuban Chain Necklace&#10;$27,973&#10;…"></textarea>
     <div class="cm-drop-hint">Charts build themselves the moment you paste. Nothing to configure.</div>
     <div class="flex mt-sm">
-      <label class="label">NAME THIS BATCH</label>
+      <label class="label" for="commerce-category">NAME THIS BATCH</label>
       <input class="txt" id="commerce-category" placeholder="auto-suggested from your top keyword" style="max-width:280px">
-      <label class="label">EBAY PRICES FROM</label>
+      <label class="label" for="commerce-env">EBAY PRICES FROM</label>
       <select id="commerce-env" class="min-w-200">
         <option value="sandbox" selected>sandbox (test)</option>
         <option value="production">production (live)</option>
@@ -151,36 +160,93 @@
     <details class="cm-keys">
       <summary>eBay keys — optional, only needed for live prices. Kept in this tab, never stored.</summary>
       <div class="flex mt-sm">
-        <label class="label">APP ID</label>
+        <label class="label" for="commerce-appid">APP ID</label>
         <input class="txt mono" id="commerce-appid" type="password" placeholder="paste for live prices" style="max-width:280px" autocomplete="off">
-        <label class="label">CERT ID</label>
+        <label class="label" for="commerce-certid">CERT ID</label>
         <input class="txt mono" id="commerce-certid" type="password" placeholder="paste for live prices" style="max-width:280px" autocomplete="off">
       </div>
     </details>
     <div class="flex mt-sm">
       <button class="primary cm-cta" id="commerce-analyze-btn">Analyze my niche ▶</button>
-      <button class="ghost" id="commerce-deep-btn" title="Full pipeline: niches, live comps, trends, report (takes minutes)">Deep pipeline ▶▶</button>
-      <button class="ghost" id="commerce-parse-btn">re-check paste</button>
       <span id="commerce-preview-count" class="mono-xs text-dim"></span>
       <span id="commerce-progress" class="mono-xs text-cyan"></span>
     </div>
   </div>
-  <div id="cm-results" hidden>
-  <div class="hud cm-table-wrap"><table><thead><tr><th>KEYWORD</th><th>30D REVENUE</th></tr></thead>
-  <tbody id="commerce-preview-rows"></tbody></table></div>
-  <div class="cm-panel-head"><span class="cm-badge dim">VISUAL</span><h2 class="pg">REVENUE CHART · TOP 15</h2></div>
-  <div class="hud p-md cm-chart" id="commerce-chart-kw"><div class="sm-empty">Parse an intake to see the chart.</div></div>
-  <div class="cm-panel-head"><span class="cm-badge dim">VISUAL</span><h2 class="pg">SELLER LEADERBOARD · TOP 8</h2></div>
-  <div class="hud p-md cm-chart" id="commerce-chart-sellers"><div class="sm-empty">Parse an intake to see the leaderboard.</div></div>
-  <div class="cm-panel-head"><span class="cm-badge">STEP 3–4</span><h2 class="pg">ANALYSIS · NICHE VERDICT + EBAY COMPS + SOURCING</h2></div>
+
+  <!-- Hidden anchors kept so existing workbench JS keeps working -->
+  <div class="zk-anchors" hidden>
+    <span id="cm-step-1"></span><span id="cm-step-2"></span><span id="cm-step-3"></span><span id="cm-step-4"></span>
+    <div class="cm-kpis" id="cm-kpis">
+      <div id="cm-hero-num"><div id="cm-kpi-rev">—</div></div>
+      <span id="cm-kpi-kw">—</span><span id="cm-kpi-sellers">—</span><span id="cm-kpi-comps">—</span>
+    </div>
+    <div id="cm-results">
+      <table><tbody id="commerce-preview-rows"></tbody></table>
+      <div id="commerce-chart-sellers"></div>
+    </div>
+  </div>
+
+  <!-- Selected product header -->
+  <div class="zk-prodhead" id="zk-prodhead" hidden>
+    <div class="zk-prodhead-main">
+      <h2 id="zk-title">—</h2>
+      <div class="zk-prodmeta" id="zk-prodmeta"></div>
+    </div>
+    <div class="zk-prodhead-actions">
+      <button class="ghost" id="zk-share-btn">Share</button>
+      <button class="ghost" id="zk-scan">Scan</button>
+      <button class="ghost" id="zk-save">Save to Watchlist</button>
+    </div>
+  </div>
+
+  <!-- Zik stat band -->
+  <div class="zk-stats" id="zk-stats" hidden></div>
+
+  <!-- Market share + sales trend -->
+  <div class="zk-two" id="zk-two" hidden>
+    <div class="hud p-md"><div class="hud-title">MARKET SHARE</div><div id="zk-share"><em class="text-dim">…</em></div></div>
+    <div class="hud p-md"><div class="hud-title">SALES TREND</div><div id="zk-trend"><em class="text-dim">…</em></div></div>
+  </div>
+
+  <!-- Filters -->
+  <div class="zk-filters" id="zk-filters" hidden>
+    <div class="zk-filter"><label class="label" for="zk-country">SELLERS COUNTRY</label>
+      <select id="zk-country" class="min-w-200"><option value="">All</option></select></div>
+    <label class="zk-check"><input type="checkbox" id="zk-dropship"> Dropshippers only</label>
+    <label class="zk-check"><input type="checkbox" id="zk-vero"> Exclude VeRO</label>
+    <span class="auto-left"></span>
+    <select id="zk-entries" class="min-w-200" aria-label="Entries">
+      <option>50 Entries</option><option selected>100 Entries</option><option>250 Entries</option>
+    </select>
+    <input class="txt" id="zk-product-search" placeholder="Search products…" aria-label="Search products">
+  </div>
+
+  <!-- Products table -->
+  <div class="hud cm-table-wrap" id="zk-table-wrap" hidden>
+    <table id="zk-table"><thead><tr>
+      <th scope="col">LOC</th><th scope="col">SELLER</th><th scope="col">FEEDBACK</th>
+      <th scope="col">PRODUCT</th><th scope="col">SOLD</th><th scope="col">TOTAL</th>
+      <th scope="col">PRICE</th><th scope="col">COUNTRY</th>
+    </tr></thead><tbody id="zk-rows"></tbody></table>
+  </div>
+
+  <!-- Alternate tab panels (derived from the same comp set) -->
+  <div class="hud cm-table-wrap" id="zk-title-wrap" hidden>
+    <table><thead><tr><th scope="col">TITLE TOKEN</th><th scope="col">OCCURRENCES</th><th scope="col">SHARE</th></tr></thead>
+    <tbody id="zk-title-rows"></tbody></table>
+  </div>
+  <div class="hud cm-table-wrap" id="zk-price-wrap" hidden>
+    <table><thead><tr><th scope="col">PRICE BAND</th><th scope="col">LISTINGS</th><th scope="col">SHARE</th></tr></thead>
+    <tbody id="zk-price-rows"></tbody></table>
+  </div>
+
+  <div class="cm-panel-head"><span class="cm-badge">ANALYSIS</span><h2 class="pg">NICHE VERDICT · EBAY COMPS · SOURCING</h2></div>
   <div class="hud p-md cm-verdict" id="commerce-verdict"><div class="sm-empty">Run ANALYZE — Plutus verdict lands here.</div></div>
   <div class="cm-cards" id="commerce-comps-cards"><div class="sm-empty">Run ANALYZE — keyword cards land here.</div></div>
   <div class="flex mt-sm mb-lg">
     <button class="ghost" id="commerce-save-btn">SAVE REPORT TO VAULT</button>
     <span id="commerce-save-msg" class="mono-xs text-dim"></span>
   </div>
-  </div>
-  <div class="hud p-md" id="commerce-detail" hidden></div>
   <div class="cm-panel-head"><span class="cm-badge dim">INSIGHTS</span><h2 class="pg">RESEARCH NOTES · RANKED BY OPPORTUNITY</h2></div>
   <div class="flex mb-md">
     <div id="commerce-crumb" class="mono-sm cursor-pointer">/ Product Research · click to refresh</div>
@@ -192,10 +258,10 @@
   </div>
   <div class="cm-panel-head"><span class="cm-badge dim">ANYTIME</span><h2 class="pg">ASK PLUTUS</h2></div>
   <form class="form-vertical" id="plutus-form">
-    <textarea id="plutus-text" rows="3" placeholder="Ask Plutus — listings, invoices, pricing, budgets…"></textarea>
+    <textarea id="plutus-text" rows="1" aria-label="Ask Plutus" placeholder="Ask Plutus — listings, invoices, pricing, budgets…"></textarea>
     <div><button class="primary">SEND TO PLUTUS</button></div>
   </form>
-  <div class="hud cm-table-wrap"><table><thead><tr><th>#</th><th>STATUS</th><th>TASK</th><th>RESULT</th></tr></thead>
+  <div class="hud cm-table-wrap"><table id="plutus-tbl"><thead><tr><th scope="col">#</th><th scope="col">STATUS</th><th scope="col">TASK</th><th scope="col">RESULT</th></tr></thead>
   <tbody id="plutus-rows"></tbody></table></div>
   <div class="cm-panel-head"><span class="cm-badge dim">PIPELINE</span><h2 class="pg">DEEP RESEARCH · STATUS</h2></div>
   <div id="commerce-n8n" class="mb-lg"></div>
@@ -213,9 +279,11 @@
 <!-- ===== AUTOMATIONS — service chips + external links ===================== -->
 <div class="page" id="page-automations">
   <h1 class="pg">AUTOMATIONS</h1>
+  <h2 class="pg">SERVICES</h2>
   <div id="auto-services" class="mb-lg"></div>
+  <h2 class="pg">EXTERNAL CONSOLES</h2>
   <div class="link-row">
-    <a href="http://localhost:5678" target="_blank">n8n workflows :5678</a>
+    <a href="http://127.0.0.1:5679" target="_blank">n8n workflows :5679</a>
     <a href="http://127.0.0.1:3030" target="_blank">Langfuse :3030</a>
     <a href="https://127.0.0.1:9443" target="_blank">Portainer :9443</a>
     <a href="http://127.0.0.1:6333/dashboard" target="_blank">Qdrant :6333</a>
@@ -383,7 +451,7 @@
 
 </main>
 
-<script src="/app.js" defer></script>
+<script src="/app.js?v=1790465241" defer></script>
 </body>
 </html>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
