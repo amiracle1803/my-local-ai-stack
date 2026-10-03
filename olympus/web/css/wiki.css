@@ -1,0 +1,25 @@
+/* wiki.css — split from styles.css */
+/* -- 9. Wiki browser ------------------------------------------------------- */
+.browser { display: grid; grid-template-columns: 300px 1fr; gap: 1rem; height: calc(100% - 4.5rem); }
+@media (max-width: 900px) { .browser { grid-template-columns: 1fr; height: auto; } .filelist { max-height: 40vh; } }
+.filelist { overflow-y: auto; font-size: .85rem; padding: .5rem; }
+.notepane { overflow-y: auto; overflow-x: auto; padding: 1.1rem 1.4rem; }
+#wiki-crumb { font-family: Consolas, monospace; font-size: .72rem; color: var(--cyan-dim); letter-spacing: .1em; cursor: pointer; }
+#wiki-crumb span { cursor: pointer; }
+#wiki-crumb span:hover { color: var(--cyan); }
+#wiki-filter { max-width: 280px; }
+#wiki-count { font-family: Consolas, monospace; }
+.filelist div { padding: .3rem .6rem; cursor: pointer; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-radius: 3px; }
+.filelist div:hover { color: #fff; background: rgba(87, 199, 227, .08); }
+.wiki-up { font-family: Consolas, monospace; font-size: .78rem; color: var(--cyan-dim); padding: .4rem .6rem; border-bottom: 1px solid var(--line); margin-bottom: .3rem; }
+.wiki-dir, .wiki-note { display: flex; align-items: center; gap: .6rem; padding: .32rem .6rem; border-radius: 3px; }
+.wiki-dir b, .wiki-note b { font-size: .8rem; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wiki-kind { margin-left: auto; flex: none; font-family: Consolas, monospace; font-size: .64rem; color: var(--dim); }
+.wiki-ic { width: 22px; text-align: center; flex: none; }
+.wiki-note:hover b { color: var(--cyan); }
+.notepane h1, .notepane h2, .notepane h3, .notepane h4 { color: var(--cyan); font-family: Consolas, monospace; margin: 1rem 0 .5rem; }
+.notepane code { background: #101d2c; padding: .15rem .4rem; border-radius: 3px; font-size: .82rem; }
+.notepane blockquote { border-left: 3px solid var(--cyan-dim); padding: .4rem .8rem; color: var(--dim); margin: .5rem 0; }
+.notepane th { font-family: Consolas, monospace; font-size: .68rem; color: var(--cyan-dim); border: 1px solid var(--line); padding: .4rem .6rem; }
+.notepane td { border: 1px solid var(--line); padding: .4rem .6rem; }
+

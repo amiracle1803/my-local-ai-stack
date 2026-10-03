@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>System | Olympus</title>
+<meta name="description" content="Olympus dashboard — central hub for the Local AI Stack.">
+<meta name="theme-color" content="#04060c">
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/system.css">
+</head>
+<body>
+
+<!-- ===== Shared top navigation bar ====================================== -->
+<header>
+  <div class="logo"><span class="orb"></span>OLYMPUS</div>
+  <nav>
+    <a href="/home">HOME</a>
+    <a href="/tasks">TASKS</a>
+    <a href="/wiki">WIKI</a>
+    <a href="/commerce">COMMERCE</a>
+    <a href="/automations">AUTOMATIONS</a>
+    <a href="/voice">VOICE</a>
+    <a href="/studio">STUDIO</a>
+    <a href="/system" class="active">SYSTEM</a>
+  </nav>
+  <div id="hdr-right">● <span id="hdr-agents">…</span> AGENTS · OLLAMA <span id="hdr-ollama">…</span></div>
+</header>
+
+<main>
+
+<!-- ===== SYSTEM — overview ================================================ -->
+<div class="page active" id="page-system">
+  <h1 class="pg">SYSTEM · OVERVIEW</h1>
+  <div class="cards" id="sys-cards"></div>
+  <div class="grid-2">
+    <div>
+      <h2 class="pg">MODEL ROLES</h2>
+      <div class="hud"><table id="sys-models"><thead><tr><th>ROLE</th><th>MODEL</th></tr></thead><tbody></tbody></table></div>
+      <h2 class="pg">PATHS</h2>
+      <div class="hud"><table id="sys-paths"><tbody></tbody></table></div>
+      <h2 class="pg">SERVICES</h2>
+      <div id="sys-services"></div>
+      <h2 class="pg">N8N WORKFLOWS</h2>
+      <div class="hud cm-table-wrap"><table><thead><tr><th>WORKFLOW</th><th>STATE</th></tr></thead><tbody id="sys-n8n"></tbody></table></div>
+    </div>
+    <div>
+      <h2 class="pg">AGENTS</h2>
+      <div class="hud"><table id="sys-agents-tbl"><thead><tr><th>AGENT</th><th>DOMAIN</th><th>ROLE</th><th>RESOLVED MODEL</th></tr></thead><tbody></tbody></table></div>
+      <h2 class="pg">TASK STATS</h2>
+      <div id="sys-taskstats"></div>
+      <p class="mt-lg"><button class="primary" onclick="fetch('/api/agents/reload',{method:'POST'}).then(refreshAll)">RELOAD AGENT REGISTRY</button></p>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<script src="/js/base.js"></script>
+<script src="/js/system.js"></script>
+</body>
+</html>

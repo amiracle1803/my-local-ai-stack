@@ -97,10 +97,10 @@ class VoiceConfig(BaseModel):
     engine: str = "chatterbox-turbo"  # chatterbox-turbo | qwen3-tts-0.6b | kokoro | espeak-ng
     default_voice: str = "af_heart"
     default_speed: float = 1.0
-    f5_python: str = "/home/amire/Downloads/tts-f5-venv/bin/python"
+    f5_python: str = "/home/amire/Downloads/tts/f5-venv/bin/python"
     f5_model: str = "F5TTS_v1_Base"
     f5_device: str = "cuda"
-    chatterbox_python: str = "/home/amire/Downloads/tts-chatterbox-venv/bin/python"
+    chatterbox_python: str = "/home/amire/Downloads/tts/chatterbox-venv/bin/python"
     chatterbox_command: str = ""  # optional isolated-provider executable/script
     chatterbox_model: str = "ResembleAI/chatterbox-turbo"
     kokoro_command: str = ""  # optional isolated-provider executable/script

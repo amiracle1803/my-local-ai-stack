@@ -108,7 +108,7 @@ def _synth_f5(text: str, dest: Path, voice_config) -> tuple[Path, bool]:
     with tempfile.TemporaryDirectory(prefix="olympus-f5-") as tmp:
         output = Path(tmp) / "speech.wav"
         env = os.environ.copy()
-        env.setdefault("HF_HOME", "/home/amire/Downloads/tts-hf-cache")
+        env.setdefault("HF_HOME", "/home/amire/Downloads/tts/hf-cache")
         executable = python.with_name("f5-tts_infer-cli")
         if not executable.exists():
             raise FileNotFoundError(f"F5-TTS CLI not found: {executable}")
@@ -176,10 +176,10 @@ def provider_status() -> dict[str, object]:
         "f5-tts": "cuda-tested-in-isolated-venv",
         "spark-tts": "cuda-tested-in-isolated-venv",
         "chatterbox-turbo": "cuda-tested-isolated-watermark-compat",
-        "f5_env": "/home/amire/Downloads/tts-f5-venv",
-        "spark_env": "/home/amire/Downloads/tts-spark-venv",
-        "chatterbox_env": "/home/amire/Downloads/tts-chatterbox-venv",
-        "f5_model_cache": "/home/amire/Downloads/tts-hf-cache",
+        "f5_env": "/home/amire/Downloads/tts/f5-venv",
+        "spark_env": "/home/amire/Downloads/tts/spark-venv",
+        "chatterbox_env": "/home/amire/Downloads/tts/chatterbox-venv",
+        "f5_model_cache": "/home/amire/Downloads/tts/hf-cache",
         "recommended": "chatterbox-turbo",
         "recommendation_reason": "best expressive English narration/dialogue fit for 8GB local GPU; MIT licensed",
         "gpu_policy": "exclusive lock with ComfyUI; stop/unload ComfyUI before first model load",

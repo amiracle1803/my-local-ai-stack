@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Olympus | Local AI Stack Dashboard</title>
+<meta name="description" content="Olympus dashboard — central hub for the Local AI Stack.">
+<meta name="theme-color" content="#04060c">
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/home.css">
+</head>
+<body>
+
+<!-- ===== Shared top navigation bar ====================================== -->
+<header>
+  <div class="logo"><span class="orb"></span>OLYMPUS</div>
+  <nav>
+    <a href="/home" class="active">HOME</a>
+    <a href="/tasks">TASKS</a>
+    <a href="/wiki">WIKI</a>
+    <a href="/commerce">COMMERCE</a>
+    <a href="/automations">AUTOMATIONS</a>
+    <a href="/voice">VOICE</a>
+    <a href="/studio">STUDIO</a>
+    <a href="/system">SYSTEM</a>
+  </nav>
+  <div id="hdr-right">● <span id="hdr-agents">…</span> AGENTS · OLLAMA <span id="hdr-ollama">…</span></div>
+</header>
+
+<main>
+
+<!-- ===== HOME — interactive knowledge graph =============================== -->
+<div class="page active" id="page-home">
+  <canvas id="cortex" role="img" aria-label="Interactive agent knowledge graph visualization. Drag to rotate, click nodes to view details."></canvas>
+  <noscript>
+    <div class="hud p-lg">
+      <p class="text-dim">JavaScript is required for the full Olympus experience.</p>
+      <p class="text-dim">Enable JavaScript to view the interactive knowledge graph.</p>
+    </div>
+  </noscript>
+  <div id="search-wrap">
+    <input id="cortex-search" class="mono" placeholder="✦ SEARCH THE CORTEX" autocomplete="off">
+    <div id="search-results" class="hud"></div>
+  </div>
+  <div id="jarvis-panel" class="hud">
+    <div class="hud-title cursor-pointer" id="jarvis-title" title="click to collapse/expand">● JARVIS
+      <span id="jstatus" class="online mono">ONLINE</span>
+      <span id="jarvis-caret" class="mono-sm" style="margin-left:.6rem">▾</span>
+    </div>
+    <div id="jarvis-log">
+      <div class="jmsg bot"><span class="who">JARVIS ~</span>At your service, Amir. Questions answered, work routed.</div>
+    </div>
+    <form id="jarvis-form">
+      <input id="jarvis-in" placeholder="speak or type — questions answered, work routed · ctrl+enter" autocomplete="off">
+      <button type="button" class="sq" id="mic-btn" title="voice input">🎙</button>
+      <button type="submit" class="sq send" title="send">▶</button>
+    </form>
+    <div id="jarvis-opts"><label><input type="checkbox" id="speak-replies" checked> JARVIS SPEAKS REPLIES</label></div>
+  </div>
+  <div id="rail">
+    <div class="hud"><div class="hud-title">BRIEFING</div><div class="rail-body" id="briefing-body">no briefings yet</div></div>
+    <div class="hud"><div class="hud-title">CAPTURE</div><div class="rail-body"><div id="capture-row">
+      <input id="capture-in" placeholder="idea, task, link…"><button class="sq send" id="capture-btn">▶</button></div></div></div>
+    <div class="hud"><div class="hud-title">ACTIVITY</div><div class="rail-body" id="activity-body"></div></div>
+    <div class="hud"><div class="hud-title">SYSTEMS</div><div class="rail-body" id="systems-body"></div></div>
+  </div>
+  <div id="note-float" class="hud">
+    <div class="hud-title"><span id="nf-title">NOTE</span><span id="nf-close" title="close">✕</span></div>
+    <div class="nf-body" id="nf-body"></div>
+  </div>
+  <div id="home-foot">
+    <span id="cortex-stats">CORTEX · …</span>
+    <span id="firing">● ROUTING FIRING</span>
+    <span id="gpu-stat">GPU · …</span>
+  </div>
+</div>
+
+
+</main>
+
+<script src="/js/base.js"></script>
+<script src="/js/home.js"></script>
+</body>
+</html>

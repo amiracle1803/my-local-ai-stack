@@ -86,8 +86,8 @@ ComfyUI.zip
 # machine-local agent tooling config (paths, permissions, API keys)
 .claude/settings.local.json
 
-# weekly auto-commit log
-.weekly-commit.log
+# consolidated hidden caches/logs (weekly-commit log, pytest, mediapipe)
+.hidden/
 
 # local session transcripts and experimental generated datasets
 /session-ses_*.md

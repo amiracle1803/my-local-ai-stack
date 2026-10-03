@@ -1,0 +1,20 @@
+/* tasks.css — split from styles.css */
+/* -- 8. Tasks kanban ------------------------------------------------------- */
+#orchestrate-bar { display: flex; flex-direction: column; gap: .6rem; margin-bottom: 1rem; max-width: 900px; }
+.orc-row { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+.orc-row .label { flex: none; min-width: 120px; }
+.orc-row .txt { flex: 1; min-width: 200px; }
+.kanban { display: grid; grid-template-columns: repeat(4, 1fr); gap: .9rem; align-items: start; }
+@media (max-width: 1100px) { .kanban { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 640px) { .kanban { grid-template-columns: 1fr; } }
+.kcol .hud-title .cnt { margin-left: auto; color: var(--dim); }
+.kcards { padding: .6rem; display: flex; flex-direction: column; gap: .6rem; max-height: 56vh; min-height: 120px; overflow-y: auto; }
+.kcard { border: 1px solid var(--line); background: rgba(8, 14, 24, .75); padding: .55rem .7rem; font-size: .8rem; }
+.kcard .khead { display: flex; align-items: center; gap: .5rem; margin-bottom: .25rem; font-family: Consolas, monospace; font-size: .68rem; }
+.kcard .kid { color: var(--dim); }
+.kcard .kagent { color: var(--green); letter-spacing: .1em; }
+.kcard .ktext { color: var(--text); }
+.kcard .kres { color: var(--dim); font-size: .74rem; margin-top: .3rem; max-height: 70px; overflow: hidden; white-space: pre-wrap; }
+.kcard .kres-wide { max-width: 480px; }
+.kcard .kbtns { margin-top: .4rem; display: flex; gap: .4rem; }
+

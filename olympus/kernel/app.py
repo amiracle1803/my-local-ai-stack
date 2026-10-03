@@ -1708,28 +1708,53 @@ def pipeline_upload_panels(slug: str, file: UploadFile = _File(...)):
 
 # ── static dashboard ───────────────────────────────────────────────────────
 
+# Multi-page dashboard: olympus/web/pages/<slug>.html + olympus/web/css/*.css +
+# olympus/web/js/*.js, served from clean URLs (/home, /tasks, …). The original
+# single-page assets (/styles.css, /app.js, /web/index.html) stay reachable.
+_DASHBOARD_SLUGS = {"home", "tasks", "wiki", "commerce",
+                    "automations", "voice", "studio", "system"}
+
+_NO_CACHE = {
+    "Cache-Control": "no-store, max-age=0, must-revalidate, proxy-revalidate",
+    "Pragma": "no-cache",
+    "Expires": "0",
+}
+
+
+def _web_file(path) -> FileResponse:
+    if not path.is_file():
+        raise HTTPException(404, f"unknown asset: {path.name!r}")
+    return FileResponse(path, headers=_NO_CACHE)
+
+
 @app.get("/", include_in_schema=False)
 def index():
-    return FileResponse(WEB_DIR / "index.html",
-                        headers={
-                            "Cache-Control": "no-store, max-age=0, must-revalidate, proxy-revalidate",
-                            "Pragma": "no-cache",
-                            "Expires": "0",
-                        })
+    return _web_file(WEB_DIR / "pages" / "home.html")
 
 
-# Serve the dashboard's split CSS/JS assets. Kept explicit (rather than a broad
-# StaticFiles mount) so the root path stays reserved for index.html.
+@app.get("/css/{asset}", include_in_schema=False)
+def web_css(asset: str):
+    return _web_file(WEB_DIR / "css" / asset)
+
+
+@app.get("/js/{asset}", include_in_schema=False)
+def web_js(asset: str):
+    return _web_file(WEB_DIR / "js" / asset)
+
+
+@app.get("/pages/{asset}", include_in_schema=False)
+def web_page_file(asset: str):
+    return _web_file(WEB_DIR / "pages" / asset)
+
+
+# Clean page URLs (/home, /tasks, …) plus the legacy SPA assets.
 @app.get("/{asset}", include_in_schema=False)
 def web_asset(asset: str):
-    if asset not in ("styles.css", "app.js"):
-        raise HTTPException(404, f"unknown asset: {asset!r}")
-    return FileResponse(WEB_DIR / asset,
-                        headers={
-                            "Cache-Control": "no-store, max-age=0, must-revalidate, proxy-revalidate",
-                            "Pragma": "no-cache",
-                            "Expires": "0",
-                        })
+    if asset in _DASHBOARD_SLUGS:
+        return _web_file(WEB_DIR / "pages" / f"{asset}.html")
+    if asset in ("styles.css", "app.js"):
+        return _web_file(WEB_DIR / asset)
+    raise HTTPException(404, f"unknown asset: {asset!r}")
 
 
 app.mount("/web", StaticFiles(directory=WEB_DIR), name="web")

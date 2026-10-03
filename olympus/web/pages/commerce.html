@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Commerce | Olympus</title>
+<meta name="description" content="Olympus dashboard — central hub for the Local AI Stack.">
+<meta name="theme-color" content="#04060c">
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/commerce.css">
+</head>
+<body>
+
+<!-- ===== Shared top navigation bar ====================================== -->
+<header>
+  <div class="logo"><span class="orb"></span>OLYMPUS</div>
+  <nav>
+    <a href="/home">HOME</a>
+    <a href="/tasks">TASKS</a>
+    <a href="/wiki">WIKI</a>
+    <a href="/commerce" class="active">COMMERCE</a>
+    <a href="/automations">AUTOMATIONS</a>
+    <a href="/voice">VOICE</a>
+    <a href="/studio">STUDIO</a>
+    <a href="/system">SYSTEM</a>
+  </nav>
+  <div id="hdr-right">● <span id="hdr-agents">…</span> AGENTS · OLLAMA <span id="hdr-ollama">…</span></div>
+</header>
+
+<main>
+
+<!-- ===== COMMERCE — Plutus agent + product research ======================== -->
+<div class="page active" id="page-commerce">
+  <!-- Zik-style view tabs -->
+  <div class="zk-tabs" role="tablist" aria-label="Commerce views">
+    <button class="zk-tab is-active" data-ztab="research" role="tab" aria-selected="true">Product Research</button>
+    <button class="zk-tab" data-ztab="title" role="tab" aria-selected="false">Title Analytics</button>
+    <button class="zk-tab" data-ztab="price" role="tab" aria-selected="false">Price Analytics</button>
+  </div>
+
+  <!-- Query bar -->
+  <div class="zk-query">
+    <div class="zk-search">
+      <input id="commerce-search" class="txt mono" placeholder="Search a product keyword…" autocomplete="off" aria-label="Search a product keyword">
+      <button class="primary" id="commerce-search-btn">Search</button>
+    </div>
+    <div class="zk-query-actions">
+      <button class="ghost" id="commerce-intake-toggle" aria-expanded="false" aria-controls="commerce-intake-panel">Paste Zik intake ▾</button>
+      <button class="ghost" id="commerce-parse-btn">re-check paste</button>
+      <button class="ghost" id="commerce-deep-btn" title="Full pipeline: niches, live comps, trends, report (takes minutes)">Deep pipeline ▶▶</button>
+      <span id="cm-hero-meta" class="mono-xs text-dim"></span>
+    </div>
+  </div>
+  <div id="commerce-error" class="cm-error" style="display:none"></div>
+
+  <!-- Intake paste panel (collapsible) -->
+  <div class="hud p-md cm-drop zk-intake" id="commerce-intake-panel">
+    <div class="cm-panel-head" style="margin-top:0"><span class="cm-badge">INTAKE</span><h2 class="pg">PASTE ZIK DATA</h2></div>
+    <textarea id="commerce-paste" rows="3" class="w-full mono" aria-label="Paste Zik analytics data" placeholder="Paste here — e.g.&#10;&#10;Kitchen Sink Faucet Sprayer&#10;$45,828&#10;Cuban Chain Necklace&#10;$27,973&#10;…"></textarea>
+    <div class="cm-drop-hint">Charts build themselves the moment you paste. Nothing to configure.</div>
+    <div class="flex mt-sm">
+      <label class="label" for="commerce-category">NAME THIS BATCH</label>
+      <input class="txt" id="commerce-category" placeholder="auto-suggested from your top keyword" style="max-width:280px">
+      <label class="label" for="commerce-env">EBAY PRICES FROM</label>
+      <select id="commerce-env" class="min-w-200">
+        <option value="sandbox" selected>sandbox (test)</option>
+        <option value="production">production (live)</option>
+      </select>
+    </div>
+    <details class="cm-keys">
+      <summary>eBay keys — optional, only needed for live prices. Kept in this tab, never stored.</summary>
+      <div class="flex mt-sm">
+        <label class="label" for="commerce-appid">APP ID</label>
+        <input class="txt mono" id="commerce-appid" type="password" placeholder="paste for live prices" style="max-width:280px" autocomplete="off">
+        <label class="label" for="commerce-certid">CERT ID</label>
+        <input class="txt mono" id="commerce-certid" type="password" placeholder="paste for live prices" style="max-width:280px" autocomplete="off">
+      </div>
+    </details>
+    <div class="flex mt-sm">
+      <button class="primary cm-cta" id="commerce-analyze-btn">Analyze my niche ▶</button>
+      <span id="commerce-preview-count" class="mono-xs text-dim"></span>
+      <span id="commerce-progress" class="mono-xs text-cyan"></span>
+    </div>
+  </div>
+
+  <!-- Hidden anchors kept so existing workbench JS keeps working -->
+  <div class="zk-anchors" hidden>
+    <span id="cm-step-1"></span><span id="cm-step-2"></span><span id="cm-step-3"></span><span id="cm-step-4"></span>
+    <div class="cm-kpis" id="cm-kpis">
+      <div id="cm-hero-num"><div id="cm-kpi-rev">—</div></div>
+      <span id="cm-kpi-kw">—</span><span id="cm-kpi-sellers">—</span><span id="cm-kpi-comps">—</span>
+    </div>
+    <div id="cm-results">
+      <table><tbody id="commerce-preview-rows"></tbody></table>
+      <div id="commerce-chart-sellers"></div>
+    </div>
+  </div>
+
+  <!-- Selected product header -->
+  <div class="zk-prodhead" id="zk-prodhead" hidden>
+    <div class="zk-prodhead-main">
+      <h2 id="zk-title">—</h2>
+      <div class="zk-prodmeta" id="zk-prodmeta"></div>
+    </div>
+    <div class="zk-prodhead-actions">
+      <button class="ghost" id="zk-share-btn">Share</button>
+      <button class="ghost" id="zk-scan">Scan</button>
+      <button class="ghost" id="zk-save">Save to Watchlist</button>
+    </div>
+  </div>
+
+  <!-- Zik stat band -->
+  <div class="zk-stats" id="zk-stats" hidden></div>
+
+  <!-- Market share + sales trend -->
+  <div class="zk-two" id="zk-two" hidden>
+    <div class="hud p-md"><div class="hud-title">MARKET SHARE</div><div id="zk-share"><em class="text-dim">…</em></div></div>
+    <div class="hud p-md"><div class="hud-title">SALES TREND</div><div id="zk-trend"><em class="text-dim">…</em></div></div>
+  </div>
+
+  <!-- Filters -->
+  <div class="zk-filters" id="zk-filters" hidden>
+    <div class="zk-filter"><label class="label" for="zk-country">SELLERS COUNTRY</label>
+      <select id="zk-country" class="min-w-200"><option value="">All</option></select></div>
+    <label class="zk-check"><input type="checkbox" id="zk-dropship"> Dropshippers only</label>
+    <label class="zk-check"><input type="checkbox" id="zk-vero"> Exclude VeRO</label>
+    <span class="auto-left"></span>
+    <select id="zk-entries" class="min-w-200" aria-label="Entries">
+      <option>50 Entries</option><option selected>100 Entries</option><option>250 Entries</option>
+    </select>
+    <input class="txt" id="zk-product-search" placeholder="Search products…" aria-label="Search products">
+  </div>
+
+  <!-- Products table -->
+  <div class="hud cm-table-wrap" id="zk-table-wrap" hidden>
+    <table id="zk-table"><thead><tr>
+      <th scope="col">LOC</th><th scope="col">SELLER</th><th scope="col">FEEDBACK</th>
+      <th scope="col">PRODUCT</th><th scope="col">SOLD</th><th scope="col">TOTAL</th>
+      <th scope="col">PRICE</th><th scope="col">COUNTRY</th>
+    </tr></thead><tbody id="zk-rows"></tbody></table>
+  </div>
+
+  <!-- Alternate tab panels (derived from the same comp set) -->
+  <div class="hud cm-table-wrap" id="zk-title-wrap" hidden>
+    <table><thead><tr><th scope="col">TITLE TOKEN</th><th scope="col">OCCURRENCES</th><th scope="col">SHARE</th></tr></thead>
+    <tbody id="zk-title-rows"></tbody></table>
+  </div>
+  <div class="hud cm-table-wrap" id="zk-price-wrap" hidden>
+    <table><thead><tr><th scope="col">PRICE BAND</th><th scope="col">LISTINGS</th><th scope="col">SHARE</th></tr></thead>
+    <tbody id="zk-price-rows"></tbody></table>
+  </div>
+
+  <div class="cm-panel-head"><span class="cm-badge">ANALYSIS</span><h2 class="pg">NICHE VERDICT · EBAY COMPS · SOURCING</h2></div>
+  <div class="hud p-md cm-verdict" id="commerce-verdict"><div class="sm-empty">Run ANALYZE — Plutus verdict lands here.</div></div>
+  <div class="cm-cards" id="commerce-comps-cards"><div class="sm-empty">Run ANALYZE — keyword cards land here.</div></div>
+  <div class="flex mt-sm mb-lg">
+    <button class="ghost" id="commerce-save-btn">SAVE REPORT TO VAULT</button>
+    <span id="commerce-save-msg" class="mono-xs text-dim"></span>
+  </div>
+  <div class="cm-panel-head"><span class="cm-badge dim">INSIGHTS</span><h2 class="pg">RESEARCH NOTES · RANKED BY OPPORTUNITY</h2></div>
+  <div class="flex mb-md">
+    <div id="commerce-crumb" class="mono-sm cursor-pointer">/ Product Research · click to refresh</div>
+    <span id="commerce-ins-count" class="mono-xs text-dim"></span>
+  </div>
+  <div class="cm-cards" id="commerce-ins-cards"></div>
+  <div class="hud p-md" id="commerce-note" hidden>
+    <div class="sm-empty">Select a card above to read the full note.</div>
+  </div>
+  <div class="cm-panel-head"><span class="cm-badge dim">ANYTIME</span><h2 class="pg">ASK PLUTUS</h2></div>
+  <form class="form-vertical" id="plutus-form">
+    <textarea id="plutus-text" rows="1" aria-label="Ask Plutus" placeholder="Ask Plutus — listings, invoices, pricing, budgets…"></textarea>
+    <div><button class="primary">SEND TO PLUTUS</button></div>
+  </form>
+  <div class="hud cm-table-wrap"><table id="plutus-tbl"><thead><tr><th scope="col">#</th><th scope="col">STATUS</th><th scope="col">TASK</th><th scope="col">RESULT</th></tr></thead>
+  <tbody id="plutus-rows"></tbody></table></div>
+  <div class="cm-panel-head"><span class="cm-badge dim">PIPELINE</span><h2 class="pg">DEEP RESEARCH · STATUS</h2></div>
+  <div id="commerce-n8n" class="mb-lg"></div>
+  <div class="link-row">
+    <a href="http://127.0.0.1:5679" target="_blank">open n8n :5679</a>
+    <a href="https://developer.ebay.com/api-explorer/" target="_blank">eBay API explorer</a>
+  </div>
+  <details class="cm-details">
+    <summary>eBay API · status &amp; checklist</summary>
+    <div class="hud"><table><tbody id="commerce-ebay-rows"></tbody></table></div>
+  </details>
+  <div id="commerce-status" class="mt-sm"></div>
+</div>
+
+
+</main>
+
+<script src="/js/base.js"></script>
+<script src="/js/commerce.js"></script>
+</body>
+</html>

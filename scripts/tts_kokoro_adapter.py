@@ -2,7 +2,7 @@
 """Isolated Kokoro-82M adapter for the Olympus pipeline.
 
 Sibling of scripts/tts_chatterbox_adapter.py. Runs inside the user's existing
-Kokoro WebUI venv ("spech webui copy/Kokoro-82M-WebUI/myenv") so it sidesteps
+Kokoro WebUI venv ("tts/kokoro-webui/Kokoro-82M-WebUI/myenv") so it sidesteps
 the Voice Studio kokoro ABI breakage (transformers/torchvision mismatch in the
 shared env) that was silently degrading all TTS to espeak-ng.
 

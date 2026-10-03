@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wiki | Olympus</title>
+<meta name="description" content="Olympus dashboard — central hub for the Local AI Stack.">
+<meta name="theme-color" content="#04060c">
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/wiki.css">
+</head>
+<body>
+
+<!-- ===== Shared top navigation bar ====================================== -->
+<header>
+  <div class="logo"><span class="orb"></span>OLYMPUS</div>
+  <nav>
+    <a href="/home">HOME</a>
+    <a href="/tasks">TASKS</a>
+    <a href="/wiki" class="active">WIKI</a>
+    <a href="/commerce">COMMERCE</a>
+    <a href="/automations">AUTOMATIONS</a>
+    <a href="/voice">VOICE</a>
+    <a href="/studio">STUDIO</a>
+    <a href="/system">SYSTEM</a>
+  </nav>
+  <div id="hdr-right">● <span id="hdr-agents">…</span> AGENTS · OLLAMA <span id="hdr-ollama">…</span></div>
+</header>
+
+<main>
+
+<!-- ===== WIKI — knowledge corpus browser ================================== -->
+<div class="page active" id="page-wiki">
+  <h1 class="pg">WIKI · KNOWLEDGE CORPUS</h1>
+  <div class="flex mb-md">
+    <div id="wiki-crumb" class="mono-sm cursor-pointer">/ vault root</div>
+    <input class="txt mono" id="wiki-filter" placeholder="filter notes…" style="max-width:280px">
+    <span id="wiki-count" class="mono-xs text-dim"></span>
+  </div>
+  <div class="browser">
+    <div class="filelist hud" id="wiki-files"></div>
+    <div class="notepane hud" id="wiki-note">
+      <div class="sm-empty">Select a note from the corpus to read it.</div>
+    </div>
+  </div>
+</div>
+
+
+</main>
+
+<script src="/js/base.js"></script>
+<script src="/js/wiki.js"></script>
+</body>
+</html>

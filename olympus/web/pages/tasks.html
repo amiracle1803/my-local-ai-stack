@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tasks | Olympus</title>
+<meta name="description" content="Olympus dashboard — central hub for the Local AI Stack.">
+<meta name="theme-color" content="#04060c">
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/tasks.css">
+</head>
+<body>
+
+<!-- ===== Shared top navigation bar ====================================== -->
+<header>
+  <div class="logo"><span class="orb"></span>OLYMPUS</div>
+  <nav>
+    <a href="/home">HOME</a>
+    <a href="/tasks" class="active">TASKS</a>
+    <a href="/wiki">WIKI</a>
+    <a href="/commerce">COMMERCE</a>
+    <a href="/automations">AUTOMATIONS</a>
+    <a href="/voice">VOICE</a>
+    <a href="/studio">STUDIO</a>
+    <a href="/system">SYSTEM</a>
+  </nav>
+  <div id="hdr-right">● <span id="hdr-agents">…</span> AGENTS · OLLAMA <span id="hdr-ollama">…</span></div>
+</header>
+
+<main>
+
+<!-- ===== TASKS — agent work queue kanban ================================== -->
+<div class="page active" id="page-tasks">
+  <h1 class="pg">TASKS · AGENT WORK QUEUE</h1>
+  <div id="orchestrate-bar">
+    <div class="orc-row">
+      <label class="label" for="orchestrate-goal">CONDUCTOR GOAL</label>
+      <input class="txt" id="orchestrate-goal" placeholder="Give the Conductor a goal — it plans the steps and agents pick them up…">
+      <button class="primary" id="orchestrate-btn">ORCHESTRATE</button>
+    </div>
+    <div class="orc-row">
+      <label class="label" for="quick-task">SINGLE TASK</label>
+      <input class="txt" id="quick-task" placeholder="…or drop a single task (auto-routed)">
+      <button class="ghost btn-pad" id="quick-btn">QUEUE</button>
+      <button class="ghost" id="clear-done-btn" title="Remove completed & failed tasks from the board">CLEAR DONE</button>
+    </div>
+  </div>
+  <div class="kanban">
+    <div class="kcol hud"><div class="hud-title">QUEUED <span class="cnt" id="cnt-queued">0</span></div><div class="kcards" id="col-queued"></div></div>
+    <div class="kcol hud"><div class="hud-title">RUNNING <span class="cnt" id="cnt-running">0</span></div><div class="kcards" id="col-running"></div></div>
+    <div class="kcol hud"><div class="hud-title">DONE <span class="cnt" id="cnt-done">0</span></div><div class="kcards" id="col-done"></div></div>
+    <div class="kcol hud"><div class="hud-title">FAILED <span class="cnt" id="cnt-failed">0</span></div><div class="kcards" id="col-failed"></div></div>
+  </div>
+</div>
+
+
+</main>
+
+<script src="/js/base.js"></script>
+<script src="/js/tasks.js"></script>
+</body>
+</html>

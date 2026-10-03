@@ -1,0 +1,4 @@
+/* automations.css — split from styles.css */
+/* Automations page: cap content width so chips + links read as a panel */
+#page-automations { max-width: 900px; margin-inline: auto; }
+

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Voice | Olympus</title>
+<meta name="description" content="Olympus dashboard — central hub for the Local AI Stack.">
+<meta name="theme-color" content="#04060c">
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/voice.css">
+</head>
+<body>
+
+<!-- ===== Shared top navigation bar ====================================== -->
+<header>
+  <div class="logo"><span class="orb"></span>OLYMPUS</div>
+  <nav>
+    <a href="/home">HOME</a>
+    <a href="/tasks">TASKS</a>
+    <a href="/wiki">WIKI</a>
+    <a href="/commerce">COMMERCE</a>
+    <a href="/automations">AUTOMATIONS</a>
+    <a href="/voice" class="active">VOICE</a>
+    <a href="/studio">STUDIO</a>
+    <a href="/system">SYSTEM</a>
+  </nav>
+  <div id="hdr-right">● <span id="hdr-agents">…</span> AGENTS · OLLAMA <span id="hdr-ollama">…</span></div>
+</header>
+
+<main>
+
+<!-- ===== VOICE — speech studio ============================================ -->
+<div class="page active" id="page-voice">
+  <h1 class="pg">VOICE · SPEECH STUDIO</h1>
+  <div id="voice-status" class="mb-md"></div>
+  <div id="voice-grid">
+    <div class="hud"><div class="hud-title">VOICES</div><div id="voice-list"></div></div>
+    <div>
+      <div class="hud p-md">
+        <div class="flex mb-sm"><label class="label">TTS ENGINE</label><select id="voice-engine-select" class="min-w-200"><option>loading...</option></select><span id="voice-engine-status" class="hint-sm"></span></div>
+        <textarea id="voice-text" rows="5" class="w-full" placeholder="Text to synthesize…">The Olympus cortex is live and all systems are connected.</textarea>
+        <div class="flex mt-sm">
+          <label class="label">SPEED <span id="speed-val">1.0</span></label>
+          <input type="range" id="voice-speed" min="0.5" max="1.5" step="0.05" value="1.0" style="flex:1">
+          <button class="primary" id="voice-gen">GENERATE ▶</button>
+        </div>
+      </div>
+      <div id="clips"></div>
+    </div>
+  </div>
+</div>
+
+
+</main>
+
+<script src="/js/base.js"></script>
+<script src="/js/voice.js"></script>
+</body>
+</html>
