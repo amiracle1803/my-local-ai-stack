@@ -4,8 +4,9 @@
 CLI:
     python run.py new-project <slug> --seed <file> [--fps N] [--mode 0b|0a|0i]
     python run.py run <slug> <stage>
-    python run.py all <slug>
-"""
+    python run.py all <slug> [--brief <file>]
+    python run.py report <slug>
+    """
 
 from __future__ import annotations
 
@@ -203,6 +204,28 @@ def run_all(slug: str, *, projects_dir: str | Path | None = None,
     return results
 
 
+def report_project(slug: str, *, projects_dir: str | Path | None = None) -> dict:
+    """Per-stage status: done/pending, and required artifact presence."""
+    from pipeline.contracts import required_paths
+
+    project_dir = _projects_root(projects_dir) / slug
+    if not (project_dir / "blueprint.json").exists():
+        raise FileNotFoundError(f"no such project: {project_dir}")
+    sc = Scores(project_dir / "scores.sqlite")
+    try:
+        stages = {}
+        for stage in STAGE_ORDER:
+            required = required_paths(project_dir, stage)
+            missing = [p.name for p in required if p.suffix and not p.exists()]
+            stages[stage] = {
+                "done": bool(sc.is_done(stage)),
+                "missing": missing,
+            }
+        return {"slug": slug, "stages": stages}
+    finally:
+        sc.close()
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Studio pipeline runner")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -216,13 +239,18 @@ def main() -> int:
     p_run.add_argument("stage")
     p_all = sub.add_parser("all")
     p_all.add_argument("slug")
+    p_all.add_argument("--brief", default=None)
+    p_report = sub.add_parser("report")
+    p_report.add_argument("slug")
     args = ap.parse_args()
     if args.cmd == "new-project":
         new_project(args.slug, args.seed, fps=args.fps, mode=args.mode)
     elif args.cmd == "run":
         print(run_stage(args.slug, args.stage))
     elif args.cmd == "all":
-        print(run_all(args.slug))
+        print(run_all(args.slug, brief_path=args.brief))
+    elif args.cmd == "report":
+        print(json.dumps(report_project(args.slug), indent=2))
     return 0
 
 
