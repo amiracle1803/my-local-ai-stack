@@ -124,6 +124,11 @@ def run_stage(slug: str, stage: str, *, projects_dir: str | Path | None = None,
     if not contract.preflight.accepted:
         raise RuntimeError(f"preflight blocked {stage}: {contract.preflight.reason}")
 
+    # Mode 0i: a panel upload can arrive with a stage3b run, not just at
+    # project creation — land it in input/panels so run_images picks it up.
+    if panel_upload is not None and stage == "stage3b":
+        _copy_panels(Path(panel_upload), project_dir / "input" / "panels")
+
     brief = brief_text
     if brief_path is not None:
         brief = Path(brief_path).read_text(encoding="utf-8", errors="replace")

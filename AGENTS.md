@@ -97,7 +97,9 @@ This machine runs Nobara Linux (Fedora-based) with OpenCode running
 **directly on the host**.
 
 - **Stack venv**: `~/Downloads/my-local-ai-stack/.venv`, Python 3.12, uv-managed.
-- **ComfyUI venv**: `ComfyUI/.venv`, PyTorch 2.6.0+cu124 pinned.
+- **ComfyUI venv**: `~/Downloads/ComfyUI/.venv`, PyTorch 2.6.0+cu124 pinned.
+  (`~/Downloads/ComfyUI` is a symlink to `~/Documents/Personal projects/ComfyUI` —
+  fix the symlink, not the paths, if it moves again.)
 - **GPU**: RTX 4070 Laptop, 8GB VRAM.
 
 ## Services (systemd)

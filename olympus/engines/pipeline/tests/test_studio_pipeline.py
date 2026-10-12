@@ -156,6 +156,108 @@ def test_review_unavailable_does_not_pass(monkeypatch, tmp_path):
         raise AssertionError("unavailable review must block stage5")
 
 
+def _scaffold_project(tmp_path: Path, slug: str, mode: str = "0b") -> Path:
+    from pipeline.blueprint import create_blueprint
+
+    project = tmp_path / slug
+    (project / "panels").mkdir(parents=True)
+    project.joinpath("scores.sqlite").touch()
+    create_blueprint("source", slug=slug, mode=mode).write(project)
+    return project
+
+
+def test_assembly_with_music_mixes_cleanly(tmp_path):
+    """stage5 audio/music bed must not break the ffmpeg filtergraph
+    (regression: chained one-input sidechaincompress crashed the mix)."""
+    import json
+    import subprocess
+    from pipeline import stages
+    from pipeline.identity import canonical_name
+
+    project = _scaffold_project(tmp_path, "music_t")
+    nar = project / "audio" / "narration"
+    nar.mkdir(parents=True)
+    wav = nar / "music_t_sc001_sh001_narration_v001.wav"
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi",
+                    "-i", "sine=frequency=440:duration=3", "-ar", "22050", str(wav)], check=True)
+    (project / "audio" / "music").mkdir(parents=True)
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi",
+                    "-i", "sine=frequency=220:duration=10", "-ar", "22050",
+                    str(project / "audio" / "music" / "theme.wav")], check=True)
+    (project / "audio" / "timeline.json").write_text(json.dumps(
+        [{"shot": "sh-001-01", "kind": "narration",
+          "file": f"audio/narration/{wav.name}", "start": 0.0, "dur": 3.0,
+          "text": "Kael holds the pass."}]), encoding="utf-8")
+    stages.render_panel(project / "panels" / canonical_name("music_t", "sh-001-01", "panel", "png"),
+                        "shot", seed="t")
+    (project / "screenplay").mkdir()
+    (project / "screenplay" / "screenplay.json").write_text(json.dumps(
+        {"scenes": [{"heading": "SCENE 1", "location": "The Pass", "summary": "s",
+                     "shots": [{"id": "sh-001-01", "narration": "Kael holds the pass.",
+                                 "dialogue": "", "description": "wide"}]}]}), encoding="utf-8")
+
+    out = stages.run_assembly(project)
+
+    final = project / "video" / "final.mp4"
+    assert final.exists() and Path(out["video"]) == final
+    probe = subprocess.run(
+        ["ffprobe", "-v", "error", "-select_streams", "a", "-show_entries",
+         "stream=codec_name", "-of", "csv=p=0", str(final)],
+        capture_output=True, text=True)
+    assert probe.stdout.strip()  # audio stream present (music + voice mixed)
+
+
+def test_review_skips_block_composites(monkeypatch, tmp_path):
+    """stage_vlm_review must never treat block_* manga composites as shots."""
+    import json
+    from pipeline import stages
+
+    project = _scaffold_project(tmp_path, "rev2_t")
+    panels = project / "panels"
+    stages.render_panel(panels / "rev2_t_sc001_sh001_panel_v001.png", "shot", seed="t")
+    (panels / "rev2_t_sc001_sh001_panel_v001.json").write_text(
+        json.dumps({"backend": "placeholder"}), encoding="utf-8")
+    stages.render_panel(panels / "block_00_manga.png", "composite", seed="t")  # no sidecar
+    monkeypatch.setattr(
+        "pipeline.nim_vision.review_image",
+        lambda *_args, **_kwargs: {"available": False, "verdict": "UNAVAILABLE", "score": 0},
+    )
+
+    out = stages.run_review(project)
+
+    payload = json.loads((project / "reviews" / "vlm_review.json").read_text(encoding="utf-8"))
+    assert set(payload["reviews"]) == {"rev2_t_sc001_sh001_panel_v001.png"}
+    assert out["gate"] == "SKIP"  # only placeholder panel -> nothing real to review
+
+
+def test_stage3b_imports_uploaded_panels(tmp_path):
+    """Mode 0i: uploaded panels are copied to canonical names, not re-rendered."""
+    import json
+    from pipeline import stages
+    from pipeline.identity import canonical_name
+
+    project = _scaffold_project(tmp_path, "imp_t", mode="0i")
+    (project / "worldbible").mkdir()
+    (project / "worldbible" / "world_bible.json").write_text(
+        json.dumps({"characters": []}), encoding="utf-8")
+    (project / "storyboard").mkdir()
+    (project / "storyboard" / "storyboard.json").write_text(
+        json.dumps({"blocks": [], "shot_detail": [{"id": "sh-001-01"}]}), encoding="utf-8")
+    (project / "screenplay").mkdir()
+    (project / "screenplay" / "screenplay.json").write_text(
+        json.dumps({"scenes": [{"shots": [{"id": "sh-001-01"}]}]}), encoding="utf-8")
+    uploads = project / "input" / "panels"
+    uploads.mkdir(parents=True)
+    stages.render_panel(uploads / "user_frame.png", "USER ART", seed="t")
+
+    out = stages.run_images(project)
+
+    canonical = project / "panels" / canonical_name("imp_t", "sh-001-01", "panel", "png")
+    sidecar = json.loads(canonical.with_suffix(".json").read_text(encoding="utf-8"))
+    assert out["panels"] == 1 and canonical.exists()
+    assert sidecar["backend"] == "imported"
+
+
 def test_tts_provider_manifest_prefers_chatterbox():
     from pipeline.voice_client import provider_status
 
