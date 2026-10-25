@@ -162,7 +162,7 @@ vram_gb = 8
 # OFF (default): panels mode — stage5 assembles panels with Ken Burns
 # zoom/pan + fades, no GPU video. ON: stage3c renders motion clips.
 [animation]
-enabled = false
+enabled = true
 # Local 8GB default: panels mode with Ken Burns motion. Enable only after
 # installing a compatible local i2v model set.
 engine = "svd"
