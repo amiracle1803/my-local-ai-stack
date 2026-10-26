@@ -34,21 +34,17 @@ jarvis   = "ornith-1.5-9b-fast:latest"
 
 # ── Voice Studio ──────────────────────────────────────────────────────────
 [voice]
-engine = "kokoro" # chatterbox-turbo | qwen3-tts-0.6b | kokoro | espeak-ng — kokoro routes through kokoro_command (isolated, CPU) by default
+engine = "qwen3-tts-0.6b" # qwen3-tts-0.6b | kokoro | espeak-ng — qwen3 engine id registered; actual model is the 1.7B CustomVoice below (winner of the 2026-10-26 shootout, see ~/Videos/tts-shootout/)
 default_voice = "af_heart"
 default_speed = 1.0
-f5_python = "/home/amire/Downloads/tts/f5-venv/bin/python"
-f5_model = "F5TTS_v1_Base"
-f5_device = "cuda"
-chatterbox_python = "/home/amire/Downloads/tts/chatterbox-venv/bin/python"
-chatterbox_command = "/home/amire/Downloads/tts/chatterbox-venv/bin/python /home/amire/Downloads/my-local-ai-stack/scripts/tts_chatterbox_adapter.py"
-chatterbox_model = "ResembleAI/chatterbox-turbo"
+# 2026-10-26 cleanup: chatterbox + f5-tts + spark-tts removed from the system
+# (venvs, caches, adapters and config entries) — only kokoro and qwen3 remain.
 # Isolated Kokoro-82M from the user's Kokoro WebUI venv (sidesteps the Voice
 # Studio ABI breakage that was degrading TTS to espeak-ng). CPU-only by design.
-kokoro_command = '"/home/amire/Downloads/tts/kokoro-webui/Kokoro-82M-WebUI/myenv/bin/python" /home/amire/Downloads/my-local-ai-stack/scripts/tts_kokoro_adapter.py'
-qwen3_tts_python = ""
-qwen3_tts_command = ""
-qwen3_tts_model = "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice"
+kokoro_command = '"/home/amire/Documents/Personal projects/pipeline/tts/kokoro-webui/Kokoro-82M-WebUI/myenv/bin/python" /home/amire/Downloads/my-local-ai-stack/scripts/tts_kokoro_adapter.py'
+qwen3_tts_python = "/home/amire/Documents/Personal projects/pipeline/tts/qwen3-venv/bin/python"
+qwen3_tts_command = '"/home/amire/Documents/Personal projects/pipeline/tts/qwen3-venv/bin/python" /home/amire/Downloads/my-local-ai-stack/scripts/tts_qwen3_adapter.py'
+qwen3_tts_model = "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice"
 gpu_lock_timeout_seconds = 900
 
 # ── ComfyUI (image/video render backend) ────────────────────────────────────

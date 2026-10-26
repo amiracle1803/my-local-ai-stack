@@ -57,8 +57,8 @@ def synth(text: str, dest: Path, voice: str = "af_heart", speed: float = 1.0,
         from stack.config import cfg
 
         engine = getattr(cfg.voice, "engine", "kokoro")
-        if engine in {"chatterbox-turbo", "qwen3-tts-0.6b"}:
-            command = getattr(cfg.voice, "chatterbox_command", "") if engine == "chatterbox-turbo" else getattr(cfg.voice, "qwen3_tts_command", "")
+        if engine == "qwen3-tts-0.6b":
+            command = getattr(cfg.voice, "qwen3_tts_command", "")
             if command:
                 try:
                     with gpu_batch(f"tts:{engine}", getattr(cfg.voice, "gpu_lock_timeout_seconds", 900)):
@@ -80,13 +80,6 @@ def synth(text: str, dest: Path, voice: str = "af_heart", speed: float = 1.0,
                                            reference, style)
                 except Exception:
                     pass  # fall through to Voice Studio (kokoro or espeak-ng)
-        if engine == "f5-tts":
-            try:
-                with gpu_batch("tts:f5", getattr(cfg.voice, "gpu_lock_timeout_seconds", 900)):
-                    _require_gpu_headroom()
-                    return _synth_f5(text, dest, cfg.voice)
-            except Exception:
-                engine = "kokoro"
         safe_voice = voice if _KOKORO_VOICE_RE.match(voice) else getattr(cfg.voice, "default_voice", "af_heart")
         url = cfg.voice.url + "/api/tts"
         payload = json.dumps({"text": text[:800], "voice": safe_voice, "speed": speed,
@@ -98,38 +91,6 @@ def synth(text: str, dest: Path, voice: str = "af_heart", speed: float = 1.0,
     except (OSError, ValueError, urllib.error.URLError, json.JSONDecodeError):
         seconds = max(1.0, min(12.0, len(text.split()) / 2.5))
         return _silent_wav(dest, seconds), False
-
-
-def _synth_f5(text: str, dest: Path, voice_config) -> tuple[Path, bool]:
-    """Run the isolated F5-TTS CLI without importing its dependencies here."""
-    python = Path(voice_config.f5_python)
-    if not python.is_file():
-        raise FileNotFoundError(f"F5-TTS interpreter not found: {python}")
-    with tempfile.TemporaryDirectory(prefix="olympus-f5-") as tmp:
-        output = Path(tmp) / "speech.wav"
-        env = os.environ.copy()
-        env.setdefault("HF_HOME", "/home/amire/Downloads/tts/hf-cache")
-        executable = python.with_name("f5-tts_infer-cli")
-        if not executable.exists():
-            raise FileNotFoundError(f"F5-TTS CLI not found: {executable}")
-        command = [
-            str(executable),
-            "--model", voice_config.f5_model,
-            "--gen_text", text[:2000],
-            "--output_dir", tmp,
-            "--output_file", output.name,
-            "--device", voice_config.f5_device,
-            "--nfe_step", "16",
-            "--speed", "1.0",
-        ]
-        subprocess.run(command, check=True, capture_output=True, text=True,
-                       timeout=300, env=env)
-        generated = output if output.exists() else next(Path(tmp).glob("*.wav"), None)
-        if generated is None:
-            raise RuntimeError("F5-TTS completed without producing a WAV file")
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_bytes(generated.read_bytes())
-    return dest, True
 
 
 def _synth_external(command: str, text: str, dest: Path, voice: str, speed: float,
@@ -155,15 +116,12 @@ def provider_matrix() -> list[dict[str, object]]:
 
     These are capability declarations used by preflight; model downloads are
     intentionally separate so a test cannot silently consume the GPU budget.
+    2026-10-26: chatterbox / f5-tts / spark-tts removed from the system —
+    kokoro (CPU) and qwen3-tts (CUDA) are the only installed engines.
     """
     return [
         {"id": "kokoro", "expressiveness": "medium", "device": "cpu", "status": "installed"},
-        {"id": "f5-tts", "expressiveness": "high", "device": "cuda_or_cpu", "status": "candidate"},
-        {"id": "indextts2", "expressiveness": "high", "device": "cuda_or_cpu", "status": "candidate"},
-        {"id": "chatterbox-turbo", "expressiveness": "very_high", "device": "cuda", "status": "recommended"},
         {"id": "qwen3-tts-0.6b", "expressiveness": "very_high", "device": "cuda", "status": "recommended"},
-        {"id": "chatterbox", "expressiveness": "high", "device": "cuda", "status": "candidate"},
-        {"id": "xtts-v2", "expressiveness": "high", "device": "cuda_or_cpu", "status": "candidate"},
         {"id": "espeak-ng", "expressiveness": "low", "device": "cpu", "status": "fallback"},
     ]
 
@@ -172,15 +130,11 @@ def provider_status() -> dict[str, object]:
     """Return tested provider state without importing optional TTS packages."""
     return {
         "voice_studio": "fallback-tested",
-        "kokoro": "blocked-by-shared-transformers-torchvision-ABI",
-        "f5-tts": "cuda-tested-in-isolated-venv",
-        "spark-tts": "cuda-tested-in-isolated-venv",
-        "chatterbox-turbo": "cuda-tested-isolated-watermark-compat",
-        "f5_env": "/home/amire/Downloads/tts/f5-venv",
-        "spark_env": "/home/amire/Downloads/tts/spark-venv",
-        "chatterbox_env": "/home/amire/Downloads/tts/chatterbox-venv",
-        "f5_model_cache": "/home/amire/Downloads/tts/hf-cache",
-        "recommended": "chatterbox-turbo",
-        "recommendation_reason": "best expressive English narration/dialogue fit for 8GB local GPU; MIT licensed",
+        "kokoro": "isolated-kokoro-webui-venv-cpu",
+        "qwen3-tts": "cuda-tested-isolated-venv-2026-10-26",
+        "kokoro_env": "/home/amire/Documents/Personal projects/pipeline/tts/kokoro-webui/Kokoro-82M-WebUI/myenv",
+        "qwen3_env": "/home/amire/Documents/Personal projects/pipeline/tts/qwen3-venv",
+        "recommended": "qwen3-tts-0.6b",
+        "recommendation_reason": "winner of the 2026-10-26 five-model shootout; Apache-2.0; ~4.6GB peak VRAM under the GPU lease",
         "gpu_policy": "exclusive lock with ComfyUI; stop/unload ComfyUI before first model load",
     }
