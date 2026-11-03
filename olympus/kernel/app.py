@@ -1784,6 +1784,26 @@ def _studio_auth(request: Request) -> None:
         raise HTTPException(401, "studio token missing or invalid")
 
 
+WAT_DB = Path(os.environ.get("WAT_DB", str(Path.home() / "Dev" / "wat" / "state" / "wat.db")))
+
+
+def _studio_gpu_guard() -> None:
+    """Refuse while a W.A.T. GPU task runs here: gpu_batch would unload its Ollama model
+    mid-run. (The W.A.T. governor checks the other direction via the GPU lock file.)"""
+    if not WAT_DB.exists():
+        return
+    import sqlite3
+    try:
+        c = sqlite3.connect(f"file:{WAT_DB}?mode=ro", uri=True, timeout=3)
+        rows = c.execute("select name from tasks where status='running' and gpu=1 limit 3").fetchall()
+        c.close()
+    except sqlite3.Error:
+        return
+    if rows:
+        raise HTTPException(409, "GPU busy with W.A.T. task(s): " + ", ".join(r[0] for r in rows)
+                            + " - try again in a few minutes")
+
+
 def _studio_dest(kind: str, ext: str) -> Path:
     STUDIO_OUT.mkdir(parents=True, exist_ok=True)
     return STUDIO_OUT / f"{kind}-{time.strftime('%Y%m%d-%H%M%S')}-{secrets.token_hex(3)}.{ext}"
@@ -1811,6 +1831,7 @@ class StudioVideoIn(BaseModel):
 @app.post("/api/studio/image")
 def studio_image(body: StudioImageIn, request: Request):
     _studio_auth(request)
+    _studio_gpu_guard()
     from pipeline.comfy_client import render_panel
     t0, seed = time.time(), body.seed if body.seed is not None else secrets.randbelow(2**31)
     dest = _studio_dest("image", "png")
@@ -1826,6 +1847,7 @@ def studio_image(body: StudioImageIn, request: Request):
 @app.post("/api/studio/tts")
 def studio_tts(body: StudioTTSIn, request: Request):
     _studio_auth(request)
+    _studio_gpu_guard()
     from pipeline.voice_client import synth
     t0, dest = time.time(), _studio_dest("voice", "wav")
     path, used = synth(body.text, dest, voice=body.voice, speed=body.speed)
@@ -1838,6 +1860,7 @@ def studio_tts(body: StudioTTSIn, request: Request):
 @app.post("/api/studio/video")
 def studio_video(body: StudioVideoIn, request: Request):
     _studio_auth(request)
+    _studio_gpu_guard()
     from pipeline.comfy_client import animate_panel, render_panel
     t0, seed = time.time(), body.seed if body.seed is not None else secrets.randbelow(2**31)
     if body.image_file:
