@@ -1,5 +1,19 @@
 # Olympus — Local AI Stack
 
+> **Role since 2026-11-03: the W.A.T. Studio (Legion GPU).** This repo is now only the
+> media side: ComfyUI + the anime pipeline (`olympus/engines/pipeline`) + Voice Studio,
+> served by the **Studio API** (`olympus-kernel`, :4600, `/api/studio/*`, bearer token in
+> `~/.config/wat/studio.token`). Hermes on either node uses it through the W.A.T. tools
+> `studio_image`, `studio_tts`, `studio_video`.
+>
+> Moved into W.A.T. (`~/Dev/wat`): the dashboard -> W.A.T. Catalog (Integrations +
+> Activity tabs), the harness -> `wat/harness` + the `goal_loop` workflow, Mem0 memories ->
+> W.A.T. `memory_fact`. Retired here: Legion n8n + its Qdrant + jarvis-tunnel (n8n runs on
+> the ProDesk), Open WebUI, stack-dashboard, memory-engine/qdrant-memory (snapshots in
+> `_archive/qdrant-snapshots-2026-11-03`). Archived to the ProDesk HDD
+> (`/mnt/nas_data/archive/legion-ai-stack-2026-11-03`): `.aitk`, `tools-external/sd-scripts`
+> (LoRA training), `harness-deepseek` (run it on demand with `npx @deepseek-ai/dsh`).
+
 A private, local-first AI hub for Windows and Linux. Olympus runs local models through Ollama, coordinates specialized agents through one dashboard, and includes an end-to-end anime recap-video pipeline.
 
 No subscriptions, no hosted inference, and no per-token fees. Your models, projects, vault, and generated media stay on your machine unless you explicitly configure external web tools.

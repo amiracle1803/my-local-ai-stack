@@ -258,9 +258,12 @@ def test_stage3b_imports_uploaded_panels(tmp_path):
     assert sidecar["backend"] == "imported"
 
 
-def test_tts_provider_manifest_prefers_chatterbox():
+def test_tts_provider_manifest_prefers_qwen3_tts():
+    # 2026-10-26: Qwen3-TTS won the shootout; chatterbox/f5/spark were removed.
+    # The slot id stays "qwen3-tts-0.6b" (it now holds the 1.7B CustomVoice model).
     from pipeline.voice_client import provider_status
 
     status = provider_status()
-    assert status["recommended"] == "chatterbox-turbo"
+    assert status["recommended"] == "qwen3-tts-0.6b"
+    assert "chatterbox" not in str(status).lower()
     assert "exclusive lock" in status["gpu_policy"]
