@@ -30,20 +30,7 @@ if systemctl --user is-active --quiet olympus-kernel.service; then
     ok "Olympus Kernel stopped"
 fi
 
-# Open WebUI
-if systemctl --user is-active --quiet open-webui.service; then
-    log "Stopping Open WebUI..."
-    systemctl --user stop open-webui.service
-    ok "Open WebUI stopped"
-fi
 
-# Memory Hub (Docker)
-if docker ps --format '{{.Names}}' | grep -qx tdai-memory-core; then
-    log "Stopping Memory Hub..."
-    cd /home/amire/Downloads/my-local-ai-stack/TencentDB-Agent-Memory/deploy/global-images
-    ./stop-all.sh
-    ok "Memory Hub stopped"
-fi
 
 # Ollama (optional - keep running for other uses)
 # Uncomment to stop Ollama too:
@@ -53,12 +40,6 @@ fi
 #     ok "Ollama stopped"
 # fi
 
-# n8n Automation Plane (optional - keep running; it runs the scheduled agents
-# and the Jarvis chat UI). Uncomment to stop it too:
-# if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx n8n-stack-n8n-1; then
-#     log "Stopping n8n Automation Plane..."
-#     docker compose --project-directory /home/amire/n8n-stack -f /home/amire/n8n-stack/docker-compose.yml down
-#     ok "n8n Automation Plane stopped"
-# fi
+
 
 ok "All services stopped"

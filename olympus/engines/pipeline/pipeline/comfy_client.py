@@ -46,16 +46,26 @@ def upload_image(image_path: str | Path, base_url: str) -> str:
 
 
 def _graph(prompt: str, seed: int, prefix: str) -> dict:
+    """FLUX.2 klein 4B panel graph — the validated recipe (workflows/NODES.md §1,
+    manifest image_flux_fallback patch map, official klein t2i sample workflow).
+    klein is NOT CFG-distilled: 20 steps at cfg 5.0 with a real negative, via the
+    resolution-aware Flux2Scheduler + SamplerCustomAdvanced path. The 128-channel
+    EmptyFlux2LatentImage is mandatory — the old graph fed a plain 4-channel
+    EmptyLatentImage into the flux2 transformer, and cfg 1.0 ignored the negative."""
     return {
-        "1": {"class_type": "UnetLoaderGGUF", "inputs": {"unet_name": "flux-2-klein-4b-Q4_K_M.gguf", "weight_dtype": "default"}},
+        "1": {"class_type": "UnetLoaderGGUF", "inputs": {"unet_name": "flux-2-klein-4b-Q4_K_M.gguf"}},
         "2": {"class_type": "CLIPLoader", "inputs": {"clip_name": "qwen_3_4b.safetensors", "type": "flux2"}},
         "3": {"class_type": "VAELoader", "inputs": {"vae_name": "flux2-vae.safetensors"}},
-        "4": {"class_type": "EmptyLatentImage", "inputs": {"width": 832, "height": 512, "batch_size": 1}},
-        "5": {"class_type": "CLIPTextEncode", "inputs": {"text": prompt, "clip": ["2", 0]}},
-        "6": {"class_type": "CLIPTextEncode", "inputs": {"text": "low quality, blurry, text, watermark, deformed, extra fingers", "clip": ["2", 0]}},
-        "7": {"class_type": "KSampler", "inputs": {"model": ["1", 0], "seed": seed, "steps": 16, "cfg": 1.0, "sampler_name": "euler", "scheduler": "simple", "positive": ["5", 0], "negative": ["6", 0], "latent_image": ["4", 0], "denoise": 1.0}},
-        "8": {"class_type": "VAEDecode", "inputs": {"samples": ["7", 0], "vae": ["3", 0]}},
-        "9": {"class_type": "SaveImage", "inputs": {"images": ["8", 0], "filename_prefix": prefix}},
+        "11": {"class_type": "CLIPTextEncode", "inputs": {"text": prompt, "clip": ["2", 0]}},
+        "12": {"class_type": "CLIPTextEncode", "inputs": {"text": "low quality, blurry, text, watermark, deformed, extra fingers", "clip": ["2", 0]}},
+        "13": {"class_type": "EmptyFlux2LatentImage", "inputs": {"width": 832, "height": 512, "batch_size": 1}},
+        "14": {"class_type": "RandomNoise", "inputs": {"noise_seed": seed}},
+        "15": {"class_type": "Flux2Scheduler", "inputs": {"steps": 20, "width": 832, "height": 512}},
+        "16": {"class_type": "SaveImage", "inputs": {"images": ["20", 0], "filename_prefix": prefix}},
+        "17": {"class_type": "KSamplerSelect", "inputs": {"sampler_name": "euler"}},
+        "18": {"class_type": "CFGGuider", "inputs": {"model": ["1", 0], "positive": ["11", 0], "negative": ["12", 0], "cfg": 5.0}},
+        "19": {"class_type": "SamplerCustomAdvanced", "inputs": {"noise": ["14", 0], "guider": ["18", 0], "sampler": ["17", 0], "sigmas": ["15", 0], "latent_image": ["13", 0]}},
+        "20": {"class_type": "VAEDecode", "inputs": {"samples": ["19", 0], "vae": ["3", 0]}},
     }
 
 
@@ -93,12 +103,15 @@ def render_panel(prompt: str, destination: Path, seed: int,
 
 def _svd_graph(input_image: str, seed: int, frames: int = 14, fps: float = 6.0,
                width: int = 1024, height: int = 576) -> dict:
+    # SVD_img2vid_Conditioning takes the CLIP_VISION model itself and encodes
+    # the init image internally (live /object_info: clip_vision: CLIP_VISION),
+    # so the previous standalone CLIPVisionEncode node was dead weight —
+    # its output was never consumed by any node.
     return {
         "1": {"class_type": "CheckpointLoaderSimple", "inputs": {"ckpt_name": "svd_xt.safetensors"}},
         "2": {"class_type": "CLIPVisionLoader", "inputs": {"clip_name": "sd_vit_h.safetensors"}},
         "3": {"class_type": "LoadImage", "inputs": {"image": input_image}},
         "4": {"class_type": "ImageScale", "inputs": {"upscale_method": "lanczos", "width": width, "height": height, "crop": "center", "image": ["3", 0]}},
-        "5": {"class_type": "CLIPVisionEncode", "inputs": {"crop": "center", "clip_vision": ["2", 0], "image": ["4", 0]}},
         "6": {"class_type": "SVD_img2vid_Conditioning", "inputs": {"width": width, "height": height, "video_frames": frames, "motion_bucket_id": 127, "fps": int(fps), "augmentation_level": 0.0, "clip_vision": ["2", 0], "init_image": ["4", 0], "vae": ["1", 2]}},
         "7": {"class_type": "KSampler", "inputs": {"model": ["1", 0], "seed": seed, "steps": 25, "cfg": 2.5, "sampler_name": "euler", "scheduler": "karras", "positive": ["6", 0], "negative": ["6", 1], "latent_image": ["6", 2], "denoise": 1.0}},
         "8": {"class_type": "VAEDecode", "inputs": {"samples": ["7", 0], "vae": ["1", 2]}},

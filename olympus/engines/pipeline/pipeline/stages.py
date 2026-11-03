@@ -466,6 +466,8 @@ def run_screenplay(project_dir: Path) -> dict:
 
 def run_images(project_dir: Path) -> dict:
     project_dir = Path(project_dir)
+    bp = Blueprint.load(project_dir)
+    slug, bp_mode = bp.slug, bp.mode
     sp = json.loads((project_dir / "screenplay" / "screenplay.json").read_text(encoding="utf-8"))
     bible = json.loads((project_dir / "worldbible" / "world_bible.json").read_text(encoding="utf-8"))
     storyboard = json.loads((project_dir / "storyboard" / "storyboard.json").read_text(encoding="utf-8"))
@@ -477,9 +479,18 @@ def run_images(project_dir: Path) -> dict:
     panels = project_dir / "panels"
     panels.mkdir(parents=True, exist_ok=True)
     made = 0
+    # Mode 0i ("import"): user-uploaded panels in input/panels ARE the shots —
+    # copy them to canonical names instead of rendering anything.
+    uploads: list[Path] = []
+    if bp_mode == "0i":
+        up_dir = project_dir / "input" / "panels"
+        uploads = sorted(p for p in up_dir.glob("*")
+                         if p.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp"}) if up_dir.exists() else []
+        if not uploads:
+            raise RuntimeError("mode 0i requires uploaded panels in input/panels")
     real_comfy = os.environ.get("OLYMPUS_REAL_COMFY", "0") == "1"
     comfy_render = None
-    if real_comfy:
+    if real_comfy and not uploads:
         from .comfy_client import render_panel as comfy_render
         from stack.config import cfg as _cfg
         _comfy_url = _cfg.comfyui.url
@@ -490,9 +501,13 @@ def run_images(project_dir: Path) -> dict:
             plan = storyboard_by_id.get(shot_id, {})
             refs = plan.get("reference_assets", [])
             continuity = plan.get("continuity", {})
-            p = panels / canonical_name(Blueprint.load(project_dir).slug, shot_id, "panel", "png")
+            p = panels / canonical_name(slug, shot_id, "panel", "png")
             prompt = f"anime recap panel, {scene.get('location', '')[:80]}, {anchors}, {(shot.get('narration') or shot.get('dialogue') or shot.get('description', ''))[:220]}, {plan.get('composition', 'medium shot')}, {plan.get('camera', 'static')}, {continuity.get('lighting', '')}, cinematic cel shading"
-            if comfy_render:
+            if uploads:
+                from PIL import Image as _UploadImage
+                with _UploadImage.open(uploads[made % len(uploads)]) as im:
+                    im.convert("RGB").save(p)
+            elif comfy_render:
                 seed = int(hashlib.sha256(sid.encode()).hexdigest()[:8], 16)
                 comfy_render(prompt, p, seed=seed, base_url=_comfy_url)
             else:
@@ -500,7 +515,8 @@ def run_images(project_dir: Path) -> dict:
                              subtitle=f"cast: {anchors or 'ensemble'}", body=prompt[:220], seed=sid)
             (panels / f"{p.stem}.json").write_text(json.dumps(
                 {"shot": shot.get("id"), "seed": sid, "anchors": anchors,
-                 "prompt": prompt, "backend": "comfyui" if comfy_render else "placeholder",
+                 "prompt": prompt,
+                 "backend": "imported" if uploads else ("comfyui" if comfy_render else "placeholder"),
                  "reference_assets": refs, "continuity": continuity,
                  "negative_prompt": "low quality, blurry, text, watermark, deformed",
                  "attempt": 1}, indent=2), encoding="utf-8")
@@ -511,7 +527,7 @@ def run_images(project_dir: Path) -> dict:
         imgs = []
         for shot in scene.get("shots", []):
             shot_id = shot.get("id", "")
-            canonical = panels / canonical_name(Blueprint.load(project_dir).slug, shot_id, "panel", "png")
+            canonical = panels / canonical_name(slug, shot_id, "panel", "png")
             legacy = panels / f"{legacy_stem(shot_id)}.png"
             source = canonical if canonical.exists() else legacy
             if source.exists():
@@ -684,9 +700,16 @@ def run_review(project_dir: Path) -> dict:
     project_dir = Path(project_dir)
     panels = list((project_dir / "panels").glob("*.png"))
     clips = list((project_dir / "clips").glob("*.mp4")) if (project_dir / "clips").exists() else []
-    targets = [c.name for c in clips] or [p.name for p in panels if p.name.startswith("sh_")]
+    # Review per-shot artifacts only. Canonical shot panels are
+    # "<slug>_sc*_sh*_panel_v*.png" (legacy: "sh_*.png"); block_* manga
+    # composites are assemble-time artifacts, not review targets, and have no
+    # sidecar — judging them wastes the VLM and can spuriously fail the gate.
+    targets = sorted(c.name for c in clips)
     if not targets:
-        targets = [p.name for p in panels]
+        targets = sorted(p.name for p in panels
+                         if p.name.startswith("sh_") or "_panel_" in p.name)
+    if not targets:
+        targets = sorted(p.name for p in panels if not p.name.startswith("block_"))
     reviews = {}
     passed = 0
     judge_provider = "unavailable"
@@ -907,8 +930,16 @@ def run_assembly(project_dir: Path, fps: int = 24) -> dict:
         if music:
             inputs += ["-stream_loop", "-1", "-i", str(music[0])]
             music_index = len(timeline_files)
+            # voice -> asplit: one leg stays in the final mix, the other keys
+            # the sidechain that ducks the music bed. (A previously chained
+            # one-input sidechaincompress made ffmpeg reject the graph.)
             filters.append(f"[{music_index}:a]volume=0.16,aresample=22050[music]")
-            filters.append("".join(labels) + "amix=inputs=" + str(len(labels)) + ":duration=longest:normalize=0,sidechaincompress=threshold=0.08:ratio=8:attack=20:release=300[voice];[music][voice]sidechaincompress=threshold=0.08:ratio=8:attack=20:release=300[musicduck];[voice][musicduck]amix=inputs=2:duration=longest:normalize=0,alimiter=limit=0.95[out]")
+            filters.append(
+                "".join(labels) + f"amix=inputs={len(labels)}:duration=longest:normalize=0,"
+                "asplit=2[voice][vkey];"
+                "[music][vkey]sidechaincompress=threshold=0.08:ratio=8:attack=20:release=300[mduck];"
+                "[voice][mduck]amix=inputs=2:duration=longest:normalize=0,alimiter=limit=0.95[out]"
+            )
         else:
             filters.append("".join(labels) + f"amix=inputs={len(labels)}:duration=longest:normalize=0,alimiter=limit=0.95[out]")
         subprocess.run(["ffmpeg", "-y", "-v", "error", *inputs,

@@ -10,7 +10,7 @@ err() { echo -e "\033[1;31m[ERR]\033[0m $*" >&2; }
 
 log "Starting all services..."
 
-# Olympus Kernel (port 4600)
+# Studio API (olympus kernel, port 4600) - used by W.A.T. studio_* tools
 if systemctl --user is-active --quiet olympus-kernel.service; then
     ok "Olympus Kernel already running"
 else
@@ -20,25 +20,7 @@ else
     ok "Olympus Kernel started"
 fi
 
-# Open WebUI (port 8080)
-if systemctl --user is-active --quiet open-webui.service; then
-    ok "Open WebUI already running"
-else
-    log "Starting Open WebUI..."
-    systemctl --user start open-webui.service
-    sleep 5
-    ok "Open WebUI started"
-fi
 
-# Memory Hub (ports 8125, 8424) - Docker containers
-if docker ps --format '{{.Names}}' | grep -qx tdai-memory-core; then
-    ok "Memory Hub already running"
-else
-    log "Starting Memory Hub (Docker)..."
-    cd /home/amire/Downloads/my-local-ai-stack/TencentDB-Agent-Memory/deploy/global-images
-    ./start-all.sh
-    ok "Memory Hub started"
-fi
 
 # ComfyUI (port 8188) - systemd user service
 if systemctl --user is-active --quiet comfyui-server.service; then
@@ -70,26 +52,14 @@ else
     ok "Voice Studio started"
 fi
 
-# n8n Automation Plane (stack.toml [automation]) - docker compose in ~/n8n-stack
-if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx n8n-stack-n8n-1; then
-    ok "n8n Automation Plane already running"
-else
-    log "Starting n8n Automation Plane (docker compose)..."
-    docker compose --project-directory /home/amire/n8n-stack -f /home/amire/n8n-stack/docker-compose.yml up -d
-    sleep 5
-    ok "n8n Automation Plane started"
-fi
 
 echo ""
 log "All services started. Checking status..."
 sleep 2
 
 bash -c "
-  (curl -s http://localhost:5679/healthz >/dev/null && echo '✅ n8n (5679)') || echo '❌ n8n (5679)';
-  (curl -s http://localhost:4600/health >/dev/null && echo '✅ Olympus Kernel (4600)') || echo '❌ Olympus Kernel (4600)';
+  (curl -s http://localhost:4600/api/studio/status >/dev/null && echo '✅ Studio API (4600)') || echo '❌ Studio API (4600)';
   (curl -s http://localhost:11434/ >/dev/null && echo '✅ Ollama (11434)') || echo '❌ Ollama (11434)';
-  (curl -s http://localhost:8125/health >/dev/null && echo '✅ Memory Hub (8125)') || echo '❌ Memory Hub (8125)';
-  (curl -s http://localhost:8080 >/dev/null && echo '✅ Open WebUI (8080)') || echo '❌ Open WebUI (8080)';
   (curl -s http://localhost:8188/ >/dev/null && echo '✅ ComfyUI (8188)') || echo '❌ ComfyUI (8188)';
-  (curl -s http://localhost:5050/health >/dev/null && echo '✅ Voice Studio (5050)') || echo '❌ Voice Studio (5050)';
+  (curl -s http://localhost:5050/api/health >/dev/null && echo '✅ Voice Studio (5050)') || echo '❌ Voice Studio (5050)';
 "

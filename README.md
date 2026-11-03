@@ -1,5 +1,19 @@
 # Olympus — Local AI Stack
 
+> **Role since 2026-11-03: the W.A.T. Studio (Legion GPU).** This repo is now only the
+> media side: ComfyUI + the anime pipeline (`olympus/engines/pipeline`) + Voice Studio,
+> served by the **Studio API** (`olympus-kernel`, :4600, `/api/studio/*`, bearer token in
+> `~/.config/wat/studio.token`). Hermes on either node uses it through the W.A.T. tools
+> `studio_image`, `studio_tts`, `studio_video`.
+>
+> Moved into W.A.T. (`~/Dev/wat`): the dashboard -> W.A.T. Catalog (Integrations +
+> Activity tabs), the harness -> `wat/harness` + the `goal_loop` workflow, Mem0 memories ->
+> W.A.T. `memory_fact`. Retired here: Legion n8n + its Qdrant + jarvis-tunnel (n8n runs on
+> the ProDesk), Open WebUI, stack-dashboard, memory-engine/qdrant-memory (snapshots in
+> `_archive/qdrant-snapshots-2026-11-03`). Archived to the ProDesk HDD
+> (`/mnt/nas_data/archive/legion-ai-stack-2026-11-03`): `.aitk`, `tools-external/sd-scripts`
+> (LoRA training), `harness-deepseek` (run it on demand with `npx @deepseek-ai/dsh`).
+
 A private, local-first AI hub for Windows and Linux. Olympus runs local models through Ollama, coordinates specialized agents through one dashboard, and includes an end-to-end anime recap-video pipeline.
 
 No subscriptions, no hosted inference, and no per-token fees. Your models, projects, vault, and generated media stay on your machine unless you explicitly configure external web tools.
@@ -234,33 +248,37 @@ MP4, subtitles, chapters, labels
 
 ### Pipeline stages
 
+The `AGENTS.md` playbook noted a stage order matching the zero-error build
+(2026-08), but the single source of truth is `pipeline/blueprint.py
+STAGE_ORDER`:
+
 | Stage | Purpose | Major output |
 |---|---|---|
 | stage0 | Converts a brief into a structured script and project blueprint | `input/script.txt`, blueprint |
 | stage0_dossier | Rich intake extraction: characters (appearance/race/family/relationships), location 360-views, scene settings, verbatim dialogue | `intake/dossier.json` |
 | stage1 | Extracts characters, traits, voices, and contradictions | Character world bible |
 | stage1_world | Builds locations, relationships, world rules, and voice registry | Full world bible |
-| stage1r | Generates character, location, style, and voice reference assets | `references/` |
-| stage3 | Segments scenes and plans shots | `storyboard/storyboard.json` |
-| stage2 | Creates narration, dialogue, SFX, and style cards | `screenplay/screenplay.json` |
-| stage3b | Creates still panels with identity and style controls | `panels/` |
+| stage3 | Storyboard: shot direction and composition from scenes | `storyboard/storyboard.json` |
+| stage2 | Screenplay: narration, dialogue, SFX timed to shot durations | `screenplay/screenplay.json` |
 | stage4 | Creates TTS audio, timing, and viseme data | `audio/` |
+| stage1r | Generates character, location, style, and voice reference assets | `references/` |
+| stage3b | Creates still panels with identity and style controls | `panels/` |
 | stage3c | Animates panels into short video clips | `clips/` |
 | stage_vlm_review | Runs visual and audio quality checks | `reviews/vlm_review.json` |
 | stage5 | Joins clips, audio, subtitles, chapters, and metadata | `video/final.mp4` |
 
-Run one stage at a time while developing:
+Run one stage at a time while developing (order follows `STAGE_ORDER`):
 
 ```bash
 python run.py run my-story stage0
 python run.py run my-story stage0_dossier
 python run.py run my-story stage1
 python run.py run my-story stage1_world
-python run.py run my-story stage1r
 python run.py run my-story stage3
 python run.py run my-story stage2
-python run.py run my-story stage3b
 python run.py run my-story stage4
+python run.py run my-story stage1r
+python run.py run my-story stage3b
 python run.py run my-story stage3c
 python run.py run my-story stage_vlm_review
 python run.py run my-story stage5
@@ -278,18 +296,12 @@ Check a project's state at any time:
 python run.py report my-story
 ```
 
-## Asset Labeling & Identity
-
-### Stable machine id (never renamed)
+## Artifact Identity (VFX naming standard)
 
 Every shot keeps a **stable internal machine id** — `sh-001-01` (scene 001 +
-shot 01) — as the JSON-contract, cache, and storyboard key. Existing legacy
-artifacts keep their original filenames; the pipeline never renames anything
-downstream already references.
-
-### Canonical VFX identity (standard going forward)
-
-New artifacts use a **canonical VFX-style name** derived from the machine id:
+shot 01) — as the JSON-contract, cache, and storyboard key. New artifacts are
+written with a **canonical VFX-style name** derived from the machine id
+(implemented as `canonical_name()` in `pipeline/identity.py`):
 
 ```
 {project}_sc{scene:03d}_sh{shot:03d}_{asset}[_{variant}][_tk##]_v###.{ext}
@@ -298,55 +310,23 @@ New artifacts use a **canonical VFX-style name** derived from the machine id:
 Examples:
 
 ```
-river-shrine_sc001_sh001_pn01_render_v001.png        # panel
-river-shrine_sc001_sh001_cl01_ltx-director_v001.mp4  # director clip
-river-shrine_sc001_sh001_audio_narration_v001.wav    # narration
-river-shrine_sc001_sh001_dialogue_dl01_v001.wav      # dialogue line 1
-river-shrine_master_v001.mp4                         # deliverable
+my-story_sc001_sh001_panel_v001.png       # panel
+my-story_sc001_sh001_audio_v001.wav       # narration audio
+my-story_master_v001.mp4                  # deliverable
 ```
 
-Semantics (implemented in `pipeline/identity.py`):
-- `pn##` — panel variants within a shot
-- `cl##` — clip output variants within a shot
-- `tk##` — retry attempts / seed exploration (ComfyUI's `_0000N` counter)
+Semantics:
+- `tk##` — retry attempts / seed exploration
 - `v###` — **approved revisions only**, starts at `v001`, bumped on deliberate
-  regeneration (`--force` / manual regen). Never use `final`, `final2`, …
+  regeneration. Never use `final`, `final2`, …
 - `{project}` — the blueprint slug, sanitized
-- The machine `sh-001-01` id stays discoverable from any canonical filename via
-  `identity.legacy_sid_from_filename()` / `canonical_id_from_filename()`
+- Shot keys stay stable: legacy `sh_001_01` filenames resolve via
+  `identity.legacy_stem()`; the pipeline never renames files that downstream
+  stages already reference
 
-A resolver lets both naming styles coexist: legacy projects keep their files,
-new projects get canonical names, and every downstream stage (panels, clips,
-audio, assembly) reads either via `identity.resolve_panel()` / `audio_path()` /
-`_dialogue_files()`.
-
-### Companion labels index
-
-Alongside the artifacts, Olympus writes a human-readable companion index after
-panel and clip generation.
-
-| File | Use |
-|---|---|
-| `labels.json` | Structured machine-readable scene, panel, and clip index (incl. `canonical_id`, `panel_id`, `clip_id`, `version`) |
-| `labels.txt` | Searchable plain-text project overview |
-| `labels.html` | Browser-based asset table for manual review |
-
-Example:
-
-```
-SC-001 · The Village · Morning · Wide Shot · Kana arrives at the shrine.
-SC-001 · Shrine Path · Morning · Medium Shot · Kana notices the missing bell.
-SC-002 · The Village · Noon · Close-up · The elder warns Kana not to enter.
-```
-
-This lets you search for recurring locations, time-of-day mismatches, or composition repetition without touching pipeline filenames.
-
-Rebuild the index manually when needed:
-
-```bash
-cd olympus/engines/pipeline
-python -c "from pipeline.labeling import write_labels; write_labels('projects/<slug>')"
-```
+> The companion human-readable labels index (`labels.json/.txt/.html`) from
+> the superseded design is not part of the current pipeline build — see
+> `docs/planning/README-superseded-2026-08-21.md` if it needs to be revived.
 
 ## GPU Scheduling
 
@@ -391,14 +371,14 @@ Olympus is Ollama-native for language models and ComfyUI-native for image/video 
 |---|---|---|
 | General agent work | `qwen3:8b` | Chat, planning, fallback generation |
 | Scripts and worldbuilding | `qwen3:8b` | Intake, character analysis, screenplay generation |
-| Panel interpretation | `qwen3:8b` | Vision-related analysis and pipeline planning |
+| Panel interpretation | `qwen2.5vl:7b` | Vision judge (must be a VLM) |
 | Visual QA | `qwen2.5vl:7b` | Structured audio/visual review |
-| Primary panel generator | `krea2_turbo-Q4_K_S` | 768×448 anime-style panels |
-| Design fallback | `flux-2-klein-4b-Q4_K_M` | Character references and design alternatives |
-| Primary animation | LTX Director V2V | 97-frame, approximately 4-second clips |
-| Animation fallback | LTX 2B I2V | Lower-cost clip generation |
+| Primary panel generator | `flux-2-klein-4b-Q4_K_M` | 832×512 panels via `image_flux_fallback` graph (installed, validated) |
+| Animation (optional) | SVD XT (`svd_xt.safetensors`) | Off by default (`[animation] enabled = false` → panels/Ken Burns mode) |
+| Experimenting | `krea2_turbo-*` / LTX 2.3 22B | **Not installed on the current host** — krea2 OOMs at panel res on 8 GB; see `docs/planning/comfyui-rebuild-log.md` |
 
-Current animation defaults prioritize stable short clips and repeatable 8 GB VRAM operation rather than long, uncontrolled generations.
+Current defaults prioritize panels that fit 8 GB VRAM next to Ollama. Enable
+animation in `stack.toml` only after a smoke-render passes on this host.
 
 ## Testing and Validation
 
@@ -409,51 +389,30 @@ cd olympus/engines/pipeline
 python -m pytest tests/ -v
 ```
 
-The project currently documents **246 passing tests** as of 2026-08-21, including labeling-standard and VFX-identity coverage.
-
-Useful focused tests:
-
-```bash
-python -m pytest tests/test_gpu_lock.py -v
-python -m pytest tests/test_video_router.py -v
-python -m pytest tests/test_stage3c_cache.py -v
-python -m pytest tests/test_stage5_assembly.py -v
-python -m pytest tests/test_labeling.py -v
-python -m pytest tests/test_identity.py -v
-```
-
-Run a panel smoke test:
+The suite lives in `tests/test_studio_pipeline.py` (stage order contract,
+blueprint identity, scene split, optimizer gates, audio/video gating);
+**10 passing tests** as of 2026-10-04:
 
 ```bash
-python tests/smoke_test_stage3b.py
+python -m pytest tests/ -v
 ```
 
-Run the LTX Director validation gate:
-
-```bash
-PYTHONPATH=olympus/engines/pipeline .venv/bin/python \
-  olympus/engines/pipeline/tools/ltx_director_smoke.py \
-  --template ltx_director_23.json \
-  --panel <panel.png>
-```
-
-A successful lab gate writes:
-
-```
-workflows/.ltx_director_smoke_passed
-```
+GPU renders require smoke-gate markers per profile (written into
+`<project>/optimizer/`); without them the GPU stages run deterministic local
+fallbacks (PIL placeholder panels + Ken Burns motion), which is what
+`python run.py all <slug>` exercises by default.
 
 ## Troubleshooting
 
 | Symptom | Likely cause | First action |
 |---|---|---|
-| Out-of-memory during generation | Resolution, batch size, or stale models exceed VRAM | Lower resolution, use batch size 1, call `comfy.free()` |
-| Ollama and ComfyUI both OOM | Both workloads are occupying the GPU | Use GpuBatch, unload Ollama, then retry |
-| krea2 weights are missing | ComfyUI model path or checkpoint installation issue | Run `python tools/model_smoke.py --template image_krea2.json` |
-| Stage3c produced zero clips | Fresh-but-stale GPU lease is blocking the run | Inspect `/tmp/pipeline-gpu/gpu.lock` and verify owner/age |
+| Out-of-memory during generation | Resolution, batch size, or stale models exceed VRAM | Lower resolution, use batch size 1, call ComfyUI `/free` |
+| Ollama and ComfyUI both OOM | Both workloads are occupying the GPU | `gpu_batch` unloads Ollama first; stop `llama-server.service` if it is holding VRAM |
+| krea2 weights are missing | Not installed on the current host (OOMs at panel res on 8 GB) | Use the flux-2-klein default; see `docs/planning/comfyui-rebuild-log.md` |
+| Stage3c produced zero clips | Animation is disabled (panels mode) | Set `[animation] enabled = true` in `stack.toml`; run a smoke render first |
 | VLM review hangs | Review model is not installed or Ollama is unavailable | Check `ollama list`, then pull `qwen2.5vl:7b` |
 | Stage gate is blocked | A required artifact or metric is missing | Run `python run.py report <slug>` |
-| LTX test fails | Workflow, checkpoint, or node mismatch | Run the relevant LTX smoke tool and inspect workflow logs |
+| GPU lock stuck | A crashed run left the lease | Inspect owner/age in `/tmp/olympus-gpu.lock` before removing it |
 
 For complete diagnosis paths, see `docs/TROUBLESHOOTING.md`.
 
@@ -515,250 +474,7 @@ You may modify the stack for your own local projects. Model checkpoints, GGUF qu
 If you use Olympus for public video content, you are responsible for ensuring that your source material, audio, images, model outputs, and publishing workflow comply with applicable platform policies and intellectual-property rules.
 
 ---
-
-<!--
-═══════════════════════════════════════════════════════════════════════════
-SUPERSEDED / HISTORICAL CONTENT (kept for history — do not delete)
-This is the previous full README (pre-2026-08-21 rewrite). It is preserved
-verbatim so no engineering notes, plans, or tuning history are lost. Nothing
-in this block is active; it is superseded by the sections above.
-
-═══════════════════════════════════════════════════════════════════════════
-
-# [OLD] Olympus — Local AI Stack  (superseded 2026-08-21)
-
-A private, **100% free** local AI hub on your Windows PC (also runs on Linux).
-No subscriptions, no cloud, no per-token bills. The stack runs on Ollama and
-serves a multi-agent operating system through a unified web dashboard, plus a
-production-grade anime recap-video pipeline.
-
-Originally built for Windows; also runs on Linux (Fedora, since 2026-07-10).
-The `.sh` launchers mirror the `.bat` launchers 1:1; both are kept up to date.
-
----
-
-## One Command to Start
-
-**On Windows:** double-click `start.bat`
-**On Linux:** run `./start.sh`
-
-| Service | Port | Description |
-|---|---|---|
-| **Ollama** | 11434 | Local LLM runner (must be installed separately) |
-| **Olympus** | 4600 | Agent hub — dashboard, API, task routing, scheduler |
-| **OpenCode MCP** | 4720 | Intelligence layer — web fetch, search, code tools |
-| **Obsidian** | 27123 | Note vault with Local REST API plugin |
-| **Voice Studio** | 5050 | TTS engine (Kokoro / F5-TTS) |
-| **ComfyUI** | 8188 | Image/video generation |
-| **Langfuse** | 3030 | Optional LLM call tracing |
-
-Visit `http://127.0.0.1:4600` after startup.
-
----
-
-## Repo Layout (old, pre-rewrite)
-
-```
-my-local-ai-stack/
-+-- start.bat / start.sh           # Daily boot (one button)
-+-- setup.bat / setup.sh           # One-time install
-+-- olympus.toml                   # Hub config (models, paths, API keys)
-+-- config.json                    # Shared settings
-+-- olympus/
-|   +-- kernel/                    # FastAPI app, agents, scheduler, brain
-|   +-- agents/                    # Individual agent crafts (.md files)
-|   +-- web/                       # Dashboard frontend
-+-- opencode/
-|   +-- mcp_server.py              # MCP server (web fetch, search, code tools)
-|   +-- crafts/                    # TDD, debugging, verification guides
-+-- shared/lib/                    # config, llm, notes, passes, state, webfetch
-+-- docs/
-|   +-- GUIDE.md                   # Full user guide
-|   +-- TROUBLESHOOTING.md
-+-- foundation/                    # Optional Docker layer (n8n etc.; podman on Linux)
-+-- voice-studio/                  # TTS engine (Kokoro + F5-TTS) — port 5050
-+-- llm-wiki-workflow/             # LLM-managed knowledge base
-+-- ComfyUI/                       # Image/video gen, port 8188
-|                                   extra_model_paths.yaml points bulk model storage
-+-- olympus/engines/pipeline/      # Anime recap-video pipeline (run.py)
-|   +-- pipeline/                  # Core pipeline modules
-|   |   +-- stage0_intake.py       # Script intake from brief
-|   |   +-- stage1_worldbible.py   # M2a: character scan + profiles
-|   |   +-- stage1_world.py        # M2b: world enrichment + location graph
-|   |   +-- stage1r_references.py  # Character/location/style refs + voice auditions
-|   |   +-- stage3_storyboard.py   # Storyboard + shot planning (uses refs)
-|   |   +-- stage2_screenplay.py   # Narration + dialogue (uses refs)
-|   |   +-- stage3b_images.py      # Panels: krea2 img2img + LTX VAE + IPAdapters
-|   |   +-- stage3c_animation.py   # LTX I2V animation (krea2 base)
-|   |   +-- stage4_audio.py        # TTS + alignment
-|   |   +-- stage5_assembly.py     # Final MP4 + chapters + SRT
-|   |   +-- stage_vlm_review.py    # VLM review (audio + visual)
-|   |   +-- video_router.py        # LTX template selection + smoke gate
-|   |   +-- gpu_lock.py            # Cross-process GPU lease + GpuBatch
-|   |   +-- video_metrics.py       # dHash, align-ratio, location diversity
-|   |   +-- vjepa.py               # V-JEPA2 perceptual similarity gate
-|   |   +-- lipsync.py             # Lip-sync bridge (mouth_sheet.json)
-|   |   +-- realisrgan_upscale.py  # Real-ESRGAN anime 2x
-|   |   +-- align.py               # Frame alignment
-|   |   +-- agi_brain_v3.py        # AGI script scorer
-|   |   +-- agi_scorer.py          # Script quality scoring
-|   |   +-- model_lab.py           # Model smoke tests
-|   |   +-- config.py              # PipelineConfig bridge to stack.toml
-|   |   +-- blueprint.py           # Project identity + stage gates
-|   |   +-- scores.py              # SQLite scorecards + stage gates
-|   |   +-- comfy_client.py        # ComfyUI client + ban enforcement
-|   |   +-- image_router.py        # Workflow routing + M-AP-3/M-AP-7 gates
-|   |   +-- _util.py, chunking.py, llm.py, scores.py, blueprint.py
-|   +-- workflows/                 # ComfyUI workflow JSONs
-|   |   +-- panel_img2img_plate_krea.json     # krea2 img2img (LTX VAE, 768x448)
-|   |   +-- panel_img2img_plate_anima.json    # Anima img2img (LTX VAE)
-|   |   +-- panel_krea2_ref.json              # M-AP-7: IPAdapter identity/style
-|   |   +-- ltx2b_i2v.json, ltx23_i2v_8gb.json, wan_ti2v.json
-|   |   +-- character_sheet.json, mouth_sheet.json, image_krea2.json
-|   +-- manifest.json            # Patchable keys + status per workflow
-|   +-- NODES.md                 # Workflow node documentation
-|   +-- prompts/                 # LLM prompts per stage
-|   +-- tests/                   # Unit tests
-|   +-- tools/                   # Smoke tests, model_smoke, ltx_smoke, validation
-|   +-- run.py                   # CLI entry: new-project, run, report, all
-+-- olympus/engines/pipeline/projects/  # Project data (auto-created)
-```
-
----
-
-## [OLD] Anime Recap-Video Pipeline — stage order & key fixes
-
-```
-stage0 → stage1 → stage1_world → stage1r → stage3 → stage2 → stage3b → stage4 → stage3c → stage_vlm_review → stage5
-```
-
-### Key Technical Fixes (M-AP-1/3/6/7) — full history
-
-| Issue | Fix |
-|---|---|
-| **Latent mismatch** (krea2 Qwen VAE → LTX VAE) | Plates + panels at **768×448** with **LTX VAE** natively — no double-encode |
-| **Background drift** | `panel_denoise=0.2` (tighter plate lock), V-JEPA2 gate (cosine ≥ 0.88) |
-| **Guide strength too high** | `LTXVAddGuide strength=0.55` (was 0.9) |
-| **img_compression artifacts** | `img_compression=0` (lossless) in LTXVPreprocess |
-| **Character consistency** | M-AP-7: `panel_krea2_ref.json` with dual IPAdapters (identity + style) |
-| **GPU contention** | `GpuBatch` context manager: file lease + `comfy.unload_ollama()` + `comfy.free()` |
-| **End-of-clip blur** (director) | `last_frame_fix = true` on `LTXVSpatioTemporalTiledVAEDecode` in `ltx_director_23.json`. A separate img2img END-keyframe was trialed 2026-08-21 then reverted (doubled GPU cost per shot + broke the 1-render/shot test contract). |
-| **Short clips** (director) | `_DIRECTOR_FRAMES` 33 → **97** (4.0s @24fps, LTX `8n+1` latent rule); smoke-revalidated 2026-08-21 (168s wall, motion gate passes). |
-
-### [OLD] stage3c engine notes / superseded trials
-
-- **LTX 2B I2V (pre-2026-08-20):** old stage3c engine (`ltx2b_i2v.json`), 33-frame
-  (~1.4s @24fps) clips, face/character distortion mitigated via Real-ESRGAN
-  enhance + `ltx_strength` tuning, no end-of-clip stabilization.
-- **First director trial (2026-08-20):** LTXDirector V2V adopted as primary
-  with `_DIRECTOR_FRAMES = 33` (1.375s), `last_frame_fix = false`. Smoke gate
-  passed (41-frame clip, ~44s wall). See
-  `docs/planning/ltx-director-v2v-2026-08-20.md`.
-- **Reverted img2img END-keyframe (2026-08-21):** tried generating a separate
-  Flux-2-Klein img2img END frame injected as a second timeline image segment
-  with `isEndFrame=true`. REVERTED — doubled GPU renders/shot, broke the
-  stage3c test contract (exactly 1 `generate` per shot), and `last_frame_fix`
-  solves the same problem for free. `_render_end_frame` is STILL USED by the
-  Wan 2.2 two-keyframe engine (`wan22_2f` / `wan_ti2v_2f.json`).
-- **Labeling trial (2026-08-21):** burning captions onto panel PNGs and
-  renaming files to readable names were both considered and rejected — the
-  companion-index approach was chosen as the standard.
-
----
-
-## [OLD] Agents (Olympus Kernel)
-
-| Agent | Domain | Role |
-|---|---|---|
-| **Jarvis** | chat | Conversational front-end |
-| **Conductor** | system | Morning briefs, evening wraps, life triage |
-| **Forge** | pipeline | Anime pipeline plans, prompts, shot lists |
-| **Archivist** | research | Knowledge base scanning, research |
-| **Scribe** | content | Writing and editing |
-| **Plutus** | commerce | eBay, finance |
-| **Calliope** | creative | YouTube scripts, Aether Echoes |
-| **Athena** | strategy | Planner, verifier, task oversight |
-| **Sovereign** | pipeline | Software development with TDD discipline |
-
----
-
-## [OLD] Configuration notes
-
-`stack.toml` (unified config source) is loaded via `stack.config.cfg`
-(Pydantic v2). `[ollama] num_ctx` default 16384; pipeline bridges it into
-`PipelineConfig.num_ctx` and clamps `num_predict` per call. Model roles:
-
-```toml
-[ollama.models]
-default = "qwen3:8b"   # general fallback (was llama3.1:8b)
-script  = "qwen3:8b"
-vision  = "qwen3:8b"   # was qwen2.5vl:7b (miscounted dense panels)
-review  = "qwen2.5vl:7b"
-```
-
-`[animation] engine = "ltx_director"` (PRIMARY; fallbacks: ltx2b | svd_xt |
-wan22 | wan22_2f | ltx23), `ltx_director_workflow = "ltx_director_23.json"`.
-
----
-
-## [OLD] MCP Mesh
-
-Olympus, OpenCode, LifeOS, and LLM Wiki speak the **Model Context Protocol**
-for cross-tool delegation:
-- Olympus MCP (port 4720) — web fetch, search, code tools
-- OpenCode MCP — code tools, file ops
-- LLM Wiki MCP — knowledge base queries
-
----
-
-## [OLD] Design Philosophy
-
-- **Ollama-native** — works with any model; upgrade by editing `stack.toml`
-- **One Python venv** — everything shares `.venv`, no venv-per-project overhead
-- **MCP mesh** — Olympus, OpenCode, LifeOS, and LLM Wiki speak MCP
-- **Lean by default** — Docker/n8n, ComfyUI, Langfuse are optional add-ons
-- **Your data stays local** — only outbound traffic is web pages/RSS you configure
-
----
-
-## [OLD] GPU Scheduling (AGENTS.md Rule)
-
-**Ollama and ComfyUI must NEVER run GPU work simultaneously** on the RTX 4070
-8GB VRAM.
-
-- **LLM work**: ComfyUI must be idle (unload models via `/free`)
-- **Image/video work**: Unload all Ollama models (`comfy.unload_ollama()`) before queuing ComfyUI
-- **Kernel agents** use `qwen3:8b` by default; heavy pipeline stages also use `qwen3:8b` when ComfyUI is idle
-- **GpuBatch** context manager enforces: file lease → `unload_ollama()` → GPU work → `comfy.free()` → release
-
----
-
-## [OLD] Image Models (GGUF)
-
-| Model | Time | Steps | VRAM | Status |
-|---|---|---|---|---|
-| `krea2_turbo-Q4_K_S` | 32s | 8 | ~5GB | Primary (panels) |
-| `krea2_turbo-Q4_K_M` | 28s | 8 | ~5GB | Primary fallback |
-| `flux-2-klein-4b-Q4_K_M` | ~41s | 20 | ~3GB | Design fallback (swapped from flux1-schnell 2026-08) |
-| `ltx-2.3-22b-distilled-1.1-Q4_K_M` | 55s (8 steps) / ~168s (97f/4s director) | 8 | ~5.8GB | Animation primary — LTX Director V2V |
-| `ltxv-2b-0.9.8-distilled-fp8-i2v` | 29s | 8 | ~5GB | Animation fallback (LTX 2B) |
-
-Banned checkpoints enforced at runtime: `z-anime-distill-4step-fp8`,
-`wai-illustrious-v110`, `NoobAI-XL-v1.1`, `animagine-xl-4.0`, `FLUX.1-Krea-dev`.
-
----
-
-## [OLD] Documentation index
-
-- `docs/GUIDE.md` — Full user guide (services, GPU rules, pipeline, Linux)
-- `docs/TROUBLESHOOTING.md` — Common issues + fixes
-- `olympus/engines/pipeline/workflows/NODES.md` — Workflow node docs
-- `olympus/engines/pipeline/docs/` — Pipeline design docs
-
----
-
-## [OLD] License
-
-Personal use only. Not for redistribution. All models subject to their
-respective licenses (GGUF quantizations, Ollama terms).
--->
+> **History:** The full pre-2026-08-21 README (old stage orders, M-AP fix history,
+> legacy repo layout, and superseded trials) is preserved at
+> [`docs/planning/README-superseded-2026-08-21.md`](docs/planning/README-superseded-2026-08-21.md).
+> Nothing in that file is active — this README is the single source of truth.

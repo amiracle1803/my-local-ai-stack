@@ -109,7 +109,7 @@ async def limit_body_size(request: Request, call_next):
 @app.middleware("http")
 async def request_timeout(request: Request, call_next):
     if request.url.path in {"/api/voice/tts", "/api/orchestrate", "/api/nim/test",
-                              "/api/commerce/deep-research"}:
+                              "/api/commerce/deep-research"} or request.url.path.startswith("/api/studio/"):
         return await call_next(request)  # TTS has its own 300s upstream timeout
     try:
         return await asyncio.wait_for(call_next(request), timeout=30.0)
@@ -1755,6 +1755,160 @@ def web_asset(asset: str):
     if asset in ("styles.css", "app.js"):
         return _web_file(WEB_DIR / asset)
     raise HTTPException(404, f"unknown asset: {asset!r}")
+
+
+# ── Studio API (used by W.A.T. studio_* tools) ─────────────────────────────
+# GPU work for other machines: image (FLUX.2 klein via ComfyUI), voice, short
+# video (SVD). Every job goes through pipeline.gpu_lock.gpu_batch, which unloads
+# Ollama first, so ComfyUI and Ollama never share the 8 GB card.
+# Auth: Bearer token from $STUDIO_TOKEN or ~/.config/wat/studio.token.
+
+STUDIO_OUT = Path(os.environ.get("STUDIO_OUT", str(Path.home() / "Studio" / "out")))
+_STUDIO_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,120}$")
+
+
+def _studio_token() -> str:
+    tok = os.environ.get("STUDIO_TOKEN", "")
+    if not tok:
+        try:
+            tok = (Path.home() / ".config" / "wat" / "studio.token").read_text().strip()
+        except OSError:
+            tok = ""
+    return tok
+
+
+def _studio_auth(request: Request) -> None:
+    tok = _studio_token()
+    got = request.headers.get("authorization", "").removeprefix("Bearer ").strip()
+    if not tok or not hmac.compare_digest(tok, got):
+        raise HTTPException(401, "studio token missing or invalid")
+
+
+WAT_DB = Path(os.environ.get("WAT_DB", str(Path.home() / "Dev" / "wat" / "state" / "wat.db")))
+
+
+def _studio_gpu_guard() -> None:
+    """Refuse while a W.A.T. GPU task runs here: gpu_batch would unload its Ollama model
+    mid-run. (The W.A.T. governor checks the other direction via the GPU lock file.)"""
+    if not WAT_DB.exists():
+        return
+    import sqlite3
+    try:
+        c = sqlite3.connect(f"file:{WAT_DB}?mode=ro", uri=True, timeout=3)
+        rows = c.execute("select name from tasks where status='running' and gpu=1 limit 3").fetchall()
+        c.close()
+    except sqlite3.Error:
+        return
+    if rows:
+        raise HTTPException(409, "GPU busy with W.A.T. task(s): " + ", ".join(r[0] for r in rows)
+                            + " - try again in a few minutes")
+
+
+def _studio_dest(kind: str, ext: str) -> Path:
+    STUDIO_OUT.mkdir(parents=True, exist_ok=True)
+    return STUDIO_OUT / f"{kind}-{time.strftime('%Y%m%d-%H%M%S')}-{secrets.token_hex(3)}.{ext}"
+
+
+class StudioImageIn(BaseModel):
+    prompt: str = Field(min_length=3, max_length=2000)
+    seed: int | None = None
+
+
+class StudioTTSIn(BaseModel):
+    text: str = Field(min_length=1, max_length=8000)
+    voice: str = "af_heart"
+    speed: float = Field(default=1.0, ge=0.5, le=2.0)
+
+
+class StudioVideoIn(BaseModel):
+    prompt: str | None = Field(default=None, max_length=2000)
+    image_file: str | None = None
+    seed: int | None = None
+    frames: int = Field(default=14, ge=8, le=25)
+    fps: float = Field(default=6.0, ge=2, le=24)
+
+
+@app.post("/api/studio/image")
+def studio_image(body: StudioImageIn, request: Request):
+    _studio_auth(request)
+    _studio_gpu_guard()
+    from pipeline.comfy_client import render_panel
+    t0, seed = time.time(), body.seed if body.seed is not None else secrets.randbelow(2**31)
+    dest = _studio_dest("image", "png")
+    try:
+        render_panel(body.prompt, dest, seed)
+    except TimeoutError as e:
+        raise HTTPException(504, str(e)[:300])
+    except Exception as e:
+        raise HTTPException(503, f"image render failed: {str(e)[:300]}")
+    return {"file": dest.name, "seed": seed, "seconds": round(time.time() - t0, 1)}
+
+
+@app.post("/api/studio/tts")
+def studio_tts(body: StudioTTSIn, request: Request):
+    _studio_auth(request)
+    _studio_gpu_guard()
+    from pipeline.voice_client import synth
+    t0, dest = time.time(), _studio_dest("voice", "wav")
+    path, used = synth(body.text, dest, voice=body.voice, speed=body.speed)
+    if not used:
+        Path(path).unlink(missing_ok=True)
+        raise HTTPException(503, "no TTS engine answered (Voice Studio down or GPU busy)")
+    return {"file": Path(path).name, "seconds": round(time.time() - t0, 1)}
+
+
+@app.post("/api/studio/video")
+def studio_video(body: StudioVideoIn, request: Request):
+    _studio_auth(request)
+    _studio_gpu_guard()
+    from pipeline.comfy_client import animate_panel, render_panel
+    t0, seed = time.time(), body.seed if body.seed is not None else secrets.randbelow(2**31)
+    if body.image_file:
+        if not _STUDIO_NAME.match(body.image_file) or not (STUDIO_OUT / body.image_file).is_file():
+            raise HTTPException(404, "image_file not found in studio output")
+        still = STUDIO_OUT / body.image_file
+    elif body.prompt:
+        still = _studio_dest("still", "png")
+        try:
+            render_panel(body.prompt, still, seed)
+        except Exception as e:
+            raise HTTPException(503, f"still render failed: {str(e)[:300]}")
+    else:
+        raise HTTPException(400, "give prompt or image_file")
+    dest = _studio_dest("video", "mp4")
+    try:
+        out = animate_panel(still, dest, seed, frames=body.frames, fps=body.fps)
+    except Exception as e:
+        raise HTTPException(503, f"animation failed: {str(e)[:300]}")
+    return {"file": Path(out).name, "still": still.name, "seed": seed, "seconds": round(time.time() - t0, 1)}
+
+
+@app.get("/api/studio/file/{name}")
+def studio_file(name: str, request: Request):
+    _studio_auth(request)
+    if not _STUDIO_NAME.match(name) or not (STUDIO_OUT / name).is_file():
+        raise HTTPException(404, "no such studio file")
+    return FileResponse(STUDIO_OUT / name)
+
+
+@app.get("/api/studio/status")
+def studio_status():
+    from pipeline import gpu_lock
+    def up(url):
+        try:
+            urllib.request.urlopen(url, timeout=3).read(64)
+            return True
+        except Exception:
+            return False
+    holder = ""
+    try:
+        holder = gpu_lock.LOCK_PATH.read_text()[:200] if gpu_lock.LOCK_PATH.exists() else ""
+    except OSError:
+        pass
+    recent = sorted(STUDIO_OUT.glob("*"), key=lambda p: p.stat().st_mtime, reverse=True)[:10] if STUDIO_OUT.exists() else []
+    return {"comfyui": up(gpu_lock.COMFYUI_URL + "/system_stats"), "voice": up(cfg.voice.url + "/api/voices"),
+            "gpu_lock": holder, "token_configured": bool(_studio_token()),
+            "recent": [p.name for p in recent]}
 
 
 app.mount("/web", StaticFiles(directory=WEB_DIR), name="web")

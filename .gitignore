@@ -109,3 +109,8 @@ ComfyUI.zip
 # External large repos (cloned separately)
 TencentDB-Agent-Memory/
 harness-deepseek/
+
+# local-only archives (contain personal data / snapshots)
+_archive/qdrant-snapshots-*/
+_archive/harness-pre-wat-*/
+_archive/*.bak-*

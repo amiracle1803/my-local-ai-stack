@@ -66,37 +66,25 @@ check_docker() {
     fi
 }
 
-echo "--- Core HTTP Services ---"
-check_http_any "Olympus Kernel (4600)" "http://localhost:4600/"
-check_http "Ollama (11434)" "http://localhost:11434/"
-check_http "Memory Hub Panel (8125)" "http://localhost:8125/health"
-check_http "Open WebUI (8080)" "http://localhost:8080"
+echo "--- Studio (this machine's job in W.A.T.: GPU media) ---"
+check_http "Studio API (4600)" "http://localhost:4600/api/studio/status"
 check_http_any "ComfyUI (8188)" "http://localhost:8188/"
 check_http "Voice Studio (5050)" "http://localhost:5050/api/health"
+check_http "Ollama GPU (11434)" "http://localhost:11434/"
 
 echo ""
-echo "--- Systemd User Services ---"
-check_systemd_user "Olympus Kernel" "olympus-kernel.service"
-check_systemd_user "Open WebUI" "open-webui.service"
+echo "--- Systemd Services ---"
+check_systemd_user "Studio API (olympus-kernel)" "olympus-kernel.service"
 check_systemd_user "ComfyUI" "comfyui-server.service"
 check_systemd_user "Voice Studio" "voice-studio.service"
-
-echo ""
-echo "--- Systemd System Services ---"
+check_systemd_user "llama.cpp Model Selector (8080)" "llama-selector.service"
+check_systemd_user "OpenCode MCP Bridge (4720)" "opencode-mcp.service"
 check_systemd_system "Ollama" "ollama.service"
 
 echo ""
-echo "--- Docker Containers (Memory Hub) ---"
-check_docker "Memory Core" "tdai-memory-core"
-check_docker "Memory Hub" "tdai-memory-hub"
-check_docker "Memory Proxy" "tdai-proxy"
-
-echo ""
-echo "--- n8n Automation Plane (stack.toml [automation]) ---"
-check_http "n8n UI/API (5679)" "http://localhost:5679/healthz"
-check_docker "n8n" "n8n-stack-n8n-1"
-check_docker "n8n Postgres" "n8n-stack-postgres-1"
-check_docker "Qdrant (RAG vectors)" "n8n-stack-qdrant-1"
+echo "--- Moved into W.A.T. (2026-11-03) ---"
+echo "   n8n, memory, Open WebUI, dashboards and proxies now live on the ProDesk."
+echo "   See everything: W.A.T. Catalog -> http://100.103.246.96:8770/catalog"
 
 echo ""
 echo "=== GPU Status ==="
