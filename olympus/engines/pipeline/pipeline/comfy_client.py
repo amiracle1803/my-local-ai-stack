@@ -35,12 +35,19 @@ def _is_oom(exc: Exception) -> bool:
 
 
 def _free_gpu(base_url: str) -> None:
-    """Ask ComfyUI to drop its models and cached memory before a retry."""
+    """Before a retry: drop ComfyUI's models/cache AND any Ollama model that got loaded
+    mid-run (n8n/Bifrost route "Legion first" LLM calls here; 2026-11-04 one 5.4 GB qwen3
+    load killed an episode because only ComfyUI was being freed)."""
     try:
         _request(f"{base_url.rstrip('/')}/free", {"unload_models": True, "free_memory": True})
     except Exception:
         pass
-    time.sleep(5)
+    try:
+        from .gpu_lock import unload_ollama
+        unload_ollama()
+    except Exception:
+        pass
+    time.sleep(10)  # Ollama unloads asynchronously
 
 
 def _with_oom_retry(fn, base_url: str):

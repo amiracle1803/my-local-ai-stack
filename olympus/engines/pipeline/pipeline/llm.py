@@ -25,8 +25,12 @@ def ollama_generate(
     timeout: int = 120,
     num_predict: int = 1200,
     temperature: float = 0.3,
+    think: bool | None = None,
 ) -> LLMResult | None:
-    """Try one Ollama /api/generate call. Returns None on any failure."""
+    """Try one Ollama /api/generate call. Returns None on any failure.
+
+    ``think=False`` switches off a reasoning model's hidden thinking (qwen3 otherwise
+    spends the whole num_predict budget thinking and returns a truncated/empty answer)."""
     try:
         from stack.config import cfg
 
@@ -34,14 +38,15 @@ def ollama_generate(
         url = cfg.ollama.url + "/api/generate"
     except Exception:
         return None
-    payload = json.dumps(
-        {
-            "model": model,
-            "prompt": prompt,
-            "stream": False,
-            "options": {"temperature": temperature, "num_predict": num_predict},
-        }
-    ).encode()
+    body = {
+        "model": model,
+        "prompt": prompt,
+        "stream": False,
+        "options": {"temperature": temperature, "num_predict": num_predict},
+    }
+    if think is not None:
+        body["think"] = think
+    payload = json.dumps(body).encode()
     try:
         req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
         with urllib.request.urlopen(req, timeout=timeout) as resp:
