@@ -10,7 +10,47 @@ import urllib.request
 import uuid
 from pathlib import Path
 
+import os
+
 from .gpu_lock import gpu_batch
+
+# Long runs (5 h episodes) must survive a transient CUDA OOM on the 8 GB card and must
+# resume without re-rendering finished panels/clips. 2026-11-03: 199 OOMs in one evening
+# when another process held VRAM; each one silently lost a panel.
+OOM_RETRIES = int(os.environ.get("OLYMPUS_OOM_RETRIES", "2"))
+MIN_PANEL_BYTES, MIN_CLIP_BYTES = 10_000, 20_000
+
+
+def _already_done(destination: Path, min_bytes: int) -> bool:
+    """Resume: keep an existing render unless OLYMPUS_FORCE_RENDER=1."""
+    if os.environ.get("OLYMPUS_FORCE_RENDER") == "1":
+        return False
+    d = Path(destination)
+    return d.exists() and d.stat().st_size >= min_bytes
+
+
+def _is_oom(exc: Exception) -> bool:
+    t = str(exc)
+    return "OutOfMemory" in t or "out of memory" in t.lower()
+
+
+def _free_gpu(base_url: str) -> None:
+    """Ask ComfyUI to drop its models and cached memory before a retry."""
+    try:
+        _request(f"{base_url.rstrip('/')}/free", {"unload_models": True, "free_memory": True})
+    except Exception:
+        pass
+    time.sleep(5)
+
+
+def _with_oom_retry(fn, base_url: str):
+    for attempt in range(OOM_RETRIES + 1):
+        try:
+            return fn()
+        except RuntimeError as exc:
+            if not _is_oom(exc) or attempt == OOM_RETRIES:
+                raise
+            _free_gpu(base_url)
 
 
 def _request(url: str, payload: dict | None = None) -> dict:
@@ -97,8 +137,10 @@ def _render_panel(prompt: str, destination: Path, seed: int, base_url: str = "ht
 
 def render_panel(prompt: str, destination: Path, seed: int,
                  base_url: str = "http://127.0.0.1:8188", timeout: int = 900) -> Path:
+    if _already_done(destination, MIN_PANEL_BYTES):
+        return destination
     with gpu_batch("comfyui:panel"):
-        return _render_panel(prompt, destination, seed, base_url, timeout)
+        return _with_oom_retry(lambda: _render_panel(prompt, destination, seed, base_url, timeout), base_url)
 
 
 def _svd_graph(input_image: str, seed: int, frames: int = 14, fps: float = 6.0,
@@ -153,5 +195,8 @@ def _animate_panel(panel_path: str | Path, destination: Path, seed: int,
 def animate_panel(panel_path: str | Path, destination: Path, seed: int,
                   base_url: str = "http://127.0.0.1:8188", timeout: int = 1200,
                   frames: int = 14, fps: float = 6.0) -> Path:
+    if _already_done(destination, MIN_CLIP_BYTES):
+        return destination
     with gpu_batch("comfyui:animation"):
-        return _animate_panel(panel_path, destination, seed, base_url, timeout, frames, fps)
+        return _with_oom_retry(
+            lambda: _animate_panel(panel_path, destination, seed, base_url, timeout, frames, fps), base_url)
