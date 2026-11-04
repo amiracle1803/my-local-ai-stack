@@ -117,12 +117,12 @@ def test_storyboard_enriches_screenplay_shots(tmp_path):
     storyboard = json.loads(
         (project / "storyboard" / "storyboard.json").read_text(encoding="utf-8")
     )
-    assert result == {"shots": 2}  # 2 shots per scene by default
+    assert result == {"shots": 1}  # one shot per narration paragraph / spoken line
     assert storyboard["shot_detail"][0]["id"] == "sh-001-01"
     assert "storm" in storyboard["shot_detail"][0]["action"].lower()
     # Storyboard stays visual/internal; screenplay owns narration and dialogue.
     assert storyboard["shot_detail"][0]["composition"] == "wide establishing shot"
-    assert storyboard["shot_detail"][0]["character_ids"] == ["char"]
+    assert storyboard["shot_detail"][0]["character_ids"] == ["kael"]  # only who is in the shot
     assert storyboard["shot_detail"][0]["reference_assets"] == []
 
 

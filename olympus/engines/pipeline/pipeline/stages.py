@@ -37,9 +37,14 @@ _STOP = {"The", "This", "That", "There", "They", "When", "Where", "What",
 
 def split_scenes(text: str, target_chars: int = 900) -> list[dict]:
     """Split pasted script into scene dicts (heading/location/summary/content)."""
-    text = text.strip()
+    text = normalize_script(text)
     if not text:
         return [{"location": "UNKNOWN", "summary": "empty script", "content": ""}]
+    # A script with SCENE headings is split exactly there (the size-based merge below cut
+    # every written scene in two).
+    heads = list(re.finditer(r"(?im)^(scene|chapter|part|episode)\s+\d+\b.*$", text))
+    if len(heads) >= 2:
+        target_chars = 10 ** 9
     # Respect explicit headings first.
     chunks = re.split(r"\n\s*\n", text)
     scenes: list[dict] = []
@@ -60,6 +65,9 @@ def split_scenes(text: str, target_chars: int = 900) -> list[dict]:
     out = []
     for i, c in enumerate(scenes):
         first = c.strip().split("\n")[0][:90]
+        head = _HEADING_RE.match(first)
+        if head and len(first[head.end():].strip()) > 3:  # "SCENE 1 — The Tower" -> "The Tower"
+            first = first[head.end():].strip()
         out.append({
             "location": first if len(first) > 3 else f"SCENE {i + 1}",
             "scene_heading": f"SCENE {i + 1} — {first[:60]}",
@@ -69,7 +77,26 @@ def split_scenes(text: str, target_chars: int = 900) -> list[dict]:
     return out
 
 
+def _speaker_counts(text: str) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for line in normalize_script(text).splitlines():
+        m = _SPEAKER_RE.match(line.strip())
+        if not m:
+            continue
+        n = m.group(1).strip()
+        if n.lower() in _NOT_SPEAKERS or n.lower() in _NARRATOR:
+            continue
+        n = n.title() if n.isupper() else n
+        counts[n] = counts.get(n, 0) + 1
+    return counts
+
+
 def extract_names(text: str, limit: int = 8) -> list[str]:
+    # A screenplay names its cast in the speaker labels; capitalised words in the action
+    # lines ("She", "Flame", "Courage") are not characters.
+    speakers = _speaker_counts(text)
+    if len(speakers) >= 2:
+        return [n for n, _ in sorted(speakers.items(), key=lambda kv: (-kv[1], kv[0]))[:limit]]
     # SCENE headings are location labels, not characters — drop them up front.
     text = re.sub(r"(?im)^\s*SCENE\s+\d+.*$", "", text)
     counts: dict[str, int] = {}
@@ -118,6 +145,249 @@ def _dialogue_lines(content: str) -> list[dict]:
 
 
 # --------------------------------------------------------------------------
+# script normalisation, beats and brief metadata
+# (2026-11-04: LLM scripts arrive as markdown — **Aya:** (shouting) "…", *[stage
+# direction]* — which the NAME: parser missed entirely; episodes came out as three
+# 180-char narration snippets over six panels.)
+# --------------------------------------------------------------------------
+
+_HEADING_RE = re.compile(r"(?i)^(scene|chapter|part|episode)\s+\d+\b\s*[—–:.-]*\s*")
+_SPEAKER_RE = re.compile(r"^([A-Z][A-Za-z'.-]*(?: [A-Z][A-Za-z'.-]*){0,2})\s*:\s*(.+)$")
+_NOT_SPEAKERS = {"scene", "chapter", "part", "episode", "note", "notes", "tone", "style", "cast",
+                 "series", "title", "setting", "location", "time", "voices", "sfx", "music",
+                 "end", "cut", "fade", "int", "ext", "new", "opening", "closing"}
+_NARRATOR = {"narrator", "narration", "voice over", "voiceover", "vo"}
+SHOT_MIN_SECONDS = 2.5          # screen time of a shot with no audio
+NARRATION_SHOT_WORDS = 45       # longer narration paragraphs split into several shots
+
+
+def _slug(name: str) -> str:
+    return re.sub(r"\W+", "_", name).strip("_").lower() or "char"
+
+
+def _same_name(a: str, b: str) -> bool:
+    """'Toma' and 'Old Toma' are the same character."""
+    a, b = a.strip().lower(), b.strip().lower()
+    return bool(a and b) and (a == b or a.split()[-1] == b.split()[-1])
+
+
+def normalize_script(text: str) -> str:
+    """Flatten an LLM markdown screenplay into the plain format the stages parse:
+    ``**Aya:** (shouting) "Toma!"`` -> ``Aya: (shouting) Toma!``, ``*[She climbs.]*`` ->
+    ``She climbs.``; markdown headings, rules and emphasis are dropped. Plain scripts
+    pass through unchanged."""
+    text = re.sub(r"(?s)<think>.*?</think>", "", text.replace("\r\n", "\n"))
+    out: list[str] = []
+    for raw in text.split("\n"):
+        line = re.sub(r"^#{1,6}\s*", "", raw.strip())
+        if re.fullmatch(r"[-*_=]{3,}", line):
+            line = ""
+        line = line.replace("*", "").replace("__", "").strip()
+        direction = re.fullmatch(r"\[(.+)\]", line)
+        if direction:  # a stage direction: drop camera labels ("Opening:", "Aya's POV.")
+            d = re.sub(r"^([A-Z][A-Za-z' ]{0,24}):\s*", "", direction.group(1).strip())
+            out.append(re.sub(r"\b[\w’']+ POV\b[.:,]?\s*", "", d).strip())
+            continue
+        sm = _SPEAKER_RE.match(line)
+        if sm and sm.group(1).strip().lower() not in _NOT_SPEAKERS:
+            speaker, rest = sm.group(1).strip(), sm.group(2).strip()
+            speaker = speaker.title() if speaker.isupper() else speaker
+            delivery = ""
+            pm = re.match(r"^\(([^)]{1,80})\)\s*(.*)$", rest)
+            if pm:
+                delivery, rest = pm.group(1).strip(), pm.group(2).strip()
+            quoted = re.findall(r"[\"“]([^\"”]+)[\"”]", rest)
+            tail = ""
+            if quoted:
+                tail = re.split(r"[\"”]", rest)[-1].strip(" -—[]")
+                rest = " ".join(q.strip() for q in quoted)
+            out.append(f"{speaker}: " + (f"({delivery}) " if delivery else "") + rest)
+            if len(tail) > 3:
+                out.append(tail)
+            continue
+        out.append(line)
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(out)).strip()
+
+
+def _sentences_in_chunks(text: str, max_words: int) -> list[str]:
+    parts = re.split(r"(?<=[.!?…])\s+", text.strip())
+    chunks: list[str] = []
+    cur: list[str] = []
+    for p in parts:
+        if cur and len(" ".join(cur + [p]).split()) > max_words:
+            chunks.append(" ".join(cur))
+            cur = []
+        cur.append(p)
+    if cur:
+        chunks.append(" ".join(cur))
+    return [c for c in chunks if c.strip()]
+
+
+def script_beats(content: str) -> list[dict]:
+    """Ordered beats of one scene: ``{"kind": "action", "text"}`` narration paragraphs and
+    ``{"kind": "dialogue", "speaker", "text", "delivery"}`` spoken lines."""
+    beats: list[dict] = []
+    para: list[str] = []
+
+    def flush() -> None:
+        if para:
+            beats.append({"kind": "action", "text": " ".join(para)})
+            para.clear()
+
+    for line in normalize_script(content).splitlines():
+        s = line.strip()
+        if not s:
+            flush()
+            continue
+        if len(s) < 90 and re.search(r"(?i)\bepisode\s+\d+\b", s) and not _SPEAKER_RE.match(s) \
+                and not re.match(r"(?i)^episode\s+\d+\s*$", s):
+            flush()  # the title card is its own narrated beat
+            beats.append({"kind": "action", "text": s.replace('"', "")})
+            continue
+        head = _HEADING_RE.match(s)
+        if head:  # "SCENE 2 — The Flame Goes Out." is a location label; a long one is content
+            flush()
+            rest = s[head.end():].strip()
+            if len(rest) > 80:
+                para.append(rest)
+            continue
+        m = _SPEAKER_RE.match(s)
+        name = m.group(1).strip() if m else ""
+        if m and name.lower() not in _NOT_SPEAKERS:
+            flush()
+            rest = m.group(2).strip()
+            if name.lower() in _NARRATOR:
+                beats.append({"kind": "action", "text": rest})
+                continue
+            delivery = ""
+            pm = re.match(r"^\(([^)]{1,80})\)\s*(.*)$", rest)
+            if pm:
+                delivery, rest = pm.group(1).strip(), pm.group(2).strip()
+            rest = rest.strip(' "“”')
+            if rest:
+                beats.append({"kind": "dialogue", "speaker": name.title() if name.isupper() else name,
+                              "text": rest, "delivery": delivery})
+        else:
+            para.append(s)
+    flush()
+    return beats
+
+
+def shot_plan(content: str) -> list[dict]:
+    """Group a scene's beats into shots. A narration paragraph opens a shot (long ones are
+    split at sentence ends) and takes the next spoken line with it; every further spoken
+    line gets its own close-up. Shared by storyboard (visuals) and screenplay (text)."""
+    shots: list[dict] = []
+    last_action = ""
+    for b in script_beats(content):
+        if b["kind"] == "action":
+            for chunk in _sentences_in_chunks(b["text"], NARRATION_SHOT_WORDS):
+                last_action = chunk
+                shots.append({"narration": chunk, "action": chunk,
+                              "speaker": "", "dialogue": "", "delivery": ""})
+        elif shots and shots[-1]["narration"] and not shots[-1]["dialogue"]:
+            shots[-1].update(speaker=b["speaker"], dialogue=b["text"], delivery=b["delivery"])
+        else:
+            shots.append({"narration": "", "action": last_action, "speaker": b["speaker"],
+                          "dialogue": b["text"], "delivery": b["delivery"]})
+    if not shots:
+        text = re.sub(r"\s+", " ", content).strip()
+        shots = [{"narration": text[:600], "action": text[:240], "speaker": "", "dialogue": "",
+                  "delivery": ""}]
+    return shots
+
+
+def brief_meta(project_dir: Path) -> dict:
+    """Optional series metadata in input/brief.md:
+    ``Style: …``, ``Cast: Name (look), Name (look)``, ``Voices: Name=Speaker (style); …``."""
+    p = Path(project_dir) / "input" / "brief.md"
+    text = p.read_text(encoding="utf-8", errors="replace") if p.exists() else ""
+    meta: dict = {"style": "", "cast": {}, "voices": {}}
+    m = re.search(r"(?i)\bStyle:\s*([^\n]+)", text)
+    if m:
+        meta["style"] = m.group(1).strip().rstrip(".")
+    m = re.search(r"(?i)\bCast:\s*([^\n]+)", text)
+    if m:
+        for c in re.finditer(r"([A-Z][\w' -]{0,30}?)\s*\(([^)]*)\)", m.group(1)):
+            meta["cast"][c.group(1).strip(" ,")] = c.group(2).strip()
+    m = re.search(r"(?i)\bVoices:\s*([^\n]+)", text)
+    if m:
+        for part in m.group(1).split(";"):
+            v = re.match(r"\s*([^=]+?)\s*=\s*([A-Za-z_]+)\s*(?:\(([^)]*)\))?", part)
+            if v:
+                meta["voices"][v.group(1).strip()] = {"voice": v.group(2), "style": (v.group(3) or "").strip()}
+    return meta
+
+
+_SCRIPT_RULES = ("Plain text only: no markdown, no asterisks, no title line. Narration paragraphs "
+                 "describe what we see happen. Every spoken line goes on its own line as NAME: line "
+                 "(optionally NAME: (short delivery note) line) and never inside a narration "
+                 "paragraph. Only use characters from the brief's Cast. Blank line between paragraphs.\n\n"
+                 "EXAMPLE OF THE FORMAT (a different story):\n"
+                 "SCENE 1 — Harbor at dawn\n"
+                 "Fishing boats bob in grey water. Kaito hauls an empty net onto the dock.\n\n"
+                 "KAITO: (grunting) Nothing again.\n"
+                 "HANA: Then we sail further out.\n\n"
+                 "The gulls scatter as the harbor bell rings.")
+
+
+def _brief_for_writer(brief: str) -> str:
+    # Voice casting is for the TTS stage; the writer copied it into delivery notes.
+    return "\n".join(l for l in brief.splitlines() if not re.match(r"(?i)^\s*voices:", l))[:3000]
+
+
+def _script_prompt(brief: str, word_target: int) -> str:
+    return (f"Write the full episode script for this anime brief: about {word_target} words, "
+            "3-6 scenes, in this exact format:\n\n"
+            "SCENE 1 — <this scene's own place, time of day>\n"
+            "<1-3 sentences of narration describing what we see happen>\n"
+            "NAME: <one short spoken line>\n"
+            "NAME: (whispering) <a spoken line with a short delivery note>\n\n"
+            "<more narration>\n\n"
+            "SCENE 2 — <place>\n…\n\n"
+            f"{_SCRIPT_RULES} Follow the brief's scene list in order.\n\n"
+            f"BRIEF:\n{_brief_for_writer(brief)}")
+
+
+def _write_script(brief: str, word_target: int) -> str | None:
+    """Brief -> script with the local LLM. A brief with a SCENE list is written one scene at
+    a time (an 8B model asked for 600 words in one go wrote ~300 and blurred the scenes);
+    otherwise a single call. None when the LLM is unavailable."""
+    beats = re.findall(r"(?im)^\s*SCENE\s+\d+\s*[-—–:.]\s*(.+)$", brief)
+    if len(beats) < 2:
+        llm = ollama_generate(_script_prompt(brief, word_target), timeout=600,
+                              num_predict=max(2000, word_target * 4), temperature=0.5, think=False)
+        return normalize_script(llm.text) if llm else None
+    per = max(80, word_target // len(beats))
+    parts: list[str] = []
+    for i, beat in enumerate(beats, 1):
+        so_far = "\n\n".join(parts)[-1800:] or "(nothing yet)"
+        prompt = (f"{_SCRIPT_RULES}\n\nBRIEF:\n{_brief_for_writer(brief)}\n\nSCRIPT SO FAR:\n{so_far}\n\n"
+                  f"Write ONLY scene {i} now — {beat.strip()} — about {per} words. First line: "
+                  f"SCENE {i} — <place>. Then 3-4 narration paragraphs with 3-6 short spoken lines "
+                  "between them. Continue naturally from the script so far; do not write later scenes.")
+        text = ""
+        for _attempt in range(2):  # retry once if the dialogue came back as prose
+            llm = ollama_generate(prompt, timeout=300, num_predict=max(900, per * 5), temperature=0.6, think=False)
+            if not llm:
+                break
+            text = normalize_script(llm.text)
+            if _speaker_counts(text):
+                break
+        if not text:
+            return "\n\n".join(parts) or None
+        heads = list(re.finditer(r"(?im)^\s*SCENE\s+\d+\b.*$", text))
+        if len(heads) > 1:  # the model ran on into the next scene
+            text = text[:heads[1].start()]
+        if heads:
+            text = re.sub(r"(?i)^\s*SCENE\s+\d+", f"SCENE {i}", text.lstrip(), count=1)
+        else:
+            text = f"SCENE {i} — {beat.split('.')[0].strip()}\n{text}"
+        parts.append(text.strip())
+    return "\n\n".join(parts)
+
+
+# --------------------------------------------------------------------------
 # stage0 — intake: script.txt -> blueprint + scenes
 # --------------------------------------------------------------------------
 
@@ -133,20 +403,14 @@ def run_stage0(project_dir: Path, brief: str | None = None,
     elif brief and bp.mode == "0b":
         (inp / "brief.md").write_text(brief, encoding="utf-8")
         # Expand the brief into a working script (LLM first, template fallback).
-        prompt = (f"Expand this anime brief into a {word_target}-word recap script "
-                  f"with 3-6 scenes, dialogue lines as NAME: line, vivid action:\n\n{brief[:3000]}")
-        llm = ollama_generate(prompt, num_predict=2000, temperature=0.5)
-        script_text = llm.text if llm else _expand_template(brief, word_target)
+        script_text = _write_script(brief, word_target) or _expand_template(brief, word_target)
     else:
         brief_path = inp / "brief.md"
         source_path = inp / "source.txt"
         script_path = inp / "script.txt"
         if brief_path.exists() and (not script_path.exists() or script_path.stat().st_size < 50):
             b = brief_path.read_text(encoding="utf-8", errors="replace")
-            prompt = (f"Expand this anime brief into a {word_target}-word recap script "
-                      f"with 3-6 scenes:\n\n{b[:3000]}")
-            llm = ollama_generate(prompt, num_predict=2000, temperature=0.5)
-            script_text = llm.text if llm else _expand_template(b, word_target)
+            script_text = _write_script(b, word_target) or _expand_template(b, word_target)
         elif source_path.exists():
             script_text = source_path.read_text(encoding="utf-8", errors="replace")
         elif script_path.exists():
@@ -198,12 +462,25 @@ def run_dossier(project_dir: Path) -> dict:
     project_dir = Path(project_dir)
     script = (project_dir / "input" / "script.txt").read_text(encoding="utf-8", errors="replace")
     scenes = json.loads((project_dir / "stage0_scenes.json").read_text(encoding="utf-8"))
-    names = extract_names(script)
+    cast = brief_meta(project_dir)["cast"]
+    # With a brief Cast the characters are the speakers plus cast members the script uses;
+    # capitalised words in prose ("Flame", "Then") are never guessed in.
+    names = list(_speaker_counts(script)) if cast else extract_names(script)
+    # The brief's Cast line carries the canonical look; add cast members the script uses.
+    for cname in cast:
+        if not any(_same_name(cname, n) for n in names) and \
+                re.search(rf"\b{re.escape(cname.split()[-1])}\b", script, re.I):
+            names.append(cname)
+
+    def _look(n: str) -> str:
+        hit = next((d for c, d in cast.items() if _same_name(c, n)), "")
+        return hit or f"anime design, distinctive silhouette, expressive eyes ({n})"
+
     characters = [{
         "id": re.sub(r"\W+", "_", n).lower(),
         "name": n,
         "role": "protagonist" if i == 0 else ("antagonist" if "wolf" in n.lower() else "supporting"),
-        "appearance": f"anime design, distinctive silhouette, expressive eyes ({n})",
+        "appearance": _look(n),
         "description": f"Key figure across {len(scenes)} scenes.",
         "source_evidence": [s.get("content", "")[:240] for s in scenes if n in s.get("content", "")][:3],
         "confidence": 0.45,
@@ -355,28 +632,46 @@ def run_storyboard(project_dir: Path) -> dict:
     bible_path = project_dir / "worldbible" / "world_bible.json"
     bible = json.loads(bible_path.read_text(encoding="utf-8")) if bible_path.exists() else {}
     scenes = json.loads((project_dir / "stage0_scenes.json").read_text(encoding="utf-8"))
-    characters = bible.get("characters", [])
-    character_ids = [c.get("id", "char") for c in characters]
+    characters = [(c.get("id") or _slug(c.get("name", "char")), c.get("name", ""))
+                  for c in bible.get("characters", [])]
+
+    def present(plan: dict) -> list[str]:
+        text = f"{plan['speaker']} {plan['narration']} {plan['dialogue']}"
+        found = [cid for cid, name in characters if name and (
+            _same_name(name, plan["speaker"]) or
+            re.search(rf"\b{re.escape(name.split()[-1])}\b", text, re.I))]
+        return found
 
     blocks, shots = [], []
     for i, s in enumerate(scenes):
         bid = f"block_{i:02d}"
         blocks.append({"id": bid, "title": s.get("location", f"Scene {i+1}")[:80],
                        "summary": s.get("summary", "")[:240]})
-        # Storyboard is an internal visual plan. Screenplay text is produced
-        # later by stage2 from these shot contracts.
-        for j in range(2):
-            shot_id = f"sh-{i+1:03d}-{j+1:02d}"
+        # Storyboard is an internal visual plan: one shot per narration paragraph or spoken
+        # line (shot_plan). Screenplay text is produced later by stage2 from the same plan.
+        prev_ids: list[str] = []
+        for j, plan in enumerate(shot_plan(s.get("content", ""))):
+            ids = present(plan) or prev_ids  # "she climbs" keeps the last shot's cast
+            prev_ids = ids
+            if j == 0:
+                composition, camera = "wide establishing shot", "slow push-in"
+            elif plan["speaker"] and not plan["narration"]:
+                composition = (f"close-up on {plan['speaker']}" if j % 2 else
+                               f"over-the-shoulder medium shot on {plan['speaker']}")
+                camera = "static"
+            else:
+                composition, camera = (("medium action shot", "subtle tracking movement") if j % 2
+                                       else ("dynamic wide shot", "slow pan"))
             shots.append({
                 "id": f"sh-{i+1:03d}-{j+1:02d}",
                 "block": bid,
                 "frame_index": j,
                 "tier": 1 if j == 0 else 2,
                 "location_id": f"loc_{i:02d}",
-                "character_ids": character_ids,
-                "action": s.get("summary", "")[:240],
-                "composition": "wide establishing shot" if j == 0 else "medium action shot",
-                "camera": "slow push-in" if j == 0 else "subtle tracking movement",
+                "character_ids": ids,
+                "action": plan["action"][:240],
+                "composition": composition,
+                "camera": camera,
                 "continuity": {
                     "outfit": "default",
                     "lighting": s.get("setting", {}).get("time", "unspecified"),
@@ -417,20 +712,21 @@ def run_screenplay(project_dir: Path) -> dict:
     for i, s in enumerate(scenes):
         bid = f"block_{i:02d}"
         content = s.get("content", "")
-        dlg = _dialogue_lines(content)
+        plans = shot_plan(content)
         shots = []
         block_shots = by_block.get(bid, [{"id": f"sh-{i+1:03d}-01"}])
         for k, sh in enumerate(block_shots):
-            line = dlg[k] if k < len(dlg) else {}
-            # Estimate shot duration: ~3 seconds per shot as baseline
-            # (stage4 will refine this with actual TTS durations)
-            estimated_dur = 3.0
+            line = plans[k] if k < len(plans) else {}
+            words = len(f"{line.get('narration', '')} {line.get('dialogue', '')}".split())
+            # ~2.6 spoken words/s; stage4 replaces this with the real TTS durations
+            estimated_dur = round(max(SHOT_MIN_SECONDS, words / 2.6), 1)
             shots.append({
                 "id": sh.get("id", f"sh-{i+1:03d}-{k+1:02d}"),
                 "description": sh.get("action", s.get("summary", ""))[:240],
-                "narration": f"{s.get('summary','')[:180]}" if k == 0 else "",
-                "character": line.get("speaker", "") if k < len(dlg) else "",
-                "dialogue": line.get("text", "") if k < len(dlg) else "",
+                "narration": line.get("narration", "")[:700],
+                "character": line.get("speaker", ""),
+                "dialogue": line.get("dialogue", "")[:300],
+                "delivery": line.get("delivery", ""),
                 "sfx": "wind · thunder" if "storm" in content.lower() else "ambience",
                 "duration_estimate": estimated_dur,
                 "storyboard": {
@@ -472,10 +768,27 @@ def run_images(project_dir: Path) -> dict:
     bible = json.loads((project_dir / "worldbible" / "world_bible.json").read_text(encoding="utf-8"))
     storyboard = json.loads((project_dir / "storyboard" / "storyboard.json").read_text(encoding="utf-8"))
     storyboard_by_id = {s.get("id"): s for s in storyboard.get("shot_detail", [])}
-    anchors = ", ".join(
-        f"{c.get('name', '')}: {c.get('appearance', {}).get('clothing_primary', '')}"
-        for c in bible.get("characters", [])[:4]
-    )
+    looks = {(c.get("id") or _slug(c.get("name", ""))):
+             f"{c.get('name', '')} ({c.get('appearance', {}).get('clothing_primary', '')})"
+             for c in bible.get("characters", [])}
+    style = brief_meta(project_dir)["style"] or "anime"
+
+    def shot_prompt(scene: dict, shot: dict, plan: dict) -> tuple[str, str]:
+        """Visual prompt for one shot: only the characters in it, never the spoken words
+        (Flux paints quoted text into the image)."""
+        cast = ", ".join([looks[i] for i in plan.get("character_ids", []) if i in looks][:3]) \
+            or ", ".join(list(looks.values())[:2])
+        visual = re.sub(r"[\"“”][^\"“”]*[\"“”]", "", shot.get("description", ""))
+        if shot.get("character") and not shot.get("narration"):
+            visual = (f"{shot['character']} {shot.get('delivery') or 'speaking'}, "
+                      f"expressive face, {visual[:140]}")
+        lighting = (plan.get("continuity") or {}).get("lighting", "")
+        lighting = "" if lighting in ("", "unspecified") else f", {lighting}"
+        loc = scene.get("location", "")[:80]
+        return (f"{style}, anime key frame, {loc}, {cast}, {visual[:260]}, "
+                f"{plan.get('composition', 'medium shot')}{lighting}, cinematic cel shading, "
+                f"no text, no speech bubbles"), cast
+
     panels = project_dir / "panels"
     panels.mkdir(parents=True, exist_ok=True)
     made = 0
@@ -502,7 +815,7 @@ def run_images(project_dir: Path) -> dict:
             refs = plan.get("reference_assets", [])
             continuity = plan.get("continuity", {})
             p = panels / canonical_name(slug, shot_id, "panel", "png")
-            prompt = f"anime recap panel, {scene.get('location', '')[:80]}, {anchors}, {(shot.get('narration') or shot.get('dialogue') or shot.get('description', ''))[:220]}, {plan.get('composition', 'medium shot')}, {plan.get('camera', 'static')}, {continuity.get('lighting', '')}, cinematic cel shading"
+            prompt, anchors = shot_prompt(scene, shot, plan)
             if uploads:
                 from PIL import Image as _UploadImage
                 with _UploadImage.open(uploads[made % len(uploads)]) as im:
@@ -573,7 +886,7 @@ def _wav_seconds(path: Path) -> float:
             dur = max(0, path.stat().st_size - 44) / float(22050 * 2)
         except Exception:
             return 2.0
-    return max(1.0, min(15.0, dur))
+    return max(1.0, min(45.0, dur))  # a narration paragraph runs ~20-30 s
 
 
 def run_audio(project_dir: Path) -> dict:
@@ -591,33 +904,66 @@ def run_audio(project_dir: Path) -> dict:
                                        "reference": "voices/narrator/reference.wav"},
                           "characters": {}, "fallback": "kokoro"}
         manifest_path.write_text(json.dumps(voice_manifest, indent=2), encoding="utf-8")
+    # Casting: voices.json wins, then the brief's "Voices:" line, then a distinct voice
+    # from the pool; new assignments are written back so a re-run sounds the same.
+    meta_voices = brief_meta(project_dir)["voices"]
+    cast_map = voice_manifest.setdefault("characters", {})
+    narr = next((v for n, v in meta_voices.items() if n.lower() in _NARRATOR), None)
+    if narr:
+        voice_manifest["narrator"] = {**voice_manifest.get("narrator", {}), **narr, "reference": ""}
+    pool = ["Ryan", "Serena", "Vivian", "Dylan", "Ono_Anna", "Eric", "Sohee", "Uncle_Fu"]
+
+    def profile_for(speaker: str) -> dict:
+        if speaker in cast_map:
+            return cast_map[speaker]
+        hit = next((v for n, v in meta_voices.items() if _same_name(n, speaker)), None)
+        if not hit:
+            used = {p.get("voice") for p in cast_map.values()}
+            hit = {"voice": next((v for v in pool if v not in used), pool[len(cast_map) % len(pool)]),
+                   "style": ""}
+        cast_map[speaker] = dict(hit)
+        return cast_map[speaker]
+
     lines = 0
     timeline: list[dict] = []
     t = 0.0
+    slug = Blueprint.load(project_dir).slug
     for scene in sp.get("scenes", []):
         for shot in scene.get("shots", []):
             shot_id = shot.get("id", "shot")
-            sid = legacy_stem(shot_id)
+            shot_t0 = t
             for kind, text in (("narration", shot.get("narration", "")),
                                ("dialogue", shot.get("dialogue", ""))):
                 if not text.strip():
                     continue
                 dest = (nar_dir if kind == "narration" else dlg_dir) / canonical_name(
-                    Blueprint.load(project_dir).slug, shot_id, kind, "wav"
+                    slug, shot_id, kind, "wav"
                 )
-                speaker = shot.get("character", "") if kind == "dialogue" else "narrator"
-                profile = voice_manifest.get("characters", {}).get(speaker) if speaker else None
-                profile = profile or voice_manifest.get("narrator", {})
+                speaker = shot.get("character", "") if kind == "dialogue" else ""
+                profile = profile_for(speaker) if speaker else voice_manifest.get("narrator", {})
                 reference = project_dir / profile.get("reference", "") if profile.get("reference") else None
                 if reference and not reference.exists():
                     reference = None
-                synth(text, dest, voice=profile.get("voice", "af_heart"),
-                      reference=reference, style=profile.get("style", ""))
+                style = profile.get("style", "")
+                if kind == "dialogue" and shot.get("delivery"):
+                    style = f"{style}. Delivery: {shot['delivery']}".lstrip(". ")
+                # Resume: keep a finished line only if its text/voice/style are unchanged.
+                key = hashlib.sha256(f"{text}|{profile.get('voice')}|{style}".encode()).hexdigest()[:16]
+                stamp = dest.with_suffix(".key")
+                if not (dest.exists() and dest.stat().st_size > 1000 and stamp.exists()
+                        and stamp.read_text() == key):
+                    synth(text, dest, voice=profile.get("voice", "af_heart"),
+                          reference=reference, style=style)
+                    stamp.write_text(key)
                 dur = _wav_seconds(dest)
                 timeline.append({"shot": shot.get("id"), "kind": kind, "file": str(dest.relative_to(project_dir)),
                                  "start": round(t, 2), "dur": round(dur, 2), "text": text[:160]})
                 t += dur + 0.3
                 lines += 1
+            # Every shot owns a slot on the shared clock (stage5 cuts video to the same
+            # slots), so silent shots still get screen time and audio never drifts.
+            t = max(t, shot_t0 + SHOT_MIN_SECONDS)
+    manifest_path.write_text(json.dumps(voice_manifest, indent=2), encoding="utf-8")
     (project_dir / "audio" / "timeline.json").write_text(json.dumps(timeline, indent=2), encoding="utf-8")
     with Scores(project_dir / "scores.sqlite") as sc:
         sc.record_globals("stage4", {"lines_rendered": float(lines),
@@ -631,6 +977,27 @@ def run_audio(project_dir: Path) -> dict:
 # --------------------------------------------------------------------------
 # stage3c — animation (panels mode: skip heavy render)
 # --------------------------------------------------------------------------
+
+def _shot_slots(timeline: list[dict]) -> dict[str, float]:
+    """Seconds each shot owns on the shared clock: its lines (+0.3 s gap each), at least
+    SHOT_MIN_SECONDS. stage4 lays audio out on these slots, stage5 cuts video to them."""
+    slots: dict[str, float] = {}
+    for e in timeline:
+        slots[e["shot"]] = slots.get(e["shot"], 0.0) + float(e.get("dur", 2.0)) + 0.3
+    return {k: max(SHOT_MIN_SECONDS, v) for k, v in slots.items()}
+
+
+def _clip_backend(clip: Path) -> str:
+    """'' = no usable clip, 'still' = 2 s fallback, else the animation engine. Clips from
+    before the sidecar existed were real renders."""
+    if not clip.exists() or not validate_media(clip):
+        return ""
+    side = clip.with_suffix(".json")
+    try:
+        return json.loads(side.read_text(encoding="utf-8")).get("backend", "svd") if side.exists() else "svd"
+    except (OSError, ValueError):
+        return "svd"
+
 
 def run_animation(project_dir: Path, enabled: bool = False) -> dict:
     project_dir = Path(project_dir)
@@ -647,11 +1014,29 @@ def run_animation(project_dir: Path, enabled: bool = False) -> dict:
         _mark_done(project_dir, "stage3c", 1.0)
         return {"clips": 0, "mode": "panels"}
     panels = sorted(p for p in (project_dir / "panels").glob("*.png") if not p.name.startswith("block_"))
+    # SVD is slow on 8 GB, so only OLYMPUS_MAX_CLIPS shots move: the ones on screen longest
+    # (the rest get a Ken Burns pan in stage5). Was: the first 12 by filename.
+    tl_path = project_dir / "audio" / "timeline.json"
+    if tl_path.exists():
+        slots = _shot_slots(json.loads(tl_path.read_text(encoding="utf-8")))
+        slug = Blueprint.load(project_dir).slug
+        screen = {}
+        for shot_id, secs in slots.items():
+            try:
+                screen[canonical_name(slug, shot_id, "panel", "png")] = secs
+            except ValueError:
+                pass
+        panels.sort(key=lambda p: -screen.get(p.name, 0.0))
     made = 0
     failed = 0
-    for p in panels[:12]:
+    for p in panels[:int(os.environ.get("OLYMPUS_MAX_CLIPS", "12"))]:
         dest = clips / f"{p.stem}.mp4"
         candidate = dest.with_suffix(".tmp.mp4")
+        side = clips / f"{p.stem}.json"
+        if _clip_backend(dest) not in ("", "still") and os.environ.get("OLYMPUS_FORCE_RENDER") != "1":
+            made += 1  # resume: real animation from an earlier (interrupted) run
+            continue
+        backend = "still"
         if os.environ.get("OLYMPUS_REAL_COMFY", "0") == "1":
             try:
                 from stack.config import cfg as _cfg
@@ -667,9 +1052,11 @@ def run_animation(project_dir: Path, enabled: bool = False) -> dict:
                 else:
                     from .comfy_client import animate_panel
                     animate_panel(p, candidate, seed=seed, base_url=_cfg.comfyui.url)
+                backend = getattr(_cfg.animation, "engine", "svd")
             except Exception:
                 failed += 1
         if not candidate.exists():
+            backend = "still"
             r = subprocess.run(["ffmpeg", "-y", "-v", "error", "-loop", "1", "-i", str(p),
                                 "-t", "2", "-vf", "scale=1280:720,format=yuv420p",
                                 "-c:v", "libx264", "-preset", "veryfast", str(candidate)],
@@ -678,6 +1065,8 @@ def run_animation(project_dir: Path, enabled: bool = False) -> dict:
                 failed += 1
         if validate_media(candidate):
             candidate.replace(dest)
+            # stage5 only loops real animations; a "still" fallback gets Ken Burns instead
+            side.write_text(json.dumps({"backend": backend}), encoding="utf-8")
             made += 1
         elif candidate.exists():
             candidate.unlink()
@@ -844,6 +1233,50 @@ def run_review(project_dir: Path) -> dict:
 # stage5 — assembly: panels + audio -> final MP4 + SRT + chapters
 # --------------------------------------------------------------------------
 
+_FIT = "scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,setsar=1"
+
+
+def _render_segment(png: Path | None, clip: Path | None, seg: Path, frames: int, fps: int,
+                    motion: int = 0) -> None:
+    """One shot's video: a real animation loops forward-backward; a still gets a slow
+    Ken Burns zoom/pan; nothing at all becomes black. Identical encode settings so the
+    concat demuxer can join segments without re-encoding."""
+    out = ["-frames:v", str(frames), "-r", str(fps), "-c:v", "libx264", "-preset", "veryfast",
+           "-crf", "22", "-pix_fmt", "yuv420p", "-an", str(seg)]
+
+    def run(args: list[str], timeout: int = 300) -> bool:
+        try:
+            r = subprocess.run(["ffmpeg", "-y", "-v", "error", *args], capture_output=True, timeout=timeout)
+        except subprocess.TimeoutExpired:
+            return False
+        return r.returncode == 0 and seg.exists() and seg.stat().st_size > 0
+
+    if clip is not None:
+        pp = seg.with_name(seg.stem + "_pp.mp4")
+        try:
+            r = subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", str(clip), "-filter_complex",
+                                f"[0:v]{_FIT},fps={fps},split[a][b];[b]reverse[r];[a][r]concat=n=2:v=1[v]",
+                                "-map", "[v]", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+                                "-pix_fmt", "yuv420p", "-an", str(pp)], capture_output=True, timeout=300)
+            if r.returncode == 0 and run(["-stream_loop", "-1", "-i", str(pp), *out]):
+                return
+        finally:
+            pp.unlink(missing_ok=True)
+    if png is not None:
+        n = max(1, frames)
+        centre = "x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'"
+        moves = [f"z='1+0.08*on/{n}':{centre}",                                 # push in
+                 f"z='1.08-0.08*on/{n}':{centre}",                              # pull out
+                 f"z='1.07':x='(iw-iw/zoom)*on/{n}':y='ih/2-(ih/zoom/2)'",        # pan right
+                 f"z='1.07':x='(iw-iw/zoom)*(1-on/{n})':y='ih/2-(ih/zoom/2)'"]    # pan left
+        vf = f"{_FIT},scale=1920:1080,zoompan={moves[motion % 4]}:d=1:s=1280x720:fps={fps},setsar=1"
+        if run(["-loop", "1", "-framerate", str(fps), "-i", str(png), "-vf", vf, *out]):
+            return
+        if run(["-loop", "1", "-framerate", str(fps), "-i", str(png), "-vf", _FIT, *out]):
+            return
+    run(["-f", "lavfi", "-i", f"color=c=black:s=1280x720:r={fps}", *out])
+
+
 def run_assembly(project_dir: Path, fps: int = 24) -> dict:
     project_dir = Path(project_dir)
     bp = Blueprint.load(project_dir)
@@ -851,17 +1284,19 @@ def run_assembly(project_dir: Path, fps: int = 24) -> dict:
     sp = json.loads((project_dir / "screenplay" / "screenplay.json").read_text(encoding="utf-8"))
     tl_path = project_dir / "audio" / "timeline.json"
     timeline = json.loads(tl_path.read_text(encoding="utf-8")) if tl_path.exists() else []
-    dur_by_shot: dict[str, float] = {}
-    for e in timeline:
-        dur_by_shot[e["shot"]] = dur_by_shot.get(e["shot"], 0) + e.get("dur", 2.0) + 0.3
+    slots = _shot_slots(timeline)
 
     video = project_dir / "video"
     video.mkdir(parents=True, exist_ok=True)
     segs: list[Path] = []
-    srt: list[str] = []
+    srt: list[tuple[float, float, str]] = []
+    scene_starts: list[float] = []
     cursor = 0.0
+    frames_done = 0
     idx = 1
     panels = project_dir / "panels"
+    clips = project_dir / "clips"
+    last_png: Path | None = None
 
     def shot_png(shot_id: str) -> Path | None:
         sid = legacy_stem(shot_id)
@@ -875,43 +1310,46 @@ def run_assembly(project_dir: Path, fps: int = 24) -> dict:
         return legacy if legacy.exists() else None
 
     for scene in sp.get("scenes", []):
+        scene_starts.append(cursor)
         for shot in scene.get("shots", []):
-            png = shot_png(shot.get("id", ""))
-            if png is None:
-                continue
-            # Clamp per-shot screen time so a bad WAV header can never turn
-            # into an hour-long zoompan render (see _wav_seconds).
-            dur = max(2.0, min(8.0, dur_by_shot.get(shot.get("id", ""), 3.0)))
+            png = shot_png(shot.get("id", "")) or last_png  # a missing panel holds the last one
+            last_png = png
+            # The shot's slot on the shared clock (see _shot_slots); frame counts come from
+            # the cumulative end time so 40 shots never drift by rounding.
+            dur = min(120.0, slots.get(shot.get("id", ""), SHOT_MIN_SECONDS))
+            frames = max(1, round((cursor + dur) * fps) - frames_done)
             seg = video / f"seg_{idx:03d}.mp4"
-            # Fast still-to-segment: scale/pad to 1280x720 with libx264
-            # veryfast (a full zoompan filter on CPU takes ~1hr per still).
-            r = subprocess.run(
-                ["ffmpeg", "-y", "-v", "error", "-loop", "1", "-i", str(png),
-                 "-vf", "scale=1280:720,format=yuv420p",
-                 "-t", f"{dur:.2f}", "-r", str(fps),
-                 "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", str(seg)],
-                capture_output=True, timeout=120)
-            if r.returncode != 0 or not seg.exists():
-                subprocess.run(["ffmpeg", "-y", "-v", "error", "-loop", "1", "-i", str(png),
-                                "-t", f"{dur:.2f}", "-pix_fmt", "yuv420p", str(seg)],
-                               capture_output=True, timeout=120)
+            clip = clips / f"{png.stem}.mp4" if png else None
+            moving = clip if clip is not None and _clip_backend(clip) not in ("", "still") else None
+            _render_segment(png, moving, seg, frames, fps, motion=idx)
             segs.append(seg)
-            for key in ("narration", "dialogue"):
-                text = (shot.get(key) or "").strip()
+            if not timeline:
+                text = (shot.get("narration") or shot.get("dialogue") or "").strip()
                 if text:
-                    srt.append((cursor, cursor + dur / (2 if shot.get("narration") and shot.get("dialogue") else 1), text))
-                    break
+                    srt.append((cursor, cursor + dur, text))
+            frames_done += frames
             cursor += dur
             idx += 1
 
-    if not segs:
+    # Subtitles follow the spoken lines, not the shots.
+    shot_by_id = {sh.get("id"): sh for sc in sp.get("scenes", []) for sh in sc.get("shots", [])}
+    for e in timeline:
+        sh = shot_by_id.get(e.get("shot"), {})
+        if e.get("kind") == "dialogue":
+            text = (f"{sh.get('character')}: " if sh.get("character") else "") + (sh.get("dialogue") or e.get("text", ""))
+        else:
+            text = sh.get("narration") or e.get("text", "")
+        if text.strip():
+            srt.append((float(e["start"]), float(e["start"]) + float(e.get("dur", 2.0)), text.strip()))
+
+    if not segs or last_png is None:
         raise RuntimeError("stage5: no panels to assemble — run stage3b first")
 
     lst = video / "concat.txt"
     lst.write_text("".join(f"file '{s.name}'\n" for s in segs), encoding="utf-8")
     silent = video / "silent.mp4"
     subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0",
-                    "-i", str(lst), "-c", "copy", str(silent)], check=True, timeout=120)
+                    "-i", str(lst), "-c", "copy", str(silent)], check=True, timeout=600)
 
     # Build the audio spine from timeline timestamps, not filename order.
     timeline_files = [e for e in timeline if (project_dir / e.get("file", "")).exists()]
@@ -944,7 +1382,7 @@ def run_assembly(project_dir: Path, fps: int = 24) -> dict:
             filters.append("".join(labels) + f"amix=inputs={len(labels)}:duration=longest:normalize=0,alimiter=limit=0.95[out]")
         subprocess.run(["ffmpeg", "-y", "-v", "error", *inputs,
                         "-filter_complex", ";".join(filters), "-map", "[out]", str(mixed)],
-                       check=True, timeout=120)
+                       check=True, timeout=600)
     if not mixed.exists():
         subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi",
                         "-i", f"anullsrc=r=22050:cl=mono:d={max(1,int(cursor))}",
@@ -953,7 +1391,8 @@ def run_assembly(project_dir: Path, fps: int = 24) -> dict:
     final = video / "final.mp4"
     versioned = video / f"{bp.slug}_master_v001.mp4"
     subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", str(silent), "-i", str(mixed),
-                    "-c:v", "copy", "-c:a", "aac", "-shortest", str(final)], check=True, timeout=120)
+                    "-c:v", "copy", "-c:a", "aac", "-af", "apad", "-t", f"{cursor:.3f}", str(final)],
+                   check=True, timeout=600)  # pad audio to the video; never cut the last shots
     versioned.write_bytes(final.read_bytes())
 
     def ts(s: float) -> str:
@@ -966,9 +1405,11 @@ def run_assembly(project_dir: Path, fps: int = 24) -> dict:
     srt_text = "\n".join(f"{i}\n{ts(a)} --> {ts(b)}\n{t}\n" for i, (a, b, t) in enumerate(srt, 1))
     (video / "final.srt").write_text(srt_text or "1\n00:00:00,000 --> 00:00:02,000\n…\n", encoding="utf-8")
     (video / f"{bp.slug}_master_v001.srt").write_text(srt_text or "1\n00:00:00,000 --> 00:00:02,000\n...\n", encoding="utf-8")
+    bounds = scene_starts + [cursor]
     chapters = ";FFMETADATA1\n" + "".join(
-        f"[CHAPTER]\nTIMEBASE=1/1000\nSTART={int(i*5000)}\nEND={int((i+1)*5000)}\ntitle=Scene {i+1}\n"
-        for i in range(len(sp.get("scenes", []))))
+        f"[CHAPTER]\nTIMEBASE=1/1000\nSTART={int(bounds[i]*1000)}\nEND={int(bounds[i+1]*1000)}\n"
+        f"title={(sc.get('location') or f'Scene {i+1}')[:60]}\n"
+        for i, sc in enumerate(sp.get("scenes", [])))
     (video / "chapters.ffmetadata").write_text(chapters, encoding="utf-8")
 
     with Scores(project_dir / "scores.sqlite") as sc:
