@@ -89,6 +89,34 @@ async def csrf_protect(request: Request, call_next):
     )
     return response
 
+def _trusted_client(host: str) -> bool:
+    """This machine and the tailnet (only the owner's devices) are trusted; anything else
+    on the home Wi-Fi is not, because uvicorn binds 0.0.0.0."""
+    import ipaddress
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return ip.is_loopback or ip in ipaddress.ip_network("100.64.0.0/10")
+
+
+@app.middleware("http")
+async def untrusted_writes_need_token(request: Request, call_next):
+    """2026-11-04: /api/pipeline/* (start GPU runs, upload panels, stop) had no auth and
+    the kernel listens on every interface. Requests that change something from an
+    untrusted address now need the studio token; /api/studio/* checks it per route."""
+    if request.method not in ("GET", "HEAD", "OPTIONS") and not request.url.path.startswith("/api/studio/"):
+        host = request.client.host if request.client else ""
+        if not _trusted_client(host):
+            tok = _studio_token()
+            got = request.headers.get("authorization", "").removeprefix("Bearer ").strip()
+            if not tok or not hmac.compare_digest(tok, got):
+                return JSONResponse(status_code=401, content={
+                    "detail": "writes from outside this machine/tailnet need the studio token",
+                    "type": "Unauthorized"})
+    return await call_next(request)
+
+
 @app.middleware("http")
 async def limit_body_size(request: Request, call_next):
     cl = request.headers.get("content-length")
