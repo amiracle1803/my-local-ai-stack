@@ -104,7 +104,7 @@ def _graph(prompt: str, seed: int, prefix: str) -> dict:
         "2": {"class_type": "CLIPLoader", "inputs": {"clip_name": "qwen_3_4b.safetensors", "type": "flux2"}},
         "3": {"class_type": "VAELoader", "inputs": {"vae_name": "flux2-vae.safetensors"}},
         "11": {"class_type": "CLIPTextEncode", "inputs": {"text": prompt, "clip": ["2", 0]}},
-        "12": {"class_type": "CLIPTextEncode", "inputs": {"text": "low quality, blurry, text, watermark, deformed, extra fingers", "clip": ["2", 0]}},
+        "12": {"class_type": "CLIPTextEncode", "inputs": {"text": "low quality, blurry, text, watermark, deformed, extra fingers, comic page, multiple panels, split screen, panel borders", "clip": ["2", 0]}},
         "13": {"class_type": "EmptyFlux2LatentImage", "inputs": {"width": 832, "height": 512, "batch_size": 1}},
         "14": {"class_type": "RandomNoise", "inputs": {"noise_seed": seed}},
         "15": {"class_type": "Flux2Scheduler", "inputs": {"steps": 20, "width": 832, "height": 512}},

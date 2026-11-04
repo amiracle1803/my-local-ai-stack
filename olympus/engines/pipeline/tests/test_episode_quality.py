@@ -187,3 +187,20 @@ def test_writer_goes_scene_by_scene_and_retries_prose(monkeypatch):
     assert "ran on" not in script and "Old Toma: (whispering) No..." in script
     assert len(prompts) == 3 and all(kw.get("think") is False for _, kw in prompts)
     assert "Voices:" not in prompts[0][0]  # casting notes stay out of the writer's prompt
+
+
+def test_closeup_prompt_shows_only_the_speaker(tmp_path, monkeypatch):
+    monkeypatch.delenv("OLYMPUS_REAL_COMFY", raising=False)
+    shots = [{"id": "sh-001-01", "narration": "", "character": "Toma", "dialogue": "Careful.",
+              "delivery": "coughing", "description": "Aya steps onto the stone platform."}]
+    project = _project(tmp_path, "cu_t", shots, brief="Style: painted anime\nCast: Old Toma (white beard)")
+    (project / "worldbible").mkdir()
+    (project / "worldbible" / "world_bible.json").write_text(json.dumps(
+        {"characters": [{"id": "toma", "name": "Toma", "appearance": {"clothing_primary": "white beard"}}]}))
+    (project / "storyboard").mkdir()
+    (project / "storyboard" / "storyboard.json").write_text(json.dumps(
+        {"shot_detail": [{"id": "sh-001-01", "character_ids": ["toma"], "composition": "close-up on Toma"}]}))
+    stages.run_images(project)
+    meta = json.loads((project / "panels" / "cu_t_sc001_sh001_panel_v001.json").read_text())
+    assert "Toma coughing" in meta["prompt"] and "Toma (white beard)" in meta["prompt"]
+    assert "Aya steps" not in meta["prompt"] and "single full-frame" in meta["prompt"]

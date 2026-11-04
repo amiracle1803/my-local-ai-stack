@@ -780,14 +780,15 @@ def run_images(project_dir: Path) -> dict:
             or ", ".join(list(looks.values())[:2])
         visual = re.sub(r"[\"“”][^\"“”]*[\"“”]", "", shot.get("description", ""))
         if shot.get("character") and not shot.get("narration"):
-            visual = (f"{shot['character']} {shot.get('delivery') or 'speaking'}, "
-                      f"expressive face, {visual[:140]}")
+            # A close-up shows only the speaker: carrying the previous shot's action made
+            # Flux draw both moments as a two-frame comic page.
+            visual = f"{shot['character']} {shot.get('delivery') or 'speaking'}, expressive face"
         lighting = (plan.get("continuity") or {}).get("lighting", "")
         lighting = "" if lighting in ("", "unspecified") else f", {lighting}"
         loc = scene.get("location", "")[:80]
         return (f"{style}, anime key frame, {loc}, {cast}, {visual[:260]}, "
-                f"{plan.get('composition', 'medium shot')}{lighting}, cinematic cel shading, "
-                f"no text, no speech bubbles"), cast
+                f"{plan.get('composition', 'medium shot')}{lighting}, single full-frame illustration, "
+                f"cinematic cel shading, no text, no speech bubbles"), cast
 
     panels = project_dir / "panels"
     panels.mkdir(parents=True, exist_ok=True)
@@ -831,7 +832,7 @@ def run_images(project_dir: Path) -> dict:
                  "prompt": prompt,
                  "backend": "imported" if uploads else ("comfyui" if comfy_render else "placeholder"),
                  "reference_assets": refs, "continuity": continuity,
-                 "negative_prompt": "low quality, blurry, text, watermark, deformed",
+                 "negative_prompt": "low quality, blurry, text, watermark, deformed, comic page, multiple panels, split screen",
                  "attempt": 1}, indent=2), encoding="utf-8")
             made += 1
     # Webtoon-style manga composites per scene block.
