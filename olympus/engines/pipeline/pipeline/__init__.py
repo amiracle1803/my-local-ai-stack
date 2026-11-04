@@ -1,8 +1,5 @@
-"""Anime Pipeline v2 engine package.
+"""Anime/manga pipeline package — Studio engine (local-first).
 
-Milestone M0: package skeleton (config, blueprint, scores, schemas) plus the
-``run.py`` CLI. Stage implementations land in M1+. See
-``docs/planning/anime-pipeline-v2-design.md`` for the build contract.
+Stage order mirrors olympus/web/app.js STAGE_META exactly so the
+Studio cards, gate checks and RUN ALL reflect the real pipeline.
 """
-
-__version__ = "0.1.0"

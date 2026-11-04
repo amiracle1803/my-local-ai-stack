@@ -1,0 +1,20 @@
+{
+  "profile": "stage1r_vnccs-anima",
+  "engine": "anima",
+  "seed": 12345,
+  "result": {
+    "prompt_id": "046a92d2-1bef-4e78-8a90-2d6e90c06334",
+    "outputs": {
+      "9": {
+        "images": [
+          {
+            "filename": "olympus_anima_smoke_00002_.png",
+            "subfolder": "",
+            "type": "output",
+            "id": "8df02722-d17e-4a40-9cfd-d88659e87148"
+          }
+        ]
+      }
+    }
+  }
+}

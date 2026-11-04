@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "title": "remote_test",
+  "synopsis": "Dawn Raid  Kess crouched on the rooftop of the old clocktower, a young scout with wind-tangled brown hair and a worn green scarf. Below, the harbor was already busy with iron ships.  \"The signal flare goes up in one minute,\" whispered Brann beside her \u2014 a large man with a shaved ",
+  "characters": [
+    {
+      "id": "kess",
+      "name": "Kess",
+      "role": "protagonist",
+      "appearance": "anime design, distinctive silhouette, expressive eyes (Kess)",
+      "description": "Key figure across 1 scenes.",
+      "source_evidence": [
+        "Dawn Raid\n\nKess crouched on the rooftop of the old clocktower, a young scout with wind-tangled brown hair and a worn green scarf. Below, the harbor was already busy with iron ships.\n\n\"The signal flare goes up in one minute,\" whispered Brann"
+      ],
+      "confidence": 0.45
+    },
+    {
+      "id": "brann",
+      "name": "Brann",
+      "role": "supporting",
+      "appearance": "anime design, distinctive silhouette, expressive eyes (Brann)",
+      "description": "Key figure across 1 scenes.",
+      "source_evidence": [
+        "Dawn Raid\n\nKess crouched on the rooftop of the old clocktower, a young scout with wind-tangled brown hair and a worn green scarf. Below, the harbor was already busy with iron ships.\n\n\"The signal flare goes up in one minute,\" whispered Brann"
+      ],
+      "confidence": 0.45
+    },
+    {
+      "id": "and",
+      "name": "And",
+      "role": "supporting",
+      "appearance": "anime design, distinctive silhouette, expressive eyes (And)",
+      "description": "Key figure across 1 scenes.",
+      "source_evidence": [
+        "Dawn Raid\n\nKess crouched on the rooftop of the old clocktower, a young scout with wind-tangled brown hair and a worn green scarf. Below, the harbor was already busy with iron ships.\n\n\"The signal flare goes up in one minute,\" whispered Brann"
+      ],
+      "confidence": 0.45
+    },
+    {
+      "id": "below",
+      "name": "Below",
+      "role": "supporting",
+      "appearance": "anime design, distinctive silhouette, expressive eyes (Below)",
+      "description": "Key figure across 1 scenes.",
+      "source_evidence": [
+        "Dawn Raid\n\nKess crouched on the rooftop of the old clocktower, a young scout with wind-tangled brown hair and a worn green scarf. Below, the harbor was already busy with iron ships.\n\n\"The signal flare goes up in one minute,\" whispered Brann"
+      ],
+      "confidence": 0.45
+    },
+    {
+      "id": "dawn_raid",
+      "name": "Dawn Raid",
+      "role": "supporting",
+      "appearance": "anime design, distinctive silhouette, expressive eyes (Dawn Raid)",
+      "description": "Key figure across 1 scenes.",
+      "source_evidence": [
+        "Dawn Raid\n\nKess crouched on the rooftop of the old clocktower, a young scout with wind-tangled brown hair and a worn green scarf. Below, the harbor was already busy with iron ships.\n\n\"The signal flare goes up in one minute,\" whispered Brann"
+      ],
+      "confidence": 0.45
+    },
+    {
+      "id": "don",
+      "name": "Don",
+      "role": "supporting",
+      "appearance": "anime design, distinctive silhouette, expressive eyes (Don)",
+      "description": "Key figure across 1 scenes.",
+      "source_evidence": [
+        "Dawn Raid\n\nKess crouched on the rooftop of the old clocktower, a young scout with wind-tangled brown hair and a worn green scarf. Below, the harbor was already busy with iron ships.\n\n\"The signal flare goes up in one minute,\" whispered Brann"
+      ],
+      "confidence": 0.45
+    },
+    {
+      "id": "same",
+      "name": "Same",
+      "role": "supporting",
+      "appearance": "anime design, distinctive silhouette, expressive eyes (Same)",
+      "description": "Key figure across 1 scenes.",
+      "source_evidence": [
+        "Dawn Raid\n\nKess crouched on the rooftop of the old clocktower, a young scout with wind-tangled brown hair and a worn green scarf. Below, the harbor was already busy with iron ships.\n\n\"The signal flare goes up in one minute,\" whispered Brann"
+      ],
+      "confidence": 0.45
+    },
+    {
+      "id": "you",
+      "name": "You",
+      "role": "supporting",
+      "appearance": "anime design, distinctive silhouette, expressive eyes (You)",
+      "description": "Key figure across 1 scenes.",
+      "source_evidence": [
+        "Dawn Raid\n\nKess crouched on the rooftop of the old clocktower, a young scout with wind-tangled brown hair and a worn green scarf. Below, the harbor was already busy with iron ships.\n\n\"The signal flare goes up in one minute,\" whispered Brann"
+      ],
+      "confidence": 0.45
+    }
+  ],
+  "locations": [
+    {
+      "id": "loc_00",
+      "name": "Dawn Raid",
+      "description": "Dawn Raid  Kess crouched on the rooftop of the old clocktower, a young scout with wind-tangled brown hair and a worn green scarf. Below, the harbor was already busy with iron ships.  \"The signal flare",
+      "views_360": {
+        "north": "",
+        "east": "",
+        "south": "",
+        "west": "",
+        "above": "",
+        "below": ""
+      },
+      "setting": {
+        "time": "unspecified",
+        "season": "unspecified",
+        "environment": "unspecified"
+      },
+      "source_evidence": "Dawn Raid\n\nKess crouched on the rooftop of the old clocktower, a young scout with wind-tangled brown hair and a worn green scarf. Below, the harbor was already busy with iron ships.\n\n\"The signal flare goes up in one minute,\" whispered Brann beside her \u2014 a large man with a shaved head and a dented brass pauldron. \"When it fires, you run. Don't look back.\"\n\n\"If the flare fails, I climb down and ligh",
+      "confidence": 0.35
+    }
+  ],
+  "dialogue_log": [],
+  "relationships": [],
+  "extraction": {
+    "method": "deterministic",
+    "inferred": false
+  }
+}

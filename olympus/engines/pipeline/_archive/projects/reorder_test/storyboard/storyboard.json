@@ -1,0 +1,31 @@
+{
+  "blocks": [
+    {
+      "id": "block_00",
+      "title": "Dawn Raid",
+      "summary": "Dawn Raid  Kess crouched on the rooftop of the old clocktower, a young scout with wind-tangled brown hair and a worn green scarf. Below, the harbor was already busy with iron ships.  \"The signal flare goes up in one minute,\" whispered Brann"
+    }
+  ],
+  "shot_detail": [
+    {
+      "id": "sh-001-01",
+      "block": "block_00",
+      "tier": 1,
+      "direction": "Dawn Raid  Kess crouched on the rooftop of the old clocktower, a young scout with wind-tangled brown hair and a worn green scarf. Below, the harbor was already busy with iron ships.  \"The signal flare goes up in one minute,\" whispered Brann",
+      "narration": "Dawn Raid  Kess crouched on the rooftop of the old clocktower, a young scout with wind-tangled brown hair and a worn green scarf. Below, the harbor was already busy with iron ships",
+      "dialogue": "",
+      "sfx": "ambience",
+      "prompt": "anime panel, Dawn Raid, Dawn Raid  Kess crouched on the rooftop of the old clocktower, a young scout with wind-tangled brown hair and a worn green scarf. Below, the, cinematic cel shading"
+    },
+    {
+      "id": "sh-001-02",
+      "block": "block_00",
+      "tier": 2,
+      "direction": "Dawn Raid  Kess crouched on the rooftop of the old clocktower, a young scout with wind-tangled brown hair and a worn green scarf. Below, the harbor was already busy with iron ships.  \"The signal flare goes up in one minute,\" whispered Brann",
+      "narration": "",
+      "dialogue": "",
+      "sfx": "ambience",
+      "prompt": "anime panel, Dawn Raid, Dawn Raid  Kess crouched on the rooftop of the old clocktower, a young scout with wind-tangled brown hair and a worn green scarf. Below, the, cinematic cel shading"
+    }
+  ]
+}

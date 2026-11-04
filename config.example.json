@@ -1,8 +1,0 @@
-{
-  "vault_path": "olympus/engines/vault-sample",
-  "chat_model": "llama3.1:8b",
-  "embed_model": "nomic-embed-text",
-  "max_passes": 3,
-  "flask_port": 8750,
-  "repos": []
-}

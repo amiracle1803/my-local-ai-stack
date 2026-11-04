@@ -1,0 +1,1090 @@
+{
+  "extra": {
+    "ds": {
+      "scale": 0.21435888100000086,
+      "offset": [
+        1553.5213563661005,
+        566.085156183574
+      ]
+    },
+    "node_versions": {
+      "comfy-core": "0.3.14",
+      "ComfyUI-APISR": "603a78762af929896f3eb61d0c1dadf996046ad2",
+      "rgthree-comfy": "5d771b8b56a343c24a26e8cea1f0c87c3d58102f",
+      "ComfyUI-VideoHelperSuite": "8629188458dc6cb832f871ece3bd273507e8a766"
+    },
+    "VHS_MetadataImage": true,
+    "VHS_latentpreview": false,
+    "VHS_KeepIntermediate": true,
+    "VHS_latentpreviewrate": 0
+  },
+  "links": [
+    [
+      21,
+      2,
+      0,
+      14,
+      0,
+      "APISRMODEL"
+    ],
+    [
+      22,
+      15,
+      0,
+      14,
+      1,
+      "IMAGE"
+    ],
+    [
+      42,
+      28,
+      0,
+      27,
+      0,
+      "UPSCALE_MODEL"
+    ],
+    [
+      43,
+      15,
+      0,
+      27,
+      1,
+      "IMAGE"
+    ],
+    [
+      48,
+      14,
+      0,
+      32,
+      0,
+      "IMAGE"
+    ],
+    [
+      49,
+      27,
+      0,
+      32,
+      1,
+      "IMAGE"
+    ],
+    [
+      54,
+      15,
+      0,
+      31,
+      0,
+      "IMAGE"
+    ],
+    [
+      55,
+      14,
+      0,
+      31,
+      1,
+      "IMAGE"
+    ],
+    [
+      56,
+      14,
+      0,
+      33,
+      0,
+      "IMAGE"
+    ],
+    [
+      57,
+      27,
+      0,
+      34,
+      0,
+      "IMAGE"
+    ],
+    [
+      58,
+      35,
+      0,
+      36,
+      0,
+      "APISRMODEL"
+    ],
+    [
+      60,
+      39,
+      0,
+      38,
+      0,
+      "UPSCALE_MODEL"
+    ],
+    [
+      68,
+      44,
+      0,
+      36,
+      1,
+      "IMAGE"
+    ],
+    [
+      69,
+      44,
+      0,
+      38,
+      1,
+      "IMAGE"
+    ],
+    [
+      70,
+      36,
+      0,
+      46,
+      0,
+      "IMAGE"
+    ],
+    [
+      71,
+      38,
+      0,
+      45,
+      0,
+      "IMAGE"
+    ],
+    [
+      72,
+      47,
+      0,
+      44,
+      0,
+      "VHS_BatchManager"
+    ],
+    [
+      73,
+      47,
+      0,
+      46,
+      2,
+      "VHS_BatchManager"
+    ],
+    [
+      74,
+      47,
+      0,
+      45,
+      2,
+      "VHS_BatchManager"
+    ],
+    [
+      75,
+      38,
+      0,
+      48,
+      0,
+      "IMAGE"
+    ],
+    [
+      77,
+      36,
+      0,
+      45,
+      0,
+      "IMAGE"
+    ],
+    [
+      78,
+      47,
+      0,
+      45,
+      2,
+      "VHS_BatchManager"
+    ],
+    [
+      79,
+      47,
+      0,
+      48,
+      2,
+      "VHS_BatchManager"
+    ],
+    [
+      80,
+      35,
+      0,
+      36,
+      0,
+      "APISRMODEL"
+    ],
+    [
+      81,
+      44,
+      0,
+      36,
+      1,
+      "IMAGE"
+    ],
+    [
+      83,
+      36,
+      0,
+      45,
+      0,
+      "IMAGE"
+    ],
+    [
+      84,
+      47,
+      0,
+      45,
+      2,
+      "VHS_BatchManager"
+    ],
+    [
+      85,
+      38,
+      0,
+      48,
+      0,
+      "IMAGE"
+    ],
+    [
+      86,
+      47,
+      0,
+      48,
+      2,
+      "VHS_BatchManager"
+    ]
+  ],
+  "nodes": [
+    {
+      "id": 28,
+      "pos": [
+        656.7730712890625,
+        736.847900390625
+      ],
+      "mode": 0,
+      "size": [
+        336.883056640625,
+        62.87196731567383
+      ],
+      "type": "UpscaleModelLoader",
+      "flags": {},
+      "order": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "UPSCALE_MODEL",
+          "type": "UPSCALE_MODEL",
+          "links": [
+            42
+          ],
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "UpscaleModelLoader"
+      },
+      "showAdvanced": null,
+      "widgets_values": [
+        "4x-AnimeSharp.pth"
+      ]
+    },
+    {
+      "id": 27,
+      "pos": [
+        1046.7730712890625,
+        744.847900390625
+      ],
+      "mode": 0,
+      "size": [
+        391.6908874511719,
+        58.011295318603516
+      ],
+      "type": "ImageUpscaleWithModel",
+      "flags": {},
+      "order": 11,
+      "inputs": [
+        {
+          "link": 42,
+          "name": "upscale_model",
+          "type": "UPSCALE_MODEL",
+          "slot_index": 0
+        },
+        {
+          "link": 43,
+          "name": "image",
+          "type": "IMAGE"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            49,
+            57
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageUpscaleWithModel"
+      },
+      "showAdvanced": null,
+      "widgets_values": []
+    },
+    {
+      "id": 2,
+      "pos": [
+        639,
+        -118
+      ],
+      "mode": 0,
+      "size": [
+        400,
+        60
+      ],
+      "type": "APISR_ModelLoader_Zho",
+      "flags": {},
+      "order": 1,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "pipe",
+          "type": "APISRMODEL",
+          "links": [
+            21
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "APISR_ModelLoader_Zho"
+      },
+      "showAdvanced": null,
+      "widgets_values": [
+        "4x_APISR_GRL_GAN_generator.pth"
+      ]
+    },
+    {
+      "id": 14,
+      "pos": [
+        1094,
+        -119
+      ],
+      "mode": 0,
+      "size": [
+        400,
+        102
+      ],
+      "type": "APISR_Zho",
+      "flags": {},
+      "order": 10,
+      "inputs": [
+        {
+          "link": 21,
+          "name": "pipe",
+          "type": "APISRMODEL"
+        },
+        {
+          "link": 22,
+          "name": "image",
+          "type": "IMAGE",
+          "slot_index": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            48,
+            55,
+            56
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "APISR_Zho"
+      },
+      "showAdvanced": null,
+      "widgets_values": [
+        false,
+        "float32"
+      ]
+    },
+    {
+      "id": 33,
+      "pos": [
+        1546,
+        -107
+      ],
+      "mode": 0,
+      "size": [
+        559.5620727539062,
+        547.0316772460938
+      ],
+      "type": "SaveImage",
+      "flags": {},
+      "order": 14,
+      "inputs": [
+        {
+          "link": 56,
+          "name": "images",
+          "type": "IMAGE"
+        }
+      ],
+      "outputs": [],
+      "properties": {},
+      "showAdvanced": null,
+      "widgets_values": [
+        "1082"
+      ]
+    },
+    {
+      "id": 34,
+      "pos": [
+        1542,
+        750
+      ],
+      "mode": 0,
+      "size": [
+        555.5779418945312,
+        667.487060546875
+      ],
+      "type": "SaveImage",
+      "flags": {},
+      "order": 16,
+      "inputs": [
+        {
+          "link": 57,
+          "name": "images",
+          "type": "IMAGE"
+        }
+      ],
+      "outputs": [],
+      "properties": {},
+      "showAdvanced": null,
+      "widgets_values": [
+        "1082"
+      ]
+    },
+    {
+      "id": 47,
+      "pos": [
+        -30.984519958496094,
+        1826.1002197265625
+      ],
+      "mode": 4,
+      "size": [
+        253.84765625,
+        58
+      ],
+      "type": "VHS_BatchManager",
+      "flags": {},
+      "order": 2,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "meta_batch",
+          "type": "VHS_BatchManager",
+          "links": [
+            72,
+            73,
+            74,
+            78,
+            79,
+            84,
+            86
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VHS_BatchManager"
+      },
+      "showAdvanced": null,
+      "widgets_values": {
+        "count": 6,
+        "frames_per_batch": 4
+      }
+    },
+    {
+      "id": 35,
+      "pos": [
+        978.5789794921875,
+        1834.969482421875
+      ],
+      "mode": 4,
+      "size": [
+        400,
+        60
+      ],
+      "type": "APISR_ModelLoader_Zho",
+      "flags": {},
+      "order": 3,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "pipe",
+          "type": "APISRMODEL",
+          "links": [
+            58,
+            80
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "APISR_ModelLoader_Zho"
+      },
+      "showAdvanced": null,
+      "widgets_values": [
+        "4x_APISR_GRL_GAN_generator.pth"
+      ]
+    },
+    {
+      "id": 39,
+      "pos": [
+        1012.0839233398438,
+        2618.811279296875
+      ],
+      "mode": 4,
+      "size": [
+        336.883056640625,
+        62.87196731567383
+      ],
+      "type": "UpscaleModelLoader",
+      "flags": {},
+      "order": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "UPSCALE_MODEL",
+          "type": "UPSCALE_MODEL",
+          "links": [
+            60
+          ],
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "UpscaleModelLoader"
+      },
+      "showAdvanced": null,
+      "widgets_values": [
+        "4x-AnimeSharp.pth"
+      ]
+    },
+    {
+      "id": 38,
+      "pos": [
+        1407.4931640625,
+        2618.387939453125
+      ],
+      "mode": 4,
+      "size": [
+        391.6908874511719,
+        58.011295318603516
+      ],
+      "type": "ImageUpscaleWithModel",
+      "flags": {},
+      "order": 12,
+      "inputs": [
+        {
+          "link": 60,
+          "name": "upscale_model",
+          "type": "UPSCALE_MODEL",
+          "slot_index": 0
+        },
+        {
+          "link": 69,
+          "name": "image",
+          "type": "IMAGE"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            71,
+            75,
+            85
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageUpscaleWithModel"
+      },
+      "showAdvanced": null,
+      "widgets_values": []
+    },
+    {
+      "id": 36,
+      "pos": [
+        1461.65576171875,
+        1841.5062255859375
+      ],
+      "mode": 4,
+      "size": [
+        315,
+        102
+      ],
+      "type": "APISR_Zho",
+      "flags": {},
+      "order": 9,
+      "inputs": [
+        {
+          "link": 80,
+          "name": "pipe",
+          "type": "APISRMODEL"
+        },
+        {
+          "link": 81,
+          "name": "image",
+          "type": "IMAGE"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            83
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "APISR_Zho"
+      },
+      "showAdvanced": null,
+      "widgets_values": [
+        true,
+        "float32"
+      ]
+    },
+    {
+      "id": 45,
+      "pos": [
+        1871.712646484375,
+        1837.1611328125
+      ],
+      "mode": 4,
+      "size": [
+        428.7693786621094,
+        334
+      ],
+      "type": "VHS_VideoCombine",
+      "flags": {},
+      "order": 7,
+      "inputs": [
+        {
+          "link": 83,
+          "name": "images",
+          "type": "IMAGE"
+        },
+        {
+          "link": null,
+          "name": "audio",
+          "type": "AUDIO",
+          "shape": 7
+        },
+        {
+          "link": 84,
+          "name": "meta_batch",
+          "type": "VHS_BatchManager",
+          "shape": 7
+        },
+        {
+          "link": null,
+          "name": "vae",
+          "type": "VAE",
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Filenames",
+          "type": "VHS_FILENAMES",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VHS_VideoCombine"
+      },
+      "showAdvanced": null,
+      "widgets_values": {
+        "crf": 19,
+        "format": "video/h264-mp4",
+        "pix_fmt": "yuv420p",
+        "pingpong": false,
+        "frame_rate": 30,
+        "loop_count": 0,
+        "save_output": true,
+        "videopreview": {
+          "hidden": false,
+          "params": {
+            "type": "output",
+            "format": "video/h264-mp4",
+            "filename": "1082_00002.mp4",
+            "fullpath": "/workspace/ComfyUI/output/1082_00002.mp4",
+            "workflow": "1082_00002.png",
+            "subfolder": "",
+            "frame_rate": 30
+          },
+          "paused": false
+        },
+        "save_metadata": true,
+        "trim_to_audio": false,
+        "filename_prefix": "1082"
+      }
+    },
+    {
+      "id": 48,
+      "pos": [
+        1842.638671875,
+        2626.270263671875
+      ],
+      "mode": 4,
+      "size": [
+        453.75604248046875,
+        334
+      ],
+      "type": "VHS_VideoCombine",
+      "flags": {},
+      "order": 8,
+      "inputs": [
+        {
+          "link": 85,
+          "name": "images",
+          "type": "IMAGE"
+        },
+        {
+          "link": null,
+          "name": "audio",
+          "type": "AUDIO",
+          "shape": 7
+        },
+        {
+          "link": 86,
+          "name": "meta_batch",
+          "type": "VHS_BatchManager",
+          "shape": 7
+        },
+        {
+          "link": null,
+          "name": "vae",
+          "type": "VAE",
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Filenames",
+          "type": "VHS_FILENAMES",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VHS_VideoCombine"
+      },
+      "showAdvanced": null,
+      "widgets_values": {
+        "crf": 19,
+        "format": "video/h264-mp4",
+        "pix_fmt": "yuv420p",
+        "pingpong": false,
+        "frame_rate": 30,
+        "loop_count": 0,
+        "save_output": true,
+        "videopreview": {
+          "hidden": false,
+          "params": {
+            "type": "output",
+            "format": "video/h264-mp4",
+            "filename": "1082_00001.mp4",
+            "fullpath": "/workspace/ComfyUI/output/1082_00001.mp4",
+            "workflow": "1082_00001.png",
+            "subfolder": "",
+            "frame_rate": 30
+          },
+          "paused": false
+        },
+        "save_metadata": true,
+        "trim_to_audio": false,
+        "filename_prefix": "1082"
+      }
+    },
+    {
+      "id": 44,
+      "pos": [
+        390.4288024902344,
+        1848.057373046875
+      ],
+      "mode": 4,
+      "size": [
+        474.27447509765625,
+        551.13720703125
+      ],
+      "type": "VHS_LoadVideo",
+      "flags": {},
+      "order": 6,
+      "inputs": [
+        {
+          "link": 72,
+          "name": "meta_batch",
+          "type": "VHS_BatchManager",
+          "shape": 7
+        },
+        {
+          "link": null,
+          "name": "vae",
+          "type": "VAE",
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            68,
+            69,
+            81
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "frame_count",
+          "type": "INT",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "video_info",
+          "type": "VHS_VIDEOINFO",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VHS_LoadVideo"
+      },
+      "showAdvanced": null,
+      "widgets_values": {
+        "video": "RunComfy_examples_1082_video.mp4",
+        "format": "None",
+        "force_rate": 0,
+        "custom_width": 0,
+        "videopreview": {
+          "hidden": false,
+          "params": {
+            "type": "input",
+            "format": "video/mp4",
+            "filename": "RunComfy_examples_1082_video.mp4",
+            "force_rate": 0,
+            "custom_width": 0,
+            "custom_height": 0,
+            "frame_load_cap": 0,
+            "select_every_nth": 1,
+            "skip_first_frames": 0
+          },
+          "paused": false
+        },
+        "custom_height": 0,
+        "frame_load_cap": 0,
+        "select_every_nth": 1,
+        "skip_first_frames": 0,
+        "choose video to upload": "image"
+      }
+    },
+    {
+      "id": 31,
+      "pos": [
+        2238.59375,
+        -106.49600219726562
+      ],
+      "mode": 0,
+      "size": [
+        728.2425537109375,
+        677.219970703125
+      ],
+      "type": "Image Comparer (rgthree)",
+      "flags": {},
+      "order": 13,
+      "inputs": [
+        {
+          "dir": 3,
+          "link": 54,
+          "name": "image_a",
+          "type": "IMAGE"
+        },
+        {
+          "dir": 3,
+          "link": 55,
+          "name": "image_b",
+          "type": "IMAGE"
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "comparer_mode": "Slide"
+      },
+      "showAdvanced": null,
+      "widgets_values": [
+        [
+          {
+            "url": "/view?filename=rgthree.compare._temp_bicyn_00001_.png&type=temp&subfolder=&rand=0.8765119653714477",
+            "name": "A",
+            "selected": true
+          },
+          {
+            "url": "/view?filename=rgthree.compare._temp_bicyn_00002_.png&type=temp&subfolder=&rand=0.7998235212972533",
+            "name": "B",
+            "selected": true
+          }
+        ]
+      ]
+    },
+    {
+      "id": 32,
+      "pos": [
+        2237.3779296875,
+        754.7406616210938
+      ],
+      "mode": 0,
+      "size": [
+        746.3552856445312,
+        671.1729125976562
+      ],
+      "type": "Image Comparer (rgthree)",
+      "flags": {},
+      "order": 15,
+      "inputs": [
+        {
+          "dir": 3,
+          "link": 48,
+          "name": "image_a",
+          "type": "IMAGE"
+        },
+        {
+          "dir": 3,
+          "link": 49,
+          "name": "image_b",
+          "type": "IMAGE"
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "comparer_mode": "Slide"
+      },
+      "showAdvanced": null,
+      "widgets_values": [
+        [
+          {
+            "url": "/view?filename=rgthree.compare._temp_idbmr_00001_.png&type=temp&subfolder=&rand=0.061600582396218906",
+            "name": "A",
+            "selected": true
+          },
+          {
+            "url": "/view?filename=rgthree.compare._temp_idbmr_00002_.png&type=temp&subfolder=&rand=0.9909442955009968",
+            "name": "B",
+            "selected": true
+          }
+        ]
+      ]
+    },
+    {
+      "id": 15,
+      "pos": [
+        -17.326786041259766,
+        -121.01576232910156
+      ],
+      "mode": 0,
+      "size": [
+        520.7589111328125,
+        617.1618041992188
+      ],
+      "type": "LoadImage",
+      "flags": {},
+      "order": 5,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            22,
+            43,
+            54
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "showAdvanced": null,
+      "widgets_values": [
+        "RunComfy_examples_1082.png",
+        "image"
+      ]
+    }
+  ],
+  "config": {},
+  "groups": [
+    {
+      "id": 1,
+      "color": "#3f789e",
+      "flags": {},
+      "title": "APISR - Image upscale",
+      "bounding": [
+        -116.0335693359375,
+        -301.3350830078125,
+        3162.43212890625,
+        1800.236083984375
+      ],
+      "font_size": 24
+    },
+    {
+      "id": 2,
+      "color": "#3f789e",
+      "flags": {},
+      "title": "APISR - Video upscale",
+      "bounding": [
+        -108.15515899658203,
+        1648.4293212890625,
+        2616.58056640625,
+        1804.9549560546875
+      ],
+      "font_size": 24
+    }
+  ],
+  "version": 0.4,
+  "last_link_id": 86,
+  "last_node_id": 48
+}

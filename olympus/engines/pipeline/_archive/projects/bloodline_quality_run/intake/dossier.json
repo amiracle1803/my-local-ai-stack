@@ -1,0 +1,110 @@
+{
+  "title": "bloodline_quality_run",
+  "synopsis": "SCENE 1 - The Village at Dusk  Kael sharpens a worn blade on the hill above the valley as storm clouds gather. The village below is quiet, lanterns being lit one by one. He has not slept in two nights.  Kael: We hold the pass tonight. No matter what comes through.",
+  "characters": [
+    {
+      "id": "kael",
+      "name": "Kael",
+      "role": "protagonist",
+      "appearance": "anime design, distinctive silhouette, expressive eyes (Kael)",
+      "description": "Key figure across 4 scenes."
+    },
+    {
+      "id": "not",
+      "name": "Not",
+      "role": "supporting",
+      "appearance": "anime design, distinctive silhouette, expressive eyes (Not)",
+      "description": "Key figure across 4 scenes."
+    },
+    {
+      "id": "dawn_quiet",
+      "name": "Dawn\n\nQuiet",
+      "role": "supporting",
+      "appearance": "anime design, distinctive silhouette, expressive eyes (Dawn\n\nQuiet)",
+      "description": "Key figure across 4 scenes."
+    },
+    {
+      "id": "dusk_kael",
+      "name": "Dusk\n\nKael",
+      "role": "supporting",
+      "appearance": "anime design, distinctive silhouette, expressive eyes (Dusk\n\nKael)",
+      "description": "Key figure across 4 scenes."
+    },
+    {
+      "id": "pines",
+      "name": "Pines",
+      "role": "supporting",
+      "appearance": "anime design, distinctive silhouette, expressive eyes (Pines)",
+      "description": "Key figure across 4 scenes."
+    },
+    {
+      "id": "ridge_the",
+      "name": "Ridge\n\nThe",
+      "role": "supporting",
+      "appearance": "anime design, distinctive silhouette, expressive eyes (Ridge\n\nThe)",
+      "description": "Key figure across 4 scenes."
+    },
+    {
+      "id": "sparks",
+      "name": "Sparks",
+      "role": "supporting",
+      "appearance": "anime design, distinctive silhouette, expressive eyes (Sparks)",
+      "description": "Key figure across 4 scenes."
+    },
+    {
+      "id": "stay",
+      "name": "Stay",
+      "role": "supporting",
+      "appearance": "anime design, distinctive silhouette, expressive eyes (Stay)",
+      "description": "Key figure across 4 scenes."
+    }
+  ],
+  "locations": [
+    {
+      "id": "loc_00",
+      "name": "SCENE 1 - The Village at Dusk",
+      "description": "SCENE 1 - The Village at Dusk  Kael sharpens a worn blade on the hill above the valley as storm clouds gather. The village below is quiet, lanterns being lit one by one. He has not slept in two nights"
+    },
+    {
+      "id": "loc_01",
+      "name": "SCENE 2 - The Shadow in the Pines",
+      "description": "SCENE 2 - The Shadow in the Pines  A shadow beast moves between the pines below, too fast to be a wolf, too large to be a man. Villagers bar their doors; mothers pull children inside. The wind carries"
+    },
+    {
+      "id": "loc_02",
+      "name": "SCENE 3 - The Fight on the Ridge",
+      "description": "SCENE 3 - The Fight on the Ridge  The beast attacks. Kael meets it with steel, trading cuts on the slick ridge as rain falls. Sparks fly where claws meet the blade. The beast is relentless, but Kael r"
+    },
+    {
+      "id": "loc_03",
+      "name": "SCENE 4 - Dawn",
+      "description": "SCENE 4 - Dawn  Quiet after the storm. Kael binds a wound and watches the sun rise over the valley. The village endures. The beast is gone, for now.  Kael: The bloodline holds."
+    }
+  ],
+  "dialogue_log": [
+    {
+      "speaker": "Kael",
+      "addressee": "",
+      "body_movement": "",
+      "line": "We hold the pass tonight. No matter what comes through."
+    },
+    {
+      "speaker": "Kael",
+      "addressee": "",
+      "body_movement": "",
+      "line": "Stay inside. This is mine to answer for."
+    },
+    {
+      "speaker": "Kael",
+      "addressee": "",
+      "body_movement": "",
+      "line": "Not tonight. Not again."
+    },
+    {
+      "speaker": "Kael",
+      "addressee": "",
+      "body_movement": "",
+      "line": "The bloodline holds."
+    }
+  ]
+}

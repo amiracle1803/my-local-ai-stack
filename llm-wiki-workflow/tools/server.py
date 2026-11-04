@@ -8,6 +8,7 @@ Requires: pip install fastapi uvicorn
 """
 
 import argparse
+import html
 import json
 import re
 import subprocess
@@ -213,6 +214,8 @@ async def api_search(q: str = ""):
             if idx >= 0:
                 s   = max(0, idx - 40)
                 raw = body[s: idx + 80].replace("\n", " ").strip()
+                # escape HTML to prevent XSS when rendering snippet
+                raw = html.escape(raw)
                 # highlight the match
                 hi  = re.sub(f"({re.escape(q)})", r"<mark>\1</mark>", raw, flags=re.IGNORECASE)
                 snippet = ("…" if s else "") + hi + "…"

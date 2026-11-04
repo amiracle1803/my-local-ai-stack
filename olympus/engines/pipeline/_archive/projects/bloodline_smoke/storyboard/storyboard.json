@@ -1,0 +1,25 @@
+{
+  "blocks": [
+    {
+      "id": "block_00",
+      "title": "SCENE 1 - The Bloodline",
+      "summary": "SCENE 1 - The Bloodline  Kael enters the ruined city beneath a red moon.  Kael: The bloodline ends tonight.  A shadow beast rises from the gate."
+    }
+  ],
+  "shot_detail": [
+    {
+      "id": "sh-001-01",
+      "block": "block_00",
+      "tier": 1,
+      "direction": "Wide establishing: SCENE 1 - The Bloodline  Kael enters the ruined city beneath a red moon.  Kael: The bloodline ends tonight.  A shadow beast rises from the g",
+      "prompt": "anime panel, SCENE 1 - The Bloodline, dramatic lighting"
+    },
+    {
+      "id": "sh-001-02",
+      "block": "block_00",
+      "tier": 2,
+      "direction": "Close-up beat: SCENE 1 - The Bloodline  Kael enters the ruined city beneath a red moon.  Kael: The bloodline ends tonight.  A shadow beast rises from the g",
+      "prompt": "anime panel, SCENE 1 - The Bloodline, dramatic lighting"
+    }
+  ]
+}

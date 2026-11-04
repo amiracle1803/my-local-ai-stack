@@ -2,5 +2,6 @@
 # (keeps the download small and the GPU free for ComfyUI).
 flask>=3.0
 kokoro>=0.9
+transformers>=4.45,<5
 soundfile>=0.12
 numpy

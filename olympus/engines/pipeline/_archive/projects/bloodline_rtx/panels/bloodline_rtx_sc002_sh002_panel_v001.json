@@ -1,0 +1,9 @@
+{
+  "shot": "sh-002-02",
+  "seed": "sh_002_02",
+  "anchors": "Kael: anime design, distinctive silhouette, expressive eyes (Kael)",
+  "prompt": "anime recap panel, SCENE 2 - The Shadow in the Pines, Kael: anime design, distinctive silhouette, expressive eyes (Kael), Beat 2: SCENE 2 - The Shadow in the Pines  A shadow beast moves between the pines below, too fast to be a wolf, too large to be a man. Villagers bar their doors; mothers pull children insi, cinematic cel shading",
+  "backend": "comfyui",
+  "negative_prompt": "low quality, blurry, text, watermark, deformed",
+  "attempt": 1
+}

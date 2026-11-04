@@ -1,0 +1,9 @@
+{
+  "shot": "sh-001-02",
+  "seed": "sh_001_02",
+  "anchors": "Kael: anime design, distinctive silhouette, expressive eyes (Kael)",
+  "prompt": "anime recap panel, SCENE 1 - The Village at Dusk, Kael: anime design, distinctive silhouette, expressive eyes (Kael), Beat 2: SCENE 1 - The Village at Dusk  Kael sharpens a worn blade on the hill above the valley as storm clouds gather. The village below is quiet, lanterns being lit one by one. He has not, cinematic cel shading",
+  "backend": "comfyui",
+  "negative_prompt": "low quality, blurry, text, watermark, deformed",
+  "attempt": 1
+}

@@ -1,0 +1,204 @@
+{
+  "id": "bbefea23-4a9e-469a-8747-0260a708fa7c",
+  "extra": {
+    "ds": {
+      "scale": 1.3310000000000006,
+      "offset": [
+        32.16350173252834,
+        -63.824384946450735
+      ]
+    },
+    "reroutes": null,
+    "frontendVersion": "1.21.7"
+  },
+  "links": [
+    [
+      16,
+      10,
+      0,
+      16,
+      0,
+      "IMAGE"
+    ],
+    [
+      17,
+      16,
+      0,
+      12,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "nodes": [
+    {
+      "id": 10,
+      "pos": [
+        105,
+        178
+      ],
+      "mode": 0,
+      "size": [
+        537.6058959960938,
+        637.7671508789062
+      ],
+      "type": "LoadImage",
+      "flags": {},
+      "order": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "label": null,
+          "links": [
+            16
+          ],
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "slot_index": 0
+        },
+        {
+          "dir": null,
+          "pos": null,
+          "name": "MASK",
+          "type": "MASK",
+          "label": null,
+          "links": null,
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "slot_index": null
+        }
+      ],
+      "properties": {
+        "ver": "0.3.33",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "LoadImage"
+      },
+      "showAdvanced": null,
+      "widgets_values": [
+        "RunComfy_examples_1234_1.jpg",
+        "image"
+      ]
+    },
+    {
+      "id": 12,
+      "pos": [
+        1076,
+        177
+      ],
+      "mode": 0,
+      "size": [
+        651.9716186523438,
+        637.3748168945312
+      ],
+      "type": "SaveImage",
+      "flags": {},
+      "order": 2,
+      "inputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "link": 17,
+          "name": "images",
+          "type": "IMAGE",
+          "label": null,
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "ver": "0.3.33",
+        "cnr_id": "comfy-core"
+      },
+      "showAdvanced": null,
+      "widgets_values": [
+        "1234"
+      ]
+    },
+    {
+      "id": 16,
+      "pos": [
+        711,
+        179
+      ],
+      "mode": 0,
+      "size": [
+        315,
+        154
+      ],
+      "type": "PMRF",
+      "flags": {},
+      "order": 1,
+      "inputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "link": 16,
+          "name": "images",
+          "type": "IMAGE",
+          "label": null,
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        }
+      ],
+      "outputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "name": "images",
+          "type": "IMAGE",
+          "label": null,
+          "links": [
+            17
+          ],
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "ver": "e105c042161785b6fbbae840e70817896c1eebf4",
+        "cnr_id": "ComfyUI-PMRF",
+        "Node name for S&R": "PMRF"
+      },
+      "showAdvanced": null,
+      "widgets_values": [
+        2,
+        25,
+        1079830045,
+        "randomize",
+        "lanczos4"
+      ]
+    }
+  ],
+  "config": {},
+  "groups": [],
+  "version": 0.4,
+  "revision": 0,
+  "last_link_id": 17,
+  "last_node_id": 16,
+  "floatingLinks": null
+}

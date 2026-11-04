@@ -1,0 +1,145 @@
+{
+  "total_clips": 12,
+  "reviewed": 4,
+  "skipped_placeholder": 8,
+  "pass": 4,
+  "reject": 0,
+  "avg_score": 8.0,
+  "pass_rate": 1.0,
+  "reviews": {
+    "final_local_sc001_sh001_panel_v001.png": {
+      "overall_score": 0.0,
+      "verdict": "NOT_APPLICABLE",
+      "details": {
+        "exists": 1,
+        "backend": "placeholder"
+      },
+      "raw_response": "placeholder backend; visual review skipped (smoke profile)"
+    },
+    "final_local_sc001_sh002_panel_v001.png": {
+      "overall_score": 0.0,
+      "verdict": "NOT_APPLICABLE",
+      "details": {
+        "exists": 1,
+        "backend": "placeholder"
+      },
+      "raw_response": "placeholder backend; visual review skipped (smoke profile)"
+    },
+    "final_local_sc002_sh001_panel_v001.png": {
+      "overall_score": 0.0,
+      "verdict": "NOT_APPLICABLE",
+      "details": {
+        "exists": 1,
+        "backend": "placeholder"
+      },
+      "raw_response": "placeholder backend; visual review skipped (smoke profile)"
+    },
+    "final_local_sc002_sh002_panel_v001.png": {
+      "overall_score": 0.0,
+      "verdict": "NOT_APPLICABLE",
+      "details": {
+        "exists": 1,
+        "backend": "placeholder"
+      },
+      "raw_response": "placeholder backend; visual review skipped (smoke profile)"
+    },
+    "final_local_sc003_sh001_panel_v001.png": {
+      "overall_score": 0.0,
+      "verdict": "NOT_APPLICABLE",
+      "details": {
+        "exists": 1,
+        "backend": "placeholder"
+      },
+      "raw_response": "placeholder backend; visual review skipped (smoke profile)"
+    },
+    "final_local_sc003_sh002_panel_v001.png": {
+      "overall_score": 0.0,
+      "verdict": "NOT_APPLICABLE",
+      "details": {
+        "exists": 1,
+        "backend": "placeholder"
+      },
+      "raw_response": "placeholder backend; visual review skipped (smoke profile)"
+    },
+    "final_local_sc004_sh001_panel_v001.png": {
+      "overall_score": 0.0,
+      "verdict": "NOT_APPLICABLE",
+      "details": {
+        "exists": 1,
+        "backend": "placeholder"
+      },
+      "raw_response": "placeholder backend; visual review skipped (smoke profile)"
+    },
+    "final_local_sc004_sh002_panel_v001.png": {
+      "overall_score": 0.0,
+      "verdict": "NOT_APPLICABLE",
+      "details": {
+        "exists": 1,
+        "backend": "placeholder"
+      },
+      "raw_response": "placeholder backend; visual review skipped (smoke profile)"
+    },
+    "block_00_manga.png": {
+      "overall_score": 8.0,
+      "verdict": "PASS",
+      "details": {
+        "exists": 1,
+        "on_model": 8.0,
+        "prompt_adherence": 8.0,
+        "issues": [
+          "The background elements are not consistent across the panels.",
+          "There is a lack of detail in the character's design, which affects consistency."
+        ],
+        "backend": "comfyui"
+      },
+      "raw_response": "{\"score\": 8, \"issues\": [\"The background elements are not consistent across the panels.\", \"There is a lack of detail in the character's design, which affects consistency.\"], \"verdict\": \"PASS\", \"available\": true, \"provider\": \"ollama\"}"
+    },
+    "block_01_manga.png": {
+      "overall_score": 8.0,
+      "verdict": "PASS",
+      "details": {
+        "exists": 1,
+        "on_model": 8.0,
+        "prompt_adherence": 8.0,
+        "issues": [
+          "The text appears to be a duplicate of the previous scene's description.",
+          "There is no clear indication of character consistency in terms of design or expression."
+        ],
+        "backend": "comfyui"
+      },
+      "raw_response": "{\"score\": 8, \"issues\": [\"The text appears to be a duplicate of the previous scene's description.\", \"There is no clear indication of character consistency in terms of design or expression.\"], \"verdict\": \"PASS\", \"available\": true, \"provider\": \"ollama\"}"
+    },
+    "block_02_manga.png": {
+      "overall_score": 8.0,
+      "verdict": "PASS",
+      "details": {
+        "exists": 1,
+        "on_model": 8.0,
+        "prompt_adherence": 8.0,
+        "issues": [
+          "The text appears to be cut off in the second panel, which might affect readability.",
+          "There is a repetition of some phrases across both panels."
+        ],
+        "backend": "comfyui"
+      },
+      "raw_response": "{\"score\": 8, \"issues\": [\"The text appears to be cut off in the second panel, which might affect readability.\", \"There is a repetition of some phrases across both panels.\"], \"verdict\": \"PASS\", \"available\": true, \"provider\": \"ollama\"}"
+    },
+    "block_03_manga.png": {
+      "overall_score": 8.0,
+      "verdict": "PASS",
+      "details": {
+        "exists": 1,
+        "on_model": 8.0,
+        "prompt_adherence": 8.0,
+        "issues": [
+          "The text appears to be cut off in the second panel, which might affect readability.",
+          "There is a slight discrepancy in the background gradient between the two panels."
+        ],
+        "backend": "comfyui"
+      },
+      "raw_response": "{\"score\": 8, \"issues\": [\"The text appears to be cut off in the second panel, which might affect readability.\", \"There is a slight discrepancy in the background gradient between the two panels.\"], \"verdict\": \"PASS\", \"available\": true, \"provider\": \"ollama\"}"
+    }
+  },
+  "judge": "ollama",
+  "gate": "PASS"
+}

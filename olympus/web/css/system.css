@@ -1,0 +1,6 @@
+/* system.css — split from styles.css */
+/* -- 13. System ------------------------------------------------------------ */
+#sys-services, #auto-services { display: flex; flex-wrap: wrap; }
+/* Keep the System page's heading + two-column grid on a shared centered axis */
+#page-system { max-width: 1200px; margin-inline: auto; }
+

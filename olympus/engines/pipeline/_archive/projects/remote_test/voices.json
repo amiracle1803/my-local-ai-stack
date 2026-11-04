@@ -1,0 +1,9 @@
+{
+  "narrator": {
+    "provider": "chatterbox-turbo",
+    "voice": "am_michael",
+    "reference": "voices/narrator/reference.wav"
+  },
+  "characters": {},
+  "fallback": "kokoro"
+}

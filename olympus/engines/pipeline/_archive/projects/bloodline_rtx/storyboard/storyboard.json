@@ -1,0 +1,106 @@
+{
+  "blocks": [
+    {
+      "id": "block_00",
+      "title": "SCENE 1 - The Village at Dusk",
+      "summary": "SCENE 1 - The Village at Dusk  Kael sharpens a worn blade on the hill above the valley as storm clouds gather. The village below is quiet, lanterns being lit one by one. He has not slept in two nights.  Kael: We hold the pass tonight. No ma"
+    },
+    {
+      "id": "block_01",
+      "title": "SCENE 2 - The Shadow in the Pines",
+      "summary": "SCENE 2 - The Shadow in the Pines  A shadow beast moves between the pines below, too fast to be a wolf, too large to be a man. Villagers bar their doors; mothers pull children inside. The wind carries a low, hungry sound.  Kael: Stay inside"
+    },
+    {
+      "id": "block_02",
+      "title": "SCENE 3 - The Fight on the Ridge",
+      "summary": "SCENE 3 - The Fight on the Ridge  The beast attacks. Kael meets it with steel, trading cuts on the slick ridge as rain falls. Sparks fly where claws meet the blade. The beast is relentless, but Kael refuses to fall.  Kael: Not tonight. Not "
+    },
+    {
+      "id": "block_03",
+      "title": "SCENE 4 - Dawn",
+      "summary": "SCENE 4 - Dawn  Quiet after the storm. Kael binds a wound and watches the sun rise over the valley. The village endures. The beast is gone, for now.  Kael: The bloodline holds."
+    }
+  ],
+  "shot_detail": [
+    {
+      "id": "sh-001-01",
+      "block": "block_00",
+      "tier": 1,
+      "direction": "Beat 1: SCENE 1 - The Village at Dusk  Kael sharpens a worn blade on the hill above the valley as storm clouds gather. The village below is quiet, lanterns being lit one by one. He has not",
+      "narration": "SCENE 1 - The Village at Dusk  Kael sharpens a worn blade on the hill above the valley as storm clouds gather. The village below is quiet, lanterns being lit one by one. He has not",
+      "dialogue": "We hold the pass tonight. No matter what comes through.",
+      "sfx": "wind \u00b7 thunder",
+      "prompt": "anime panel, SCENE 1 - The Village at Dusk, Beat 1: SCENE 1 - The Village at Dusk  Kael sharpens a worn blade on the hill above the valley as storm clouds gather. The village below is , cinematic cel shading"
+    },
+    {
+      "id": "sh-001-02",
+      "block": "block_00",
+      "tier": 2,
+      "direction": "Beat 2: SCENE 1 - The Village at Dusk  Kael sharpens a worn blade on the hill above the valley as storm clouds gather. The village below is quiet, lanterns being lit one by one. He has not",
+      "narration": "",
+      "dialogue": "",
+      "sfx": "wind \u00b7 thunder",
+      "prompt": "anime panel, SCENE 1 - The Village at Dusk, Beat 2: SCENE 1 - The Village at Dusk  Kael sharpens a worn blade on the hill above the valley as storm clouds gather. The village below is , cinematic cel shading"
+    },
+    {
+      "id": "sh-002-01",
+      "block": "block_01",
+      "tier": 1,
+      "direction": "Beat 1: SCENE 2 - The Shadow in the Pines  A shadow beast moves between the pines below, too fast to be a wolf, too large to be a man. Villagers bar their doors; mothers pull children insi",
+      "narration": "SCENE 2 - The Shadow in the Pines  A shadow beast moves between the pines below, too fast to be a wolf, too large to be a man. Villagers bar their doors; mothers pull children insi",
+      "dialogue": "Stay inside. This is mine to answer for.",
+      "sfx": "ambience",
+      "prompt": "anime panel, SCENE 2 - The Shadow in the Pines, Beat 1: SCENE 2 - The Shadow in the Pines  A shadow beast moves between the pines below, too fast to be a wolf, too large to be a man. Villa, cinematic cel shading"
+    },
+    {
+      "id": "sh-002-02",
+      "block": "block_01",
+      "tier": 2,
+      "direction": "Beat 2: SCENE 2 - The Shadow in the Pines  A shadow beast moves between the pines below, too fast to be a wolf, too large to be a man. Villagers bar their doors; mothers pull children insi",
+      "narration": "",
+      "dialogue": "",
+      "sfx": "ambience",
+      "prompt": "anime panel, SCENE 2 - The Shadow in the Pines, Beat 2: SCENE 2 - The Shadow in the Pines  A shadow beast moves between the pines below, too fast to be a wolf, too large to be a man. Villa, cinematic cel shading"
+    },
+    {
+      "id": "sh-003-01",
+      "block": "block_02",
+      "tier": 1,
+      "direction": "Beat 1: SCENE 3 - The Fight on the Ridge  The beast attacks. Kael meets it with steel, trading cuts on the slick ridge as rain falls. Sparks fly where claws meet the blade. The beast is re",
+      "narration": "SCENE 3 - The Fight on the Ridge  The beast attacks. Kael meets it with steel, trading cuts on the slick ridge as rain falls. Sparks fly where claws meet the blade. The beast is re",
+      "dialogue": "Not tonight. Not again.",
+      "sfx": "ambience",
+      "prompt": "anime panel, SCENE 3 - The Fight on the Ridge, Beat 1: SCENE 3 - The Fight on the Ridge  The beast attacks. Kael meets it with steel, trading cuts on the slick ridge as rain falls. Sparks, cinematic cel shading"
+    },
+    {
+      "id": "sh-003-02",
+      "block": "block_02",
+      "tier": 2,
+      "direction": "Beat 2: SCENE 3 - The Fight on the Ridge  The beast attacks. Kael meets it with steel, trading cuts on the slick ridge as rain falls. Sparks fly where claws meet the blade. The beast is re",
+      "narration": "",
+      "dialogue": "",
+      "sfx": "ambience",
+      "prompt": "anime panel, SCENE 3 - The Fight on the Ridge, Beat 2: SCENE 3 - The Fight on the Ridge  The beast attacks. Kael meets it with steel, trading cuts on the slick ridge as rain falls. Sparks, cinematic cel shading"
+    },
+    {
+      "id": "sh-004-01",
+      "block": "block_03",
+      "tier": 1,
+      "direction": "Beat 1: SCENE 4 - Dawn  Quiet after the storm. Kael binds a wound and watches the sun rise over the valley. The village endures. The beast is gone, for now.  Kael: The bloodline holds.",
+      "narration": "SCENE 4 - Dawn  Quiet after the storm. Kael binds a wound and watches the sun rise over the valley. The village endures. The beast is gone, for now.  Kael: The bloodline holds.",
+      "dialogue": "The bloodline holds.",
+      "sfx": "wind \u00b7 thunder",
+      "prompt": "anime panel, SCENE 4 - Dawn, Beat 1: SCENE 4 - Dawn  Quiet after the storm. Kael binds a wound and watches the sun rise over the valley. The village endures. The beast i, cinematic cel shading"
+    },
+    {
+      "id": "sh-004-02",
+      "block": "block_03",
+      "tier": 2,
+      "direction": "Beat 2: SCENE 4 - Dawn  Quiet after the storm. Kael binds a wound and watches the sun rise over the valley. The village endures. The beast is gone, for now.  Kael: The bloodline holds.",
+      "narration": "",
+      "dialogue": "",
+      "sfx": "wind \u00b7 thunder",
+      "prompt": "anime panel, SCENE 4 - Dawn, Beat 2: SCENE 4 - Dawn  Quiet after the storm. Kael binds a wound and watches the sun rise over the valley. The village endures. The beast i, cinematic cel shading"
+    }
+  ]
+}

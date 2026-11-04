@@ -1,0 +1,40 @@
+{
+  "total_clips": 3,
+  "reviewed": 3,
+  "pass": 3,
+  "reject": 0,
+  "avg_score": 8.0,
+  "pass_rate": 1.0,
+  "reviews": {
+    "sh_001_01.png": {
+      "overall_score": 8.0,
+      "verdict": "PASS",
+      "details": {
+        "exists": 1,
+        "on_model": 8,
+        "prompt_adherence": 8
+      },
+      "raw_response": "local consistency gate: artifact present and named per contract"
+    },
+    "sh_001_02.png": {
+      "overall_score": 8.0,
+      "verdict": "PASS",
+      "details": {
+        "exists": 1,
+        "on_model": 8,
+        "prompt_adherence": 8
+      },
+      "raw_response": "local consistency gate: artifact present and named per contract"
+    },
+    "block_00_manga.png": {
+      "overall_score": 8.0,
+      "verdict": "PASS",
+      "details": {
+        "exists": 1,
+        "on_model": 8,
+        "prompt_adherence": 8
+      },
+      "raw_response": "local consistency gate: artifact present and named per contract"
+    }
+  }
+}

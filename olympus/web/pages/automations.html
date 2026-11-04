@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Automations | Olympus</title>
+<meta name="description" content="Olympus dashboard — central hub for the Local AI Stack.">
+<meta name="theme-color" content="#04060c">
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/automations.css">
+</head>
+<body>
+
+<!-- ===== Shared top navigation bar ====================================== -->
+<header>
+  <div class="logo"><span class="orb"></span>OLYMPUS</div>
+  <nav>
+    <a href="/home">HOME</a>
+    <a href="/tasks">TASKS</a>
+    <a href="/wiki">WIKI</a>
+    <a href="/commerce">COMMERCE</a>
+    <a href="/automations" class="active">AUTOMATIONS</a>
+    <a href="/voice">VOICE</a>
+    <a href="/studio">STUDIO</a>
+    <a href="/system">SYSTEM</a>
+  </nav>
+  <div id="hdr-right">● <span id="hdr-agents">…</span> AGENTS · OLLAMA <span id="hdr-ollama">…</span></div>
+</header>
+
+<main>
+
+<!-- ===== AUTOMATIONS — service chips + external links ===================== -->
+<div class="page active" id="page-automations">
+  <h1 class="pg">AUTOMATIONS</h1>
+  <h2 class="pg">SERVICES</h2>
+  <div id="auto-services" class="mb-lg"></div>
+  <h2 class="pg">EXTERNAL CONSOLES</h2>
+  <div class="link-row">
+    <a href="http://127.0.0.1:5679" target="_blank">n8n workflows :5679</a>
+    <a href="http://127.0.0.1:3030" target="_blank">Langfuse :3030</a>
+    <a href="https://127.0.0.1:9443" target="_blank">Portainer :9443</a>
+    <a href="http://127.0.0.1:6333/dashboard" target="_blank">Qdrant :6333</a>
+  </div>
+</div>
+
+
+</main>
+
+<script src="/js/base.js"></script>
+<script src="/js/automations.js"></script>
+</body>
+</html>

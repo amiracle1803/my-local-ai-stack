@@ -1,0 +1,96 @@
+{
+  "scenes": [
+    {
+      "heading": "SCENE 1 \u2014 SCENE 1 - The Village at Dusk",
+      "location": "SCENE 1 - The Village at Dusk",
+      "summary": "SCENE 1 - The Village at Dusk  Kael sharpens a worn blade on the hill above the valley as storm clouds gather. The village below is quiet, lanterns being lit one by one. He has not slept in two nights.  Kael: We hold the pass tonight. No matter what comes through.",
+      "shots": [
+        {
+          "id": "sh-001-01",
+          "description": "Beat 1: SCENE 1 - The Village at Dusk  Kael sharpens a worn blade on the hill above the valley as storm clouds gather. The village below is quiet, lanterns being lit one by one. He has not",
+          "narration": "SCENE 1 - The Village at Dusk  Kael sharpens a worn blade on the hill above the valley as storm clouds gather. The village below is quiet, lanterns being lit one by one. He has not",
+          "character": "Kael",
+          "dialogue": "We hold the pass tonight. No matter what comes through.",
+          "sfx": "wind \u00b7 thunder"
+        },
+        {
+          "id": "sh-001-02",
+          "description": "Beat 2: SCENE 1 - The Village at Dusk  Kael sharpens a worn blade on the hill above the valley as storm clouds gather. The village below is quiet, lanterns being lit one by one. He has not",
+          "narration": "",
+          "character": "",
+          "dialogue": "",
+          "sfx": "wind \u00b7 thunder"
+        }
+      ]
+    },
+    {
+      "heading": "SCENE 2 \u2014 SCENE 2 - The Shadow in the Pines",
+      "location": "SCENE 2 - The Shadow in the Pines",
+      "summary": "SCENE 2 - The Shadow in the Pines  A shadow beast moves between the pines below, too fast to be a wolf, too large to be a man. Villagers bar their doors; mothers pull children inside. The wind carries a low, hungry sound.  Kael: Stay inside. This is mine to answer for.",
+      "shots": [
+        {
+          "id": "sh-002-01",
+          "description": "Beat 1: SCENE 2 - The Shadow in the Pines  A shadow beast moves between the pines below, too fast to be a wolf, too large to be a man. Villagers bar their doors; mothers pull children insi",
+          "narration": "SCENE 2 - The Shadow in the Pines  A shadow beast moves between the pines below, too fast to be a wolf, too large to be a man. Villagers bar their doors; mothers pull children insi",
+          "character": "Kael",
+          "dialogue": "Stay inside. This is mine to answer for.",
+          "sfx": "ambience"
+        },
+        {
+          "id": "sh-002-02",
+          "description": "Beat 2: SCENE 2 - The Shadow in the Pines  A shadow beast moves between the pines below, too fast to be a wolf, too large to be a man. Villagers bar their doors; mothers pull children insi",
+          "narration": "",
+          "character": "",
+          "dialogue": "",
+          "sfx": "ambience"
+        }
+      ]
+    },
+    {
+      "heading": "SCENE 3 \u2014 SCENE 3 - The Fight on the Ridge",
+      "location": "SCENE 3 - The Fight on the Ridge",
+      "summary": "SCENE 3 - The Fight on the Ridge  The beast attacks. Kael meets it with steel, trading cuts on the slick ridge as rain falls. Sparks fly where claws meet the blade. The beast is relentless, but Kael refuses to fall.  Kael: Not tonight. Not again.",
+      "shots": [
+        {
+          "id": "sh-003-01",
+          "description": "Beat 1: SCENE 3 - The Fight on the Ridge  The beast attacks. Kael meets it with steel, trading cuts on the slick ridge as rain falls. Sparks fly where claws meet the blade. The beast is re",
+          "narration": "SCENE 3 - The Fight on the Ridge  The beast attacks. Kael meets it with steel, trading cuts on the slick ridge as rain falls. Sparks fly where claws meet the blade. The beast is re",
+          "character": "Kael",
+          "dialogue": "Not tonight. Not again.",
+          "sfx": "ambience"
+        },
+        {
+          "id": "sh-003-02",
+          "description": "Beat 2: SCENE 3 - The Fight on the Ridge  The beast attacks. Kael meets it with steel, trading cuts on the slick ridge as rain falls. Sparks fly where claws meet the blade. The beast is re",
+          "narration": "",
+          "character": "",
+          "dialogue": "",
+          "sfx": "ambience"
+        }
+      ]
+    },
+    {
+      "heading": "SCENE 4 \u2014 SCENE 4 - Dawn",
+      "location": "SCENE 4 - Dawn",
+      "summary": "SCENE 4 - Dawn  Quiet after the storm. Kael binds a wound and watches the sun rise over the valley. The village endures. The beast is gone, for now.  Kael: The bloodline holds.",
+      "shots": [
+        {
+          "id": "sh-004-01",
+          "description": "Beat 1: SCENE 4 - Dawn  Quiet after the storm. Kael binds a wound and watches the sun rise over the valley. The village endures. The beast is gone, for now.  Kael: The bloodline holds.",
+          "narration": "SCENE 4 - Dawn  Quiet after the storm. Kael binds a wound and watches the sun rise over the valley. The village endures. The beast is gone, for now.  Kael: The bloodline holds.",
+          "character": "Kael",
+          "dialogue": "The bloodline holds.",
+          "sfx": "wind \u00b7 thunder"
+        },
+        {
+          "id": "sh-004-02",
+          "description": "Beat 2: SCENE 4 - Dawn  Quiet after the storm. Kael binds a wound and watches the sun rise over the valley. The village endures. The beast is gone, for now.  Kael: The bloodline holds.",
+          "narration": "",
+          "character": "",
+          "dialogue": "",
+          "sfx": "wind \u00b7 thunder"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,85 @@
+{
+  "total_clips": 8,
+  "reviewed": 0,
+  "skipped_placeholder": 8,
+  "pass": 0,
+  "reject": 0,
+  "avg_score": 0.0,
+  "pass_rate": 0.0,
+  "reviews": {
+    "bloodline_local_sc001_sh001_panel_v001.mp4": {
+      "overall_score": 0.0,
+      "verdict": "NOT_APPLICABLE",
+      "details": {
+        "exists": 1,
+        "backend": "placeholder"
+      },
+      "raw_response": "placeholder backend; visual review skipped (smoke profile)"
+    },
+    "bloodline_local_sc001_sh002_panel_v001.mp4": {
+      "overall_score": 0.0,
+      "verdict": "NOT_APPLICABLE",
+      "details": {
+        "exists": 1,
+        "backend": "placeholder"
+      },
+      "raw_response": "placeholder backend; visual review skipped (smoke profile)"
+    },
+    "bloodline_local_sc002_sh001_panel_v001.mp4": {
+      "overall_score": 0.0,
+      "verdict": "NOT_APPLICABLE",
+      "details": {
+        "exists": 1,
+        "backend": "placeholder"
+      },
+      "raw_response": "placeholder backend; visual review skipped (smoke profile)"
+    },
+    "bloodline_local_sc002_sh002_panel_v001.mp4": {
+      "overall_score": 0.0,
+      "verdict": "NOT_APPLICABLE",
+      "details": {
+        "exists": 1,
+        "backend": "placeholder"
+      },
+      "raw_response": "placeholder backend; visual review skipped (smoke profile)"
+    },
+    "bloodline_local_sc003_sh001_panel_v001.mp4": {
+      "overall_score": 0.0,
+      "verdict": "NOT_APPLICABLE",
+      "details": {
+        "exists": 1,
+        "backend": "placeholder"
+      },
+      "raw_response": "placeholder backend; visual review skipped (smoke profile)"
+    },
+    "bloodline_local_sc003_sh002_panel_v001.mp4": {
+      "overall_score": 0.0,
+      "verdict": "NOT_APPLICABLE",
+      "details": {
+        "exists": 1,
+        "backend": "placeholder"
+      },
+      "raw_response": "placeholder backend; visual review skipped (smoke profile)"
+    },
+    "bloodline_local_sc004_sh001_panel_v001.mp4": {
+      "overall_score": 0.0,
+      "verdict": "NOT_APPLICABLE",
+      "details": {
+        "exists": 1,
+        "backend": "placeholder"
+      },
+      "raw_response": "placeholder backend; visual review skipped (smoke profile)"
+    },
+    "bloodline_local_sc004_sh002_panel_v001.mp4": {
+      "overall_score": 0.0,
+      "verdict": "NOT_APPLICABLE",
+      "details": {
+        "exists": 1,
+        "backend": "placeholder"
+      },
+      "raw_response": "placeholder backend; visual review skipped (smoke profile)"
+    }
+  },
+  "judge": "unavailable",
+  "gate": "SKIP"
+}

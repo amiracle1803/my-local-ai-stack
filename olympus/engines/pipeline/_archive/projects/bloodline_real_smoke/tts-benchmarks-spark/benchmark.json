@@ -1,0 +1,15 @@
+{
+  "provider": "spark-tts",
+  "environment": "/home/amire/Downloads/tts-spark-venv",
+  "device": "cuda",
+  "model": "SparkAudio/Spark-TTS-0.5B",
+  "sample_rate": 16000,
+  "audio_seconds": 9.9,
+  "bytes": 316844,
+  "reference_audio": "Spark-TTS/example/prompt_audio.wav",
+  "parameters": {
+    "gender": "male",
+    "pitch": "moderate",
+    "speed": "moderate"
+  }
+}

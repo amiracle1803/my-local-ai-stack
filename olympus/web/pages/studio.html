@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Studio | Olympus</title>
+<meta name="description" content="Olympus dashboard — central hub for the Local AI Stack.">
+<meta name="theme-color" content="#04060c">
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/studio.css">
+</head>
+<body>
+
+<!-- ===== Shared top navigation bar ====================================== -->
+<header>
+  <div class="logo"><span class="orb"></span>OLYMPUS</div>
+  <nav>
+    <a href="/home">HOME</a>
+    <a href="/tasks">TASKS</a>
+    <a href="/wiki">WIKI</a>
+    <a href="/commerce">COMMERCE</a>
+    <a href="/automations">AUTOMATIONS</a>
+    <a href="/voice">VOICE</a>
+    <a href="/studio" class="active">STUDIO</a>
+    <a href="/system">SYSTEM</a>
+  </nav>
+  <div id="hdr-right">● <span id="hdr-agents">…</span> AGENTS · OLLAMA <span id="hdr-ollama">…</span></div>
+</header>
+
+<main>
+
+<!-- ===== STUDIO — anime / manga pipeline ================================== -->
+<div class="page active" id="page-studio">
+  <h1 class="pg">STUDIO · ANIME / MANGA PIPELINE v2</h1>
+
+  <!-- Studio banner — no agent needed, everything runs from here -->
+  <div class="hud p-md mb-md" style="background:linear-gradient(90deg,rgba(87,199,227,.08),transparent);border-color:rgba(87,199,227,.25)">
+    <div class="flex-between">
+      <div class="flex">
+        <span class="label" style="color:var(--cyan);letter-spacing:.14em">● STUDIO — NO AGENT NEEDED</span>
+        <span class="hint">Create a project → Run stages one-by-one or hit <b class="text-cyan">RUN ALL</b>. Click any stage card to view outputs &amp; logs. All config is permanent in <code class="mono" style="background:#0b1522;padding:.1rem .35rem;border:1px solid var(--line)">stack.toml</code>.</span>
+      </div>
+      <div class="flex">
+        <label class="label" title="Animation master switch — OFF (default) assembles panels with Ken Burns zoom/pan + fades; ON runs stage3c GPU video">ANIMATION</label>
+        <button class="ghost" id="studio-anim-toggle" title="Toggle GPU animation on/off (writes stack.toml [animation].enabled)">…</button>
+        <button class="ghost" id="provider-settings-btn" title="Configure providers by capability">PROVIDERS</button>
+        <span class="hint-sm">local-first · hosted providers are opt-in</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Project selector + new project form -->
+  <div class="hud p-md mb-md">
+    <div class="flex">
+      <label class="label">PROJECT</label>
+      <select id="studio-project-select" class="min-w-200"></select>
+      <button class="ghost" id="studio-new-toggle">+ NEW PROJECT</button>
+      <span id="studio-project-meta" class="hint"></span>
+    </div>
+    <form id="studio-new-form" style="display:none;margin-top:.8rem">
+      <div class="flex mb-sm">
+        <input class="txt" id="np-slug" placeholder="project-slug" style="width:200px">
+        <label class="label">FPS <span id="np-fps-val">24</span></label>
+        <input type="range" id="np-fps" min="24" max="60" step="1" value="24" style="width:160px">
+        <label class="label">INTAKE</label>
+        <select id="np-intake" class="min-w-200">
+          <option value="0b" selected>0B · generate (brief)</option>
+          <option value="0a">0A · transform (source)</option>
+          <option value="0s">0S · faithful (script verbatim)</option>
+          <option value="0i">0I · import (panels)</option>
+        </select>
+        <label class="label" style="font-size:.78rem"><input type="radio" name="np-mode" value="brief" checked> brief</label>
+        <label class="label" style="font-size:.78rem"><input type="radio" name="np-mode" value="script"> full script</label>
+      </div>
+      <div id="np-intake-hint" class="label mb-sm"></div>
+      <textarea id="np-text" rows="6" class="w-full" placeholder="Creative brief (frontmatter: word_target: 600) — or source/seed text if 'full script' is selected…"></textarea>
+      <div id="np-panels-file" style="display:none;margin-top:.5rem">
+        <input type="file" id="np-panels" accept=".zip,.png,.jpg,.jpeg,.webp" multiple>
+        <span class="hint-sm"> attach panel images / zip (optional — can also be added when running stage 0)</span>
+      </div>
+      <div class="flex mt-sm">
+        <button class="primary" type="submit">CREATE PROJECT</button>
+        <span id="np-error" class="err-sm"></span>
+      </div>
+    </form>
+  </div>
+
+  <div class="studio-banner">
+    <div class="flex">
+      <span class="sb-label">FULL PIPELINE</span>
+      <span id="studio-last-msg" class="mono"></span>
+    </div>
+    <div class="flex">
+      <span id="studio-progress" class="cyan-sm"></span>
+      <label class="label" title="Stop after each stage so you can review the output before continuing — click RUN NEXT each time">STEP <input type="checkbox" id="studio-step-check"></label>
+      <button class="ghost" id="studio-stop-btn" title="Abort the current RUN ALL / QUICK TEST at the next stage boundary">STOP</button>
+      <button class="ghost" id="quick-test-btn" title="Create a small throwaway project and run the full pipeline fast (refs capped, < 1 hour)">QUICK TEST ▶</button>
+      <button class="primary sb-runall" id="run-all-btn">▶ RUN ALL REMAINING STAGES</button>
+    </div>
+  </div>
+
+  <!-- Stage cards — one per canonical pipeline stage. The data-stage ids are
+       the internal contract keys from pipeline/blueprint.py STAGE_ORDER. -->
+  <div class="stages" id="stage-grid"></div>
+
+  <!-- Stage artifact viewer modal -->
+  <div id="stage-modal" role="dialog" aria-modal="true">
+    <div id="stage-modal-box">
+      <div id="stage-modal-head">
+        <span id="stage-modal-title">STAGE</span>
+        <button id="stage-modal-close" aria-label="close">CLOSE ✕</button>
+      </div>
+      <div id="stage-modal-body"><div class="sm-empty">loading…</div></div>
+    </div>
+  </div>
+
+  <!-- Stage0 intake setup modal -->
+  <div id="setup-modal" role="dialog" aria-modal="true">
+    <div id="setup-box">
+      <div id="stage-modal-head">
+        <span id="setup-title">STAGE 0 · INTAKE</span>
+        <button id="setup-close" aria-label="close">CLOSE ✕</button>
+      </div>
+      <div id="setup-body"><div class="sm-empty">loading…</div></div>
+    </div>
+  </div>
+
+  <div id="provider-modal" role="dialog" aria-modal="true" aria-labelledby="provider-modal-title">
+    <div id="provider-modal-box">
+      <div id="stage-modal-head">
+        <span id="provider-modal-title">PROVIDER ROUTING</span>
+        <button id="provider-modal-close" aria-label="close">CLOSE ✕</button>
+      </div>
+      <div id="provider-modal-body"><div class="sm-empty">loading…</div></div>
+    </div>
+  </div>
+
+  <div class="flex">
+    <p class="hint-sm">pipeline engine: olympus/engines/pipeline/ · kernel: olympus/kernel/</p>
+    <p class="hint-sm">design: docs/planning/anime-pipeline-v2-design.md</p>
+    <p class="hint-sm">tools: realesrgan · rife-ncnn-vulkan · anime-face-detector</p>
+  </div>
+</div>
+
+
+</main>
+
+<script src="/js/base.js"></script>
+<script src="/js/studio.js"></script>
+</body>
+</html>

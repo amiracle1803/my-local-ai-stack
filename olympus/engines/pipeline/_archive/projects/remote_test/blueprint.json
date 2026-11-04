@@ -1,0 +1,82 @@
+{
+  "story_id": "e4475bbb-e667-4fb8-a94e-0efb358e03aa",
+  "slug": "remote_test",
+  "title_hash": "23651dc5ef5e93509e148bef7b5d1d5f412feb69a7d4dc9f22f5a827969d2234",
+  "created": "2026-09-22T06:57:38Z",
+  "fps": 24,
+  "mode": "0s",
+  "style": {
+    "name": "z-anime",
+    "lora": null,
+    "negative": "lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, jpeg artifacts, signature, watermark, blurry"
+  },
+  "target": {
+    "resolution": [
+      1280,
+      720
+    ],
+    "max_block_seconds": 90
+  },
+  "stages": {
+    "stage0": {
+      "status": "done",
+      "ts": "2026-09-22T06:57:38Z",
+      "score": 1.0
+    },
+    "stage0_dossier": {
+      "status": "done",
+      "ts": "2026-09-22T06:58:14Z",
+      "score": 1.0
+    },
+    "stage1": {
+      "status": "done",
+      "ts": "2026-09-22T06:58:14Z",
+      "score": 1.0
+    },
+    "stage1_world": {
+      "status": "done",
+      "ts": "2026-09-22T06:58:14Z",
+      "score": 1.0
+    },
+    "stage2": {
+      "status": "done",
+      "ts": "2026-09-22T06:58:14Z",
+      "score": 1.0
+    },
+    "stage4": {
+      "status": "done",
+      "ts": "2026-09-22T06:58:18Z",
+      "score": 1.0
+    },
+    "stage3": {
+      "status": "done",
+      "ts": "2026-09-22T06:58:18Z",
+      "score": 1.0
+    },
+    "stage1r": {
+      "status": "done",
+      "ts": "2026-09-22T07:01:34Z",
+      "score": 1.0
+    },
+    "stage3b": {
+      "status": "done",
+      "ts": "2026-09-22T07:02:03Z",
+      "score": 1.0
+    },
+    "stage3c": {
+      "status": "done",
+      "ts": "2026-09-22T07:02:04Z",
+      "score": 1.0
+    },
+    "stage_vlm_review": {
+      "status": "done",
+      "ts": "2026-09-22T07:02:19Z",
+      "score": 1.0
+    },
+    "stage5": {
+      "status": "done",
+      "ts": "2026-09-22T07:02:20Z",
+      "score": 1.0
+    }
+  }
+}

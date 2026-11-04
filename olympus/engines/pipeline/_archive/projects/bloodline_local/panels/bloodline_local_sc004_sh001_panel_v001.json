@@ -1,0 +1,19 @@
+{
+  "shot": "sh-004-01",
+  "seed": "sh_004_01",
+  "anchors": "Kael: anime design, distinctive silhouette, expressive eyes (Kael)",
+  "prompt": "anime recap panel, SCENE 4 - Dawn, Kael: anime design, distinctive silhouette, expressive eyes (Kael), SCENE 4 - Dawn  Quiet after the storm. Kael binds a wound and watches the sun rise over the valley. The village endures. The beast is gone, for now.  Kael: The bloodline holds., wide establishing shot, slow push-in, unspecified, cinematic cel shading",
+  "backend": "comfyui",
+  "reference_assets": [
+    "worldbible/refs/kael/ref_00.png",
+    "worldbible/refs/kael/ref_01.png",
+    "worldbible/refs/kael/ref_02.png"
+  ],
+  "continuity": {
+    "outfit": "default",
+    "lighting": "unspecified",
+    "screen_direction": "left_to_right"
+  },
+  "negative_prompt": "low quality, blurry, text, watermark, deformed",
+  "attempt": 1
+}

@@ -1,0 +1,180 @@
+{
+  "total_clips": 12,
+  "reviewed": 12,
+  "pass": 12,
+  "reject": 0,
+  "avg_score": 7.75,
+  "pass_rate": 1.0,
+  "reviews": {
+    "block_00_manga.mp4": {
+      "overall_score": 8.0,
+      "verdict": "PASS",
+      "details": {
+        "exists": 1,
+        "on_model": 8.0,
+        "prompt_adherence": 8.0,
+        "issues": [
+          "The lighting in the scene is inconsistent between panels.",
+          "The character's expression and posture do not match the action of holding a knife."
+        ]
+      },
+      "raw_response": "{\"score\": 8, \"issues\": [\"The lighting in the scene is inconsistent between panels.\", \"The character's expression and posture do not match the action of holding a knife.\"], \"verdict\": \"PASS\", \"available\": true, \"provider\": \"ollama\"}"
+    },
+    "block_01_manga.mp4": {
+      "overall_score": 7.0,
+      "verdict": "PASS",
+      "details": {
+        "exists": 1,
+        "on_model": 7.0,
+        "prompt_adherence": 7.0,
+        "issues": [
+          "Character designs are consistent within the panels but may lack depth in terms of personality and expression.",
+          "The scene transitions between panels seem abrupt, which could be improved for a smoother narrative flow."
+        ]
+      },
+      "raw_response": "{\"score\": 7, \"issues\": [\"Character designs are consistent within the panels but may lack depth in terms of personality and expression.\", \"The scene transitions between panels seem abrupt, which could be improved for a smoother narrative flow.\"], \"verdict\": \"PASS\", \"available\": true, \"provider\": \"ollama\"}"
+    },
+    "block_02_manga.mp4": {
+      "overall_score": 7.0,
+      "verdict": "PASS",
+      "details": {
+        "exists": 1,
+        "on_model": 7.0,
+        "prompt_adherence": 7.0,
+        "issues": [
+          "The characters' expressions are inconsistent across the panels.",
+          "The background elements in some panels do not align with the intended content."
+        ]
+      },
+      "raw_response": "{\"score\": 7, \"issues\": [\"The characters' expressions are inconsistent across the panels.\", \"The background elements in some panels do not align with the intended content.\"], \"verdict\": \"PASS\", \"available\": true, \"provider\": \"ollama\"}"
+    },
+    "block_03_manga.mp4": {
+      "overall_score": 8.0,
+      "verdict": "PASS",
+      "details": {
+        "exists": 1,
+        "on_model": 8.0,
+        "prompt_adherence": 8.0,
+        "issues": [
+          "The character's posture in the first panel appears inconsistent with the rest of the scene.",
+          "The transition between the lightning and sunset scenes is abrupt, lacking a smooth visual connection."
+        ]
+      },
+      "raw_response": "{\"score\": 8, \"issues\": [\"The character's posture in the first panel appears inconsistent with the rest of the scene.\", \"The transition between the lightning and sunset scenes is abrupt, lacking a smooth visual connection.\"], \"verdict\": \"PASS\", \"available\": true, \"provider\": \"ollama\"}"
+    },
+    "sh_001_01.mp4": {
+      "overall_score": 8.0,
+      "verdict": "PASS",
+      "details": {
+        "exists": 1,
+        "on_model": 8.0,
+        "prompt_adherence": 8.0,
+        "issues": [
+          "The character's hair appears slightly disheveled in the second panel compared to the first. This could be a stylistic choice but it might not align with the intended mood or tone of the scene.",
+          "The lighting and shadows on the character's face are inconsistent between the two panels, which can be distracting."
+        ]
+      },
+      "raw_response": "{\"score\": 8, \"issues\": [\"The character's hair appears slightly disheveled in the second panel compared to the first. This could be a stylistic choice but it might not align with the intended mood or tone of the scene.\", \"The lighting and shadows on the character's face are inconsistent between the two panels, which can be distracting.\"], \"verdict\": \"PASS\", \"available\": true, \"provider\": \"ollama\"}"
+    },
+    "sh_001_02.mp4": {
+      "overall_score": 8.0,
+      "verdict": "PASS",
+      "details": {
+        "exists": 1,
+        "on_model": 8.0,
+        "prompt_adherence": 8.0,
+        "issues": [
+          "The character's expression seems slightly exaggerated for the scene depicted.",
+          "The lighting on the knife and the character's face is inconsistent, which might be a stylistic choice but could also be seen as a minor issue."
+        ]
+      },
+      "raw_response": "{\"score\": 8, \"issues\": [\"The character's expression seems slightly exaggerated for the scene depicted.\", \"The lighting on the knife and the character's face is inconsistent, which might be a stylistic choice but could also be seen as a minor issue.\"], \"verdict\": \"PASS\", \"available\": true, \"provider\": \"ollama\"}"
+    },
+    "sh_002_01.mp4": {
+      "overall_score": 8.0,
+      "verdict": "PASS",
+      "details": {
+        "exists": 1,
+        "on_model": 8.0,
+        "prompt_adherence": 8.0,
+        "issues": [
+          "The dialogue in the first two panels is not consistent with the intended content. The text 'The Bwres' and 'Stnu i Tinos' do not align with the intended content.",
+          "The shadow of the wolf in the third panel does not match the size or shape expected for a wolf, which could be due to artistic interpretation."
+        ]
+      },
+      "raw_response": "{\"score\": 8, \"issues\": [\"The dialogue in the first two panels is not consistent with the intended content. The text 'The Bwres' and 'Stnu i Tinos' do not align with the intended content.\", \"The shadow of the wolf in the third panel does not match the size or shape expected for a wolf, which could be due to artistic interpretation.\"], \"verdict\": \"PASS\", \"available\": true, \"provider\": \"ollama\"}"
+    },
+    "sh_002_02.mp4": {
+      "overall_score": 8.0,
+      "verdict": "PASS",
+      "details": {
+        "exists": 1,
+        "on_model": 8.0,
+        "prompt_adherence": 8.0,
+        "issues": [
+          "The characters' clothing appears slightly inconsistent in terms of style and color across the panels.",
+          "There is a slight discrepancy in the positioning of shadows, which might be due to lighting or perspective changes that are not clearly defined."
+        ]
+      },
+      "raw_response": "{\"score\": 8, \"issues\": [\"The characters' clothing appears slightly inconsistent in terms of style and color across the panels.\", \"There is a slight discrepancy in the positioning of shadows, which might be due to lighting or perspective changes that are not clearly defined.\"], \"verdict\": \"PASS\", \"available\": true, \"provider\": \"ollama\"}"
+    },
+    "sh_003_01.mp4": {
+      "overall_score": 8.0,
+      "verdict": "PASS",
+      "details": {
+        "exists": 1,
+        "on_model": 8.0,
+        "prompt_adherence": 8.0,
+        "issues": [
+          "The character's expressions in the first two panels are inconsistent with their actions. The monster appears to be in a defensive stance, but its expression is aggressive and not typical of a creature in such a position.",
+          "The lighting effects on the sword and sparks do not consistently match across all panels, which can affect the visual flow."
+        ]
+      },
+      "raw_response": "{\"score\": 8, \"issues\": [\"The character's expressions in the first two panels are inconsistent with their actions. The monster appears to be in a defensive stance, but its expression is aggressive and not typical of a creature in such a position.\", \"The lighting effects on the sword and sparks do not consistently match across all panels, which can affect the visual flow.\"], \"verdict\": \"PASS\", \"available\": true, \"provider\": \"ollama\"}"
+    },
+    "sh_003_02.mp4": {
+      "overall_score": 8.0,
+      "verdict": "PASS",
+      "details": {
+        "exists": 1,
+        "on_model": 8.0,
+        "prompt_adherence": 8.0,
+        "issues": [
+          "The wolf's anatomy appears exaggerated compared to a real-life wolf.",
+          "The character's clothing and weapon handling seem inconsistent with the setting, which is more fantasy than modern."
+        ]
+      },
+      "raw_response": "{\"score\": 8, \"issues\": [\"The wolf's anatomy appears exaggerated compared to a real-life wolf.\", \"The character's clothing and weapon handling seem inconsistent with the setting, which is more fantasy than modern.\"], \"verdict\": \"PASS\", \"available\": true, \"provider\": \"ollama\"}"
+    },
+    "sh_004_01.mp4": {
+      "overall_score": 8.0,
+      "verdict": "PASS",
+      "details": {
+        "exists": 1,
+        "on_model": 8.0,
+        "prompt_adherence": 8.0,
+        "issues": [
+          "The character's posture in the first panel seems inconsistent with the action of tying a shoe. The hand placement and body angle do not align well.",
+          "The transition from night to dawn is abrupt, which might be jarring for viewers."
+        ]
+      },
+      "raw_response": "{\"score\": 8, \"issues\": [\"The character's posture in the first panel seems inconsistent with the action of tying a shoe. The hand placement and body angle do not align well.\", \"The transition from night to dawn is abrupt, which might be jarring for viewers.\"], \"verdict\": \"PASS\", \"available\": true, \"provider\": \"ollama\"}"
+    },
+    "sh_004_02.mp4": {
+      "overall_score": 7.0,
+      "verdict": "PASS",
+      "details": {
+        "exists": 1,
+        "on_model": 7.0,
+        "prompt_adherence": 7.0,
+        "issues": [
+          "The character's posture in the second panel appears inconsistent with the first and third panels.",
+          "The lighting in the second panel is different from the other panels, which might be a stylistic choice but could also indicate inconsistency."
+        ]
+      },
+      "raw_response": "{\"score\": 7, \"issues\": [\"The character's posture in the second panel appears inconsistent with the first and third panels.\", \"The lighting in the second panel is different from the other panels, which might be a stylistic choice but could also indicate inconsistency.\"], \"verdict\": \"PASS\", \"available\": true, \"provider\": \"ollama\"}"
+    }
+  },
+  "judge": "nim-vision",
+  "gate": "PASS"
+}

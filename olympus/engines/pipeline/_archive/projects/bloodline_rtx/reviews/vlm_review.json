@@ -1,0 +1,133 @@
+{
+  "total_clips": 8,
+  "reviewed": 8,
+  "skipped_placeholder": 0,
+  "pass": 8,
+  "reject": 0,
+  "avg_score": 7.75,
+  "pass_rate": 1.0,
+  "reviews": {
+    "bloodline_rtx_sc001_sh001_panel_v001.mp4": {
+      "overall_score": 8.0,
+      "verdict": "PASS",
+      "details": {
+        "exists": 1,
+        "on_model": 8.0,
+        "prompt_adherence": 8.0,
+        "issues": [
+          "The character's expression seems slightly off, possibly due to the lighting and shadow play. This could be improved for better consistency.",
+          "The background elements are consistent with a fantasy setting but lack some depth in terms of detail which might affect the overall polish."
+        ],
+        "backend": "comfyui"
+      },
+      "raw_response": "{\"score\": 8, \"issues\": [\"The character's expression seems slightly off, possibly due to the lighting and shadow play. This could be improved for better consistency.\", \"The background elements are consistent with a fantasy setting but lack some depth in terms of detail which might affect the overall polish.\"], \"verdict\": \"PASS\", \"available\": true, \"provider\": \"ollama\"}"
+    },
+    "bloodline_rtx_sc001_sh002_panel_v001.mp4": {
+      "overall_score": 8.0,
+      "verdict": "PASS",
+      "details": {
+        "exists": 1,
+        "on_model": 8.0,
+        "prompt_adherence": 8.0,
+        "issues": [
+          "The character's posture and the way they hold the sword suggest a different stance than what is typically seen in traditional samurai depictions. This could be intentional for stylistic reasons, but it might not align with the intended content of a bloodline or samurai-themed series.",
+          "The lighting on the character's face appears inconsistent with the rest of the scene. The character seems to have a light source from behind them, which is unusual and might need adjustment."
+        ],
+        "backend": "comfyui"
+      },
+      "raw_response": "{\"score\": 8, \"issues\": [\"The character's posture and the way they hold the sword suggest a different stance than what is typically seen in traditional samurai depictions. This could be intentional for stylistic reasons, but it might not align with the intended content of a bloodline or samurai-themed series.\", \"The lighting on the character's face appears inconsistent with the rest of the scene. The character seems to have a light source from behind them, which is unusual and might need adjustment.\"], \"verdict\": \"PASS\", \"available\": true, \"provider\": \"ollama\"}"
+    },
+    "bloodline_rtx_sc002_sh001_panel_v001.mp4": {
+      "overall_score": 7.0,
+      "verdict": "PASS",
+      "details": {
+        "exists": 1,
+        "on_model": 7.0,
+        "prompt_adherence": 7.0,
+        "issues": [
+          "The character in the top panel appears to be a silhouette, which can make it difficult for viewers to discern detailed features or expressions. This might affect the overall consistency and clarity of the scene.",
+          "The transition from Scene 1 to Scene 2 is abrupt without any visual cues that indicate a change in location or time. This could improve viewer understanding if there were more context provided."
+        ],
+        "backend": "comfyui"
+      },
+      "raw_response": "{\"score\": 7, \"issues\": [\"The character in the top panel appears to be a silhouette, which can make it difficult for viewers to discern detailed features or expressions. This might affect the overall consistency and clarity of the scene.\", \"The transition from Scene 1 to Scene 2 is abrupt without any visual cues that indicate a change in location or time. This could improve viewer understanding if there were more context provided.\"], \"verdict\": \"PASS\", \"available\": true, \"provider\": \"ollama\"}"
+    },
+    "bloodline_rtx_sc002_sh002_panel_v001.mp4": {
+      "overall_score": 8.0,
+      "verdict": "PASS",
+      "details": {
+        "exists": 1,
+        "on_model": 8.0,
+        "prompt_adherence": 8.0,
+        "issues": [
+          "The character in the top left panel appears to be a young boy, but his attire and posture suggest he might be an adult. This could be a stylistic choice or a mistake.",
+          "The family in the top right panel is depicted with a mix of traditional and modern clothing styles, which may not align with the intended setting."
+        ],
+        "backend": "comfyui"
+      },
+      "raw_response": "{\"score\": 8, \"issues\": [\"The character in the top left panel appears to be a young boy, but his attire and posture suggest he might be an adult. This could be a stylistic choice or a mistake.\", \"The family in the top right panel is depicted with a mix of traditional and modern clothing styles, which may not align with the intended setting.\"], \"verdict\": \"PASS\", \"available\": true, \"provider\": \"ollama\"}"
+    },
+    "bloodline_rtx_sc003_sh001_panel_v001.mp4": {
+      "overall_score": 8.0,
+      "verdict": "PASS",
+      "details": {
+        "exists": 1,
+        "on_model": 8.0,
+        "prompt_adherence": 8.0,
+        "issues": [
+          "The character's anatomy appears slightly exaggerated in the top left panel, which might not align with a realistic depiction.",
+          "The lighting and shadows are inconsistent across the panels, especially noticeable in the bottom right where the light source seems to be different from other panels."
+        ],
+        "backend": "comfyui"
+      },
+      "raw_response": "{\"score\": 8, \"issues\": [\"The character's anatomy appears slightly exaggerated in the top left panel, which might not align with a realistic depiction.\", \"The lighting and shadows are inconsistent across the panels, especially noticeable in the bottom right where the light source seems to be different from other panels.\"], \"verdict\": \"PASS\", \"available\": true, \"provider\": \"ollama\"}"
+    },
+    "bloodline_rtx_sc003_sh002_panel_v001.mp4": {
+      "overall_score": 8.0,
+      "verdict": "PASS",
+      "details": {
+        "exists": 1,
+        "on_model": 8.0,
+        "prompt_adherence": 8.0,
+        "issues": [
+          "The character's anatomy in the top right panel appears inconsistent with their previous appearance, suggesting a possible redraw or error.",
+          "The lighting and shadows in some panels are inconsistent, which might be due to different artists working on each panel."
+        ],
+        "backend": "comfyui"
+      },
+      "raw_response": "{\"score\": 8, \"issues\": [\"The character's anatomy in the top right panel appears inconsistent with their previous appearance, suggesting a possible redraw or error.\", \"The lighting and shadows in some panels are inconsistent, which might be due to different artists working on each panel.\"], \"verdict\": \"PASS\", \"available\": true, \"provider\": \"ollama\"}"
+    },
+    "bloodline_rtx_sc004_sh001_panel_v001.mp4": {
+      "overall_score": 8.0,
+      "verdict": "PASS",
+      "details": {
+        "exists": 1,
+        "on_model": 8.0,
+        "prompt_adherence": 8.0,
+        "issues": [
+          "The character's posture in Scene 4 appears slightly unnatural, as if he is leaning forward with his weight on one arm. This could be improved for better realism.",
+          "The transition between the two scenes feels abrupt without a clear visual or narrative bridge."
+        ],
+        "backend": "comfyui"
+      },
+      "raw_response": "{\"score\": 8, \"issues\": [\"The character's posture in Scene 4 appears slightly unnatural, as if he is leaning forward with his weight on one arm. This could be improved for better realism.\", \"The transition between the two scenes feels abrupt without a clear visual or narrative bridge.\"], \"verdict\": \"PASS\", \"available\": true, \"provider\": \"ollama\"}"
+    },
+    "bloodline_rtx_sc004_sh002_panel_v001.mp4": {
+      "overall_score": 7.0,
+      "verdict": "PASS",
+      "details": {
+        "exists": 1,
+        "on_model": 7.0,
+        "prompt_adherence": 7.0,
+        "issues": [
+          "The character's anatomy appears slightly off, with the arm muscles not fully developed.",
+          "The scene transition from a stormy night to a serene sunset seems abrupt and lacks a smooth visual transition."
+        ],
+        "backend": "comfyui"
+      },
+      "raw_response": "{\"score\": 7, \"issues\": [\"The character's anatomy appears slightly off, with the arm muscles not fully developed.\", \"The scene transition from a stormy night to a serene sunset seems abrupt and lacks a smooth visual transition.\"], \"verdict\": \"PASS\", \"available\": true, \"provider\": \"ollama\"}"
+    }
+  },
+  "judge": "ollama",
+  "gate": "PASS"
+}

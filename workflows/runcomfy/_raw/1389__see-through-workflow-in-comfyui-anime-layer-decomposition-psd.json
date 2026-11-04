@@ -1,0 +1,598 @@
+{
+  "id": "seethrough-basic-workflow",
+  "extra": {
+    "ds": {
+      "scale": 0.8928571428571428,
+      "offset": [
+        4086.700412122749,
+        1140.9838448734981
+      ]
+    },
+    "reroutes": null,
+    "frontendVersion": "1.41.21",
+    "VHS_MetadataImage": true,
+    "VHS_latentpreview": false,
+    "VHS_KeepIntermediate": true,
+    "VHS_latentpreviewrate": 0
+  },
+  "links": [
+    [
+      16,
+      20,
+      0,
+      21,
+      0,
+      "SEETHROUGH_PARTS"
+    ],
+    [
+      17,
+      20,
+      1,
+      22,
+      0,
+      "IMAGE"
+    ],
+    [
+      18,
+      23,
+      0,
+      20,
+      0,
+      "SEETHROUGH_LAYERS_DEPTH"
+    ],
+    [
+      19,
+      24,
+      0,
+      23,
+      0,
+      "SEETHROUGH_LAYERS"
+    ],
+    [
+      20,
+      25,
+      0,
+      23,
+      1,
+      "SEETHROUGH_DEPTH_MODEL"
+    ],
+    [
+      21,
+      26,
+      0,
+      24,
+      1,
+      "SEETHROUGH_LAYERDIFF_MODEL"
+    ],
+    [
+      22,
+      27,
+      0,
+      24,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "nodes": [
+    {
+      "id": 20,
+      "pos": [
+        -2574.6983824791782,
+        -857.3604895859286
+      ],
+      "mode": 0,
+      "size": [
+        270.375,
+        151.140625
+      ],
+      "type": "SeeThrough_PostProcess",
+      "flags": {},
+      "order": 5,
+      "inputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "link": 18,
+          "name": "layers_depth",
+          "type": "SEETHROUGH_LAYERS_DEPTH",
+          "label": null,
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        }
+      ],
+      "outputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "name": "parts",
+          "type": "SEETHROUGH_PARTS",
+          "label": null,
+          "links": [
+            16
+          ],
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "slot_index": null
+        },
+        {
+          "dir": null,
+          "pos": null,
+          "name": "preview",
+          "type": "IMAGE",
+          "label": null,
+          "links": [
+            17
+          ],
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "slot_index": null
+        }
+      ],
+      "properties": {
+        "ver": "fb40ba12439dfe82cbf9d1a4e8b51fdc74f6585f",
+        "cnr_id": "comfyui-see-through",
+        "Node name for S&R": "SeeThrough_PostProcess"
+      },
+      "showAdvanced": null,
+      "widgets_values": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": 21,
+      "pos": [
+        -2166.0354593020948,
+        -975.0709930581507
+      ],
+      "mode": 0,
+      "size": [
+        270,
+        163.140625
+      ],
+      "type": "SeeThrough_SavePSD",
+      "flags": {},
+      "order": 6,
+      "inputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "link": 16,
+          "name": "parts",
+          "type": "SEETHROUGH_PARTS",
+          "label": null,
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        }
+      ],
+      "outputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "name": "info_file",
+          "type": "STRING",
+          "label": null,
+          "links": null,
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "slot_index": null
+        }
+      ],
+      "properties": {
+        "ver": "fb40ba12439dfe82cbf9d1a4e8b51fdc74f6585f",
+        "cnr_id": "comfyui-see-through",
+        "Node name for S&R": "SeeThrough_SavePSD"
+      },
+      "showAdvanced": null,
+      "widgets_values": [
+        "RunComfy_examples_1389",
+        "Download PSD",
+        "Download Depth PSD"
+      ]
+    },
+    {
+      "id": 22,
+      "pos": [
+        -2156.138269631956,
+        -686.8054765650952
+      ],
+      "mode": 0,
+      "size": [
+        225,
+        279.140625
+      ],
+      "type": "PreviewImage",
+      "flags": {},
+      "order": 7,
+      "inputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "link": 17,
+          "name": "images",
+          "type": "IMAGE",
+          "label": null,
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "ver": "0.18.2",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "PreviewImage"
+      },
+      "showAdvanced": null,
+      "widgets_values": []
+    },
+    {
+      "id": 23,
+      "pos": [
+        -2990.406661559039,
+        -857.0530080321091
+      ],
+      "mode": 0,
+      "size": [
+        352.0625,
+        177.75
+      ],
+      "type": "SeeThrough_GenerateDepth",
+      "flags": {},
+      "order": 4,
+      "inputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "link": 19,
+          "name": "layers",
+          "type": "SEETHROUGH_LAYERS",
+          "label": null,
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        },
+        {
+          "dir": null,
+          "pos": null,
+          "link": 20,
+          "name": "depth_model",
+          "type": "SEETHROUGH_DEPTH_MODEL",
+          "label": null,
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        }
+      ],
+      "outputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "name": "layers_depth",
+          "type": "SEETHROUGH_LAYERS_DEPTH",
+          "label": null,
+          "links": [
+            18
+          ],
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "slot_index": null
+        },
+        {
+          "dir": null,
+          "pos": null,
+          "name": "preview",
+          "type": "IMAGE",
+          "label": null,
+          "links": null,
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "slot_index": null
+        }
+      ],
+      "properties": {
+        "ver": "fb40ba12439dfe82cbf9d1a4e8b51fdc74f6585f",
+        "cnr_id": "comfyui-see-through",
+        "Node name for S&R": "SeeThrough_GenerateDepth"
+      },
+      "showAdvanced": null,
+      "widgets_values": [
+        3375223414,
+        "randomize",
+        -1
+      ]
+    },
+    {
+      "id": 24,
+      "pos": [
+        -3395.5752542239698,
+        -970.4789791692618
+      ],
+      "mode": 0,
+      "size": [
+        292.625,
+        191.140625
+      ],
+      "type": "SeeThrough_GenerateLayers",
+      "flags": {},
+      "order": 3,
+      "inputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "link": 22,
+          "name": "image",
+          "type": "IMAGE",
+          "label": null,
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        },
+        {
+          "dir": null,
+          "pos": null,
+          "link": 21,
+          "name": "layerdiff_model",
+          "type": "SEETHROUGH_LAYERDIFF_MODEL",
+          "label": null,
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null
+        }
+      ],
+      "outputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "name": "layers",
+          "type": "SEETHROUGH_LAYERS",
+          "label": null,
+          "links": [
+            19
+          ],
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "slot_index": null
+        },
+        {
+          "dir": null,
+          "pos": null,
+          "name": "preview",
+          "type": "IMAGE",
+          "label": null,
+          "links": null,
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "slot_index": null
+        }
+      ],
+      "properties": {
+        "ver": "fb40ba12439dfe82cbf9d1a4e8b51fdc74f6585f",
+        "cnr_id": "comfyui-see-through",
+        "Node name for S&R": "SeeThrough_GenerateLayers"
+      },
+      "showAdvanced": null,
+      "widgets_values": [
+        873161858,
+        "randomize",
+        1024,
+        30
+      ]
+    },
+    {
+      "id": 25,
+      "pos": [
+        -3389.9701923750113,
+        -630.2745792126645
+      ],
+      "mode": 0,
+      "size": [
+        305.5,
+        161.796875
+      ],
+      "type": "SeeThrough_LoadDepthModel",
+      "flags": {},
+      "order": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "name": "depth_model",
+          "type": "SEETHROUGH_DEPTH_MODEL",
+          "label": null,
+          "links": [
+            20
+          ],
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "slot_index": null
+        }
+      ],
+      "properties": {
+        "ver": "fb40ba12439dfe82cbf9d1a4e8b51fdc74f6585f",
+        "cnr_id": "comfyui-see-through",
+        "Node name for S&R": "SeeThrough_LoadDepthModel"
+      },
+      "showAdvanced": null,
+      "widgets_values": [
+        "24yearsold/seethroughv0.0.1_marigold",
+        "none",
+        true,
+        false
+      ]
+    },
+    {
+      "id": 26,
+      "pos": [
+        -3855.531851446192,
+        -621.171389108498
+      ],
+      "mode": 0,
+      "size": [
+        325.9375,
+        233.796875
+      ],
+      "type": "SeeThrough_LoadLayerDiffModel",
+      "flags": {},
+      "order": 1,
+      "inputs": [],
+      "outputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "name": "layerdiff_model",
+          "type": "SEETHROUGH_LAYERDIFF_MODEL",
+          "label": null,
+          "links": [
+            21
+          ],
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "slot_index": null
+        }
+      ],
+      "properties": {
+        "ver": "fb40ba12439dfe82cbf9d1a4e8b51fdc74f6585f",
+        "cnr_id": "comfyui-see-through",
+        "Node name for S&R": "SeeThrough_LoadLayerDiffModel"
+      },
+      "showAdvanced": null,
+      "widgets_values": [
+        "layerdifforg/seethroughv0.0.2_layerdiff3d",
+        "",
+        "",
+        "none",
+        true,
+        false
+      ]
+    },
+    {
+      "id": 27,
+      "pos": [
+        -3838.818526793414,
+        -1047.3514699461716
+      ],
+      "mode": 0,
+      "size": [
+        282.75,
+        339.140625
+      ],
+      "type": "LoadImage",
+      "flags": {},
+      "order": 2,
+      "inputs": [],
+      "outputs": [
+        {
+          "dir": null,
+          "pos": null,
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "label": null,
+          "links": [
+            22
+          ],
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "slot_index": null
+        },
+        {
+          "dir": null,
+          "pos": null,
+          "name": "MASK",
+          "type": "MASK",
+          "label": null,
+          "links": null,
+          "shape": null,
+          "locked": null,
+          "color_on": null,
+          "color_off": null,
+          "removable": null,
+          "nameLocked": null,
+          "slot_index": null
+        }
+      ],
+      "properties": {
+        "ver": "0.18.2",
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "LoadImage"
+      },
+      "showAdvanced": null,
+      "widgets_values": [
+        "RunComfy_input_1389_1.png",
+        "image"
+      ]
+    }
+  ],
+  "config": {},
+  "groups": [],
+  "version": 0.4,
+  "revision": 0,
+  "definitions": null,
+  "last_link_id": 22,
+  "last_node_id": 27,
+  "floatingLinks": null
+}

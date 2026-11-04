@@ -3,7 +3,7 @@
 Standalone Flask app wrapping Kokoro-82M (fully local; the model weights
 (~330 MB) auto-download from Hugging Face on first synthesis and are cached).
 GPU is NOT used — Kokoro-82M is fast enough on CPU and this keeps the 8 GB
-RTX 4070 free for ComfyUI.
+RTX 4070 free for other GPU work.
 
     GET  /api/health          {"status": "ok", ...}
     GET  /api/voices          available voice ids
@@ -17,7 +17,9 @@ Run:  start.bat  (creates .venv on first run)
 from __future__ import annotations
 
 import io
+import subprocess
 import threading
+import wave
 
 import numpy as np
 import soundfile as sf
@@ -39,6 +41,24 @@ _pipeline = None
 _pipeline_lock = threading.Lock()
 
 
+def _normalize_wav(data: bytes) -> bytes:
+    """Rewrite streamed WAV headers using the actual frames received."""
+    source = io.BytesIO(data)
+    try:
+        with wave.open(source, "rb") as wav:
+            params = wav.getparams()
+            frames = wav.readframes(wav.getnframes())
+    except (wave.Error, EOFError):
+        return data
+    out = io.BytesIO()
+    with wave.open(out, "wb") as wav:
+        wav.setnchannels(params.nchannels)
+        wav.setsampwidth(params.sampwidth)
+        wav.setframerate(params.framerate)
+        wav.writeframes(frames)
+    return out.getvalue()
+
+
 def get_pipeline():
     """Lazy-load Kokoro so /api/health answers instantly after boot."""
     global _pipeline
@@ -51,10 +71,11 @@ def get_pipeline():
 
 @app.get("/api/health")
 def health():
+    engine = "kokoro" if _pipeline is not None else "kokoro+espeak-ng-fallback"
     return jsonify({
         "status": "ok",
         "service": "voice-studio",
-        "engine": "kokoro-82M",
+        "engine": engine,
         "model_loaded": _pipeline is not None,
     })
 
@@ -69,22 +90,39 @@ def tts():
     body = request.get_json(silent=True) or {}
     text = (body.get("text") or "").strip()
     voice = body.get("voice") or "af_heart"
-    speed = float(body.get("speed") or 1.0)
+    try:
+        speed = float(body.get("speed") or 1.0)
+    except (ValueError, TypeError):
+        speed = 1.0
     if not text:
         return jsonify({"error": "missing 'text'"}), 422
     if voice not in VOICES:
         return jsonify({"error": f"unknown voice '{voice}'", "voices": VOICES}), 422
 
-    pipeline = get_pipeline()
-    chunks = [audio for _, _, audio in pipeline(text, voice=voice, speed=speed)]
-    if not chunks:
-        return jsonify({"error": "no audio produced"}), 500
-    audio = np.concatenate(chunks)
-
-    buf = io.BytesIO()
-    sf.write(buf, audio, SAMPLE_RATE, format="WAV")
-    buf.seek(0)
-    return send_file(buf, mimetype="audio/wav", download_name="tts.wav")
+    try:
+        pipeline = get_pipeline()
+        chunks = [audio for _, _, audio in pipeline(text, voice=voice, speed=speed)]
+        if not chunks:
+            raise RuntimeError("Kokoro produced no audio")
+        audio = np.concatenate(chunks)
+        buf = io.BytesIO()
+        sf.write(buf, audio, SAMPLE_RATE, format="WAV")
+        buf.seek(0)
+        return send_file(buf, mimetype="audio/wav", download_name="tts.wav")
+    except Exception as exc:
+        # Keep the local pipeline runnable when optional Kokoro dependencies
+        # are broken (for example a torch/torchvision ABI mismatch). espeak-ng
+        # is a local system fallback, never a cloud service.
+        app.logger.warning("Kokoro unavailable, using espeak-ng fallback: %s", exc)
+        try:
+            result = subprocess.run(
+                ["espeak-ng", "-v", "en-us", "-s", str(max(80, min(450, int(175 * speed)))), "--stdout", text],
+                check=True, capture_output=True, timeout=30,
+            )
+            normalized = _normalize_wav(result.stdout)
+            return send_file(io.BytesIO(normalized), mimetype="audio/wav", download_name="tts.wav")
+        except (OSError, subprocess.SubprocessError) as fallback_exc:
+            return jsonify({"error": f"TTS unavailable: {fallback_exc}"}), 503
 
 
 @app.get("/")

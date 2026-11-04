@@ -1,0 +1,228 @@
+# Local AI Stack — unified configuration
+# Single source of truth. Every service and script reads from this file.
+
+[stack]
+name = "my-local-ai-stack"
+version = "3.0.0"
+
+# ── Ollama ────────────────────────────────────────────────────────────────
+[ollama]
+host = "127.0.0.1"
+port = 11434
+url = "http://127.0.0.1:11434"
+timeout_seconds = 600
+# Context window for pipeline LLM calls. Ollama's vram-based default (4096)
+# is too small for the stage 0-2 prompts + JSON output; 16k is a good balance
+# on 8GB VRAM (qwen3:8b offloads a few layers to CPU, still usable).
+num_ctx = 16384
+
+# Model roles — change these to swap models without touching code
+[ollama.models]
+script    = "qwen3:8b" # installed local model for structured story work (ornith-1.5-9b-fast not installed; qwen3:8b is the documented heavy-stage model)
+vision = "qwen2.5vl:7b"       # panel vision judge — must be a VLM (qwen3:8b rejects image payloads with 400; qwen2.5vl occasionally miscounts dense panels but retry cap accepts best attempt)
+review    = "qwen2.5vl:7b"       # stage_vlm_review 10-dim physics/logic gate (non‑reasoning; reliable fast structured output — qwen3‑vl:8b reasoning model returns empty content on some frames)
+default   = "qwen3:8b" # installed local fallback (ornith-1.5-9b-fast not installed)
+embed     = "nomic-embed-text"   # embeddings
+
+# Agent roles — maps kernel agent roles → Ollama models
+[ollama.agents]
+triage   = "llama3.2:3b"
+worker   = "ornith-1.5-9b-fast:latest"
+planner  = "ornith-1.5-9b-fast:latest"
+verifier = "llama3.2:3b"
+jarvis   = "ornith-1.5-9b-fast:latest"
+
+# ── Voice Studio ──────────────────────────────────────────────────────────
+[voice]
+engine = "qwen3-tts-0.6b" # qwen3-tts-0.6b | kokoro | espeak-ng — qwen3 engine id registered; actual model is the 1.7B CustomVoice below (winner of the 2026-10-26 shootout, see ~/Videos/tts-shootout/)
+default_voice = "af_heart"
+default_speed = 1.0
+# 2026-10-26 cleanup: chatterbox + f5-tts + spark-tts removed from the system
+# (venvs, caches, adapters and config entries) — only kokoro and qwen3 remain.
+# Isolated Kokoro-82M from the user's Kokoro WebUI venv (sidesteps the Voice
+# Studio ABI breakage that was degrading TTS to espeak-ng). CPU-only by design.
+kokoro_command = '"/home/amire/Documents/Personal projects/pipeline/tts/kokoro-webui/Kokoro-82M-WebUI/myenv/bin/python" /home/amire/Downloads/my-local-ai-stack/scripts/tts_kokoro_adapter.py'
+qwen3_tts_python = "/home/amire/Documents/Personal projects/pipeline/tts/qwen3-venv/bin/python"
+qwen3_tts_command = '"/home/amire/Documents/Personal projects/pipeline/tts/qwen3-venv/bin/python" /home/amire/Downloads/my-local-ai-stack/scripts/tts_qwen3_adapter.py'
+qwen3_tts_model = "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice"
+gpu_lock_timeout_seconds = 900
+
+# ── ComfyUI (image/video render backend) ────────────────────────────────────
+# Local-only ComfyUI render backend.
+[comfyui]
+host = "127.0.0.1"
+port = 8188
+url = "http://127.0.0.1:8188"
+
+# ── Olympus Kernel ────────────────────────────────────────────────────────
+[kernel]
+core_agents = ["jarvis", "archivist", "plutus", "conductor"]
+
+# ── OpenCode MCP ──────────────────────────────────────────────────────────
+[mcp]
+
+# ── Open WebUI ────────────────────────────────────────────────────────────
+[webui]
+
+# ── llama.cpp server (optional) ───────────────────────────────────────────
+[llamacpp]
+enabled = false
+
+# ── Providers ─────────────────────────────────────────────────────────────
+# Capability-based provider routing. Local providers are the default; hosted
+# providers are opt-in and may be added to [providers.registry] later.
+[providers]
+llm = { provider = "ollama" }
+vision = { provider = "ollama" }
+tts = { provider = "voice_studio" }
+
+[providers.registry.ollama]
+display_name = "Ollama"
+kind = "local"
+capabilities = ["llm", "vision"]
+endpoint = "http://127.0.0.1:11434"
+
+[providers.registry.voice_studio]
+display_name = "Voice Studio"
+kind = "local"
+capabilities = ["tts"]
+endpoint = "http://127.0.0.1:5050"
+
+[providers.registry.nvidia_nim]
+display_name = "NVIDIA NIM"
+kind = "hosted"
+enabled = true
+experimental = true
+credential_env = "NVIDIA_API_KEY"
+capabilities = ["llm", "vision"]
+endpoint = "https://integrate.api.nvidia.com/v1"
+models = ["deepseek-ai/deepseek-v4-pro-0813", "meta/llama-3.2-11b-vision-instruct"]
+
+[providers.registry.huggingface_inference]
+display_name = "Hugging Face Inference Providers"
+kind = "hosted"
+enabled = true
+experimental = true
+credential_env = "HF_TOKEN"
+capabilities = ["t2i", "i2i"]
+endpoint = "https://router.huggingface.co"
+models = ["black-forest-labs/FLUX.1-schnell", "stabilityai/stable-diffusion-xl-base-1.0"]
+integration_status = "experimental"
+billing_note = "Free account/token tier is quota-limited; provider/model availability and quotas can change."
+availability_note = "Official HF Inference Providers path; generation adapter is opt-in and not the local default."
+
+[providers.registry.huggingface_video]
+display_name = "Hugging Face Video Providers"
+kind = "hosted"
+enabled = false
+experimental = true
+credential_env = "HF_TOKEN"
+capabilities = ["i2v"]
+endpoint = "https://router.huggingface.co"
+integration_status = "unavailable"
+billing_note = "No permanent free I2V quota is guaranteed; enable only after account/provider availability is verified."
+availability_note = "Registered extension slot; no runtime adapter enabled yet."
+
+[providers.registry.hosted_tts_slot]
+display_name = "Hosted TTS Plugin Slot"
+kind = "hosted"
+enabled = false
+experimental = true
+credential_env = "HOSTED_TTS_API_KEY"
+capabilities = ["tts"]
+integration_status = "unavailable"
+billing_note = "No provider is enabled: keep local Kokoro/espeak-ng as the default."
+availability_note = "Reserved generic plugin slot; requires an explicitly selected provider adapter."
+
+[fallback]
+llm = "local_then_nim"
+vision = "local_then_nim"
+t2i = "local_only"
+i2i = "local_only"
+i2v = "local_only"
+tts = "local_only"
+max_retries = 1
+log_path = "logs/provider_fallbacks.jsonl"
+
+# ── Paths ─────────────────────────────────────────────────────────────────
+[paths]
+vault       = "/home/amire/Documents/Obsidian Vault"
+output_dir  = "/home/amire/Documents/olympus-output"
+wiki_root   = "llm-wiki-workflow"
+
+# ── GPU ───────────────────────────────────────────────────────────────────
+[gpu]
+vram_gb = 8
+
+# ── Studio animation master switch ──────────────────────────────────────
+# OFF (default): panels mode — stage5 assembles panels with Ken Burns
+# zoom/pan + fades, no GPU video. ON: stage3c renders motion clips.
+[animation]
+enabled = true
+# Local 8GB default: panels mode with Ken Burns motion. Enable only after
+# installing a compatible local i2v model set.
+engine = "svd"
+
+# ── NVIDIA NIM (hosted judge) ─────────────────────────────────────────────
+# Two-mode operation:
+#   1. "local" (default): All generation runs on this machine (Ollama + ComfyUI).
+#      Ollama and ComfyUI must not run simultaneously (see GPU config).
+#   2. "nvidia": Heavy LLM/vision/image work is offloaded to the free NVIDIA
+#      Build API. The local 8GB card stays free for ComfyUI image generation.
+#      Requires NVIDIA_API_KEY env var or .agent-secrets/nvidia_key.
+#      The dashboard ENGINE toggle switches between these modes (persisted in stack.toml).
+# LOCAL-ONLY default: disabled. Pipeline uses local Ollama qwen2.5vl:7b for VLM review.
+# Enable only if you want hosted NIM (requires NVIDIA_API_KEY). Keep fully local on 8GB.
+# tools/nim_calibrate.py forces this ON at runtime for a one-shot calibration sweep,
+# then the pipeline returns to the local judge (retire the hosted VLM after calibrating).
+# Endpoint verified live 2026-09-11: integrate.api.nvidia.com/v1. Working models
+# (free tier, 200): deepseek-ai/deepseek-v4-pro-0813 (text) + meta/llama-3.2-11b-vision-instruct
+# (vision). meta/llama-3.2-90b-vision-instruct times out (>60s) and no longer resolves.
+[nim]
+base_url = "https://integrate.api.nvidia.com/v1"
+model = "meta/llama-3.2-11b-vision-instruct"
+vision_model = "meta/llama-3.2-11b-vision-instruct"
+text_model = "deepseek-ai/deepseek-v4-pro-0813"
+timeout_seconds = 600
+api_key = ""
+# Generation engine: "local" (Ollama + ComfyUI, default) or "nvidia" (offload
+# heavy LLM/vision/image work to the free NVIDIA Build API, freeing the 8GB
+engine = "local"
+# card for ComfyUI). Flip from the Studio banner ENGINE toggle (persisted here).
+# When engine is "nvidia", these offload flags are automatically set true:
+# When engine is "local", these follow the values below:
+offload_llm = false
+# NIM vision judge (llama-3.2-11b-vision) consistently 504-timeouts per panel,
+# wasting up to 10min/panel on the 600s timeout before falling back to local.
+# Use the fast local qwen2.5vl judge directly for panel/clip QC.
+offload_vision = false
+offload_images = false
+
+# Verified 2026-09-11 by tools/nvidia_probe.py — only models that
+# successfully responded on free-tier NIM without 529/timeout errors.
+models = [
+  "deepseek-ai/deepseek-v4-pro-0813",
+  "meta/llama-3.2-11b-vision-instruct",
+]
+
+# ── n8n Automation Plane (added 2026-09-26, additive) ───────────────────────
+# Self-hosted n8n stack (workflows + Postgres + Qdrant) living at
+# /home/amire/n8n-stack — separate compose project, intentionally NOT moved
+# into this repo. This plane runs the agentic workflow layer: Jarvis command
+# center chat, RAG knowledge base, morning briefing, product-research
+# pipeline, ShopGoodwill monitors, MCP toolbox, self-repair.
+# Lifecycle: `docker compose -f /home/amire/n8n-stack/docker-compose.yml up -d`
+[automation]
+enabled = true
+kind = "docker-compose"
+compose_dir = "/home/amire/n8n-stack"
+name = "n8n Automation Plane"
+host = "127.0.0.1"
+port = 5679
+url = "http://127.0.0.1:5679"
+healthcheck = "http://127.0.0.1:5679/healthz"
+containers = ["n8n-stack-n8n-1", "n8n-stack-postgres-1", "n8n-stack-qdrant-1"]
+# The n8n container bind-mounts the vault at /home/node/vault (ro access via
+# N8N_RESTRICT_FILE_ACCESS_TO). Keep paths.vault as the canonical host path.
+vault_mount = "/home/node/vault"
+notes = "API key + passwords in /home/amire/n8n-stack/.env (gitignored there). Guarded webhooks use X-Hook-Key; chat UIs use basic auth (CHAT_USER/CHAT_PASS in that .env)."

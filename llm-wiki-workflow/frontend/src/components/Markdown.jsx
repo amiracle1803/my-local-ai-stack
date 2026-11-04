@@ -11,7 +11,7 @@ function preprocess(text) {
 }
 
 const renderer = new marked.Renderer()
-renderer.link = ({ href, title, text }) => {
+renderer.link = (href, title, text) => {
   const isExternal = href && (href.startsWith('http') || href.startsWith('//'))
   const extra = isExternal ? ' target="_blank" rel="noopener"' : ''
   return `<a href="${href || '#'}" title="${title || ''}"${extra}>${text}</a>`

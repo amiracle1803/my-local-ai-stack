@@ -1,0 +1,66 @@
+[
+  {
+    "shot": "sh-001-01",
+    "kind": "narration",
+    "file": "audio/narration/sh_001_01_narration.wav",
+    "start": 0.0,
+    "dur": 10.42,
+    "text": "SCENE 1 - The Village at Dusk  Kael sharpens a worn blade on the hill above the valley as storm clouds gather. The village below is quiet, lanterns being lit on"
+  },
+  {
+    "shot": "sh-001-01",
+    "kind": "dialogue",
+    "file": "audio/dialogue/sh_001_01_dialogue.wav",
+    "start": 10.72,
+    "dur": 3.41,
+    "text": "We hold the pass tonight. No matter what comes through."
+  },
+  {
+    "shot": "sh-002-01",
+    "kind": "narration",
+    "file": "audio/narration/sh_002_01_narration.wav",
+    "start": 14.43,
+    "dur": 10.61,
+    "text": "SCENE 2 - The Shadow in the Pines  A shadow beast moves between the pines below, too fast to be a wolf, too large to be a man. Villagers bar their doors; mother"
+  },
+  {
+    "shot": "sh-002-01",
+    "kind": "dialogue",
+    "file": "audio/dialogue/sh_002_01_dialogue.wav",
+    "start": 25.34,
+    "dur": 2.73,
+    "text": "Stay inside. This is mine to answer for."
+  },
+  {
+    "shot": "sh-003-01",
+    "kind": "narration",
+    "file": "audio/narration/sh_003_01_narration.wav",
+    "start": 28.37,
+    "dur": 10.6,
+    "text": "SCENE 3 - The Fight on the Ridge  The beast attacks. Kael meets it with steel, trading cuts on the slick ridge as rain falls. Sparks fly where claws meet the bl"
+  },
+  {
+    "shot": "sh-003-01",
+    "kind": "dialogue",
+    "file": "audio/dialogue/sh_003_01_dialogue.wav",
+    "start": 39.27,
+    "dur": 2.02,
+    "text": "Not tonight. Not again."
+  },
+  {
+    "shot": "sh-004-01",
+    "kind": "narration",
+    "file": "audio/narration/sh_004_01_narration.wav",
+    "start": 41.59,
+    "dur": 11.3,
+    "text": "SCENE 4 - Dawn  Quiet after the storm. Kael binds a wound and watches the sun rise over the valley. The village endures. The beast is gone, for now.  Kael: The "
+  },
+  {
+    "shot": "sh-004-01",
+    "kind": "dialogue",
+    "file": "audio/dialogue/sh_004_01_dialogue.wav",
+    "start": 53.19,
+    "dur": 1.4,
+    "text": "The bloodline holds."
+  }
+]
