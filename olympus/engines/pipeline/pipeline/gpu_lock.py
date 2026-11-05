@@ -56,6 +56,8 @@ def gpu_batch(owner: str, timeout: float = 900):
     """Hold an exclusive GPU batch: lease -> unload Ollama -> work -> free VRAM -> release."""
     import fcntl
 
+    from . import game_mode
+    game_mode.wait_clear()  # a Steam game owns the GPU: wait for it to end (W.A.T. gaming_guard)
     LOCK_PATH.parent.mkdir(parents=True, exist_ok=True)
     with LOCK_PATH.open("a+") as handle:
         deadline = time.monotonic() + timeout

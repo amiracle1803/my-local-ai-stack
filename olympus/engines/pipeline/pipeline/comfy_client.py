@@ -51,12 +51,22 @@ def _free_gpu(base_url: str) -> None:
 
 
 def _with_oom_retry(fn, base_url: str):
-    for attempt in range(OOM_RETRIES + 1):
+    from . import game_mode
+    attempt, games = 0, 0
+    while True:
+        started = time.time()
         try:
             return fn()
-        except RuntimeError as exc:
-            if not _is_oom(exc) or attempt == OOM_RETRIES:
+        except Exception as exc:  # noqa: BLE001
+            # A Steam game started mid-job: the gaming guard stopped ComfyUI under us. Wait for
+            # the game to end and for ComfyUI to come back, then redo this render. Not an OOM.
+            if games < 20 and game_mode.happened_since(started):
+                games += 1
+                game_mode.wait_clear(base_url)
+                continue
+            if not isinstance(exc, RuntimeError) or not _is_oom(exc) or attempt >= OOM_RETRIES:
                 raise
+            attempt += 1
             _free_gpu(base_url)
 
 
