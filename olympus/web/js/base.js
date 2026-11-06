@@ -260,3 +260,33 @@ async function refreshAll() {
 /* -- base boot (runs on every page) ----------------------------------------- */
 refreshHealth();
 setInterval(refreshHealth, 10000);
+
+/* -- W.A.T. links: the ProDesk dashboards, next to the Olympus pages ------- */
+// The W.A.T. shared nav bar links back here ("Studio"); this adds the way back.
+// .wat names when browsing via studio.wat (private HTTPS), Tailscale IPs otherwise.
+(function addWatLinks() {
+  const nav = document.querySelector('header nav') || document.querySelector('nav');
+  if (!nav || nav.querySelector('.wat-links')) return;
+  const onWat = /\.wat$/i.test(location.hostname);
+  const P = 'http://100.103.246.96';
+  const links = [
+    ['HUB', onWat ? 'https://hub.wat/' : P + ':3003/'],
+    ['BOARD', onWat ? 'https://board.wat/' : P + ':8770/'],
+    ['LIVE', onWat ? 'https://board.wat/live' : P + ':8770/live'],
+    ['FAMILY', (onWat ? 'https://watos.wat' : P + ':8771') + '/shell/family.html'],
+    ['WAT-OS', onWat ? 'https://watos.wat/' : P + ':8771/'],
+  ];
+  const sep = document.createElement('span');
+  sep.className = 'wat-links';
+  sep.textContent = '│ W.A.T.';
+  sep.style.cssText = 'opacity:.55;margin:0 .2em 0 .6em;white-space:nowrap;font-size:.85em';
+  nav.appendChild(sep);
+  for (const [label, href] of links) {
+    const a = document.createElement('a');
+    a.href = href;
+    a.textContent = label + ' ↗';
+    a.style.whiteSpace = 'nowrap';
+    a.title = 'W.A.T. (ProDesk): ' + href;
+    nav.appendChild(a);
+  }
+})();
