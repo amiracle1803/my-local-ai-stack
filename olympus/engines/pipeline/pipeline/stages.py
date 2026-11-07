@@ -1077,7 +1077,12 @@ def motion_prompt(meta: dict) -> str:
     d = meta.get("director") or {}
     if d.get("motion") and d.get("by") not in ("", "template"):
         cam = f" Camera: {d['camera']}." if d.get("camera") else ""
-        return f"cinematic anime, {d['motion']}{cam}"[:900]
+        try:
+            k = float(d.get("strength", 0.5))
+        except (TypeError, ValueError):
+            k = 0.5
+        pace = "subtle, gentle motion, " if k < 0.4 else ("dynamic, energetic motion, " if k > 0.75 else "")
+        return f"cinematic anime, {pace}{d['motion']}{cam}"[:900]
     beat = (meta.get("prompt") or "subtle motion, anime")[:400]
     return f"cinematic anime motion, gentle camera drift, {beat}"
 
@@ -1139,7 +1144,7 @@ def run_animation(project_dir: Path, enabled: bool = False) -> dict:
                         t2v or motion_prompt(meta), candidate, seed,
                         panel=None if t2v else p, base_url=_cfg.comfyui.url,
                         frames=ltx2b.frames_for(float(directed.get("seconds") or 4)),
-                        strength=float(directed.get("strength", 0.6)) * 0.4 + 0.6)
+                        strength=1.0)  # first frame = the panel; motion amount comes from the prompt
                 else:
                     from .comfy_client import animate_panel
                     from .director import svd_motion_bucket
