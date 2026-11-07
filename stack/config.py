@@ -228,7 +228,7 @@ class AnimationConfig(BaseModel):
     """Studio animation master switch (persisted, not localStorage)."""
 
     enabled: bool = False  # OFF = panels mode (Ken Burns); ON = GPU clips
-    engine: str = "svd"    # svd | ltx_director (LTX-2.3 Q6_K, needs ~18GB VRAM host)
+    engine: str = "svd"    # svd | ltx2b (LTX-Video 2B distilled fp8, fits 8 GB) | ltx_director (LTX-2.3 22B, ~18GB VRAM host)
 
 
 # ── top-level config ───────────────────────────────────────────────────────

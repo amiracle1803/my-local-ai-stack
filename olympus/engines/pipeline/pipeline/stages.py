@@ -760,7 +760,12 @@ def run_screenplay(project_dir: Path) -> dict:
 # stage3b — panels (PIL)
 # --------------------------------------------------------------------------
 
-def run_images(project_dir: Path) -> dict:
+def direct_project(project_dir: Path) -> dict:
+    """Only the director pass (storyboard/director.json), no rendering."""
+    return run_images(project_dir, direct_only=True)
+
+
+def run_images(project_dir: Path, direct_only: bool = False) -> dict:
     project_dir = Path(project_dir)
     bp = Blueprint.load(project_dir)
     slug, bp_mode = bp.slug, bp.mode
@@ -792,6 +797,32 @@ def run_images(project_dir: Path) -> dict:
 
     panels = project_dir / "panels"
     panels.mkdir(parents=True, exist_ok=True)
+
+    # Director pass (cloud LLM first, local fallback): a detailed text-to-image prompt, an
+    # image-to-video motion plan and a text-to-video paragraph per shot -> storyboard/director.json.
+    director: dict = {}
+    if os.environ.get("OLYMPUS_DIRECTOR", "1") == "1":
+        from .director import direct, shot_requests
+        brief_cast = brief_meta(project_dir)["cast"]
+        cast_looks = {}
+        for cid, look in looks.items():
+            name = look.split(" (")[0]
+            extra = next((v for k, v in brief_cast.items() if _same_name(k, name)), "")
+            cast_looks[cid] = f"{name} ({extra or look[len(name):].strip(' ()')})"
+        fallbacks = {}
+        for scene in sp.get("scenes", []):
+            for shot in scene.get("shots", []):
+                plan = storyboard_by_id.get(shot.get("id"), {})
+                fallbacks[shot.get("id")] = {"t2i": shot_prompt(scene, shot, plan)[0], "negative": "",
+                                             "camera": plan.get("camera", ""), "motion": "", "strength": 0.4,
+                                             "t2v": ""}
+        try:
+            director = direct(shot_requests(sp.get("scenes", []), storyboard_by_id, cast_looks, style),
+                              cast_looks, fallbacks, project_dir / "storyboard" / "director.json")
+        except Exception as e:  # noqa: BLE001  (the template prompts still work)
+            print(f"  director pass failed: {type(e).__name__}: {e}", flush=True)
+    if direct_only:
+        return director
     made = 0
     # Mode 0i ("import"): user-uploaded panels in input/panels ARE the shots —
     # copy them to canonical names instead of rendering anything.
@@ -817,22 +848,34 @@ def run_images(project_dir: Path) -> dict:
             continuity = plan.get("continuity", {})
             p = panels / canonical_name(slug, shot_id, "panel", "png")
             prompt, anchors = shot_prompt(scene, shot, plan)
+            negative = "low quality, blurry, text, watermark, deformed, comic page, multiple panels, split screen"
+            directed = director.get(shot_id) or {}
+            if directed.get("t2i") and directed.get("by") not in ("", "template"):
+                head = style.split(",")[0].strip().lower()
+                lead = "" if head and head in directed["t2i"][:80].lower() else f"{style}, "
+                prompt = f"{lead}{directed['t2i']}, single full-frame illustration, no text"
+                # the director's own negatives + the ones that stop comic-page/split renders
+                extra = [t.strip() for t in (directed.get("negative") or "").split(",") if t.strip()]
+                base = [t.strip() for t in negative.split(",")]
+                negative = ", ".join(dict.fromkeys(extra + base))
             if uploads:
                 from PIL import Image as _UploadImage
                 with _UploadImage.open(uploads[made % len(uploads)]) as im:
                     im.convert("RGB").save(p)
             elif comfy_render:
                 seed = int(hashlib.sha256(sid.encode()).hexdigest()[:8], 16)
-                comfy_render(prompt, p, seed=seed, base_url=_comfy_url)
+                image_backend = render_with_cloud_fallback(
+                    lambda: comfy_render(prompt, p, seed=seed, base_url=_comfy_url, negative=negative),
+                    prompt, negative, p, seed)
             else:
                 render_panel(p, title=f"{shot.get('id','SHOT')} · {scene.get('location','')[:40]}",
                              subtitle=f"cast: {anchors or 'ensemble'}", body=prompt[:220], seed=sid)
             (panels / f"{p.stem}.json").write_text(json.dumps(
                 {"shot": shot.get("id"), "seed": sid, "anchors": anchors,
                  "prompt": prompt,
-                 "backend": "imported" if uploads else ("comfyui" if comfy_render else "placeholder"),
+                 "backend": "imported" if uploads else (image_backend if comfy_render else "placeholder"),
                  "reference_assets": refs, "continuity": continuity,
-                 "negative_prompt": "low quality, blurry, text, watermark, deformed, comic page, multiple panels, split screen",
+                 "negative_prompt": negative, "director": directed,
                  "attempt": 1}, indent=2), encoding="utf-8")
             made += 1
     # Webtoon-style manga composites per scene block.
@@ -1000,6 +1043,45 @@ def _clip_backend(clip: Path) -> str:
         return "svd"
 
 
+def _anim_engine() -> str:
+    try:
+        from stack.config import cfg as _cfg
+        configured = getattr(_cfg.animation, "engine", "svd")
+    except Exception:  # noqa: BLE001
+        configured = "svd"
+    return os.environ.get("OLYMPUS_ANIM_ENGINE") or configured
+
+
+def render_with_cloud_fallback(local, prompt: str, negative: str, dest: Path, seed: int) -> str:
+    """Local ComfyUI first; if it fails, the cloud image providers (cloud_images.order()).
+    OLYMPUS_IMAGE_SOURCE=cloud tries the cloud first. Returns the backend that made the panel."""
+    from . import cloud_images
+    if os.environ.get("OLYMPUS_IMAGE_SOURCE") == "cloud":
+        got = cloud_images.generate(prompt, dest, seed, negative=negative)
+        if got:
+            return got
+    try:
+        local()
+        return "comfyui"
+    except Exception as e:
+        got = cloud_images.generate(prompt, dest, seed, negative=negative)
+        if got:
+            print(f"  panel {dest.name}: local render failed ({type(e).__name__}); used {got}", flush=True)
+            return got
+        raise
+
+
+def motion_prompt(meta: dict) -> str:
+    """The image-to-video prompt for a panel: the director's motion + camera beat, else the
+    old generic drift built from the panel prompt."""
+    d = meta.get("director") or {}
+    if d.get("motion") and d.get("by") not in ("", "template"):
+        cam = f" Camera: {d['camera']}." if d.get("camera") else ""
+        return f"cinematic anime, {d['motion']}{cam}"[:900]
+    beat = (meta.get("prompt") or "subtle motion, anime")[:400]
+    return f"cinematic anime motion, gentle camera drift, {beat}"
+
+
 def run_animation(project_dir: Path, enabled: bool = False) -> dict:
     project_dir = Path(project_dir)
     clips = project_dir / "clips"
@@ -1042,18 +1124,28 @@ def run_animation(project_dir: Path, enabled: bool = False) -> dict:
             try:
                 from stack.config import cfg as _cfg
                 seed = int(hashlib.sha256(p.stem.encode()).hexdigest()[:8], 16)
-                if getattr(_cfg.animation, "engine", "svd") == "ltx_director":
+                engine = _anim_engine()
+                meta = json.loads(p.with_suffix(".json").read_text(encoding="utf-8")) \
+                    if p.with_suffix(".json").exists() else {}
+                directed = meta.get("director") or {}
+                if engine == "ltx_director":
                     from .ltx_director import render_director_clip
-                    meta = json.loads(p.with_suffix(".json").read_text(encoding="utf-8")) \
-                        if p.with_suffix(".json").exists() else {}
-                    beat = (meta.get("prompt") or "subtle motion, anime")[:400]
-                    motion = f"cinematic anime motion, gentle camera drift, {beat}"
                     render_director_clip(p, candidate, seed=seed, base_url=_cfg.comfyui.url,
-                                         motion_prompt=motion)
+                                         motion_prompt=motion_prompt(meta))
+                elif engine == "ltx2b":
+                    from . import ltx2b
+                    t2v = os.environ.get("OLYMPUS_LTX_MODE") == "t2v" and directed.get("t2v")
+                    ltx2b.render_clip(
+                        t2v or motion_prompt(meta), candidate, seed,
+                        panel=None if t2v else p, base_url=_cfg.comfyui.url,
+                        frames=ltx2b.frames_for(float(directed.get("seconds") or 4)),
+                        strength=float(directed.get("strength", 0.6)) * 0.4 + 0.6)
                 else:
                     from .comfy_client import animate_panel
-                    animate_panel(p, candidate, seed=seed, base_url=_cfg.comfyui.url)
-                backend = getattr(_cfg.animation, "engine", "svd")
+                    from .director import svd_motion_bucket
+                    animate_panel(p, candidate, seed=seed, base_url=_cfg.comfyui.url,
+                                  motion_bucket=svd_motion_bucket(float(directed.get("strength", 0.62))))
+                backend = engine
             except Exception:
                 failed += 1
         if not candidate.exists():
@@ -1079,7 +1171,8 @@ def run_animation(project_dir: Path, enabled: bool = False) -> dict:
         sc.stage_done("stage3c")
     _mark_done(project_dir, "stage3c", 1.0)
     return {"clips": made, "failed": failed,
-            "mode": "svd" if os.environ.get("OLYMPUS_REAL_COMFY", "0") == "1" and failed == 0 else "fallback"}
+            "mode": _anim_engine() if os.environ.get("OLYMPUS_REAL_COMFY", "0") == "1" and failed == 0
+            else "fallback"}
 
 
 # --------------------------------------------------------------------------

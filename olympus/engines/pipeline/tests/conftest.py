@@ -15,3 +15,11 @@ def _isolated_gaming_flag(tmp_path, monkeypatch):
     from pipeline import game_mode
 
     monkeypatch.setattr(game_mode, "FLAG", tmp_path / "gaming.json")
+
+
+@pytest.fixture(autouse=True)
+def _offline(monkeypatch):
+    """No network in tests: the director LLM pass and cloud image providers are off unless a
+    test turns them on (director tests inject a fake llm)."""
+    monkeypatch.setenv("OLYMPUS_DIRECTOR", "0")
+    monkeypatch.setenv("OLYMPUS_CLOUD_IMAGES", "0")

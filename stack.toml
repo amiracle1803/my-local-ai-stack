@@ -159,9 +159,13 @@ vram_gb = 8
 # zoom/pan + fades, no GPU video. ON: stage3c renders motion clips.
 [animation]
 enabled = true
-# Local 8GB default: panels mode with Ken Burns motion. Enable only after
-# installing a compatible local i2v model set.
-engine = "svd"
+# svd     - Stable Video Diffusion xt (14 frames, minutes per clip, no prompt control)
+# ltx2b   - LTX-Video 2B 0.9.8 distilled fp8 (+ t5xxl fp8): 97 frames @24 fps in ~30 s on the
+#           8 GB 4070, driven by the director pass (motion/camera/strength per shot).
+#           OLYMPUS_LTX_MODE=t2v renders from the director's text-to-video paragraph instead.
+# ltx_director - LTX-2.3 22B template (needs ~18 GB VRAM host)
+# Override per run with OLYMPUS_ANIM_ENGINE=svd|ltx2b|ltx_director.
+engine = "ltx2b"
 
 # ── NVIDIA NIM (hosted judge) ─────────────────────────────────────────────
 # Two-mode operation:

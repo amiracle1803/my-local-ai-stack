@@ -102,7 +102,11 @@ def upload_image(image_path: str | Path, base_url: str) -> str:
     return result["name"]
 
 
-def _graph(prompt: str, seed: int, prefix: str) -> dict:
+PANEL_NEGATIVE = ("low quality, blurry, text, watermark, deformed, extra fingers, comic page, "
+                  "multiple panels, split screen, panel borders")
+
+
+def _graph(prompt: str, seed: int, prefix: str, negative: str = "") -> dict:
     """FLUX.2 klein 4B panel graph — the validated recipe (workflows/NODES.md §1,
     manifest image_flux_fallback patch map, official klein t2i sample workflow).
     klein is NOT CFG-distilled: 20 steps at cfg 5.0 with a real negative, via the
@@ -114,7 +118,7 @@ def _graph(prompt: str, seed: int, prefix: str) -> dict:
         "2": {"class_type": "CLIPLoader", "inputs": {"clip_name": "qwen_3_4b.safetensors", "type": "flux2"}},
         "3": {"class_type": "VAELoader", "inputs": {"vae_name": "flux2-vae.safetensors"}},
         "11": {"class_type": "CLIPTextEncode", "inputs": {"text": prompt, "clip": ["2", 0]}},
-        "12": {"class_type": "CLIPTextEncode", "inputs": {"text": "low quality, blurry, text, watermark, deformed, extra fingers, comic page, multiple panels, split screen, panel borders", "clip": ["2", 0]}},
+        "12": {"class_type": "CLIPTextEncode", "inputs": {"text": negative or PANEL_NEGATIVE, "clip": ["2", 0]}},
         "13": {"class_type": "EmptyFlux2LatentImage", "inputs": {"width": 832, "height": 512, "batch_size": 1}},
         "14": {"class_type": "RandomNoise", "inputs": {"noise_seed": seed}},
         "15": {"class_type": "Flux2Scheduler", "inputs": {"steps": 20, "width": 832, "height": 512}},
@@ -126,9 +130,10 @@ def _graph(prompt: str, seed: int, prefix: str) -> dict:
     }
 
 
-def _render_panel(prompt: str, destination: Path, seed: int, base_url: str = "http://127.0.0.1:8188", timeout: int = 900) -> Path:
+def _render_panel(prompt: str, destination: Path, seed: int, base_url: str = "http://127.0.0.1:8188",
+                  timeout: int = 900, negative: str = "") -> Path:
     base_url = base_url.rstrip("/")
-    prompt_id = _request(f"{base_url}/prompt", {"prompt": _graph(prompt, seed, "olympus_panel"), "client_id": str(uuid.uuid4())})["prompt_id"]
+    prompt_id = _request(f"{base_url}/prompt", {"prompt": _graph(prompt, seed, "olympus_panel", negative), "client_id": str(uuid.uuid4())})["prompt_id"]
     deadline = time.monotonic() + timeout
     result = None
     while time.monotonic() < deadline:
@@ -153,15 +158,16 @@ def _render_panel(prompt: str, destination: Path, seed: int, base_url: str = "ht
 
 
 def render_panel(prompt: str, destination: Path, seed: int,
-                 base_url: str = "http://127.0.0.1:8188", timeout: int = 900) -> Path:
+                 base_url: str = "http://127.0.0.1:8188", timeout: int = 900, negative: str = "") -> Path:
     if _already_done(destination, MIN_PANEL_BYTES):
         return destination
     with gpu_batch("comfyui:panel"):
-        return _with_oom_retry(lambda: _render_panel(prompt, destination, seed, base_url, timeout), base_url)
+        return _with_oom_retry(
+            lambda: _render_panel(prompt, destination, seed, base_url, timeout, negative), base_url)
 
 
 def _svd_graph(input_image: str, seed: int, frames: int = 14, fps: float = 6.0,
-               width: int = 1024, height: int = 576) -> dict:
+               width: int = 1024, height: int = 576, motion_bucket: int = 127) -> dict:
     # SVD_img2vid_Conditioning takes the CLIP_VISION model itself and encodes
     # the init image internally (live /object_info: clip_vision: CLIP_VISION),
     # so the previous standalone CLIPVisionEncode node was dead weight —
@@ -171,7 +177,7 @@ def _svd_graph(input_image: str, seed: int, frames: int = 14, fps: float = 6.0,
         "2": {"class_type": "CLIPVisionLoader", "inputs": {"clip_name": "sd_vit_h.safetensors"}},
         "3": {"class_type": "LoadImage", "inputs": {"image": input_image}},
         "4": {"class_type": "ImageScale", "inputs": {"upscale_method": "lanczos", "width": width, "height": height, "crop": "center", "image": ["3", 0]}},
-        "6": {"class_type": "SVD_img2vid_Conditioning", "inputs": {"width": width, "height": height, "video_frames": frames, "motion_bucket_id": 127, "fps": int(fps), "augmentation_level": 0.0, "clip_vision": ["2", 0], "init_image": ["4", 0], "vae": ["1", 2]}},
+        "6": {"class_type": "SVD_img2vid_Conditioning", "inputs": {"width": width, "height": height, "video_frames": frames, "motion_bucket_id": int(motion_bucket), "fps": int(fps), "augmentation_level": 0.0, "clip_vision": ["2", 0], "init_image": ["4", 0], "vae": ["1", 2]}},
         "7": {"class_type": "KSampler", "inputs": {"model": ["1", 0], "seed": seed, "steps": 25, "cfg": 2.5, "sampler_name": "euler", "scheduler": "karras", "positive": ["6", 0], "negative": ["6", 1], "latent_image": ["6", 2], "denoise": 1.0}},
         "8": {"class_type": "VAEDecode", "inputs": {"samples": ["7", 0], "vae": ["1", 2]}},
         "9": {"class_type": "VHS_VideoCombine", "inputs": {"images": ["8", 0], "frame_rate": fps, "loop_count": 0, "filename_prefix": "olympus_clip", "format": "video/h264-mp4", "pingpong": False, "save_output": True}},
@@ -180,12 +186,12 @@ def _svd_graph(input_image: str, seed: int, frames: int = 14, fps: float = 6.0,
 
 def _animate_panel(panel_path: str | Path, destination: Path, seed: int,
                   base_url: str = "http://127.0.0.1:8188", timeout: int = 1200,
-                  frames: int = 14, fps: float = 6.0) -> Path:
+                  frames: int = 14, fps: float = 6.0, motion_bucket: int = 127) -> Path:
     """Animate a panel via SVD (Stable Video Diffusion) and fetch the MP4 clip."""
     base_url = base_url.rstrip("/")
     input_name = f"olympus_panel_{seed}.png"
     shutil.copy(Path(panel_path), Path("/home/amire/Downloads/ComfyUI/input") / input_name)
-    graph = _svd_graph(input_name, seed, frames=frames, fps=fps)
+    graph = _svd_graph(input_name, seed, frames=frames, fps=fps, motion_bucket=motion_bucket)
     prompt_id = _request(f"{base_url}/prompt", {"prompt": graph, "client_id": str(uuid.uuid4())})["prompt_id"]
     deadline = time.monotonic() + timeout
     result = None
@@ -211,9 +217,9 @@ def _animate_panel(panel_path: str | Path, destination: Path, seed: int,
 
 def animate_panel(panel_path: str | Path, destination: Path, seed: int,
                   base_url: str = "http://127.0.0.1:8188", timeout: int = 1200,
-                  frames: int = 14, fps: float = 6.0) -> Path:
+                  frames: int = 14, fps: float = 6.0, motion_bucket: int = 127) -> Path:
     if _already_done(destination, MIN_CLIP_BYTES):
         return destination
     with gpu_batch("comfyui:animation"):
         return _with_oom_retry(
-            lambda: _animate_panel(panel_path, destination, seed, base_url, timeout, frames, fps), base_url)
+            lambda: _animate_panel(panel_path, destination, seed, base_url, timeout, frames, fps, motion_bucket), base_url)
