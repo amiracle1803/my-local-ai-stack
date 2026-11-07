@@ -578,6 +578,27 @@ def run_world_enrich(project_dir: Path) -> dict:
 # stage1r — reference images (PIL)
 # --------------------------------------------------------------------------
 
+ANIMAL = re.compile(r"\b(fox|cat|dog|wolf|bird|owl|crow|raven|dragon|horse|rabbit|bear|tiger|deer|"
+                    r"serpent|snake|fish|creature|beast|kitsune)\b", re.I)
+
+
+def sheet_prompt(look: str) -> tuple[str, str]:
+    """Prompt + negative for one character sheet. Not 'reference sheet' wording: klein then draws a
+    multi-view turnaround with extra figures and pets, which leak into panels as clones/animals.
+    An animal character is told it has an animal body ('small male fox spirit' came out humanoid)."""
+    look = re.sub(r"\b(anime key visual|clean lineart|cel shaded)\b,?\s*", "", look).strip(" ,")
+    neg = ("multiple views, turnaround, character sheet layout, several figures, duplicate character, "
+           "extra animals, pets, background scenery, props, text, watermark, blurry")
+    if ANIMAL.search(look):
+        body = (f"one single {look}: an animal with an animal body standing on four legs, not a person, "
+                "no human body, no clothes")
+        neg += ", humanoid, human body, person, clothes"
+    else:
+        body = f"one single person, {look}, full body, standing, front view"
+    return (f"anime character design, {body}, the only figure in the image, plain white background, "
+            "flat even lighting, clean lineart, cel shaded, no text"), neg
+
+
 def run_references(project_dir: Path, quick: bool = False) -> dict:
     project_dir = Path(project_dir)
     bible = json.loads((project_dir / "worldbible" / "world_bible.json").read_text(encoding="utf-8"))
@@ -603,12 +624,9 @@ def run_references(project_dir: Path, quick: bool = False) -> dict:
                 cid = c.get("id", "char")
                 look = c.get("sd_prompt") or c.get("name", "")
                 sheet = project_dir / "worldbible" / "refs" / cid / "sheet.png"
-                comfy_render(f"anime character reference sheet, full body front view, {look}, exactly as described "
-                             "(an animal or spirit stays an animal or spirit, not a person), "
-                             "plain white background, flat even lighting, clean lineart, cel shaded, no text",
-                             sheet, seed=int(hashlib.sha256(cid.encode()).hexdigest()[:8], 16),
-                             base_url=_cfg.comfyui.url,
-                             negative="background scenery, props, multiple characters, text, watermark, blurry")
+                prompt, negative = sheet_prompt(look)
+                comfy_render(prompt, sheet, seed=int(hashlib.sha256(cid.encode()).hexdigest()[:8], 16),
+                             base_url=_cfg.comfyui.url, negative=negative)
                 sheets[cid] = str(sheet.relative_to(project_dir))
         except Exception as e:  # noqa: BLE001  (panels still render, just without references)
             print(f"  character sheets failed: {type(e).__name__}: {e}", flush=True)

@@ -173,3 +173,11 @@ def test_klein_graph_chains_character_references():
         assert g[node[0]]["class_type"] == "ReferenceLatent"
         node, hops = g[node[0]]["inputs"]["conditioning"], hops + 1
     assert hops == 3
+
+
+def test_sheet_prompt_one_figure_and_animals_stay_animals():
+    p, n = stages.sheet_prompt("anime key visual, Aya, 16-year-old girl, red scarf, clean lineart, cel shaded")
+    assert "one single person" in p and "reference sheet" not in p and "turnaround" in n
+    assert "anime key visual" not in p
+    p, n = stages.sheet_prompt("anime key visual, Rin, small male fox spirit made of blue flame")
+    assert "four legs" in p and "not a person" in p and "humanoid" in n
