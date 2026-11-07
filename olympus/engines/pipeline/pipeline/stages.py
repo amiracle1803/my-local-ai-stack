@@ -592,8 +592,29 @@ def run_references(project_dir: Path, quick: bool = False) -> dict:
                          subtitle=f"reference {i+1}/{n_refs} · 360 turnaround",
                          body=c.get("sd_prompt", "")[:200], seed=f"{c.get('id')}-{i}")
             made += 1
+    # Real character sheets (full body, plain background) for the panel renderer's
+    # ReferenceLatent: this is what keeps hair/clothes the same from shot to shot.
+    sheets: dict[str, str] = {}
+    if (os.environ.get("OLYMPUS_REAL_COMFY", "0") == "1" and os.environ.get("OLYMPUS_PANEL_REFS", "1") != "0"):
+        try:
+            from .comfy_client import render_panel as comfy_render
+            from stack.config import cfg as _cfg
+            for c in chars:
+                cid = c.get("id", "char")
+                look = c.get("sd_prompt") or c.get("name", "")
+                sheet = project_dir / "worldbible" / "refs" / cid / "sheet.png"
+                comfy_render(f"anime character reference sheet, full body front view, {look}, exactly as described "
+                             "(an animal or spirit stays an animal or spirit, not a person), "
+                             "plain white background, flat even lighting, clean lineart, cel shaded, no text",
+                             sheet, seed=int(hashlib.sha256(cid.encode()).hexdigest()[:8], 16),
+                             base_url=_cfg.comfyui.url,
+                             negative="background scenery, props, multiple characters, text, watermark, blurry")
+                sheets[cid] = str(sheet.relative_to(project_dir))
+        except Exception as e:  # noqa: BLE001  (panels still render, just without references)
+            print(f"  character sheets failed: {type(e).__name__}: {e}", flush=True)
     manifest = {
         "refs": made,
+        "sheets": sheets,
         "characters": {
             c.get("id", "char"): [
                 str((project_dir / "worldbible" / "refs" / c.get("id", "char") /
@@ -835,6 +856,12 @@ def run_images(project_dir: Path, direct_only: bool = False) -> dict:
             raise RuntimeError("mode 0i requires uploaded panels in input/panels")
     real_comfy = os.environ.get("OLYMPUS_REAL_COMFY", "0") == "1"
     comfy_render = None
+    sheets: dict = {}
+    if os.environ.get("OLYMPUS_PANEL_REFS", "1") != "0":
+        manifest_path = project_dir / "worldbible" / "refs" / "_manifest.json"
+        if manifest_path.exists():
+            sheets = {k: v for k, v in (json.loads(manifest_path.read_text(encoding="utf-8")).get("sheets") or {}).items()
+                      if (project_dir / v).exists()}
     if real_comfy and not uploads:
         from .comfy_client import render_panel as comfy_render
         from stack.config import cfg as _cfg
@@ -858,14 +885,17 @@ def run_images(project_dir: Path, direct_only: bool = False) -> dict:
                 extra = [t.strip() for t in (directed.get("negative") or "").split(",") if t.strip()]
                 base = [t.strip() for t in negative.split(",")]
                 negative = ", ".join(dict.fromkeys(extra + base))
+            sheet_refs: list = []
             if uploads:
                 from PIL import Image as _UploadImage
                 with _UploadImage.open(uploads[made % len(uploads)]) as im:
                     im.convert("RGB").save(p)
             elif comfy_render:
                 seed = int(hashlib.sha256(sid.encode()).hexdigest()[:8], 16)
+                sheet_refs = [str(project_dir / sheets[c]) for c in plan.get("character_ids", []) if c in sheets][:3]
                 image_backend = render_with_cloud_fallback(
-                    lambda: comfy_render(prompt, p, seed=seed, base_url=_comfy_url, negative=negative),
+                    lambda: comfy_render(prompt, p, seed=seed, base_url=_comfy_url, negative=negative,
+                                         references=sheet_refs),
                     prompt, negative, p, seed)
             else:
                 render_panel(p, title=f"{shot.get('id','SHOT')} · {scene.get('location','')[:40]}",
@@ -875,6 +905,7 @@ def run_images(project_dir: Path, direct_only: bool = False) -> dict:
                  "prompt": prompt,
                  "backend": "imported" if uploads else (image_backend if comfy_render else "placeholder"),
                  "reference_assets": refs, "continuity": continuity,
+                 "character_sheets": [str(Path(r).relative_to(project_dir)) for r in sheet_refs],
                  "negative_prompt": negative, "director": directed,
                  "attempt": 1}, indent=2), encoding="utf-8")
             made += 1

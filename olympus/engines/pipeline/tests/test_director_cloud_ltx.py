@@ -159,3 +159,17 @@ def test_ltx_graph_i2v_and_t2v():
     kinds = {n["class_type"] for n in t2v.values()}
     assert "EmptyLTXVLatentVideo" in kinds and "LoadImage" not in kinds
     assert t2v["7"]["inputs"]["positive"] == ["3", 0]
+
+
+def test_klein_graph_chains_character_references():
+    from pipeline.comfy_client import _graph
+    plain = _graph("p", 1, "x")
+    assert plain["18"]["inputs"]["positive"] == ["11", 0]
+    g = _graph("p", 1, "x", refs=["aya.png", "toma.png", "mei.png", "fourth.png"])
+    loads = [n["inputs"]["image"] for n in g.values() if n["class_type"] == "LoadImage"]
+    assert loads == ["aya.png", "toma.png", "mei.png"]          # at most three characters
+    node, hops = g["18"]["inputs"]["positive"], 0              # chained: ref3 <- ref2 <- ref1 <- text
+    while node != ["11", 0]:
+        assert g[node[0]]["class_type"] == "ReferenceLatent"
+        node, hops = g[node[0]]["inputs"]["conditioning"], hops + 1
+    assert hops == 3

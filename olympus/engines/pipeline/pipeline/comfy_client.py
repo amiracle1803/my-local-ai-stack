@@ -106,14 +106,14 @@ PANEL_NEGATIVE = ("low quality, blurry, text, watermark, deformed, extra fingers
                   "multiple panels, split screen, panel borders")
 
 
-def _graph(prompt: str, seed: int, prefix: str, negative: str = "") -> dict:
+def _graph(prompt: str, seed: int, prefix: str, negative: str = "", refs: list[str] | None = None) -> dict:
     """FLUX.2 klein 4B panel graph — the validated recipe (workflows/NODES.md §1,
     manifest image_flux_fallback patch map, official klein t2i sample workflow).
     klein is NOT CFG-distilled: 20 steps at cfg 5.0 with a real negative, via the
     resolution-aware Flux2Scheduler + SamplerCustomAdvanced path. The 128-channel
     EmptyFlux2LatentImage is mandatory — the old graph fed a plain 4-channel
     EmptyLatentImage into the flux2 transformer, and cfg 1.0 ignored the negative."""
-    return {
+    g = {
         "1": {"class_type": "UnetLoaderGGUF", "inputs": {"unet_name": "flux-2-klein-4b-Q4_K_M.gguf"}},
         "2": {"class_type": "CLIPLoader", "inputs": {"clip_name": "qwen_3_4b.safetensors", "type": "flux2"}},
         "3": {"class_type": "VAELoader", "inputs": {"vae_name": "flux2-vae.safetensors"}},
@@ -128,12 +128,28 @@ def _graph(prompt: str, seed: int, prefix: str, negative: str = "") -> dict:
         "19": {"class_type": "SamplerCustomAdvanced", "inputs": {"noise": ["14", 0], "guider": ["18", 0], "sampler": ["17", 0], "sigmas": ["15", 0], "latent_image": ["13", 0]}},
         "20": {"class_type": "VAEDecode", "inputs": {"samples": ["19", 0], "vae": ["3", 0]}},
     }
+    # Character reference sheets (plain background) -> ReferenceLatent on both conditionings:
+    # klein keeps the character's look from the sheet and takes the scene from the prompt.
+    # (A reference with a background gets its scene copied — use character sheets only.)
+    pos, neg = ["11", 0], ["12", 0]
+    for i, name in enumerate((refs or [])[:3]):
+        n = 30 + 5 * i
+        g[str(n)] = {"class_type": "LoadImage", "inputs": {"image": name}}
+        g[str(n + 1)] = {"class_type": "ImageScaleToTotalPixels", "inputs": {
+            "image": [str(n), 0], "upscale_method": "lanczos", "megapixels": 0.5, "resolution_steps": 16}}
+        g[str(n + 2)] = {"class_type": "VAEEncode", "inputs": {"pixels": [str(n + 1), 0], "vae": ["3", 0]}}
+        g[str(n + 3)] = {"class_type": "ReferenceLatent", "inputs": {"conditioning": pos, "latent": [str(n + 2), 0]}}
+        g[str(n + 4)] = {"class_type": "ReferenceLatent", "inputs": {"conditioning": neg, "latent": [str(n + 2), 0]}}
+        pos, neg = [str(n + 3), 0], [str(n + 4), 0]
+    g["18"]["inputs"]["positive"], g["18"]["inputs"]["negative"] = pos, neg
+    return g
 
 
 def _render_panel(prompt: str, destination: Path, seed: int, base_url: str = "http://127.0.0.1:8188",
-                  timeout: int = 900, negative: str = "") -> Path:
+                  timeout: int = 900, negative: str = "", references: list | None = None) -> Path:
     base_url = base_url.rstrip("/")
-    prompt_id = _request(f"{base_url}/prompt", {"prompt": _graph(prompt, seed, "olympus_panel", negative), "client_id": str(uuid.uuid4())})["prompt_id"]
+    refs = [upload_image(r, base_url) for r in (references or [])[:3] if Path(r).exists()]
+    prompt_id = _request(f"{base_url}/prompt", {"prompt": _graph(prompt, seed, "olympus_panel", negative, refs), "client_id": str(uuid.uuid4())})["prompt_id"]
     deadline = time.monotonic() + timeout
     result = None
     while time.monotonic() < deadline:
@@ -158,12 +174,13 @@ def _render_panel(prompt: str, destination: Path, seed: int, base_url: str = "ht
 
 
 def render_panel(prompt: str, destination: Path, seed: int,
-                 base_url: str = "http://127.0.0.1:8188", timeout: int = 900, negative: str = "") -> Path:
+                 base_url: str = "http://127.0.0.1:8188", timeout: int = 900, negative: str = "",
+                 references: list | None = None) -> Path:
     if _already_done(destination, MIN_PANEL_BYTES):
         return destination
     with gpu_batch("comfyui:panel"):
         return _with_oom_retry(
-            lambda: _render_panel(prompt, destination, seed, base_url, timeout, negative), base_url)
+            lambda: _render_panel(prompt, destination, seed, base_url, timeout, negative, references), base_url)
 
 
 def _svd_graph(input_image: str, seed: int, frames: int = 14, fps: float = 6.0,
