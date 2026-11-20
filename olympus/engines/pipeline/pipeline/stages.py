@@ -799,6 +799,51 @@ def run_screenplay(project_dir: Path) -> dict:
 # stage3b — panels (PIL)
 # --------------------------------------------------------------------------
 
+FALLBACK_FRAMINGS = (
+    "close-up on the main character's face and expression, reacting to the moment",
+    "detail insert, close view of hands and the key object of the moment",
+    "wide shot from a different angle, the action continuing, surroundings visible",
+)
+
+
+def _stills_cfg() -> tuple[bool, float, int]:
+    """(animation on?, seconds per key frame, max key frames per shot) from [animation]."""
+    try:
+        from stack.config import cfg as _cfg
+        a = _cfg.animation
+        return bool(a.enabled), float(getattr(a, "still_seconds", 3.5)), int(getattr(a, "max_stills", 4))
+    except Exception:  # noqa: BLE001
+        return False, 3.5, 4
+
+
+def stills_for(seconds: float, still_seconds: float = 3.5, max_stills: int = 4) -> int:
+    """Key frames for a shot on screen `seconds`: one per still_seconds, 1..max_stills."""
+    if still_seconds <= 0:
+        return 1
+    return max(1, min(max_stills, int(seconds // still_seconds)))
+
+
+def frame_name(panel: Path, k: int) -> Path:
+    """Key frame k (2..) of a shot panel: <slug>_scNNN_shNNN_panel_f<k>_v001.png."""
+    stem = re.sub(r"_panel_(v\d+)$", rf"_panel_f{k}_\1", panel.stem)
+    return panel.with_name((stem if stem != panel.stem else f"{panel.stem}_f{k}") + panel.suffix)
+
+
+def shot_frames(panel: Path) -> list[Path]:
+    """The shot's key frames in order: the panel itself, then f2, f3... while they exist."""
+    out = [panel]
+    for k in range(2, 10):
+        f = frame_name(panel, k)
+        if not f.exists():
+            break
+        out.append(f)
+    return out
+
+
+def _is_extra_frame(p: Path) -> bool:
+    return bool(re.search(r"_panel_f\d+_v\d+$|_f\d+$", p.stem))
+
+
 def direct_project(project_dir: Path) -> dict:
     """Only the director pass (storyboard/director.json), no rendering."""
     return run_images(project_dir, direct_only=True)
@@ -872,6 +917,11 @@ def run_images(project_dir: Path, direct_only: bool = False) -> dict:
                          if p.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp"}) if up_dir.exists() else []
         if not uploads:
             raise RuntimeError("mode 0i requires uploaded panels in input/panels")
+    # Panels mode: long shots become several key frames (stage4's timeline gives screen time).
+    animated, still_secs, max_stills = _stills_cfg()
+    tl_path = project_dir / "audio" / "timeline.json"
+    slots = _shot_slots(json.loads(tl_path.read_text(encoding="utf-8"))) if tl_path.exists() else {}
+    extra_frames = 0
     real_comfy = os.environ.get("OLYMPUS_REAL_COMFY", "0") == "1"
     comfy_render = None
     sheets: dict = {}
@@ -927,6 +977,37 @@ def run_images(project_dir: Path, direct_only: bool = False) -> dict:
                  "negative_prompt": negative, "director": directed,
                  "attempt": 1}, indent=2), encoding="utf-8")
             made += 1
+            # Follow-up key frames: the director's beats, else a framing change of the panel prompt.
+            n = 1 if (animated or uploads) else stills_for(slots.get(shot_id, 0.0), still_secs, max_stills)
+            beats = directed.get("beats") or []
+            for k in range(2, n + 1):
+                fp = frame_name(p, k)
+                if k - 2 < len(beats):
+                    head = style.split(",")[0].strip().lower()
+                    lead = "" if head and head in beats[k - 2][:80].lower() else f"{style}, "
+                    fprompt = f"{lead}{beats[k - 2]}, single full-frame illustration, no text"
+                else:
+                    fprompt = f"{FALLBACK_FRAMINGS[(k - 2) % len(FALLBACK_FRAMINGS)]}, {prompt}"
+                fbackend = "placeholder"
+                if comfy_render:
+                    fseed = int(hashlib.sha256(f"{sid}_f{k}".encode()).hexdigest()[:8], 16)
+                    fbackend = render_with_cloud_fallback(
+                        lambda: comfy_render(fprompt, fp, seed=fseed, base_url=_comfy_url, negative=negative,
+                                             references=sheet_refs),
+                        fprompt, negative, fp, fseed)
+                else:
+                    render_panel(fp, title=f"{shot.get('id','SHOT')} · frame {k}",
+                                 subtitle=f"cast: {anchors or 'ensemble'}", body=fprompt[:220], seed=f"{sid}_f{k}")
+                (panels / f"{fp.stem}.json").write_text(json.dumps(
+                    {"shot": shot.get("id"), "frame": k, "seed": f"{sid}_f{k}", "anchors": anchors,
+                     "prompt": fprompt, "backend": fbackend, "continuity": continuity,
+                     "character_sheets": [str(Path(r).relative_to(project_dir)) for r in sheet_refs],
+                     "negative_prompt": negative, "attempt": 1}, indent=2), encoding="utf-8")
+                extra_frames += 1
+            for k in range(n + 1, 10):              # frames left over from a longer earlier cut
+                stale = frame_name(p, k)
+                stale.unlink(missing_ok=True)
+                stale.with_suffix(".json").unlink(missing_ok=True)
     # Webtoon-style manga composites per scene block.
     from PIL import Image as _Image
     for si, scene in enumerate(sp.get("scenes", [])):
@@ -947,11 +1028,11 @@ def run_images(project_dir: Path, direct_only: bool = False) -> dict:
             y += 720
         combo.save(panels / f"block_{si:02d}_manga.png")
     with Scores(project_dir / "scores.sqlite") as sc:
-        sc.record_globals("stage3b", {"panels_generated": float(made),
+        sc.record_globals("stage3b", {"panels_generated": float(made), "extra_frames": float(extra_frames),
                                       "prompt_adherence_avg": 7.8, "vision_fail_rate": 0.0})
         sc.stage_done("stage3b")
     _mark_done(project_dir, "stage3b", 1.0)
-    return {"panels": made}
+    return {"panels": made, "extra_frames": extra_frames}
 
 
 # --------------------------------------------------------------------------
@@ -1150,7 +1231,8 @@ def run_animation(project_dir: Path, enabled: bool = False) -> dict:
             sc.stage_done("stage3c")
         _mark_done(project_dir, "stage3c", 1.0)
         return {"clips": 0, "mode": "panels"}
-    panels = sorted(p for p in (project_dir / "panels").glob("*.png") if not p.name.startswith("block_"))
+    panels = sorted(p for p in (project_dir / "panels").glob("*.png")
+                    if not p.name.startswith("block_") and not _is_extra_frame(p))
     # SVD is slow on 8 GB, so only OLYMPUS_MAX_CLIPS shots move: the ones on screen longest
     # (the rest get a Ken Burns pan in stage5). Was: the first 12 by filename.
     tl_path = project_dir / "audio" / "timeline.json"
@@ -1315,8 +1397,8 @@ def run_review(project_dir: Path) -> dict:
             try:
                 from .comfy_client import _request
                 import base64
-                with open(review_path, "rb") as f:
-                    img_b64 = base64.b64encode(f.read()).decode()
+                from .nim_vision import _base64_image
+                img_b64 = _base64_image(review_path)
                 prompt = (
                     "You are a visual consistency judge for an anime recap video. "
                     "Score this frame 0-10 on: character consistency, prompt adherence, "
@@ -1500,8 +1582,19 @@ def run_assembly(project_dir: Path, fps: int = 24) -> dict:
             seg = video / f"seg_{idx:03d}.mp4"
             clip = clips / f"{png.stem}.mp4" if png else None
             moving = clip if clip is not None and _clip_backend(clip) not in ("", "still") else None
-            _render_segment(png, moving, seg, frames, fps, motion=idx)
-            segs.append(seg)
+            stills = shot_frames(png)[:max(1, frames // fps)] if (png is not None and moving is None) else []
+            if len(stills) > 1:
+                # Panels mode: the shot is a sequence of key frames, hard cuts, a slow move each.
+                left = frames
+                for j, still in enumerate(stills):
+                    part = left if j == len(stills) - 1 else frames // len(stills)
+                    sub = video / f"seg_{idx:03d}_{j + 1}.mp4"
+                    _render_segment(still, None, sub, max(1, part), fps, motion=idx + j)
+                    segs.append(sub)
+                    left -= part
+            else:
+                _render_segment(png, moving, seg, frames, fps, motion=idx)
+                segs.append(seg)
             if not timeline:
                 text = (shot.get("narration") or shot.get("dialogue") or "").strip()
                 if text:

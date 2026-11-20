@@ -25,7 +25,25 @@ def _api_key() -> str:
         return ""
 
 
-def _base64_image(path: str | Path) -> str:
+REVIEW_MAX_SIDE = 1280
+
+
+def _base64_image(path: str | Path, max_side: int = REVIEW_MAX_SIDE) -> str:
+    """PNG for the judge, shrunk to max_side. 2026-11-20: hq panels are 2560x1440 after the
+    AnimeSharp 2x pass = 4102 vision tokens > qwen2.5vl's 4096 context -> every review HTTP 400."""
+    try:
+        import io
+
+        from PIL import Image
+        with Image.open(path) as im:
+            if max(im.size) > max_side:
+                im = im.convert("RGB")
+                im.thumbnail((max_side, max_side))
+                buf = io.BytesIO()
+                im.save(buf, format="PNG")
+                return base64.b64encode(buf.getvalue()).decode()
+    except Exception:  # noqa: BLE001 - not an image PIL knows: send the bytes as they are
+        pass
     return base64.b64encode(Path(path).read_bytes()).decode()
 
 

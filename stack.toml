@@ -158,7 +158,13 @@ vram_gb = 8
 # OFF (default): panels mode — stage5 assembles panels with Ken Burns
 # zoom/pan + fades, no GPU video. ON: stage3c renders motion clips.
 [animation]
-enabled = true
+# 2026-11-20: OFF — key frames instead of LTX clips. A shot gets one klein frame per still_seconds
+# of screen time (max max_stills): the director's "beats" (reaction close-up, detail insert,
+# reverse angle...), cut together with a slow pan/zoom each. ~35 s per frame vs 2-3 min per clip,
+# and no ping-pong on long shots. Set true to go back to LTX clips (engine below).
+enabled = false
+still_seconds = 3.5
+max_stills = 4
 # svd     - Stable Video Diffusion xt (14 frames, minutes per clip, no prompt control)
 # ltx2b   - Anime-first LTX-Video 0.9.8 distilled: the model/size/upscale come from [render]
 #           (fast = 2B fp8 checkpoint, hq = 13B Q4 GGUF + 2x latent upscale).

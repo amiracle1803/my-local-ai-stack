@@ -229,6 +229,10 @@ class AnimationConfig(BaseModel):
 
     enabled: bool = False  # OFF = panels mode (Ken Burns); ON = GPU clips
     engine: str = "svd"    # svd | ltx2b (LTX-Video 2B distilled fp8, fits 8 GB) | ltx_director (LTX-2.3 22B, ~18GB VRAM host)
+    # Panels mode (enabled = false): a shot gets one key frame per still_seconds of screen time
+    # (at most max_stills), cut together with a slow pan/zoom each — a motion comic, no GPU video.
+    still_seconds: float = 3.5
+    max_stills: int = 4
 
 
 class RenderProfile(BaseModel):

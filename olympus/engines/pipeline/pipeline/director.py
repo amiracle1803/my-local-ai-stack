@@ -10,6 +10,8 @@ For every storyboard shot it writes (storyboard/director.json, keyed by shot id)
   t2v       - a single chronological paragraph for text-to-video (LTX style: visible subject + action,
               exact appearance, unobstructed composition, background, camera, lighting)
   seconds   - suggested clip length (2-6 s)
+  beats     - up to 3 follow-up key frames (full t2i prompts) for panels mode, where a long shot
+              plays as a sequence of stills instead of a clip
 
 Cloud first (Groq, OpenAI-compatible, key GROQ_API_KEY from the environment or ~/.hermes/.env),
 then the local Ollama script model. A shot the LLM leaves out or garbles falls back to the
@@ -45,8 +47,14 @@ SYSTEM = (
     "and concrete action; retain exact hair, clothing, and colors while specifying an unobstructed, "
     "fully visible subject and keeping foreground objects out of the sightline. Then describe background, "
     "camera, and lighting. Never drop identity details when tightening composition.\n"
+    "- beats = 3 follow-up key frames of the same shot, in story order, each a full text-to-image prompt "
+    "(same exact cast looks, location, lighting and style as t2i). Each one moves the action a moment "
+    "forward AND changes the framing: e.g. a reaction close-up, a detail insert of hands or a key "
+    "object, an over-the-shoulder or reverse angle, a wide. The shot plays as a sequence of stills, "
+    "so every beat must read clearly on its own.\n"
     "Reply with JSON only: {\"shots\": [{\"id\": \"...\", \"t2i\": \"...\", \"negative\": \"...\", "
-    "\"camera\": \"...\", \"motion\": \"...\", \"strength\": 0.0, \"t2v\": \"...\", \"seconds\": 4}]}"
+    "\"camera\": \"...\", \"motion\": \"...\", \"strength\": 0.0, \"t2v\": \"...\", \"seconds\": 4, "
+    "\"beats\": [\"...\", \"...\", \"...\"]}]}"
 )
 DEFAULT_NEGATIVE = ("low quality, blurry, text, watermark, signature, deformed hands, extra limbs, "
                     "comic page, multiple panels, split screen, speech bubble")
@@ -118,9 +126,11 @@ def _clean(s: dict, fallback: dict) -> dict:
     t2i = txt("t2i", 900)
     # quoted speech in an image prompt gets painted as text
     t2i = re.sub(r"[\"“”][^\"“”]*[\"“”]", "", t2i)
+    beats = [re.sub(r"[\"“”][^\"“”]*[\"“”]", "", re.sub(r"\s+", " ", b)).strip()[:900]
+             for b in (s.get("beats") if isinstance(s.get("beats"), list) else []) if isinstance(b, str)]
     return {"t2i": t2i, "negative": txt("negative", 400) or DEFAULT_NEGATIVE, "camera": txt("camera", 160),
             "motion": txt("motion", 500), "strength": round(strength, 2), "t2v": txt("t2v", 1400),
-            "seconds": seconds, "by": s.get("_by", "")}
+            "seconds": seconds, "beats": [b for b in beats if b][:3], "by": s.get("_by", "")}
 
 
 def shot_requests(scenes: list[dict], storyboard_by_id: dict, cast_looks: dict, style: str) -> list[dict]:
@@ -149,7 +159,9 @@ def direct(requests: list[dict], cast_looks: dict, fallbacks: dict, out_path: Pa
     """Write director.json for the shots that don't have an entry yet (resumable)."""
     out_path = Path(out_path)
     done = json.loads(out_path.read_text(encoding="utf-8")) if out_path.exists() else {}
-    todo = [r for r in requests if r["id"] not in done]
+    # Entries from before beats existed get only their beats filled in (their t2i — and so the
+    # rendered panel — stays as it was).
+    todo = [r for r in requests if r["id"] not in done or "beats" not in done[r["id"]]]
     cast_block = "\n".join(f"- {k}: {v}" for k, v in cast_looks.items()) or "- (none given)"
     for i in range(0, len(todo), BATCH):
         batch = todo[i:i + BATCH]
@@ -171,8 +183,10 @@ def direct(requests: list[dict], cast_looks: dict, fallbacks: dict, out_path: Pa
         by_id = {s["id"]: s for s in got}
         for r in batch:
             s = by_id.get(r["id"]) or {}
-            done[r["id"]] = _clean({**s, "_by": by if s else "template"}, fallbacks.get(r["id"], {
+            new = _clean({**s, "_by": by if s else "template"}, fallbacks.get(r["id"], {
                 "t2i": "", "negative": DEFAULT_NEGATIVE, "camera": "", "motion": "", "strength": 0.4, "t2v": ""}))
+            old = done.get(r["id"])
+            done[r["id"]] = {**old, "beats": new["beats"]} if old else new
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_text(json.dumps(done, indent=2, ensure_ascii=False), encoding="utf-8")
     return done
