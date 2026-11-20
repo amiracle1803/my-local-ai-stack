@@ -153,5 +153,24 @@ def main() -> int:
     return 0
 
 
+GPU_CLAIM = Path.home() / ".cache" / "wat" / "gpu-claims" / "olympus.json"
+
+
+def _claim_gpu() -> None:
+    """Tell W.A.T.'s legion_research worker this run owns the GPU (it yields
+    while the pid is alive). Without it the worker's deepseek calls starved the
+    Ollama VLM review (2026-11-20). Best effort: no W.A.T., no harm."""
+    import atexit
+    import json
+    import os
+    try:
+        GPU_CLAIM.parent.mkdir(parents=True, exist_ok=True)
+        GPU_CLAIM.write_text(json.dumps({"pid": os.getpid(), "owner": "olympus pipeline"}))
+        atexit.register(lambda: GPU_CLAIM.unlink(missing_ok=True))
+    except OSError:
+        pass
+
+
 if __name__ == "__main__":
+    _claim_gpu()
     raise SystemExit(main())

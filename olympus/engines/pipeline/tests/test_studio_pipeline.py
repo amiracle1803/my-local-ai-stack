@@ -1,6 +1,7 @@
 """Studio pipeline smoke tests (no GPU/services required)."""
 
 import sys
+import json
 from pathlib import Path
 
 ENGINE = Path(__file__).resolve().parent.parent
@@ -140,6 +141,7 @@ def test_review_unavailable_does_not_pass(monkeypatch, tmp_path):
     panel_dir = tmp_path / "panels"
     panel_dir.mkdir()
     stages.render_panel(panel_dir / "sh_001_01.png", "shot", seed="test")
+    monkeypatch.setattr(stages, "REVIEW_RETRY_S", 0)
     monkeypatch.setattr(
         "pipeline.nim_vision.review_image",
         lambda *_args, **_kwargs: {"available": False, "verdict": "UNAVAILABLE", "score": 0},
@@ -154,6 +156,24 @@ def test_review_unavailable_does_not_pass(monkeypatch, tmp_path):
         assert "blocked" in str(exc)
     else:
         raise AssertionError("unavailable review must block stage5")
+
+
+def test_review_retries_a_transient_unavailable(monkeypatch, tmp_path):
+    """2026-11-20: one VLM call timed out behind another Ollama client and blocked stage5."""
+    from pipeline import stages
+    from pipeline.blueprint import create_blueprint
+
+    (tmp_path / "panels").mkdir()
+    stages.render_panel(tmp_path / "panels" / "sh_001_01.png", "shot", seed="test")
+    monkeypatch.setattr(stages, "REVIEW_RETRY_S", 0)
+    answers = iter([{"available": False, "verdict": "UNAVAILABLE", "score": 0},
+                    {"available": True, "verdict": "PASS", "score": 8, "provider": "ollama"}])
+    monkeypatch.setattr("pipeline.nim_vision.review_image", lambda *_a, **_k: next(answers))
+    (tmp_path / "scores.sqlite").touch()
+    create_blueprint("source", slug="review_r").write(tmp_path)
+    out = stages.run_review(tmp_path)
+    data = json.loads((tmp_path / "reviews" / "vlm_review.json").read_text())
+    assert data["gate"] == "PASS" and data["pass"] == 1, out
 
 
 def _scaffold_project(tmp_path: Path, slug: str, mode: str = "0b") -> Path:

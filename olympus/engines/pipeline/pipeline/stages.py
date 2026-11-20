@@ -1241,6 +1241,9 @@ def run_animation(project_dir: Path, enabled: bool = False) -> dict:
 # stage_vlm_review — consistency gate (local checks)
 # --------------------------------------------------------------------------
 
+REVIEW_RETRY_S = 20.0
+
+
 def run_review(project_dir: Path) -> dict:
     project_dir = Path(project_dir)
     panels = list((project_dir / "panels").glob("*.png"))
@@ -1291,6 +1294,12 @@ def run_review(project_dir: Path) -> dict:
         try:
             from .nim_vision import review_image
             r = review_image(review_path, expected_prompt=name)
+            if not r.get("available"):
+                # 2026-11-20: one clip of 25 timed out behind another Ollama
+                # client and blocked stage5 — a contended GPU is transient.
+                import time
+                time.sleep(REVIEW_RETRY_S)
+                r = review_image(review_path, expected_prompt=name)
             if r.get("available"):
                 judge_provider = r.get("provider", "nim-vision")
                 score = float(r.get("score", 7.0))
