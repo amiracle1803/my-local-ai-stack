@@ -985,7 +985,12 @@ def run_images(project_dir: Path, direct_only: bool = False) -> dict:
                 if k - 2 < len(beats):
                     head = style.split(",")[0].strip().lower()
                     lead = "" if head and head in beats[k - 2][:80].lower() else f"{style}, "
-                    fprompt = f"{lead}{beats[k - 2]}, single full-frame illustration, no text"
+                    # Beats are short: repeat the exact cast looks + place so frames of one shot
+                    # stay on-model and in the same set (v4: stone stairs turned wooden, Toma's
+                    # glass eye leaked onto Aya as glasses).
+                    where = scene.get("location", "")[:80]
+                    fprompt = (f"{lead}{beats[k - 2]}, {anchors}" + (f", {where}" if where else "")
+                               + ", single full-frame illustration, no text")
                 else:
                     fprompt = f"{FALLBACK_FRAMINGS[(k - 2) % len(FALLBACK_FRAMINGS)]}, {prompt}"
                 fbackend = "placeholder"

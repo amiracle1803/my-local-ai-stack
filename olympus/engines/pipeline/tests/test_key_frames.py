@@ -48,6 +48,7 @@ def test_long_shot_gets_director_beats_then_fallback_framings(tmp_path, monkeypa
     assert out == {"panels": 1, "extra_frames": 2}                       # 12 s / 3.5 s -> 3 frames
     side = lambda k: json.loads((project / "panels" / f"kf_t_sc001_sh001_panel_f{k}_v001.json").read_text())
     assert "close-up of Aya gasping" in side(2)["prompt"] and side(2)["frame"] == 2
+    assert "Aya (red scarf)" in side(2)["prompt"] and "Tower" in side(2)["prompt"]  # look + set repeated
     assert side(3)["prompt"].startswith(stages.FALLBACK_FRAMINGS[1])  # no 2nd beat -> framing change
     assert not stale.exists()
     main = project / "panels" / "kf_t_sc001_sh001_panel_v001.png"
