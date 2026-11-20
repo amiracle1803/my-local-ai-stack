@@ -160,7 +160,8 @@ vram_gb = 8
 [animation]
 enabled = true
 # svd     - Stable Video Diffusion xt (14 frames, minutes per clip, no prompt control)
-# ltx2b   - Anime-first LTX-Video 2B 0.9.8 distilled fp8 (+ t5xxl fp8), validated on the 8 GB 4070.
+# ltx2b   - Anime-first LTX-Video 0.9.8 distilled: the model/size/upscale come from [render]
+#           (fast = 2B fp8 checkpoint, hq = 13B Q4 GGUF + 2x latent upscale).
 #           Default: panel-guided I2V with director motion/camera. OLYMPUS_LTX_MODE=t2v uses the
 #           director's chronological t2v paragraph instead. director.json seconds controls duration
 #           (rounded to LTX's 8n+1 frames). Importable T2V/I2V/preview UI presets: workflows/ui/.
@@ -168,6 +169,55 @@ enabled = true
 #                installed here; only graph/routing tests pass, not a local render.
 # Override per run with OLYMPUS_ANIM_ENGINE=svd|ltx2b|ltx_director.
 engine = "ltx2b"
+
+# ── Render profiles (panels / clips / master) ─────────────────────────────
+# ComfyUI runs with DynamicVRAM (torch 2.14 venv, see W.A.T. deploy/legion/comfyui): what fits
+# stays on the 8 GB RTX 4070, the rest streams from system RAM, so bigger models are usable.
+# Benchmarked 2026-11-20 on LANTERNFALL v3c shots (tools/bench_render.py):
+#   panels  klein 4B Q4 @832x512 20 steps cfg 5 (old) 57 s, over-saturated
+#           klein 4B Q4 @1280x720 4 steps cfg 1      15 s   (klein is step-distilled: 4 steps, cfg 1)
+#           klein 9B Q5 @1280x720 4 steps cfg 1      30 s   better prompt adherence/composition
+#           + 2x-AnimeSharpV4 upscale (2560x1440)    +6 s   crisper line art for Ken Burns stills
+#   clips   LTX 2B 768x512                           15 s / 4 s clip, drifts/warps
+#           LTX 2B + 2x latent upscale               36 s, refine pass broke (scarf -> red blob)
+#           LTX 13B Q4 768x448                       60 s, coherent motion
+#           LTX 13B Q4 + 2x upscale (1536x896)      138 s, coherent + sharp  <- hq
+# cfg 1.0 (both distilled models) ignores negative prompts: steer with the positive prompt.
+# Switch per run: OLYMPUS_RENDER_PROFILE=fast|hq
+[render]
+profile = "hq"
+
+[render.profiles.fast]
+panel_unet = "flux-2-klein-4b-Q4_K_M.gguf"
+panel_clip = "qwen_3_4b.safetensors"
+panel_width = 1280
+panel_height = 720
+panel_steps = 4
+panel_cfg = 1.0
+video_ckpt = "ltxv-2b-0.9.8-distilled-fp8.safetensors"
+video_width = 768
+video_height = 512
+max_clip_seconds = 6.0
+output_width = 1280
+output_height = 720
+
+[render.profiles.hq]
+panel_unet = "flux-2-klein-9b-Q5_K_M.gguf"            # FLUX non-commercial licence (personal use)
+panel_clip = "qwen_3_8b_fp8mixed.safetensors"
+panel_width = 1280
+panel_height = 720
+panel_steps = 4
+panel_cfg = 1.0
+panel_upscale = "2x-AnimeSharpV4_RCAN.safetensors"   # CC BY-NC-SA
+video_unet = "LTXV-13B-0.9.8-distilled-Q4_K_M.gguf"
+video_vae = "LTXV-13B-0.9.8-distilled-VAE.safetensors"
+video_width = 768
+video_height = 448
+video_upscale = "ltxv-spatial-upscaler-0.9.8.safetensors"
+video_img_compression = 35
+max_clip_seconds = 6.0
+output_width = 1920
+output_height = 1080
 
 # ── NVIDIA NIM (hosted judge) ─────────────────────────────────────────────
 # Two-mode operation:

@@ -943,7 +943,7 @@ def run_images(project_dir: Path, direct_only: bool = False) -> dict:
         combo = _Image.new("RGB", (1280, 720 * len(imgs)))
         y = 0
         for im in imgs:
-            combo.paste(im, (0, y))
+            combo.paste(im.convert("RGB").resize((1280, 720)), (0, y))
             y += 720
         combo.save(panels / f"block_{si:02d}_manga.png")
     with Scores(project_dir / "scores.sqlite") as sc:
@@ -1154,16 +1154,19 @@ def run_animation(project_dir: Path, enabled: bool = False) -> dict:
     # SVD is slow on 8 GB, so only OLYMPUS_MAX_CLIPS shots move: the ones on screen longest
     # (the rest get a Ken Burns pan in stage5). Was: the first 12 by filename.
     tl_path = project_dir / "audio" / "timeline.json"
+    screen: dict[str, float] = {}
     if tl_path.exists():
         slots = _shot_slots(json.loads(tl_path.read_text(encoding="utf-8")))
         slug = Blueprint.load(project_dir).slug
-        screen = {}
         for shot_id, secs in slots.items():
             try:
                 screen[canonical_name(slug, shot_id, "panel", "png")] = secs
             except ValueError:
                 pass
         panels.sort(key=lambda p: -screen.get(p.name, 0.0))
+    from .comfy_client import render_profile
+    max_secs = render_profile().max_clip_seconds
+    screen_by_stem = {Path(k).stem: v for k, v in screen.items()}
     made = 0
     failed = 0
     for p in panels[:int(os.environ.get("OLYMPUS_MAX_CLIPS", "12"))]:
@@ -1182,19 +1185,22 @@ def run_animation(project_dir: Path, enabled: bool = False) -> dict:
                 meta = json.loads(p.with_suffix(".json").read_text(encoding="utf-8")) \
                     if p.with_suffix(".json").exists() else {}
                 directed = meta.get("director") or {}
+                # the clip covers the shot's on-screen time (stage4 slot) so stage5 doesn't have to
+                # play it forward-then-backward; the director's length is the floor, the profile the cap
+                secs = min(max_secs, max(float(directed.get("seconds") or 4), screen_by_stem.get(p.stem, 0.0)))
                 t2v = os.environ.get("OLYMPUS_LTX_MODE") == "t2v" and directed.get("t2v")
                 if engine == "ltx_director":
                     from . import ltx2b
                     from .ltx_director import render_director_clip
                     render_director_clip(None if t2v else p, candidate, seed=seed, base_url=_cfg.comfyui.url,
                                          motion_prompt=t2v or motion_prompt(meta),
-                                         frames=ltx2b.frames_for(float(directed.get("seconds") or 4)))
+                                         frames=ltx2b.frames_for(secs))
                 elif engine == "ltx2b":
                     from . import ltx2b
                     ltx2b.render_clip(
                         t2v or motion_prompt(meta), candidate, seed,
                         panel=None if t2v else p, base_url=_cfg.comfyui.url,
-                        frames=ltx2b.frames_for(float(directed.get("seconds") or 4)),
+                        frames=ltx2b.frames_for(secs),
                         strength=1.0)  # first frame = the panel; motion amount comes from the prompt
                 else:
                     from .comfy_client import animate_panel
@@ -1207,7 +1213,7 @@ def run_animation(project_dir: Path, enabled: bool = False) -> dict:
         if not candidate.exists():
             backend = "still"
             r = subprocess.run(["ffmpeg", "-y", "-v", "error", "-loop", "1", "-i", str(p),
-                                "-t", "2", "-vf", "scale=1280:720,format=yuv420p",
+                                "-t", "2", "-vf", "scale={}:{},format=yuv420p".format(*_out_size()),
                                 "-c:v", "libx264", "-preset", "veryfast", str(candidate)],
                                capture_output=True, timeout=120)
             if r.returncode != 0:
@@ -1383,7 +1389,18 @@ def run_review(project_dir: Path) -> dict:
 # stage5 — assembly: panels + audio -> final MP4 + SRT + chapters
 # --------------------------------------------------------------------------
 
-_FIT = "scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,setsar=1"
+def _out_size() -> tuple[int, int]:
+    """Master resolution from the [render] profile (fast 1280x720, hq 1920x1080)."""
+    from .comfy_client import render_profile
+    prof = render_profile()
+    return prof.output_width, prof.output_height
+
+
+def _fit(w: int, h: int) -> str:
+    return f"scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1"
+
+
+_FIT = _fit(1280, 720)   # legacy name, kept for importers
 
 
 def _render_segment(png: Path | None, clip: Path | None, seg: Path, frames: int, fps: int,
@@ -1391,8 +1408,10 @@ def _render_segment(png: Path | None, clip: Path | None, seg: Path, frames: int,
     """One shot's video: a real animation loops forward-backward; a still gets a slow
     Ken Burns zoom/pan; nothing at all becomes black. Identical encode settings so the
     concat demuxer can join segments without re-encoding."""
+    W, H = _out_size()
+    fit = _fit(W, H)
     out = ["-frames:v", str(frames), "-r", str(fps), "-c:v", "libx264", "-preset", "veryfast",
-           "-crf", "22", "-pix_fmt", "yuv420p", "-an", str(seg)]
+           "-crf", "22" if W <= 1280 else "20", "-pix_fmt", "yuv420p", "-an", str(seg)]
 
     def run(args: list[str], timeout: int = 300) -> bool:
         try:
@@ -1405,7 +1424,7 @@ def _render_segment(png: Path | None, clip: Path | None, seg: Path, frames: int,
         pp = seg.with_name(seg.stem + "_pp.mp4")
         try:
             r = subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", str(clip), "-filter_complex",
-                                f"[0:v]{_FIT},fps={fps},split[a][b];[b]reverse[r];[a][r]concat=n=2:v=1[v]",
+                                f"[0:v]{fit},fps={fps},split[a][b];[b]reverse[r];[a][r]concat=n=2:v=1[v]",
                                 "-map", "[v]", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
                                 "-pix_fmt", "yuv420p", "-an", str(pp)], capture_output=True, timeout=300)
             if r.returncode == 0 and run(["-stream_loop", "-1", "-i", str(pp), *out]):
@@ -1419,12 +1438,13 @@ def _render_segment(png: Path | None, clip: Path | None, seg: Path, frames: int,
                  f"z='1.08-0.08*on/{n}':{centre}",                              # pull out
                  f"z='1.07':x='(iw-iw/zoom)*on/{n}':y='ih/2-(ih/zoom/2)'",        # pan right
                  f"z='1.07':x='(iw-iw/zoom)*(1-on/{n})':y='ih/2-(ih/zoom/2)'"]    # pan left
-        vf = f"{_FIT},scale=1920:1080,zoompan={moves[motion % 4]}:d=1:s=1280x720:fps={fps},setsar=1"
+        vf = (f"{fit},scale={W * 3 // 2}:{H * 3 // 2},zoompan={moves[motion % 4]}:d=1:s={W}x{H}:fps={fps},"
+              f"setsar=1")
         if run(["-loop", "1", "-framerate", str(fps), "-i", str(png), "-vf", vf, *out]):
             return
-        if run(["-loop", "1", "-framerate", str(fps), "-i", str(png), "-vf", _FIT, *out]):
+        if run(["-loop", "1", "-framerate", str(fps), "-i", str(png), "-vf", fit, *out]):
             return
-    run(["-f", "lavfi", "-i", f"color=c=black:s=1280x720:r={fps}", *out])
+    run(["-f", "lavfi", "-i", f"color=c=black:s={W}x{H}:r={fps}", *out])
 
 
 def run_assembly(project_dir: Path, fps: int = 24) -> dict:

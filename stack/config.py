@@ -231,6 +231,46 @@ class AnimationConfig(BaseModel):
     engine: str = "svd"    # svd | ltx2b (LTX-Video 2B distilled fp8, fits 8 GB) | ltx_director (LTX-2.3 22B, ~18GB VRAM host)
 
 
+class RenderProfile(BaseModel):
+    """Models + sizes for panels (stage1r/3b) and LTX clips (stage3c) and the master (stage5).
+
+    Defaults = the legacy 8 GB-only recipe, so a missing [render] table changes nothing.
+    Model files are ComfyUI model names; "" disables an optional step.
+    """
+
+    # panels: FLUX.2 klein (GGUF unet + Qwen3 text encoder)
+    panel_unet: str = "flux-2-klein-4b-Q4_K_M.gguf"
+    panel_clip: str = "qwen_3_4b.safetensors"
+    panel_width: int = 832
+    panel_height: int = 512
+    panel_steps: int = 20
+    panel_cfg: float = 5.0
+    panel_upscale: str = ""            # ComfyUI upscale_models file, e.g. 2x-AnimeSharpV4_RCAN
+    # clips: LTX-Video. video_unet (GGUF) + video_vae take precedence over video_ckpt.
+    video_ckpt: str = "ltxv-2b-0.9.8-distilled-fp8.safetensors"
+    video_unet: str = ""
+    video_vae: str = ""
+    video_width: int = 768
+    video_height: int = 512
+    video_upscale: str = ""            # latent_upscale_models file -> 2x latent upscale + refine
+    video_img_compression: int = 0     # LTXVPreprocess on the i2v start image (official recipe: 35); 0 = off
+    max_clip_seconds: float = 6.0      # clips match the shot's on-screen time up to this
+    # master
+    output_width: int = 1280
+    output_height: int = 720
+
+
+class RenderConfig(BaseModel):
+    """[render] profile = name of a [render.profiles.<name>] table; env OLYMPUS_RENDER_PROFILE wins."""
+
+    profile: str = "fast"
+    profiles: dict[str, RenderProfile] = Field(default_factory=lambda: {"fast": RenderProfile()})
+
+    def active(self) -> RenderProfile:
+        name = os.environ.get("OLYMPUS_RENDER_PROFILE") or self.profile
+        return self.profiles.get(name) or self.profiles.get("fast") or RenderProfile()
+
+
 # ── top-level config ───────────────────────────────────────────────────────
 
 class StackConfig(BaseModel):
@@ -248,6 +288,7 @@ class StackConfig(BaseModel):
     providers: ProvidersConfig = Field(default_factory=ProvidersConfig)
     fallback: FallbackConfig = Field(default_factory=FallbackConfig)
     animation: AnimationConfig = Field(default_factory=AnimationConfig)
+    render: RenderConfig = Field(default_factory=RenderConfig)
     automation: AutomationConfig = Field(default_factory=AutomationConfig)
 
     config_path: Path = Field(default=CONFIG_PATH, exclude=True)

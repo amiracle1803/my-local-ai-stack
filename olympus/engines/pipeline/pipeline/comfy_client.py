@@ -106,25 +106,42 @@ PANEL_NEGATIVE = ("low quality, blurry, text, watermark, deformed, extra fingers
                   "multiple panels, split screen, panel borders")
 
 
-def _graph(prompt: str, seed: int, prefix: str, negative: str = "", refs: list[str] | None = None) -> dict:
+def render_profile():
+    """The active [render] profile (stack.toml); legacy defaults if config can't load."""
+    try:
+        from stack.config import cfg as _cfg
+        return _cfg.render.active()
+    except Exception:  # noqa: BLE001
+        from stack.config import RenderProfile
+        return RenderProfile()
+
+
+def _graph(prompt: str, seed: int, prefix: str, negative: str = "", refs: list[str] | None = None,
+           prof=None) -> dict:
     """FLUX.2 klein 4B panel graph — the validated recipe (workflows/NODES.md §1,
     manifest image_flux_fallback patch map, official klein t2i sample workflow).
     klein is NOT CFG-distilled: 20 steps at cfg 5.0 with a real negative, via the
     resolution-aware Flux2Scheduler + SamplerCustomAdvanced path. The 128-channel
     EmptyFlux2LatentImage is mandatory — the old graph fed a plain 4-channel
-    EmptyLatentImage into the flux2 transformer, and cfg 1.0 ignored the negative."""
+    EmptyLatentImage into the flux2 transformer, and cfg 1.0 ignored the negative.
+
+    2026-11-20: model/size/steps/cfg come from the [render] profile. The released
+    FLUX.2 [klein] 4B/9B checkpoints ARE step-distilled (model card: 4 steps,
+    guidance 1.0); the "base" variants are the undistilled 20-step/cfg models."""
+    prof = prof or render_profile()
+    w, h = prof.panel_width, prof.panel_height
     g = {
-        "1": {"class_type": "UnetLoaderGGUF", "inputs": {"unet_name": "flux-2-klein-4b-Q4_K_M.gguf"}},
-        "2": {"class_type": "CLIPLoader", "inputs": {"clip_name": "qwen_3_4b.safetensors", "type": "flux2"}},
+        "1": {"class_type": "UnetLoaderGGUF", "inputs": {"unet_name": prof.panel_unet}},
+        "2": {"class_type": "CLIPLoader", "inputs": {"clip_name": prof.panel_clip, "type": "flux2"}},
         "3": {"class_type": "VAELoader", "inputs": {"vae_name": "flux2-vae.safetensors"}},
         "11": {"class_type": "CLIPTextEncode", "inputs": {"text": prompt, "clip": ["2", 0]}},
         "12": {"class_type": "CLIPTextEncode", "inputs": {"text": negative or PANEL_NEGATIVE, "clip": ["2", 0]}},
-        "13": {"class_type": "EmptyFlux2LatentImage", "inputs": {"width": 832, "height": 512, "batch_size": 1}},
+        "13": {"class_type": "EmptyFlux2LatentImage", "inputs": {"width": w, "height": h, "batch_size": 1}},
         "14": {"class_type": "RandomNoise", "inputs": {"noise_seed": seed}},
-        "15": {"class_type": "Flux2Scheduler", "inputs": {"steps": 20, "width": 832, "height": 512}},
+        "15": {"class_type": "Flux2Scheduler", "inputs": {"steps": prof.panel_steps, "width": w, "height": h}},
         "16": {"class_type": "SaveImage", "inputs": {"images": ["20", 0], "filename_prefix": prefix}},
         "17": {"class_type": "KSamplerSelect", "inputs": {"sampler_name": "euler"}},
-        "18": {"class_type": "CFGGuider", "inputs": {"model": ["1", 0], "positive": ["11", 0], "negative": ["12", 0], "cfg": 5.0}},
+        "18": {"class_type": "CFGGuider", "inputs": {"model": ["1", 0], "positive": ["11", 0], "negative": ["12", 0], "cfg": prof.panel_cfg}},
         "19": {"class_type": "SamplerCustomAdvanced", "inputs": {"noise": ["14", 0], "guider": ["18", 0], "sampler": ["17", 0], "sigmas": ["15", 0], "latent_image": ["13", 0]}},
         "20": {"class_type": "VAEDecode", "inputs": {"samples": ["19", 0], "vae": ["3", 0]}},
     }
@@ -142,14 +159,19 @@ def _graph(prompt: str, seed: int, prefix: str, negative: str = "", refs: list[s
         g[str(n + 4)] = {"class_type": "ReferenceLatent", "inputs": {"conditioning": neg, "latent": [str(n + 2), 0]}}
         pos, neg = [str(n + 3), 0], [str(n + 4), 0]
     g["18"]["inputs"]["positive"], g["18"]["inputs"]["negative"] = pos, neg
+    if prof.panel_upscale:   # anime-trained 2x model upscale: crisp lines for Ken Burns stills
+        g["21"] = {"class_type": "UpscaleModelLoader", "inputs": {"model_name": prof.panel_upscale}}
+        g["22"] = {"class_type": "ImageUpscaleWithModel", "inputs": {"upscale_model": ["21", 0], "image": ["20", 0]}}
+        g["16"]["inputs"]["images"] = ["22", 0]
     return g
 
 
 def _render_panel(prompt: str, destination: Path, seed: int, base_url: str = "http://127.0.0.1:8188",
-                  timeout: int = 900, negative: str = "", references: list | None = None) -> Path:
+                  timeout: int = 900, negative: str = "", references: list | None = None,
+                  prof=None) -> Path:
     base_url = base_url.rstrip("/")
     refs = [upload_image(r, base_url) for r in (references or [])[:3] if Path(r).exists()]
-    prompt_id = _request(f"{base_url}/prompt", {"prompt": _graph(prompt, seed, "olympus_panel", negative, refs), "client_id": str(uuid.uuid4())})["prompt_id"]
+    prompt_id = _request(f"{base_url}/prompt", {"prompt": _graph(prompt, seed, "olympus_panel", negative, refs, prof), "client_id": str(uuid.uuid4())})["prompt_id"]
     deadline = time.monotonic() + timeout
     result = None
     while time.monotonic() < deadline:
@@ -175,12 +197,12 @@ def _render_panel(prompt: str, destination: Path, seed: int, base_url: str = "ht
 
 def render_panel(prompt: str, destination: Path, seed: int,
                  base_url: str = "http://127.0.0.1:8188", timeout: int = 900, negative: str = "",
-                 references: list | None = None) -> Path:
+                 references: list | None = None, prof=None) -> Path:
     if _already_done(destination, MIN_PANEL_BYTES):
         return destination
     with gpu_batch("comfyui:panel"):
         return _with_oom_retry(
-            lambda: _render_panel(prompt, destination, seed, base_url, timeout, negative, references), base_url)
+            lambda: _render_panel(prompt, destination, seed, base_url, timeout, negative, references, prof), base_url)
 
 
 def _svd_graph(input_image: str, seed: int, frames: int = 14, fps: float = 6.0,

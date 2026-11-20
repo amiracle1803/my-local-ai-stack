@@ -96,11 +96,15 @@ downstream stages reference it — `identity.legacy_stem()` resolves the legacy
 This machine runs Nobara Linux (Fedora-based) with OpenCode running
 **directly on the host**.
 
-- **Stack venv**: `~/Downloads/my-local-ai-stack/.venv`, Python 3.12, uv-managed.
-- **ComfyUI venv**: `~/Downloads/ComfyUI/.venv`, PyTorch 2.6.0+cu124 pinned.
+- **Stack venv**: `~/Dev/olympus/.venv`, Python 3.12, uv-managed (repo moved from
+  `~/Downloads/my-local-ai-stack`).
+- **ComfyUI venv**: `~/Downloads/ComfyUI/.venv-cu130`, PyTorch 2.14.1+cu130 (since 2026-11-20,
+  via the `comfyui-server.service.d/20-dynamic-vram.conf` drop-in). torch >= 2.8 turns on
+  ComfyUI **DynamicVRAM**: weights that fit stay on the GPU, the rest stream from system RAM.
+  The old `.venv` (torch 2.6, no DynamicVRAM) is kept for rollback.
   (`~/Downloads/ComfyUI` is a symlink to `~/Documents/Personal projects/ComfyUI` —
   fix the symlink, not the paths, if it moves again.)
-- **GPU**: RTX 4070 Laptop, 8GB VRAM.
+- **GPU**: RTX 4070 Laptop, 8GB VRAM + 31 GB system RAM (DynamicVRAM offload target).
 
 ## Services (systemd)
 
@@ -128,6 +132,10 @@ simultaneously — they will OOM each other. Rules:
    ComfyUI. Heavy pipeline stages use `qwen3:8b` when ComfyUI is idle.
 4. Pipeline GPU work goes through `GpuBatch` (`pipeline/gpu_lock.py`):
    file lease → unload Ollama → ComfyUI work → free VRAM → release.
+5. ComfyUI itself also unloads Ollama before EVERY job (custom node
+   `custom_nodes/wat_gpu_gate.py`, waits ≤180 s), and the W.A.T. genealogy worker
+   streams its Ollama calls and abandons them when ComfyUI has work. DynamicVRAM can
+   offload ComfyUI's own weights to RAM but cannot take VRAM another process holds.
 
 Enforced ban list (runtime, `pipeline/comfy_client.py`):
 `z-anime-distill-4step-fp8`, `wai-illustrious-v110`, `NoobAI-XL-v1.1`,
@@ -141,8 +149,12 @@ stage code:
 
 | Model | Role | State |
 |-------|------|-------|
-| flux-2-klein-4b-Q4_K_M | Panels (832×512) | Installed, validated default |
-| ltxv-2b-0.9.8-distilled-fp8 + t5xxl fp8 | Anime T2V / panel-guided I2V | Installed, validated on 8 GB; current `ltx2b` engine |
+| `[render]` profiles in stack.toml | Which models/sizes stage1r/3b/3c/5 use | `hq` default, `fast` = 8 GB-lean; `OLYMPUS_RENDER_PROFILE` overrides |
+| flux-2-klein-9b-Q5_K_M + qwen_3_8b_fp8mixed | Panels 1280×720 (`hq`) | Installed 2026-11-20; 4 steps cfg 1 (step-distilled), ~30 s |
+| 2x-AnimeSharpV4_RCAN | Panel 2× upscale (`hq`) | Installed; +6 s/panel |
+| flux-2-klein-4b-Q4_K_M | Panels 1280×720 (`fast`) | Installed; 4 steps cfg 1, ~15 s (old 20 steps/cfg 5 over-cooked it) |
+| LTXV-13B-0.9.8-distilled-Q4_K_M (+ its VAE, ltxv-spatial-upscaler-0.9.8) | Clips (`hq`): 768×448 → 2× latent upscale 1536×896 | Installed; ~140 s per 4 s clip |
+| ltxv-2b-0.9.8-distilled-fp8 + t5xxl fp8 | Clips (`fast`) / t5 shared by both | Installed; the 2B refine pass breaks, so `fast` has no upscale |
 | svd_xt.safetensors | Short clips when animation enabled | Installed fallback |
 | animation as a whole | `[animation] enabled = true`, `engine = "ltx2b"` | Enabled; use `enabled = false` for panels/Ken Burns |
 | krea2_turbo-* / LTX 2.3 22B + Director nodes | Higher-VRAM experimental path | NOT installed; no current local Director render claim |

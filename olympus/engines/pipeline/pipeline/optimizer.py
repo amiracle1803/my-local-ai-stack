@@ -20,7 +20,7 @@ class StageProfile(BaseModel):
     height: int | None = None
     steps: int | None = None
     expected_vram_gb: float = 0.0
-    offload: Literal["none", "cpu", "novram", "block_swap", "lowvram"] = "none"
+    offload: Literal["none", "cpu", "novram", "block_swap", "lowvram", "dynamic"] = "none"
     enabled: bool = True
     requires_smoke_marker: bool = False
     notes: str = ""
@@ -44,6 +44,11 @@ class HardwareOptimizer(BaseModel):
 
     @classmethod
     def default(cls) -> "HardwareOptimizer":
+        """Stage records for the manifest. GPU stages describe the active [render] profile;
+        ComfyUI's DynamicVRAM streams whatever doesn't fit in 8 GB from system RAM."""
+        from .comfy_client import render_profile
+        rp = render_profile()
+        video_model = rp.video_unet or rp.video_ckpt
         return cls(profiles=[
             StageProfile(stage="stage0", engine="ollama", model="qwen3:8b", offload="cpu"),
             StageProfile(stage="stage0_dossier", engine="ollama", model="qwen2.5vl:7b", offload="cpu"),
@@ -55,15 +60,16 @@ class HardwareOptimizer(BaseModel):
             StageProfile(stage="stage1r", engine="comfyui", model="anima-base-v1.0",
                          variant="vnccs-anima", width=512, height=512, steps=8,
                          expected_vram_gb=5.0, offload="novram", requires_smoke_marker=True),
-            StageProfile(stage="stage3b", engine="comfyui", model="flux-2-klein-4b-Q4_K_M.gguf",
-                         variant="default-panel", width=832, height=512, steps=16,
-                         expected_vram_gb=6.0, offload="lowvram", requires_smoke_marker=True,
-                         notes="Flux.2 Klein 4B high-detail default; Anima/Krea remain experimental."),
-            StageProfile(stage="stage3c", engine="comfyui",
-                         model="ltxv-2b-0.9.8-distilled-fp8-i2v.safetensors",
-                         variant="optional-ltx2b", width=768, height=448, steps=8,
-                         expected_vram_gb=7.0, offload="block_swap", enabled=False,
-                         requires_smoke_marker=True),
+            StageProfile(stage="stage3b", engine="comfyui", model=rp.panel_unet,
+                         variant="default-panel", width=rp.panel_width, height=rp.panel_height,
+                         steps=rp.panel_steps, expected_vram_gb=6.0, offload="dynamic",
+                         requires_smoke_marker=True,
+                         notes=f"text encoder {rp.panel_clip}; upscale {rp.panel_upscale or 'none'}"),
+            StageProfile(stage="stage3c", engine="comfyui", model=video_model,
+                         variant="ltx", width=rp.video_width, height=rp.video_height, steps=8,
+                         expected_vram_gb=7.0, offload="dynamic", enabled=False,
+                         requires_smoke_marker=True,
+                         notes=f"latent upscale {rp.video_upscale or 'none'}; clips <= {rp.max_clip_seconds}s"),
             StageProfile(stage="stage_vlm_review", engine="ollama", model="qwen2.5vl:7b", offload="cpu"),
             StageProfile(stage="stage5", engine="ffmpeg", model="libx264", offload="cpu"),
         ])
