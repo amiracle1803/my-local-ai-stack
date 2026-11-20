@@ -65,7 +65,37 @@ in Stage 5 — never a zoom; Ken Burns is banned by spec).
 
 ---
 
-## 4. The pipeline stage graph (what `run.py all` executes)
+## 4. Anime LTX 2B workflow family (current local video default)
+
+The importable UI graphs in `ui/` are generated from ComfyUI's official LTX
+text-to-video and image-to-video templates by
+`tools/build_ltx_anime_workflows.py`. They use the installed LTX 2B distilled
+FP8 checkpoint and T5 XXL FP8 encoder and require no Director nodes.
+
+| UI preset | Purpose | Default shot controls |
+|---|---|---|
+| `ui/ltx2b_anime_t2v.json` | Text-only anime action/establishing shots | 768×512, 97 frames, 24 fps, 8 steps, fixed seed 42 |
+| `ui/ltx2b_anime_i2v.json` | Exact-panel-start animation | T2V controls + start image and panel strength 1.0 |
+| `ui/ltx2b_anime_preview.json` | Faster composition/seed exploration | 512×320, 49 frames, 24 fps, 4 steps |
+
+Labelled nodes expose models, action-first positive prompt, anime/motion
+negative prompt, dimensions, `8n + 1` frame count, fps, Euler sampling, steps,
+seed/CFG, and H.264 output. The I2V graph adds **INPUT · start panel** and panel
+strength. Graph notes explain duration and prompting. The production renderer
+(`pipeline/ltx2b.py`) shares the same style/negative constants (including
+occlusion/foreground-obstruction cleanup) but uses the lighter `KSampler` +
+`VHS_VideoCombine` API graph. The Director T2V prompt contract requires exact
+identity/clothing, visible action, and an unobstructed sightline together.
+
+Installed copies belong in ComfyUI `user/default/workflows/olympus/`; do not
+confuse these tested 2B presets with the experimental 22B Director API graphs.
+`ltx_director_23_extender.json` needs unavailable Director extender/guide nodes
+and models on this host. Its code supports text-only and image+text timelines,
+but only graph construction and routing are currently unit-tested.
+
+---
+
+## 5. The pipeline stage graph (what `run.py all` executes)
 
 ```
 stage0 ──► stage1 ──► stage1r ──► stage2 ──► stage3 ──► stage3b ──► stage4 ──► stage3c ──► stage5

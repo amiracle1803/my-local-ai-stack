@@ -7,8 +7,8 @@ For every storyboard shot it writes (storyboard/director.json, keyed by shot id)
   camera    - the camera move for the clip (push-in, pan left, static, orbit...)
   motion    - the image-to-video motion beat: what moves in the frame and how, in one clip
   strength  - motion strength 0.0-1.0 (SVD motion bucket / LTX image strength)
-  t2v       - a single chronological paragraph for text-to-video (LTX style: action, movement,
-              appearance, background, camera, lighting)
+  t2v       - a single chronological paragraph for text-to-video (LTX style: visible subject + action,
+              exact appearance, unobstructed composition, background, camera, lighting)
   seconds   - suggested clip length (2-6 s)
 
 Cloud first (Groq, OpenAI-compatible, key GROQ_API_KEY from the environment or ~/.hermes/.env),
@@ -39,8 +39,10 @@ SYSTEM = (
     "- One single 16:9 frame per shot (no comic panels, no split screen).\n"
     "- Be concrete and visual: pose, expression, composition, lens/angle, lighting, palette, background.\n"
     "- motion = what moves during a 2-6 second clip starting from that frame (subject + camera).\n"
-    "- t2v = one chronological paragraph (60-120 words) for text-to-video: action, movement, "
-    "appearance, background, camera, lighting.\n"
+    "- t2v = one chronological paragraph (60-120 words) for text-to-video. Lead with the main subject "
+    "and concrete action; retain exact hair, clothing, and colors while specifying an unobstructed, "
+    "fully visible subject and keeping foreground objects out of the sightline. Then describe background, "
+    "camera, and lighting. Never drop identity details when tightening composition.\n"
     "Reply with JSON only: {\"shots\": [{\"id\": \"...\", \"t2i\": \"...\", \"negative\": \"...\", "
     "\"camera\": \"...\", \"motion\": \"...\", \"strength\": 0.0, \"t2v\": \"...\", \"seconds\": 4}]}"
 )

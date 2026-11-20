@@ -1,14 +1,11 @@
-"""LTX-2.3 Director I2V renderer — stage3c "ltx_director" engine.
+"""LTX-2.3 Director I2V/T2V renderer — stage3c "ltx_director" engine.
 
-Drives the proven `workflows/ltx_director_23.json` template over the local
-ComfyUI HTTP API.
+Drives the `workflows/ltx_director_23_extender.json` template over the local
+ComfyUI HTTP API. I2V uses a panel keyframe plus a text motion beat; T2V omits
+the image segment and uses the director's chronological text paragraph.
 
-Per-shot construction follows docs/planning/ltx-director-v2v-2026-08-20.md:
-the panel is an image keyframe segment, followed by a text motion beat,
-with the 97-frame / 24 fps / 8n+1 latent rule and `last_frame_fix`.
-
-This is optional on the 8GB local target; the default local pipeline uses
-panels mode unless a compatible local i2v model set is installed.
+This requires the separate LTX Director nodes and 22B model set. The installed
+8 GB local default is `ltx2b`; Director is an experimental higher-VRAM path.
 """
 
 from __future__ import annotations
@@ -30,17 +27,17 @@ _HEIGHT = 320
 _DEFAULT_GUIDE = "anime scene, cinematic lighting, consistent character and background, subtle natural motion"
 
 
-def _graph(panel_file: str, motion_prompt: str, seed: int,
+def _graph(panel_file: str | None, motion_prompt: str, seed: int,
            guide_prompt: str, frames: int, width: int, height: int) -> dict:
-    """Fill the ltx_director_23 template per docs/planning/ltx-director-v2v."""
+    """Fill the Director template with an optional image keyframe."""
     g = json.loads(_TEMPLATE.read_text(encoding="utf-8"))
     g["1"]["inputs"]["unet_name"] = LTX_MODEL
     g["100"]["inputs"]["global_prompt"] = guide_prompt
     g["7"]["inputs"]["noise_seed"] = seed
-    segments = [
-        {"start": 0, "length": frames, "type": "image", "imageFile": panel_file},
-        {"start": 0, "length": frames, "type": "text", "prompt": motion_prompt},
-    ]
+    segments = []
+    if panel_file:
+        segments.append({"start": 0, "length": frames, "type": "image", "imageFile": panel_file})
+    segments.append({"start": 0, "length": frames, "type": "text", "prompt": motion_prompt})
     d = g["100"]["inputs"]
     d["timeline_data"] = json.dumps({"segments": segments})
     # Extender variant: every entry of the "|"-split locals list must be
@@ -55,14 +52,14 @@ def _graph(panel_file: str, motion_prompt: str, seed: int,
     return g
 
 
-def render_director_clip(panel_path: str | Path, destination: Path, *, seed: int,
+def render_director_clip(panel_path: str | Path | None, destination: Path, *, seed: int,
                          base_url: str, motion_prompt: str,
                          guide_prompt: str = _DEFAULT_GUIDE,
                          frames: int = _FRAMES, width: int = _WIDTH,
                          height: int = _HEIGHT, timeout: int = 1800) -> Path:
-    """Render one directed clip: panel keyframe + motion beat -> h264 mp4."""
+    """Render one directed clip from text, optionally anchored by a panel."""
     base_url = base_url.rstrip("/")
-    panel_file = comfy_client.upload_image(panel_path, base_url)
+    panel_file = comfy_client.upload_image(panel_path, base_url) if panel_path else None
     prompt_id = comfy_client._request(f"{base_url}/prompt", {
         "prompt": _graph(panel_file, motion_prompt, seed, guide_prompt, frames, width, height),
         "client_id": str(uuid.uuid4()),

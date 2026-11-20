@@ -1182,13 +1182,15 @@ def run_animation(project_dir: Path, enabled: bool = False) -> dict:
                 meta = json.loads(p.with_suffix(".json").read_text(encoding="utf-8")) \
                     if p.with_suffix(".json").exists() else {}
                 directed = meta.get("director") or {}
+                t2v = os.environ.get("OLYMPUS_LTX_MODE") == "t2v" and directed.get("t2v")
                 if engine == "ltx_director":
+                    from . import ltx2b
                     from .ltx_director import render_director_clip
-                    render_director_clip(p, candidate, seed=seed, base_url=_cfg.comfyui.url,
-                                         motion_prompt=motion_prompt(meta))
+                    render_director_clip(None if t2v else p, candidate, seed=seed, base_url=_cfg.comfyui.url,
+                                         motion_prompt=t2v or motion_prompt(meta),
+                                         frames=ltx2b.frames_for(float(directed.get("seconds") or 4)))
                 elif engine == "ltx2b":
                     from . import ltx2b
-                    t2v = os.environ.get("OLYMPUS_LTX_MODE") == "t2v" and directed.get("t2v")
                     ltx2b.render_clip(
                         t2v or motion_prompt(meta), candidate, seed,
                         panel=None if t2v else p, base_url=_cfg.comfyui.url,

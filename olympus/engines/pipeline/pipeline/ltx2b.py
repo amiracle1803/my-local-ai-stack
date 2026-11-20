@@ -21,8 +21,11 @@ from .gpu_lock import gpu_batch
 CKPT = "ltxv-2b-0.9.8-distilled-fp8.safetensors"
 T5 = "t5xxl_fp8_e4m3fn.safetensors"
 COMFY = Path("/home/amire/Downloads/ComfyUI")
-DEFAULT_NEGATIVE = ("worst quality, inconsistent motion, blurry, jittery, distorted, deformed face, "
-                    "extra limbs, text, watermark, static image")
+ANIME_STYLE = ("hand-painted 2D Japanese anime, cinematic cel shading, clean line art, "
+               "consistent character design, detailed atmospheric background")
+DEFAULT_NEGATIVE = ("photorealistic, live action, 3d render, worst quality, inconsistent motion, "
+                    "blurry, jittery, distorted, deformed face, extra limbs, occluded subject, hidden face, "
+                    "cropped subject, foreground obstruction, text, watermark, static image")
 
 
 def frames_for(seconds: float, fps: int = 24) -> int:
@@ -33,11 +36,13 @@ def frames_for(seconds: float, fps: int = 24) -> int:
 
 def graph(prompt: str, seed: int, *, image: str | None = None, negative: str = DEFAULT_NEGATIVE,
           width: int = 768, height: int = 512, frames: int = 97, fps: int = 24,
-          strength: float = 1.0, steps: int = 8, prefix: str = "olympus_ltx") -> dict:
+          strength: float = 1.0, steps: int = 8, prefix: str = "olympus_ltx",
+          style: str = ANIME_STYLE) -> dict:
+    positive = f"{style}. {prompt}" if style else prompt
     g = {
         "1": {"class_type": "CheckpointLoaderSimple", "inputs": {"ckpt_name": CKPT}},
         "2": {"class_type": "CLIPLoader", "inputs": {"clip_name": T5, "type": "ltxv"}},
-        "3": {"class_type": "CLIPTextEncode", "inputs": {"text": prompt, "clip": ["2", 0]}},
+        "3": {"class_type": "CLIPTextEncode", "inputs": {"text": positive, "clip": ["2", 0]}},
         "4": {"class_type": "CLIPTextEncode", "inputs": {"text": negative, "clip": ["2", 0]}},
     }
     if image:

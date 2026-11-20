@@ -12,7 +12,7 @@ ENGINE = Path(__file__).resolve().parent.parent
 if str(ENGINE) not in sys.path:
     sys.path.insert(0, str(ENGINE))
 
-from pipeline import cloud_images, director, ltx2b, stages  # noqa: E402
+from pipeline import cloud_images, director, ltx2b, ltx_director, stages  # noqa: E402
 
 
 # ── director ────────────────────────────────────────────────────────────────
@@ -39,6 +39,8 @@ def test_direct_writes_entries_and_is_resumable(tmp_path):
     assert d["sh-1"]["negative"] == director.DEFAULT_NEGATIVE
     assert d["sh-2"]["by"] == "template" and d["sh-2"]["t2i"] == "template prompt"
     assert "Aya (red scarf)" in calls[0][1]["content"]
+    assert "unobstructed" in calls[0][0]["content"]
+    assert "Never drop identity details" in calls[0][0]["content"]
     director.direct(_reqs(), {}, fb, out, llm=llm)            # resume: nothing left to ask
     assert len(calls) == 1
 
@@ -159,6 +161,92 @@ def test_ltx_graph_i2v_and_t2v():
     kinds = {n["class_type"] for n in t2v.values()}
     assert "EmptyLTXVLatentVideo" in kinds and "LoadImage" not in kinds
     assert t2v["7"]["inputs"]["positive"] == ["3", 0]
+    assert t2v["3"]["inputs"]["text"].startswith(ltx2b.ANIME_STYLE)
+    assert "occluded subject" in t2v["4"]["inputs"]["text"]
+
+
+def test_ltx_director_graph_i2v_and_t2v():
+    i2v = ltx_director._graph("panel.png", "motion", 7, "anime", 97, 768, 512)
+    segments = json.loads(i2v["100"]["inputs"]["timeline_data"])["segments"]
+    assert [s["type"] for s in segments] == ["image", "text"]
+    assert segments[0]["imageFile"] == "panel.png"
+
+    t2v = ltx_director._graph(None, "full chronological action", 7, "anime", 49, 768, 512)
+    data = t2v["100"]["inputs"]
+    segments = json.loads(data["timeline_data"])["segments"]
+    assert segments == [{"start": 0, "length": 49, "type": "text",
+                         "prompt": "full chronological action"}]
+    assert data["local_prompts"] == "full chronological action"
+    assert data["segment_lengths"] == "49" and data["duration_frames"] == 49
+
+
+@pytest.mark.parametrize("mode", ["t2v", "i2v"])
+def test_stage3c_routes_director_mode(tmp_path, monkeypatch, mode):
+    panels = tmp_path / "panels"
+    panels.mkdir()
+    panel = panels / "shot.png"
+    panel.write_bytes(b"panel")
+    directed = {"t2v": "full chronological action", "motion": "scarf flutters",
+                "camera": "push in", "seconds": 4, "by": "custom"}
+    panel.with_suffix(".json").write_text(json.dumps({"director": directed}), encoding="utf-8")
+    monkeypatch.setenv("OLYMPUS_REAL_COMFY", "1")
+    monkeypatch.setenv("OLYMPUS_ANIM_ENGINE", "ltx_director")
+    monkeypatch.setenv("OLYMPUS_LTX_MODE", mode)
+    monkeypatch.setenv("OLYMPUS_MAX_CLIPS", "1")
+    calls = {}
+
+    def render(panel_path, destination, **kwargs):
+        calls.update(panel_path=panel_path, **kwargs)
+        destination.write_bytes(b"video")
+        return destination
+
+    monkeypatch.setattr(ltx_director, "render_director_clip", render)
+    monkeypatch.setattr(stages, "validate_media", lambda path: Path(path).exists())
+    monkeypatch.setattr(stages, "_mark_done", lambda *args: None)
+    result = stages.run_animation(tmp_path, enabled=True)
+
+    assert result["failed"] == 0 and result["mode"] == "ltx_director"
+    if mode == "i2v":
+        assert calls["panel_path"] == panel
+    else:
+        assert calls["panel_path"] is None
+    assert calls["motion_prompt"] == (directed["t2v"] if mode == "t2v" else stages.motion_prompt({"director": directed}))
+    assert calls["frames"] == 97
+
+
+@pytest.mark.parametrize("mode", ["t2v", "i2v"])
+def test_stage3c_routes_ltx2b_mode_and_resumes(tmp_path, monkeypatch, mode):
+    panels = tmp_path / "panels"
+    panels.mkdir()
+    panel = panels / "shot.png"
+    panel.write_bytes(b"panel")
+    directed = {"t2v": "full chronological action", "motion": "scarf flutters",
+                "camera": "push in", "seconds": 2, "by": "custom"}
+    panel.with_suffix(".json").write_text(json.dumps({"director": directed}), encoding="utf-8")
+    monkeypatch.setenv("OLYMPUS_REAL_COMFY", "1")
+    monkeypatch.setenv("OLYMPUS_ANIM_ENGINE", "ltx2b")
+    monkeypatch.setenv("OLYMPUS_LTX_MODE", mode)
+    monkeypatch.setenv("OLYMPUS_MAX_CLIPS", "1")
+    calls = []
+
+    def render(prompt, destination, seed, **kwargs):
+        calls.append({"prompt": prompt, "seed": seed, **kwargs})
+        destination.write_bytes(b"video")
+        return destination
+
+    monkeypatch.setattr(ltx2b, "render_clip", render)
+    monkeypatch.setattr(stages, "validate_media", lambda path: Path(path).exists())
+    monkeypatch.setattr(stages, "_mark_done", lambda *args: None)
+    result = stages.run_animation(tmp_path, enabled=True)
+
+    assert result["failed"] == 0 and result["mode"] == "ltx2b"
+    assert len(calls) == 1 and calls[0]["frames"] == 49
+    assert calls[0]["panel"] == (None if mode == "t2v" else panel)
+    expected = directed["t2v"] if mode == "t2v" else stages.motion_prompt({"director": directed})
+    assert calls[0]["prompt"] == expected
+
+    resumed = stages.run_animation(tmp_path, enabled=True)
+    assert resumed["clips"] == 1 and len(calls) == 1
 
 
 def test_klein_graph_chains_character_references():

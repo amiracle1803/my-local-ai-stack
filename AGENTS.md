@@ -142,9 +142,10 @@ stage code:
 | Model | Role | State |
 |-------|------|-------|
 | flux-2-klein-4b-Q4_K_M | Panels (832×512) | Installed, validated default |
-| svd_xt.safetensors | Short clips when animation enabled | Installed |
-| animation as a whole | `[animation] enabled = false` (panels/Ken Burns default) | Opt-in |
-| krea2_turbo-* / LTX 2.3 22B | Superseded sizes for 8 GB | NOT installed; OOMs here (see `docs/planning/comfyui-rebuild-log.md`) |
+| ltxv-2b-0.9.8-distilled-fp8 + t5xxl fp8 | Anime T2V / panel-guided I2V | Installed, validated on 8 GB; current `ltx2b` engine |
+| svd_xt.safetensors | Short clips when animation enabled | Installed fallback |
+| animation as a whole | `[animation] enabled = true`, `engine = "ltx2b"` | Enabled; use `enabled = false` for panels/Ken Burns |
+| krea2_turbo-* / LTX 2.3 22B + Director nodes | Higher-VRAM experimental path | NOT installed; no current local Director render claim |
 
 `llama-server.service` (llama.cpp) survives to squat ~4 GB VRAM while
 `stack.toml [llamacpp] enabled = false` — stop and disable it before heavy

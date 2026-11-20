@@ -1,112 +1,148 @@
-# LTX Director (V2V) — stage3c engine research & usage (2026-08-20)
+# LTX anime video and Director integration
 
-Status: **Active** — LTXDirector is the primary stage3c engine (`[animation]
-engine = "ltx_director"`). It produced the best animation result so far. This
-file records how the node actually works (read from its backend source) and how
-we use it, plus what is deliberately deferred.
+Updated: **2026-11-20**. This supersedes the earlier claim in this file that
+LTX Director was the validated primary engine on the current installation.
 
-## Engine config knob
-`stack.toml` `[animation] engine` selects the stage3c animation engine:
-  "ltx_director" (primary) | "ltx2b" | "svd_xt" | "wan22" | "wan22_2f" | "ltx23"
-Template: `olympus/engines/pipeline/workflows/ltx_director_23.json`
-Router/dispatch: `stage3c_animation.py` `_render_director_phase()`
-Config mirrors: `stack/config.py` + `olympus/.../pipeline/config.py` +
-`stack.toml`.
+## Current support matrix
 
-## What the node is
-`LTXDirector` (`ComfyUI/custom_nodes/ComfyUI-LTXDirector/ltx_director.py`) is the
-WYSIWYG-timeline variant of "Prompt Relay Encode" (LTX-2.3). It composes a
-directed clip from a **timeline** of segments, not a single start frame. It is
-NOT a LoRA node — it consumes `clip` + `model` and produces conditioning, a
-latent, guide data, and a patched model. LoRAs enter through the downstream
-`LTXDirectorGuide` node's `ic_lora_name`/`ic_lora_strength` inputs (IC-LoRA
-video), and are **deferred** (see below).
+| Engine | Local status | Use |
+|---|---|---|
+| `ltx2b` | **Installed and rendered locally** | Anime T2V and panel-guided I2V on the RTX 4070 Laptop 8 GB |
+| `ltx_director` | **Experimental / blocked** | Text or image-directed timelines after its separate nodes and 22B models are installed |
+| `svd_xt` | Installed fallback | Short image-driven clips without prompt control |
 
-## Timeline format (the critical part)
-The `timeline_data` JSON drives everything:
-- `segments[]` each with `{start, length, type, prompt|imageFile, isEndFrame}`.
-  - `type:"text"`  → a local beat prompt.
-  - `type:"image"` → a keyframe (start frame); loaded via `_load_image_tensor`,
-    resized to `custom_width/height` (0 = keep AR, snapped to `divisible_by`).
-  - `type:"video"` → a source clip (true V2V); loaded via `_load_video_tensor`
-    using `imageFile`/`trimStart`/`length` frames.
-- `motionSegments[]` → IC-LoRA motion video guidance (only read when
-  `use_custom_motion` is true).
-- `global_prompt` anchors identity/style across the whole clip.
+`stack.toml` currently selects `[animation] engine = "ltx2b"`. The working
+renderer is `pipeline/ltx2b.py`; it uses the installed
+`ltxv-2b-0.9.8-distilled-fp8.safetensors` and
+`t5xxl_fp8_e4m3fn.safetensors`. No cloud generation is involved.
 
-Prompt encoding (`_encode_relay`, ltx_director.py:773):
-- `local_prompts` is split on `"|"` → `locals_list`. Empty entries fall back to
-  `global_prompt`. Each non-empty entry becomes a token-range segment.
-- `segment_lengths` is a comma list of **pixel-frame** counts, one per
-  `locals_list` entry, converted to latent lengths and distributed to exactly
-  fit the latent (must have `len == len(locals_list)`).
-- `guide_strength` is a comma list, one per image segment (default 1.0).
+## LTX 2B anime T2V and I2V
 
-### Our per-shot construction (proven)
-For one shot we emit 4 segments (empty head, image start keyframe, text beat,
-empty tail) and the matching 3-entry relay strings:
+The default stage3c path is I2V: the shot panel anchors the first frame and the
+Director pass supplies its motion/camera beat. Set `OLYMPUS_LTX_MODE=t2v` to use
+the shot's chronological `director.json` `t2v` paragraph without a panel. If
+that field is absent, the shot remains I2V.
+
+For both engines, `director.json` `seconds` controls the requested duration.
+`ltx2b.frames_for()` rounds to the LTX `8n + 1` frame rule: 49 frames is about
+2.04 seconds and 97 frames about 4.04 seconds at 24 fps.
+
+`ltx2b.py` prepends an editable anime style and uses an anime/motion negative
+prompt with occlusion/foreground-obstruction terms by default. Pass `style=""`
+to opt out. Prompts work best when they put an unobstructed subject and concrete
+action first, setting second, and camera last. The Director system prompt also
+requires exact hair/clothing/colors to survive every composition rewrite. A
+fixed-camera instruction is guidance, not a guarantee: the measured I2V clip
+still changed framing.
+
+### Reusable smoke command
+
+```bash
+PYTHONPATH=olympus/engines/pipeline .venv/bin/python \
+  olympus/engines/pipeline/tools/ltx_anime_smoke.py \
+  --engine ltx2b --mode t2v --seed 42 --seconds 4 \
+  --output ~/Videos/ltx-director/anime_t2v.mp4
 ```
-segments = [
-  {start:0, length:0,  type:text,   prompt:""},
-  {start:0, length:F,  type:image,  imageFile:<panel>},
-  {start:0, length:F,  type:text,   prompt:<motion beat>},
-  {start:F, length:0,  type:text,   prompt:""},
-]
-local_prompts   = " | <motion beat>\n | "
-segment_lengths = "0,<F>,0"
-guide_strength  = "1.0"
+
+For I2V, add `--mode i2v --panel /path/to/panel.png`. The CLI also exposes
+width, height, steps, and prompt. It writes an MP4 and a JSON metrics sidecar.
+The Director option is available for a future compatible install but is not a
+tested local option today.
+
+## Importable ComfyUI workflow family
+
+Three UI-format presets live in `olympus/engines/pipeline/workflows/ui/` and are
+installed under ComfyUI `user/default/workflows/olympus/`:
+
+| Preset | Default controls |
+|---|---|
+| `ltx2b_anime_t2v.json` | 768×512, 97 frames, 24 fps, 8 steps, fixed seed 42 |
+| `ltx2b_anime_i2v.json` | Same sampling controls plus start panel and panel strength 1.0 |
+| `ltx2b_anime_preview.json` | 512×320, 49 frames, 24 fps, 4 steps, fixed seed 42 |
+
+They are derived from ComfyUI's official `ltxv_text_to_video` and
+`ltxv_image_to_video` templates. Labelled nodes expose the local models,
+positive/negative prompts, dimensions, frame count, fps, steps, seed/CFG, panel
+strength, and MP4 output. Notes inside each graph explain the `8n + 1` rule and
+action-first prompting. They contain no Director nodes.
+
+Rebuild and reinstall them after changing the generator:
+
+```bash
+PYTHONPATH=olympus/engines/pipeline .venv/bin/python \
+  olympus/engines/pipeline/tools/build_ltx_anime_workflows.py \
+  --install --panel /path/to/start-panel.png
 ```
-This matches the aether-pipeline-v2 STAGE 3 (V2V Director) format exactly.
-`F = _DIRECTOR_FRAMES = 97`; `duration_frames`/`end_frame` patched together via
-the `FRAMES` patchable so the auto-generated latent is `97` pixel frames
-(`97f @24fps = 4s`, LTX `8n+1` latent rule).
 
-End-of-clip blur is handled **natively** by the tiled decode node's
-`last_frame_fix` (set `true` in `ltx_director_23.json`), which repeats the last
-latent frame through the VAE — zero extra GPU render. A separate img2img END
-keyframe was trialed but reverted (doubles GPU cost per shot on 8GB and breaks
-the one-render-per-shot stage3c contract).
+The install step copies the panel to ComfyUI `input/olympus_anime_start_panel.png`
+for the ready-to-run I2V example. Replace it through **INPUT · start panel** for
+other shots.
 
-## Template graph (ltx_director_23.json) — grounded in live /object_info
-Reuses the proven 8GB LTX-2.3 22B stack from `video_i2v_ltx_23b_8gb.json`:
-```
-UnetLoaderGGUF(1) -> LTXVChunkFeedForward(90, chunks=2)      # 8GB FFN chunking
-DualCLIPLoaderGGUF(2, gemma-3 Q3_K_XL) ; VAELoaderKJ(3, LTX23 video vae)
-CLIPTextEncode(4 global) ; CLIPTextEncode(5 neg)
-LTXDirector(100)  : model=[90,0], clip=[2,0], timeline/local/segments/guide,
-                    custom_width/height, use_custom_motion=false
-ConditioningZeroOut(102) -> LTXVConditioning(103)
-LTXDirectorGuide(104): positive/negative=[103], vae=[3], latent=[100,2 video],
-                    guide_data=[100,4], motion_guide_data=[100,5], model=[100,0],
-                    ic_lora_name="None"
-LTXVScheduler(6, latent=[104,2]) ; RandomNoise(7) ; KSamplerSelect(8)
-CFGGuider(9, model=[90,0]) -> SamplerCustomAdvanced(10, latent=[104,2])
-LTXVSpatioTemporalTiledVAEDecode(11) -> VHS_VideoCombine(12)
-```
-Outputs are collected via the standard `ComfyClient._collect` (VHS `gifs`).
+## Measured local results (2026-11-20)
 
-## Verified result
-Re-validated 2026-08-21 with the 97-frame (4s) + `last_frame_fix` config:
-**576x320, 97 frames @24fps, 4.0s, ~168s wall, `motion_verified=True`
-(axis=scene, scene_speed 1.79px)**, re-render of `sh-001-02` seed 12345. The
-original 33-frame run (41 frames, 1.7s, ~44s wall) also passed the optical-flow
-gate — the 97f config keeps motion while eliminating end-of-clip blur via
-`last_frame_fix`. Gate marker `.ltx_director_smoke_passed` refreshed.
+All three production renders below are H.264, 768×512, 97 frames at 24 fps
+(4.041667 seconds), eight steps, seed 42. Wall time includes model loading and
+any ComfyUI queue wait.
 
-## Deferred / not wired (by decision)
-- **IC-LoRA (LoRA) step skipped for now.** The `LTXDirectorGuide` `ic_lora_name`
-  stays `"None"`; `IC_LORA`/`IC_LORA_STRENGTH` patchable keys exist but are
-  unused. When enabled later, IC-LoRA applies video-conditioned identity/motion
-  via `motionSegments` (needs `use_custom_motion=true`). The installed LTX-2.3
-  LoRAs (`LTX-2_3-ID-LoRA-CelebVHQ-3K.safetensors`, etc.) are IC-LoRA files.
-- **True V2V re-render of an existing clip** (a `type:"video"` segment as the
-  source) is supported by the node but not yet exercised — current path is
-  image-keyframe + text beat (directed I2V), which is what produced the best
-  result.
-- `use_custom_audio` / `audio_vae` (generated audio track) is off.
+| Output in `~/Videos/ltx-director/` | Wall time | Visual review |
+|---|---:|---|
+| `lanternfall_anime_t2v_seed42.mp4` | 30.06 s | Coherent anime and lantern tower, but Aya starts occluded and camera motion dominates |
+| `lanternfall_anime_t2v_action_seed42.mp4` | 114.13 s | Action-first prompt keeps Aya visible from frame 0 and shows clearer climbing; simpler cel look |
+| `lanternfall_anime_i2v_seed42.mp4` | 30.11 s | Strong panel/style/character continuity and visible climbing; framing drifts despite fixed-camera wording |
 
-## Re-run
-`PYTHONPATH=olympus/engines/pipeline .venv/bin/python \
-  olympus/engines/pipeline/tools/ltx_director_smoke.py \
-  --template ltx_director_23.json --panel <panel.png>`
-Writes the lab gate marker `workflows/.ltx_director_smoke_passed`.
+Matching `*_contact.png` sheets and JSON sidecars are saved beside the clips.
+The actual UI fast-preview topology (`SamplerCustom` + `SaveVideo`) also ran
+successfully: `lanternfall_anime_preset_preview_seed42.mp4` is H.264, 512×320,
+49 frames at 24 fps (2.041667 seconds), four steps, seed 42, with 23.381 seconds
+reported between ComfyUI execution start and success. Its contact sheet shows a
+coherent but simpler low-resolution anime composition, as expected for preview
+settings.
+
+A real stage3c router integration run also passed using an isolated project. The
+router received `panel=None`, honoured `seconds = 2`, returned one clip with zero
+failures, marked blueprint stage3c done, and skipped rendering on the immediate
+resume run. Mechanical success was followed by same-shot, same-seed visual
+comparisons (49 frames, seed 3719193412):
+
+| Canonical clip variant | Wall time | Visual decision |
+|---|---:|---|
+| `clip_cl01_v001` | 24.25 s | **Rejected:** tower/stairs occlude most of Aya despite the visibility prompt |
+| `clip_cl02_v001` | 30.16 s | **Rejected:** occlusion and climbing improve, but identity/clothing regress after the composition-only rewrite |
+| `clip_cl03_v001` | 24.18 s | **Usable integration baseline:** canonical hair/scarf/coat and unobstructed full-body visibility restored; climbing is subtler and lighting shifts toward daylight |
+
+The forced cl02/cl03 renders retain cl01 for comparison. Each clip has an audit
+JSON sidecar and a canonical `contact_cl0N_v001.png` sheet. This iteration added
+occlusion terms to the shared LTX negative prompt and changed the Director system
+prompt so future T2V paragraphs must retain exact identity and clothing together
+with visible action and an unobstructed sightline.
+
+## LTX Director timeline integration (not locally runnable yet)
+
+`pipeline/ltx_director.py` loads the **API-format**
+`workflows/ltx_director_23_extender.json` graph. Its per-shot timeline is now:
+
+- I2V: `[{type: "image", imageFile: panel}, {type: "text", prompt: motion}]`
+- T2V: `[{type: "text", prompt: chronological_action}]`
+
+Both modes patch `local_prompts`, `segment_lengths`, `duration_frames`,
+`duration_seconds`, width, height, global anime guidance, and seed together.
+Graph construction and stage3c routing are unit-tested in both directions.
+That is not evidence that the unavailable Director nodes can execute these
+graphs.
+
+The graph uses `LTXDirectorExtender` and `LTXDirectorGuideExtender`, a 22B LTX
+2.3 GGUF, Gemma/text-projection encoders, the LTX 2.3 VAE, chunked FFN, tiled
+VAE decode, and `VHS_VideoCombine`. The current ComfyUI server reports
+`LTXDirector`, `LTXDirectorExtender`, `LTXDirectorGuide`, and
+`LTXDirectorGuideExtender` as absent. Its 22B/Gemma/VAE model set is also absent;
+only LTX 2B and T5 are installed. Therefore no real Director render or hardware
+claim is made here. The supplied LTX 2.5 Director UI workflow likewise requires
+an unavailable model generation and is not a drop-in validation route.
+
+## Verification boundary
+
+- **Verified:** LTX 2B T2V/I2V rendering, a real stage3c T2V run with resume,
+  media validity, visual contact-sheet review, native preset node/model
+  availability, preset installation, and Director graph/routing unit tests.
+- **Not verified:** LTX Director execution, its 22B memory requirements on this
+  host, true video-to-video segments, custom audio, and IC-LoRA guidance.
