@@ -1,0 +1,922 @@
+{
+  "id": "91e4b73d-131d-55b3-8bec-5f9f2f308727",
+  "revision": 0,
+  "last_node_id": 235,
+  "last_link_id": 415,
+  "nodes": [
+    {
+      "id": 38,
+      "type": "CLIPLoader",
+      "pos": [
+        60,
+        190
+      ],
+      "size": [
+        315,
+        106
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "slot_index": 0,
+          "links": [
+            74,
+            75
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.65",
+        "Node name for S&R": "CLIPLoader",
+        "models": [
+          {
+            "name": "t5xxl_fp8_e4m3fn.safetensors",
+            "directory": "text_encoders"
+          }
+        ]
+      },
+      "widgets_values": [
+        "t5xxl_fp8_e4m3fn.safetensors",
+        "ltxv",
+        "default"
+      ],
+      "title": "TEXT ENCODER · T5 XXL FP8"
+    },
+    {
+      "id": 69,
+      "type": "LTXVConditioning",
+      "pos": [
+        640,
+        800
+      ],
+      "size": [
+        210,
+        80
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 183
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 184
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            166
+          ]
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "slot_index": 1,
+          "links": [
+            167
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.65",
+        "Node name for S&R": "LTXVConditioning"
+      },
+      "widgets_values": [
+        24
+      ],
+      "title": "CONTROL · frames per second"
+    },
+    {
+      "id": 76,
+      "type": "Note",
+      "pos": [
+        420,
+        -130
+      ],
+      "size": [
+        425,
+        120
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "Show the main subject clearly from frame one. Lead with a concrete action (‘Aya climbs two steps’), then describe the setting and a restrained camera move. Long prompts help; avoid foreground objects that hide the subject."
+      ],
+      "color": "#222",
+      "bgcolor": "#000",
+      "title": "PROMPTING · action before camera"
+    },
+    {
+      "id": 7,
+      "type": "CLIPTextEncode",
+      "pos": [
+        420,
+        320
+      ],
+      "size": [
+        425.2799987792969,
+        180.61000061035156
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 75
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            188
+          ]
+        }
+      ],
+      "title": "NEGATIVE · anime / motion cleanup",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.65",
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "photorealistic, live action, 3d render, worst quality, inconsistent motion, blurry, jittery, distorted, deformed face, extra limbs, occluded subject, hidden face, cropped subject, foreground obstruction, text, watermark, static image"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 71,
+      "type": "LTXVScheduler",
+      "pos": [
+        910,
+        180
+      ],
+      "size": [
+        350,
+        154
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "latent",
+          "shape": 7,
+          "type": "LATENT",
+          "link": 185
+        }
+      ],
+      "outputs": [
+        {
+          "name": "SIGMAS",
+          "type": "SIGMAS",
+          "slot_index": 0,
+          "links": [
+            182
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.65",
+        "Node name for S&R": "LTXVScheduler"
+      },
+      "widgets_values": [
+        8,
+        2.05,
+        0.95,
+        true,
+        0.1
+      ],
+      "title": "CONTROL · sampling steps"
+    },
+    {
+      "id": 73,
+      "type": "KSamplerSelect",
+      "pos": [
+        910,
+        70
+      ],
+      "size": [
+        350,
+        60
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "SAMPLER",
+          "type": "SAMPLER",
+          "links": [
+            172
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.65",
+        "Node name for S&R": "KSamplerSelect"
+      },
+      "widgets_values": [
+        "euler"
+      ],
+      "title": "SAMPLER · Euler"
+    },
+    {
+      "id": 72,
+      "type": "SamplerCustom",
+      "pos": [
+        1280,
+        70
+      ],
+      "size": [
+        355.20001220703125,
+        442
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 181
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 166
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 167
+        },
+        {
+          "name": "sampler",
+          "type": "SAMPLER",
+          "link": 172
+        },
+        {
+          "name": "sigmas",
+          "type": "SIGMAS",
+          "link": 182
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 186
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "LATENT",
+          "slot_index": 0,
+          "links": [
+            171
+          ]
+        },
+        {
+          "name": "denoised_output",
+          "type": "LATENT",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.65",
+        "Node name for S&R": "SamplerCustom"
+      },
+      "widgets_values": [
+        true,
+        42,
+        "fixed",
+        1.0
+      ],
+      "title": "CONTROL · fixed seed / CFG"
+    },
+    {
+      "id": 81,
+      "type": "SaveVideo",
+      "pos": [
+        1680,
+        10
+      ],
+      "size": [
+        720,
+        890
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "link": 191
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.65",
+        "Node name for S&R": "SaveVideo"
+      },
+      "widgets_values": [
+        "video/olympus/ltx2b_anime_i2v",
+        "mp4",
+        "h264"
+      ],
+      "title": "SAVE · H.264 MP4"
+    },
+    {
+      "id": 44,
+      "type": "CheckpointLoaderSimple",
+      "pos": [
+        60,
+        50
+      ],
+      "size": [
+        315,
+        98
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            181
+          ]
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": null
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "slot_index": 2,
+          "links": [
+            87,
+            189
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.65",
+        "Node name for S&R": "CheckpointLoaderSimple",
+        "models": [
+          {
+            "name": "ltxv-2b-0.9.8-distilled-fp8.safetensors",
+            "directory": "checkpoints"
+          }
+        ]
+      },
+      "widgets_values": [
+        "ltxv-2b-0.9.8-distilled-fp8.safetensors"
+      ],
+      "title": "MODEL · LTX 2B distilled FP8"
+    },
+    {
+      "id": 80,
+      "type": "CreateVideo",
+      "pos": [
+        1410,
+        620
+      ],
+      "size": [
+        220,
+        80
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 192
+        },
+        {
+          "name": "audio",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "VIDEO",
+          "type": "VIDEO",
+          "links": [
+            191
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.65",
+        "Node name for S&R": "CreateVideo"
+      },
+      "widgets_values": [
+        24
+      ],
+      "title": "OUTPUT · video fps"
+    },
+    {
+      "id": 8,
+      "type": "VAEDecode",
+      "pos": [
+        1120,
+        620
+      ],
+      "size": [
+        210,
+        46
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 171
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 87
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            192
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.65",
+        "Node name for S&R": "VAEDecode"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 6,
+      "type": "CLIPTextEncode",
+      "pos": [
+        420,
+        90
+      ],
+      "size": [
+        422.8500061035156,
+        164.30999755859375
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 74
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            187
+          ]
+        }
+      ],
+      "title": "PROMPT · subject + action + setting + camera",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.65",
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "hand-painted 2D Japanese anime, cinematic cel shading, clean line art, consistent character design, detailed atmospheric background. Aya, a 16-year-old girl with short black hair, a red scarf and brown wool coat, is fully visible and unobstructed on the left side of a floating lantern tower's spiral stairwell at deep indigo dusk. She climbs two steps as her scarf billows in the wind and warm amber lantern light flickers. The sea of clouds drifts below. A slow stable push-in preserves her appearance and the background throughout the shot."
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 78,
+      "type": "LoadImage",
+      "pos": [
+        70,
+        400
+      ],
+      "size": [
+        310,
+        320
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            190
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.65",
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "olympus_anime_start_panel.png",
+        "image"
+      ],
+      "title": "INPUT · start panel"
+    },
+    {
+      "id": 77,
+      "type": "LTXVImgToVideo",
+      "pos": [
+        420,
+        670
+      ],
+      "size": [
+        210,
+        214
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 187
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 188
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 189
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 190
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            183
+          ]
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "slot_index": 1,
+          "links": [
+            184
+          ]
+        },
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "slot_index": 2,
+          "links": [
+            185,
+            186
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.65",
+        "Node name for S&R": "LTXVImgToVideo"
+      },
+      "widgets_values": [
+        768,
+        512,
+        97,
+        1,
+        1.0
+      ],
+      "title": "CONTROL · size / 8n+1 frames / panel strength"
+    },
+    {
+      "id": 79,
+      "type": "MarkdownNote",
+      "pos": [
+        -500,
+        0
+      ],
+      "size": [
+        410,
+        540
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "## Olympus anime LTX 2B — local 8 GB preset\n\nEdit the **shot prompt**, then adjust the labelled control nodes. All models are local;\nno cloud generation or Director nodes are required.\n\n- **Prompt order:** subject and visible action first, environment second, camera last.\n  Keep the subject unobstructed in the opening frame. Describe motion, not only mood.\n  Retain exact hair, clothing, and colors in every rewrite; adding composition constraints\n  must not replace character identity details.\n- **Duration:** frames must follow `8n + 1` (49 = 2.04 s, 97 = 4.04 s at 24 fps).\n- **Seed:** use `fixed` to compare prompt changes; use `randomize` for variations.\n- **Sampler:** distilled model defaults are CFG 1.0 and Euler. Start with 8 steps;\n  the fast preview uses 4 steps, 49 frames, and 512×320.\n- **Models:** LTX 2B 0.9.8 distilled FP8 + T5 XXL FP8, already installed.\n\nThe 22B LTX Director workflow is separate and experimental on this machine.\n\n## Image-to-video\n\nThe bundled Lanternfall panel is installed as `olympus_anime_start_panel.png`. Choose another image in **INPUT · start panel**. Strength 1.0 anchors the first frame to that panel; the prompt directs its motion.\n"
+      ],
+      "color": "#222",
+      "bgcolor": "#000",
+      "title": "Olympus anime · image to video"
+    }
+  ],
+  "links": [
+    [
+      74,
+      38,
+      0,
+      6,
+      0,
+      "CLIP"
+    ],
+    [
+      75,
+      38,
+      0,
+      7,
+      0,
+      "CLIP"
+    ],
+    [
+      87,
+      44,
+      2,
+      8,
+      1,
+      "VAE"
+    ],
+    [
+      166,
+      69,
+      0,
+      72,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      167,
+      69,
+      1,
+      72,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      171,
+      72,
+      0,
+      8,
+      0,
+      "LATENT"
+    ],
+    [
+      172,
+      73,
+      0,
+      72,
+      3,
+      "SAMPLER"
+    ],
+    [
+      181,
+      44,
+      0,
+      72,
+      0,
+      "MODEL"
+    ],
+    [
+      182,
+      71,
+      0,
+      72,
+      4,
+      "SIGMAS"
+    ],
+    [
+      183,
+      77,
+      0,
+      69,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      184,
+      77,
+      1,
+      69,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      185,
+      77,
+      2,
+      71,
+      0,
+      "LATENT"
+    ],
+    [
+      186,
+      77,
+      2,
+      72,
+      5,
+      "LATENT"
+    ],
+    [
+      187,
+      6,
+      0,
+      77,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      188,
+      7,
+      0,
+      77,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      189,
+      44,
+      2,
+      77,
+      2,
+      "VAE"
+    ],
+    [
+      190,
+      78,
+      0,
+      77,
+      3,
+      "IMAGE"
+    ],
+    [
+      191,
+      80,
+      0,
+      81,
+      0,
+      "VIDEO"
+    ],
+    [
+      192,
+      8,
+      0,
+      80,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 5,
+      "title": "1 · LOCAL MODELS",
+      "bounding": [
+        50,
+        -20,
+        340,
+        330
+      ],
+      "color": "#7c5cbf",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 6,
+      "title": "3 · ANIME DIRECTION",
+      "bounding": [
+        410,
+        -20,
+        445.280029296875,
+        604.2099609375
+      ],
+      "color": "#7c5cbf",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 7,
+      "title": "4 · SHOT CONTROLS",
+      "bounding": [
+        410,
+        600,
+        450,
+        300
+      ],
+      "color": "#7c5cbf",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 8,
+      "title": "5 · SAMPLER + OUTPUT",
+      "bounding": [
+        880,
+        -20,
+        770,
+        580
+      ],
+      "color": "#7c5cbf",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 9,
+      "title": "2 · START PANEL",
+      "bounding": [
+        50,
+        330,
+        340,
+        410
+      ],
+      "color": "#7c5cbf",
+      "font_size": 24,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.8,
+      "offset": [
+        240,
+        160
+      ]
+    },
+    "frontendVersion": "1.27.10"
+  },
+  "version": 0.4
+}

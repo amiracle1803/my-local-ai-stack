@@ -1,0 +1,774 @@
+{
+  "id": "efb3ad8e-43fc-55e8-8697-1730280ac480",
+  "revision": 0,
+  "last_node_id": 79,
+  "last_link_id": 184,
+  "nodes": [
+    {
+      "id": 38,
+      "type": "CLIPLoader",
+      "pos": [
+        60,
+        190
+      ],
+      "size": [
+        315,
+        106
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "slot_index": 0,
+          "links": [
+            74,
+            75
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPLoader",
+        "models": [
+          {
+            "name": "t5xxl_fp8_e4m3fn.safetensors",
+            "directory": "text_encoders"
+          }
+        ]
+      },
+      "widgets_values": [
+        "t5xxl_fp8_e4m3fn.safetensors",
+        "ltxv",
+        "default"
+      ],
+      "title": "TEXT ENCODER · T5 XXL FP8"
+    },
+    {
+      "id": 44,
+      "type": "CheckpointLoaderSimple",
+      "pos": [
+        60,
+        40
+      ],
+      "size": [
+        320,
+        100
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            181
+          ]
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": null
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "slot_index": 2,
+          "links": [
+            87
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CheckpointLoaderSimple",
+        "models": [
+          {
+            "name": "ltxv-2b-0.9.8-distilled-fp8.safetensors",
+            "directory": "checkpoints"
+          }
+        ]
+      },
+      "widgets_values": [
+        "ltxv-2b-0.9.8-distilled-fp8.safetensors"
+      ],
+      "title": "MODEL · LTX 2B distilled FP8"
+    },
+    {
+      "id": 7,
+      "type": "CLIPTextEncode",
+      "pos": [
+        420,
+        380
+      ],
+      "size": [
+        425.2799987792969,
+        180.61000061035156
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 75
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            170
+          ]
+        }
+      ],
+      "title": "NEGATIVE · anime / motion cleanup",
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "photorealistic, live action, 3d render, worst quality, inconsistent motion, blurry, jittery, distorted, deformed face, extra limbs, occluded subject, hidden face, cropped subject, foreground obstruction, text, watermark, static image"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 6,
+      "type": "CLIPTextEncode",
+      "pos": [
+        420,
+        180
+      ],
+      "size": [
+        422.8500061035156,
+        164.30999755859375
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 74
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            169
+          ]
+        }
+      ],
+      "title": "PROMPT · subject + action + setting + camera",
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "hand-painted 2D Japanese anime, cinematic cel shading, clean line art, consistent character design, detailed atmospheric background. Aya, a 16-year-old girl with short black hair, a red scarf and brown wool coat, is fully visible and unobstructed on the left side of a floating lantern tower's spiral stairwell at deep indigo dusk. She climbs two steps as her scarf billows in the wind and warm amber lantern light flickers. The sea of clouds drifts below. A slow stable push-in preserves her appearance and the background throughout the shot."
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 76,
+      "type": "Note",
+      "pos": [
+        420,
+        40
+      ],
+      "size": [
+        425,
+        120
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "Show the main subject clearly from frame one. Lead with a concrete action (‘Aya climbs two steps’), then describe the setting and a restrained camera move. Long prompts help; avoid foreground objects that hide the subject."
+      ],
+      "color": "#222",
+      "bgcolor": "#000",
+      "title": "PROMPTING · action before camera"
+    },
+    {
+      "id": 70,
+      "type": "EmptyLTXVLatentVideo",
+      "pos": [
+        60,
+        390
+      ],
+      "size": [
+        315,
+        130
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "slot_index": 0,
+          "links": [
+            168,
+            175
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EmptyLTXVLatentVideo"
+      },
+      "widgets_values": [
+        512,
+        320,
+        49,
+        1
+      ],
+      "title": "CONTROL · width / height / 8n+1 frames"
+    },
+    {
+      "id": 72,
+      "type": "SamplerCustom",
+      "pos": [
+        890,
+        340
+      ],
+      "size": [
+        330,
+        230
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 181
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 166
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 167
+        },
+        {
+          "name": "sampler",
+          "type": "SAMPLER",
+          "link": 172
+        },
+        {
+          "name": "sigmas",
+          "type": "SIGMAS",
+          "link": 182
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 175
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "LATENT",
+          "slot_index": 0,
+          "links": [
+            171
+          ]
+        },
+        {
+          "name": "denoised_output",
+          "type": "LATENT",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SamplerCustom"
+      },
+      "widgets_values": [
+        true,
+        42,
+        "fixed",
+        1.0
+      ],
+      "title": "CONTROL · fixed seed / CFG"
+    },
+    {
+      "id": 73,
+      "type": "KSamplerSelect",
+      "pos": [
+        890,
+        240
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "SAMPLER",
+          "type": "SAMPLER",
+          "links": [
+            172
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSamplerSelect"
+      },
+      "widgets_values": [
+        "euler"
+      ],
+      "title": "SAMPLER · Euler"
+    },
+    {
+      "id": 71,
+      "type": "LTXVScheduler",
+      "pos": [
+        890,
+        40
+      ],
+      "size": [
+        315,
+        154
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "latent",
+          "shape": 7,
+          "type": "LATENT",
+          "link": 168
+        }
+      ],
+      "outputs": [
+        {
+          "name": "SIGMAS",
+          "type": "SIGMAS",
+          "slot_index": 0,
+          "links": [
+            182
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LTXVScheduler"
+      },
+      "widgets_values": [
+        4,
+        2.05,
+        0.95,
+        true,
+        0.1
+      ],
+      "title": "CONTROL · sampling steps"
+    },
+    {
+      "id": 69,
+      "type": "LTXVConditioning",
+      "pos": [
+        630,
+        620
+      ],
+      "size": [
+        223.8699951171875,
+        78
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 169
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 170
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            166
+          ]
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "slot_index": 1,
+          "links": [
+            167
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LTXVConditioning"
+      },
+      "widgets_values": [
+        24
+      ],
+      "title": "CONTROL · frames per second"
+    },
+    {
+      "id": 8,
+      "type": "VAEDecode",
+      "pos": [
+        1250,
+        0
+      ],
+      "size": [
+        210,
+        46
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 171
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 87
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            183
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 78,
+      "type": "CreateVideo",
+      "pos": [
+        1250,
+        90
+      ],
+      "size": [
+        220,
+        80
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 183
+        },
+        {
+          "name": "audio",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "VIDEO",
+          "type": "VIDEO",
+          "links": [
+            184
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CreateVideo"
+      },
+      "widgets_values": [
+        24
+      ],
+      "title": "OUTPUT · video fps"
+    },
+    {
+      "id": 79,
+      "type": "SaveVideo",
+      "pos": [
+        1250,
+        220
+      ],
+      "size": [
+        450,
+        370
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "link": 184
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "SaveVideo"
+      },
+      "widgets_values": [
+        "video/olympus/ltx2b_anime_preview",
+        "mp4",
+        "h264"
+      ],
+      "title": "SAVE · H.264 MP4"
+    },
+    {
+      "id": 77,
+      "type": "MarkdownNote",
+      "pos": [
+        -500,
+        0
+      ],
+      "size": [
+        410,
+        500
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "## Olympus anime LTX 2B — local 8 GB preset\n\nEdit the **shot prompt**, then adjust the labelled control nodes. All models are local;\nno cloud generation or Director nodes are required.\n\n- **Prompt order:** subject and visible action first, environment second, camera last.\n  Keep the subject unobstructed in the opening frame. Describe motion, not only mood.\n  Retain exact hair, clothing, and colors in every rewrite; adding composition constraints\n  must not replace character identity details.\n- **Duration:** frames must follow `8n + 1` (49 = 2.04 s, 97 = 4.04 s at 24 fps).\n- **Seed:** use `fixed` to compare prompt changes; use `randomize` for variations.\n- **Sampler:** distilled model defaults are CFG 1.0 and Euler. Start with 8 steps;\n  the fast preview uses 4 steps, 49 frames, and 512×320.\n- **Models:** LTX 2B 0.9.8 distilled FP8 + T5 XXL FP8, already installed.\n\nThe 22B LTX Director workflow is separate and experimental on this machine.\n\n## Text-to-video\n\nNo input image is needed. Use this for establishing shots and new action; use the I2V preset when exact first-frame identity matters.\n"
+      ],
+      "color": "#222",
+      "bgcolor": "#000",
+      "title": "Olympus anime · fast preview"
+    }
+  ],
+  "links": [
+    [
+      74,
+      38,
+      0,
+      6,
+      0,
+      "CLIP"
+    ],
+    [
+      75,
+      38,
+      0,
+      7,
+      0,
+      "CLIP"
+    ],
+    [
+      87,
+      44,
+      2,
+      8,
+      1,
+      "VAE"
+    ],
+    [
+      166,
+      69,
+      0,
+      72,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      167,
+      69,
+      1,
+      72,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      168,
+      70,
+      0,
+      71,
+      0,
+      "LATENT"
+    ],
+    [
+      169,
+      6,
+      0,
+      69,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      170,
+      7,
+      0,
+      69,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      171,
+      72,
+      0,
+      8,
+      0,
+      "LATENT"
+    ],
+    [
+      172,
+      73,
+      0,
+      72,
+      3,
+      "SAMPLER"
+    ],
+    [
+      175,
+      70,
+      0,
+      72,
+      5,
+      "LATENT"
+    ],
+    [
+      181,
+      44,
+      0,
+      72,
+      0,
+      "MODEL"
+    ],
+    [
+      182,
+      71,
+      0,
+      72,
+      4,
+      "SIGMAS"
+    ],
+    [
+      183,
+      8,
+      0,
+      78,
+      0,
+      "IMAGE"
+    ],
+    [
+      184,
+      78,
+      0,
+      79,
+      0,
+      "VIDEO"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "title": "1 · LOCAL MODELS",
+      "bounding": [
+        50,
+        -30,
+        340,
+        339.6000061035156
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 2,
+      "title": "3 · ANIME DIRECTION",
+      "bounding": [
+        410,
+        -30,
+        445.280029296875,
+        604.2099609375
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 3,
+      "title": "2 · SHOT CONTROLS",
+      "bounding": [
+        50,
+        320,
+        340,
+        220
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 4,
+      "title": "4 · SAMPLER + OUTPUT",
+      "bounding": [
+        880,
+        -30,
+        350,
+        613.5999755859375
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.8,
+      "offset": [
+        240,
+        160
+      ]
+    },
+    "frontendVersion": "1.27.10"
+  },
+  "version": 0.4
+}
