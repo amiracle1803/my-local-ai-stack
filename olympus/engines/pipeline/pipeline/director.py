@@ -18,8 +18,8 @@ For every storyboard shot it writes (storyboard/director.json, keyed by shot id)
   caption   - "" or a 1-4 word dramatic on-screen caption
   mood      - the shot's music mood, see MOODS
 
-Cloud first (Groq, OpenAI-compatible, key GROQ_API_KEY from the environment or ~/.hermes/.env),
-then the local Ollama script model. A shot the LLM leaves out or garbles falls back to the
+Models from stack.toml [director] models (pipeline/models.py: the W.A.T. gateway first, then Groq
+direct, then local Ollama). A shot the LLM leaves out or garbles falls back to the
 template prompt, so the pipeline never does worse than before the director existed.
 """
 
@@ -120,6 +120,22 @@ def _groq(messages: list[dict], timeout: int = 90) -> str:
     return ""
 
 
+def _model_chain() -> list[tuple[str, object]]:
+    """stack.toml [director] models ("provider:model", pipeline/models.py), each tried in turn
+    until one returns parseable shots. Default: the W.A.T. gateway, then Groq, then local."""
+    try:
+        from stack.config import cfg as _cfg
+        specs = list(_cfg.director.models)
+    except Exception:  # noqa: BLE001
+        specs = ["wat:xpl-fast", f"groq:{GROQ_MODEL}", "ollama:qwen3:8b"]
+    from .models import call
+
+    def one(spec: str):
+        return lambda m: call(spec, m, temperature=0.6, max_tokens=8000,
+                              json_mode=not spec.startswith(("wat:", "ollama:")))
+    return [(spec, one(spec)) for spec in specs]
+
+
 def _ollama(messages: list[dict]) -> str:
     from .llm import ollama_generate
     prompt = messages[0]["content"] + "\n\n" + messages[1]["content"]
@@ -215,7 +231,7 @@ def direct(requests: list[dict], cast_looks: dict, fallbacks: dict, out_path: Pa
                     {"role": "user", "content": "CAST (exact looks):\n" + cast_block + "\n\nSHOTS:\n"
                      + json.dumps(batch, ensure_ascii=False, indent=1)}]
         got, by = [], ""
-        for name, fn in ((llm and [("custom", llm)]) or [("groq", _groq), ("ollama", _ollama)]):
+        for name, fn in ((llm and [("custom", llm)]) or _model_chain()):
             try:
                 got = _parse(fn(messages))
             except Exception as e:  # noqa: BLE001 - any LLM failure: next one, then the template

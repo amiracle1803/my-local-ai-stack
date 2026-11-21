@@ -157,13 +157,27 @@ vram_gb = 8
 # ── Studio animation master switch ──────────────────────────────────────
 # OFF (default): panels mode — stage5 assembles panels with Ken Burns
 # zoom/pan + fades, no GPU video. ON: stage3c renders motion clips.
-# stage0 writer (2026-11-21): the local 8B writer was too weak. A big cloud model drafts the whole
-# episode, an editor pass critiques it, the writer revises (pipeline/writer.py). A brief may embed a
-# source script after a line "SOURCE SCRIPT:" -> adapted keeping every scene + spoken line verbatim.
-# (NIM text models all 403 on this key and deepseek-v4-pro is retired, 2026-11-21.)
+# Text models for the pipeline (pipeline/models.py). Each entry is "provider:model", tried in order:
+#   wat:<group>   your W.A.T. gateway (Bifrost on the ProDesk :4000): every key + model set up there
+#                 with its own fallbacks — xpl-smart (xplabs gpt-5.6-luna), reasoning (NVIDIA
+#                 Nemotron 3.5 Super 120B), xpl-fast (deepseek-v4-flash), local groups, ...
+#                 Add a key/model to Bifrost and it is usable here by group name.
+#   groq:<model>  Groq direct     nim:<model>  NVIDIA NIM direct     ollama:<model>  local Ollama
+# stage0 writer: plan -> draft -> editor notes -> revise (pipeline/writer.py). A brief may embed a
+# source script after "SOURCE SCRIPT:" (adapted, every spoken line kept word for word).
+# Order from a side-by-side test on the Bloodline script (2026-11-21, same prompts + quality gates):
+#   groq gpt-oss-120b  518 words, 16-word sentences, passed in 51 s
+#   wat:xpl-smart      671 words, 45-word sentences, failed the gate after 2 revisions (296 s)
+#   wat:reasoning      438 words, 48-word sentences, failed the gate after 2 revisions (263 s)
 [writer]
 enabled = true
-models = ["groq:openai/gpt-oss-120b", "groq:qwen/qwen3.8-27b", "ollama:qwen3:8b"]
+models = ["groq:openai/gpt-oss-120b", "wat:xpl-smart", "wat:reasoning", "ollama:qwen3:8b"]
+
+# shot director (t2i prompts, key-frame beats, camera moves, captions). Test on 4 LANTERNFALL shots:
+#   groq gpt-oss-120b 9 s, 4/4 shots, 7 beats + moves + captions; wat:xpl-fast 33 s, 2/4 shots, 4 beats.
+# Groq rate limits (429) now fall through to the gateway instead of stalling.
+[director]
+models = ["groq:openai/gpt-oss-120b", "wat:xpl-fast", "wat:reasoning", "ollama:qwen3:8b"]
 
 [edit]
 # Manhwa-recap editing for panels mode (2026-11-20): the director picks a camera move per key

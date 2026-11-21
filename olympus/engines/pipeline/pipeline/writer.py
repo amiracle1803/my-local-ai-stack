@@ -1,8 +1,9 @@
 """Episode writer (2026-11-21): a big cloud model drafts, an editor critiques, the writer revises.
 
 Replaces the local 8B one-scene-at-a-time writer as the first choice for stage0 (that one stays as
-the fallback). Models come from stack.toml [writer] models, tried in order, each "provider:model":
-groq:<id> (GROQ_API_KEY), nim:<id> (NVIDIA key), ollama:<id> (local).
+the fallback). Models come from stack.toml [writer] models, tried in order, each "provider:model"
+(pipeline/models.py): wat:<group> = the owner's W.A.T. gateway (all their keys/models), groq:,
+nim:, ollama:.
 
 A brief may carry a source script after a line "SOURCE SCRIPT:". The writer then ADAPTS it: every
 scene in order, every event, every spoken line word for word by the same speaker; it adds the
@@ -11,14 +12,9 @@ narration, inner voice and short new lines that turn a one-page script into a fu
 from __future__ import annotations
 
 import difflib
-import json
 import re
-import urllib.error
-import urllib.request
 from typing import Callable
 
-GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
-NIM_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
 SOURCE_MARK = re.compile(r"(?im)^\s*SOURCE SCRIPT:?\s*$")
 SCENE_LINE = re.compile(r"(?im)^\s*SCENE\s+\d+\s*[-—–:.]\s*(.+)$")
 SPOKEN = re.compile(r"(?m)^\s*([A-Z][A-Za-z' -]{0,30}):\s*(?:\([^)]*\)\s*)?(.+?)\s*$")
@@ -53,13 +49,15 @@ SCENE 1 — <place, time of day>
 <narration paragraph>
 
 NAME: <spoken line>
-NAME: (short delivery note) <spoken line>
+NAME: (delivery, max 5 words) <spoken line>
 
 <narration paragraph>
 
 SCENE 2 — <place>
 ...
-Every spoken line is on its own line as NAME: line, never inside narration. Blank line between
+Every spoken line is on its own line as NAME: line, never inside narration. A delivery note goes
+BEFORE the line in parentheses and is at most 5 words; never put actions or notes after a line
+(the voice actor reads everything after the colon). Blank line between
 paragraphs. Only characters from the Cast speak; NARRATOR never appears as a speaker."""
 
 
@@ -113,6 +111,10 @@ def problems(script: str, n_scenes: int, word_target: int, source: str = "") -> 
         out.append(f"only {words} words, needs about {word_target}")
     if not spoken_lines(script):
         out.append("no spoken lines in NAME: line format")
+    avg = avg_sentence_words(script)
+    if avg > 22:
+        out.append(f"narration sentences average {avg:.0f} words: split them, recap style is 6-14 words "
+                   "per sentence, one idea each")
     for name, line in missing_lines(source, script)[:8]:
         out.append(f'source line missing or changed: {name}: {line}')
     return out
@@ -120,69 +122,52 @@ def problems(script: str, n_scenes: int, word_target: int, source: str = "") -> 
 
 # ---------------------------------------------------------------- model calls
 
-def _key(name: str) -> str:
-    from . import director, nim_vision
-    return nim_vision._api_key() if name == "nim" else director._key("GROQ_API_KEY")
-
-
-def _openai(url: str, key: str, model: str, messages: list[dict], temperature: float, max_tokens: int,
-            timeout: int = 300) -> str:
-    body = {"model": model, "messages": messages, "temperature": temperature, "max_tokens": max_tokens}
-    if model.startswith("openai/gpt-oss"):
-        body["reasoning_effort"] = "medium"
-    req = urllib.request.Request(url, data=json.dumps(body).encode(), headers={
-        "Content-Type": "application/json", "Authorization": f"Bearer {key}",
-        "User-Agent": "olympus-writer/1.0"})
-    import time
-    for attempt in range(3):
-        try:
-            with urllib.request.urlopen(req, timeout=timeout) as r:
-                return (json.load(r)["choices"][0]["message"].get("content") or "").strip()
-        except urllib.error.HTTPError as e:
-            if e.code != 429 or attempt == 2:
-                raise RuntimeError(f"{model} HTTP {e.code}") from e
-            time.sleep(min(60.0, float(e.headers.get("retry-after") or 20)))
-    return ""
-
-
 def make_chat(models: list[str]) -> Chat:
-    """A chat fn that tries each "provider:model" in order and remembers the first that works."""
-    order = list(models)
-
-    def chat(messages: list[dict], temperature: float = 0.8, max_tokens: int = 6000) -> str:
-        errors = []
-        for spec in list(order):
-            provider, _, model = spec.partition(":")
-            try:
-                if provider == "groq":
-                    text = _openai(GROQ_URL, _key("groq"), model, messages, temperature, max_tokens)
-                elif provider == "nim":
-                    text = _openai(NIM_URL, _key("nim"), model, messages, temperature, max_tokens)
-                elif provider == "ollama":
-                    from .llm import ollama_generate
-                    res = ollama_generate("\n\n".join(m["content"] for m in messages), model=model,
-                                          timeout=900, num_predict=max_tokens, temperature=temperature,
-                                          think=False)
-                    text = res.text if res else ""
-                else:
-                    continue
-                if text:
-                    if order[0] != spec:          # stick with the model that answered
-                        order.remove(spec)
-                        order.insert(0, spec)
-                    chat.used = spec
-                    return text
-            except Exception as e:  # noqa: BLE001  (try the next model)
-                errors.append(f"{spec}: {e}")
-        raise RuntimeError("no writer model answered: " + "; ".join(errors))
-
-    chat.used = ""
-    return chat
+    """Any "provider:model" list from stack.toml (pipeline/models.py: wat / groq / nim / ollama)."""
+    from .models import make_chat as _make
+    return _make(models)
 
 
 # ---------------------------------------------------------------- the writer
 
+_TRAILING_NOTE = re.compile(r"(?m)^(\s*[A-Z][A-Za-z' -]{0,30}:\s*)((?:\([^)]*\)\s*)?)(.+?)\s*\(([^)]{1,200})\)\s*$")
+
+
+def _delivery_first(text: str) -> str:
+    """'KAEL: Line. (my knuckles whiten as I grip the hilt)' -> 'KAEL: (my knuckles whiten) Line.'
+    so TTS never reads stage directions; long notes are cut to their first clause."""
+    def fix(m: re.Match) -> str:
+        note = re.split(r"[;,.]", m.group(4))[0].strip()
+        note = " ".join(note.split()[:6])
+        return f"{m.group(1)}({note}) {m.group(3).strip()}" if not m.group(2) else f"{m.group(1)}{m.group(2)}{m.group(3).strip()}"
+    return _TRAILING_NOTE.sub(fix, text)
+
+
+def _drop_echoes(text: str) -> str:
+    """Drop a narration line that just repeats the spoken line above it ('(Kael exhales) The
+    bloodline holds.' after 'Kael: The bloodline holds.') — TTS would say it twice."""
+    out, last = [], ""
+    for line in text.split("\n"):
+        m = SPOKEN.match(line)
+        if m and m.group(1).strip().upper() not in ("SCENE",):
+            last = _norm(m.group(2))
+        elif last and line.strip() and _norm(re.sub(r"^\s*\([^)]*\)\s*", "", line)) == last:
+            continue
+        elif line.strip():
+            last = ""
+        out.append(line)
+    return "\n".join(out)
+
+
+def avg_sentence_words(text: str) -> float:
+    narr = " ".join(l for l in text.split("\n") if l.strip() and not SPOKEN.match(l)
+                    and not re.match(r"(?i)^\s*SCENE\s+\d+", l))
+    sents = [x for x in re.split(r"(?<=[.!?])\s+", narr) if x.strip()]
+    return sum(len(x.split()) for x in sents) / max(1, len(sents))
+
+
 def _clean(text: str) -> str:
+    text = _drop_echoes(_delivery_first(text))
     text = re.sub(r"(?s)<think>.*?</think>", "", text)
     text = re.sub(r"(?m)^\s*```\w*\s*$", "", text)
     text = text.replace("**", "").replace("__", "")

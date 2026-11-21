@@ -294,7 +294,15 @@ class WriterConfig(BaseModel):
     enabled = false (or every model failing) falls back to the local one-scene-at-a-time writer."""
 
     enabled: bool = True
-    models: list[str] = Field(default_factory=lambda: ["groq:openai/gpt-oss-120b", "groq:qwen/qwen3.8-27b"])
+    models: list[str] = Field(default_factory=lambda: [
+        "groq:openai/gpt-oss-120b", "wat:xpl-smart", "wat:reasoning", "ollama:qwen3:8b"])
+
+
+class DirectorConfig(BaseModel):
+    """Shot director (pipeline/director.py) model list, "provider:model" (pipeline/models.py)."""
+
+    models: list[str] = Field(default_factory=lambda: [
+        "groq:openai/gpt-oss-120b", "wat:xpl-fast", "wat:reasoning", "ollama:qwen3:8b"])
 
 
 class RenderConfig(BaseModel):
@@ -328,6 +336,7 @@ class StackConfig(BaseModel):
     render: RenderConfig = Field(default_factory=RenderConfig)
     edit: EditConfig = Field(default_factory=EditConfig)
     writer: WriterConfig = Field(default_factory=WriterConfig)
+    director: DirectorConfig = Field(default_factory=DirectorConfig)
     automation: AutomationConfig = Field(default_factory=AutomationConfig)
 
     config_path: Path = Field(default=CONFIG_PATH, exclude=True)
