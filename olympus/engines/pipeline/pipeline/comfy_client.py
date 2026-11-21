@@ -129,6 +129,8 @@ def _graph(prompt: str, seed: int, prefix: str, negative: str = "", refs: list[s
     FLUX.2 [klein] 4B/9B checkpoints ARE step-distilled (model card: 4 steps,
     guidance 1.0); the "base" variants are the undistilled 20-step/cfg models."""
     prof = prof or render_profile()
+    if getattr(prof, "panel_family", "klein") == "anima":
+        return _anima_graph(prompt, seed, prefix, negative, prof)
     w, h = prof.panel_width, prof.panel_height
     g = {
         "1": {"class_type": "UnetLoaderGGUF", "inputs": {"unet_name": prof.panel_unet}},
@@ -166,10 +168,41 @@ def _graph(prompt: str, seed: int, prefix: str, negative: str = "", refs: list[s
     return g
 
 
+def _anima_graph(prompt: str, seed: int, prefix: str, negative: str, prof) -> dict:
+    """Anima panel graph (anime-trained Cosmos-based model; the old anime-pipeline's renderer).
+    Real CFG, so the negative prompt works. Its Qwen3 0.6B encoder is auto-detected by
+    CLIPLoader; latents are 16-channel (Wan 2.1 format) -> EmptySD3LatentImage."""
+    w, h = prof.panel_width, prof.panel_height
+    text = f"{prof.panel_prefix}, {prompt}" if prof.panel_prefix else prompt
+    g = {
+        "1": {"class_type": "UNETLoader", "inputs": {"unet_name": prof.panel_unet, "weight_dtype": "default"}},
+        "2": {"class_type": "CLIPLoader", "inputs": {"clip_name": prof.panel_clip, "type": "stable_diffusion",
+                                                     "device": "default"}},
+        "3": {"class_type": "VAELoader", "inputs": {"vae_name": prof.panel_vae or "qwen_image_vae.safetensors"}},
+        "11": {"class_type": "CLIPTextEncode", "inputs": {"text": text, "clip": ["2", 0]}},
+        "12": {"class_type": "CLIPTextEncode", "inputs": {"text": prof.panel_negative or negative or PANEL_NEGATIVE,
+                                                          "clip": ["2", 0]}},
+        "13": {"class_type": "EmptySD3LatentImage", "inputs": {"width": w, "height": h, "batch_size": 1}},
+        "19": {"class_type": "KSampler", "inputs": {
+            "model": ["1", 0], "seed": seed, "steps": prof.panel_steps, "cfg": prof.panel_cfg,
+            "sampler_name": prof.panel_sampler, "scheduler": prof.panel_scheduler,
+            "positive": ["11", 0], "negative": ["12", 0], "latent_image": ["13", 0], "denoise": 1.0}},
+        "20": {"class_type": "VAEDecode", "inputs": {"samples": ["19", 0], "vae": ["3", 0]}},
+        "16": {"class_type": "SaveImage", "inputs": {"images": ["20", 0], "filename_prefix": prefix}},
+    }
+    if prof.panel_upscale:
+        g["21"] = {"class_type": "UpscaleModelLoader", "inputs": {"model_name": prof.panel_upscale}}
+        g["22"] = {"class_type": "ImageUpscaleWithModel", "inputs": {"upscale_model": ["21", 0], "image": ["20", 0]}}
+        g["16"]["inputs"]["images"] = ["22", 0]
+    return g
+
+
 def _render_panel(prompt: str, destination: Path, seed: int, base_url: str = "http://127.0.0.1:8188",
                   timeout: int = 900, negative: str = "", references: list | None = None,
                   prof=None) -> Path:
     base_url = base_url.rstrip("/")
+    if getattr(prof or render_profile(), "panel_family", "klein") == "anima":
+        references = []    # Anima has no reference-latent input; looks come from the prompt
     refs = [upload_image(r, base_url) for r in (references or [])[:3] if Path(r).exists()]
     prompt_id = _request(f"{base_url}/prompt", {"prompt": _graph(prompt, seed, "olympus_panel", negative, refs, prof), "client_id": str(uuid.uuid4())})["prompt_id"]
     deadline = time.monotonic() + timeout

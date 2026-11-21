@@ -242,7 +242,15 @@ class RenderProfile(BaseModel):
     Model files are ComfyUI model names; "" disables an optional step.
     """
 
-    # panels: FLUX.2 klein (GGUF unet + Qwen3 text encoder)
+    # panels: FLUX.2 klein (GGUF unet + Qwen3 text encoder), or panel_family = "anima":
+    # Anima (anime-trained, from the old anime-pipeline, merged 2026-11-21) = diffusion_models
+    # file + Qwen3 0.6B text encoder + qwen_image VAE, real cfg (negatives work), no references.
+    panel_family: str = "klein"
+    panel_vae: str = ""                # "" = flux2-vae (klein) / qwen_image_vae (anima)
+    panel_sampler: str = "euler"
+    panel_scheduler: str = "simple"
+    panel_prefix: str = ""             # prepended to every panel prompt (Anima quality tags)
+    panel_negative: str = ""           # replaces the default negative when set
     panel_unet: str = "flux-2-klein-4b-Q4_K_M.gguf"
     panel_clip: str = "qwen_3_4b.safetensors"
     panel_width: int = 832
@@ -278,7 +286,6 @@ class EditConfig(BaseModel):
     music_volume: float = 0.22
     narration_speed: float = 1.0   # TTS speed for narration lines (recap channels read fast)
     thumbnail: bool = True
-    storyboard: bool = True        # video/storyboard.html + video/scenes/*.mp4 (stage5, local)
 
 
 class WriterConfig(BaseModel):

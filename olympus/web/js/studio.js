@@ -175,6 +175,7 @@ $('studio-project-select').addEventListener('change', (e) => {
   localStorage.setItem('studio-project', studioProject);
   setLastMsg('');
   pollStudioStatus();
+  loadStoryboard(studioProject);
 });
 
 $('studio-new-toggle').addEventListener('click', () => {
@@ -316,6 +317,9 @@ function pollStudioStatus() {
         if (status === 'running') running++;
         if (status === 'failed') failed++;
       });
+      // a run just finished -> refresh the storyboard
+      if (_sbWasRunning && !running) loadStoryboard(studioProject);
+      _sbWasRunning = running > 0;
       const total = STAGE_IDS.length;
       $('studio-progress').textContent = running
         ? `${done}/${total} done · ${running} running — polling…`
@@ -944,7 +948,188 @@ function startStudioPolling() {
 
 // Render the grid first, then load projects + start polling
 renderStageGrid();
-loadStudioProjects().then(() => { pollStudioStatus(); startStudioPolling(); });
+loadStudioProjects().then(() => { pollStudioStatus(); startStudioPolling(); loadStoryboard(studioProject); });
 loadAnimationState();
 setInterval(() => { if (document.querySelector('#page-studio.active')) loadProviderRegistry().catch(() => {}); }, 30000);
 
+
+
+// ---- 12. Storyboard panel ------------------------------------------------------
+// One view for every project: fetches /api/pipeline/{slug}/storyboard live.
+let _sbWasRunning = false;
+let _sbReq = 0;          // request counter — stale responses are ignored
+let _sbVideo = null;     // shared <video>
+let _sbStopAt = null;    // pause the shared video when currentTime reaches this
+let _sbShots = [];       // [{btn, start, end}] for timeupdate highlight
+
+function sbEl(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+function sbMmss(sec) {
+  sec = Math.max(0, Math.round(Number(sec) || 0));
+  return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
+}
+const sbView = (slug, path) =>
+  `/api/pipeline/${encodeURIComponent(slug)}/view/${String(path).split('/').map(encodeURIComponent).join('/')}`;
+const sbThumb = (slug, path, w) =>
+  `/api/pipeline/${encodeURIComponent(slug)}/thumb?path=${encodeURIComponent(path)}&w=${w}`;
+
+function sbPlay(start, end) {
+  if (!_sbVideo) return;
+  _sbStopAt = end == null ? null : end;
+  _sbVideo.currentTime = start;
+  _sbVideo.play().catch(() => {});
+  _sbVideo.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+function sbOpenFrame(slug, shotId, frames, k) {
+  const dlg = $('sb-dialog');
+  if (!dlg) return;
+  $('sb-dialog-img').src = sbView(slug, frames[k]);
+  $('sb-dialog-cap').textContent = `${shotId} · frame ${k + 1} of ${frames.length}`;
+  if (typeof dlg.showModal === 'function') dlg.showModal(); else dlg.setAttribute('open', '');
+}
+
+function renderStoryboard(slug, d) {
+  const body = $('sb-body');
+  body.replaceChildren();
+  _sbVideo = null; _sbStopAt = null; _sbShots = [];
+  const scenes = Array.isArray(d.scenes) ? d.scenes : [];
+  const shotCount = scenes.reduce((n, s) => n + (s.shots || []).length, 0);
+  const frameCount = scenes.reduce((n, s) => n + (s.shots || []).reduce((m, sh) => m + (sh.frames || []).length, 0), 0);
+
+  const head = sbEl('div', 'sb-head');
+  if (d.thumbnail) {
+    const im = sbEl('img', 'sb-poster');
+    im.src = sbThumb(slug, d.thumbnail, 640); im.alt = 'thumbnail'; im.loading = 'lazy';
+    head.appendChild(im);
+  }
+  const meta = sbEl('div', 'sb-meta');
+  if (d.eyebrow) meta.appendChild(sbEl('div', 'label', d.eyebrow));
+  meta.appendChild(sbEl('div', 'sb-title', d.title || d.slug || slug));
+  meta.appendChild(sbEl('div', 'hint', `${sbMmss(d.seconds)} runtime · ${scenes.length} scenes · ${shotCount} shots · ${frameCount} key frames`));
+  head.appendChild(meta);
+  body.appendChild(head);
+
+  if (!scenes.length) {
+    body.appendChild(sbEl('p', 'hint', 'No storyboard yet — run the pipeline through the screenplay stage.'));
+    return;
+  }
+
+  const chips = sbEl('div', 'sb-chips');
+  scenes.forEach((sc) => {
+    const a = sbEl('a', 'sb-chip', `SC ${String(sc.n).padStart(2, '0')}`);
+    a.href = '#sb-scene-' + encodeURIComponent(sc.n);
+    a.title = sc.title || '';
+    a.addEventListener('click', (e) => {
+      e.preventDefault();
+      const t = document.getElementById('sb-scene-' + sc.n);
+      if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    chips.appendChild(a);
+  });
+  body.appendChild(chips);
+
+  if (d.master) {
+    const v = document.createElement('video');
+    v.controls = true; v.preload = 'metadata'; v.className = 'sb-video';
+    v.src = sbView(slug, d.master);
+    v.addEventListener('timeupdate', () => {
+      const t = v.currentTime;
+      if (_sbStopAt != null && t >= _sbStopAt) { v.pause(); _sbStopAt = null; }
+      _sbShots.forEach((s) => s.btn.classList.toggle('on', t >= s.start && t < s.end));
+    });
+    v.addEventListener('seeking', () => {
+      // user scrubbing manually cancels a scene-limited play
+      if (_sbStopAt != null && v.currentTime > _sbStopAt) _sbStopAt = null;
+    });
+    _sbVideo = v;
+    body.appendChild(v);
+  } else {
+    body.appendChild(sbEl('p', 'hint', 'no finished video yet'));
+  }
+
+  scenes.forEach((sc) => {
+    const box = sbEl('div', 'sb-scene');
+    box.id = 'sb-scene-' + sc.n;
+    const h = sbEl('div', 'sb-scene-head');
+    h.appendChild(sbEl('span', 'sb-scene-no', `SCENE ${String(sc.n).padStart(2, '0')} · ${sbMmss(sc.start)}–${sbMmss(sc.end)}`));
+    if (d.master) {
+      const pb = sbEl('button', 'ghost', '▶ PLAY SCENE');
+      pb.type = 'button';
+      pb.addEventListener('click', () => sbPlay(sc.start, sc.end));
+      h.appendChild(pb);
+    }
+    box.appendChild(h);
+    box.appendChild(sbEl('h3', 'sb-scene-title', sc.title || ''));
+    if (sc.summary) box.appendChild(sbEl('p', 'hint', sc.summary));
+
+    const shots = sc.shots || [];
+    if (d.master && shots.length) {
+      const bar = sbEl('div', 'sb-timeline');
+      let t = Number(sc.start) || 0;
+      shots.forEach((sh) => {
+        const secs = Math.max(0.1, Number(sh.seconds) || 0);
+        const b = sbEl('button', 'sb-seg', '');
+        b.type = 'button';
+        b.style.flexGrow = String(secs);
+        b.title = `${sh.id} · ${secs.toFixed(1)}s`;
+        const st = t, en = t + secs;
+        b.addEventListener('click', () => sbPlay(st, null));
+        _sbShots.push({ btn: b, start: st, end: en });
+        bar.appendChild(b);
+        t = en;
+      });
+      box.appendChild(bar);
+    }
+
+    shots.forEach((sh) => {
+      const frames = sh.frames || [];
+      const s = sbEl('div', 'sb-shot');
+      s.appendChild(sbEl('div', 'label', `${sh.id} · ${(Number(sh.seconds) || 0).toFixed(1)}s · ${frames.length} frame${frames.length === 1 ? '' : 's'}`));
+      if (frames.length) {
+        const row = sbEl('div', 'sb-frames');
+        frames.forEach((f, k) => {
+          const im = sbEl('img', 'sb-frame');
+          im.src = sbThumb(slug, f, 360); im.loading = 'lazy'; im.alt = `${sh.id} frame ${k + 1}`;
+          im.tabIndex = 0;
+          im.addEventListener('click', () => sbOpenFrame(slug, sh.id, frames, k));
+          im.addEventListener('keydown', (e) => { if (e.key === 'Enter') sbOpenFrame(slug, sh.id, frames, k); });
+          row.appendChild(im);
+        });
+        s.appendChild(row);
+      }
+      if (sh.narration) s.appendChild(sbEl('p', 'sb-narr', sh.narration));
+      if (sh.line) {
+        const p = sbEl('p', 'sb-line');
+        if (sh.speaker) p.appendChild(sbEl('span', 'sb-spk', sh.speaker));
+        if (sh.delivery) p.appendChild(sbEl('span', 'hint', ` (${sh.delivery}) `));
+        p.appendChild(document.createTextNode(' ' + sh.line));
+        s.appendChild(p);
+      }
+      box.appendChild(s);
+    });
+    body.appendChild(box);
+  });
+}
+
+async function loadStoryboard(slug) {
+  const body = $('sb-body');
+  if (!body) return;
+  const req = ++_sbReq;
+  if (!slug) { body.replaceChildren(sbEl('p', 'hint', 'Select or create a project.')); return; }
+  try {
+    const d = await j(pipelineFor(slug, 'storyboard'));
+    if (req !== _sbReq || slug !== studioProject) return; // stale
+    renderStoryboard(slug, d || {});
+  } catch (e) {
+    if (req !== _sbReq) return;
+    body.replaceChildren(sbEl('p', 'hint', 'Storyboard unavailable: ' + String((e && e.message) || e).slice(0, 160)));
+  }
+}
+
+$('sb-refresh').addEventListener('click', () => loadStoryboard(studioProject));
+$('sb-dialog').addEventListener('click', () => $('sb-dialog').close());

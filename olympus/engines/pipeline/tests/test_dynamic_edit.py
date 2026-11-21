@@ -60,9 +60,11 @@ def test_dynamic_assembly_end_to_end(tmp_path, monkeypatch):
     assert out["sfx"] >= 3 and not out["score"] and Path(out["thumbnail"]).exists()
     assert abs(_dur(Path(out["video"])) - 6.0) < 0.2
     assert (project / "video" / "sfx.wav").exists() and (project / "video" / "fx").is_dir()
-    page = Path(out["storyboard"])                     # local storyboard page with relative links
-    assert page.exists() and (project / "video" / "scenes" / "dyn_t_scene01.mp4").exists()
-    assert '"video": "scenes/dyn_t_scene01.mp4"' in page.read_text() and "fonts.googleapis" not in page.read_text()
+    from pipeline.storyboard_page import storyboard  # the Studio view reads the project live
+    sb = storyboard(project)
+    assert sb["title"] == "The Last Lantern" and sb["master"].startswith("video/") and sb["thumbnail"]
+    assert sb["scenes"][0]["shots"][0]["frames"] == ["panels/dyn_t_sc001_sh001_panel_v001.png",
+                                                     "panels/dyn_t_sc001_sh001_panel_f2_v001.png"]
 
 
 def test_score_loops_short_cues_to_the_episode_length(tmp_path):

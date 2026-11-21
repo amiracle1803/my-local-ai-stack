@@ -103,6 +103,19 @@
        the internal contract keys from pipeline/blueprint.py STAGE_ORDER. -->
   <div class="stages" id="stage-grid"></div>
 
+  <!-- Storyboard — one view for every project, loaded live from /api/pipeline/{slug}/storyboard -->
+  <section class="hud p-md mb-md" id="storyboard-section">
+    <div class="flex-between">
+      <h2 class="sb-h">STORYBOARD</h2>
+      <button class="ghost" id="sb-refresh" title="Reload the storyboard for this project">REFRESH</button>
+    </div>
+    <div id="sb-body"><p class="hint">loading…</p></div>
+  </section>
+  <dialog id="sb-dialog">
+    <img id="sb-dialog-img" alt="">
+    <div id="sb-dialog-cap" class="hint"></div>
+  </dialog>
+
   <!-- Stage artifact viewer modal -->
   <div id="stage-modal" role="dialog" aria-modal="true">
     <div id="stage-modal-box">

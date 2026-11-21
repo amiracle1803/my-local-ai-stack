@@ -70,3 +70,17 @@ def test_master_size_follows_profile(monkeypatch):
     monkeypatch.setattr(comfy_client, "render_profile", lambda: HQ)
     assert stages._out_size() == (1920, 1080)
     assert "crop=1920:1080" in stages._fit(*stages._out_size())
+
+
+def test_anima_profile_builds_the_anima_graph():
+    """Anima (merged from the old anime-pipeline renderer): UNETLoader + Qwen3 0.6B CLIP + qwen_image
+    VAE + real-cfg KSampler, quality tags prefixed, its own negative, no ReferenceLatent."""
+    from stack.config import cfg
+    from pipeline.comfy_client import _graph
+    prof = cfg.render.profiles["anima"]
+    g = _graph("Aya on the stairs", 7, "p", "", ["sheet.png"], prof)
+    types = {n["class_type"] for n in g.values()}
+    assert {"UNETLoader", "CLIPLoader", "KSampler", "EmptySD3LatentImage"} <= types
+    assert "ReferenceLatent" not in types and "UnetLoaderGGUF" not in types
+    assert g["11"]["inputs"]["text"].startswith("masterpiece, best quality") and "Aya" in g["11"]["inputs"]["text"]
+    assert g["19"]["inputs"]["cfg"] == 4.0 and "worst quality" in g["12"]["inputs"]["text"]

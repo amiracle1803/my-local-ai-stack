@@ -180,7 +180,6 @@ music_ckpt = "ace_step_1.5_turbo_aio.safetensors"
 music_volume = 0.22
 narration_speed = 1.1
 thumbnail = true
-storyboard = true        # stage5 writes video/storyboard.html + video/scenes/ (local, served by Studio)
 
 [animation]
 # 2026-11-20: OFF — key frames instead of LTX clips. A shot gets one klein frame per still_seconds
@@ -266,6 +265,33 @@ output_height = 1080
 # Endpoint verified live 2026-09-11: integrate.api.nvidia.com/v1. Working models
 # (free tier, 200): deepseek-ai/deepseek-v4-pro-0813 (text) + meta/llama-3.2-11b-vision-instruct
 # (vision). meta/llama-3.2-90b-vision-instruct times out (>60s) and no longer resolves.
+# Anima (anime-trained; merged from the old ~/Documents/Personal projects/pipeline/anime-pipeline
+# renderer 2026-11-21). Real cfg so negatives work; no character-sheet references. Non-commercial
+# licence (CircleStone Labs). OLYMPUS_RENDER_PROFILE=anima or profile = "anima".
+[render.profiles.anima]
+panel_family = "anima"
+panel_unet = "anima-base-v1.0.safetensors"
+panel_clip = "qwen_3_06b_base.safetensors"
+panel_vae = "qwen_image_vae.safetensors"
+panel_width = 1280
+panel_height = 720
+panel_steps = 30
+panel_cfg = 4.0
+panel_sampler = "er_sde"
+panel_scheduler = "simple"
+panel_prefix = "masterpiece, best quality, score_7, newest, highres"
+panel_negative = "worst quality, low quality, score_1, score_2, score_3, blurry, jpeg artifacts, sepia, text, watermark, signature, speech bubble, comic panels, split screen, extra fingers, deformed hands"
+panel_upscale = "2x-AnimeSharpV4_RCAN.safetensors"
+video_unet = "LTXV-13B-0.9.8-distilled-Q4_K_M.gguf"
+video_vae = "LTXV-13B-0.9.8-distilled-VAE.safetensors"
+video_width = 768
+video_height = 448
+video_upscale = "ltxv-spatial-upscaler-0.9.8.safetensors"
+video_img_compression = 35
+max_clip_seconds = 6.0
+output_width = 1920
+output_height = 1080
+
 [nim]
 base_url = "https://integrate.api.nvidia.com/v1"
 model = "meta/llama-3.2-11b-vision-instruct"

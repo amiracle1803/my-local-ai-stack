@@ -1,21 +1,15 @@
-"""stage5 storyboard page (2026-11-21): the finished episode strung back into its scenes, on disk.
+"""Storyboard data for the Studio page (2026-11-21): one live view for every project.
 
-Writes into the project's video/ folder (nothing leaves the machine):
-  video/scenes/<slug>_sceneNN.mp4   each scene cut from the master at its chapter marks
-  video/storyboard/<frame>.jpg      640px previews of every key frame
-  video/storyboard.html             scene players + shot timeline + every frame + lines
-
-Open video/storyboard.html from disk, or through the Studio API:
-  http://<studio>:4600/api/pipeline/<slug>/view/video/storyboard.html
+storyboard(project_dir) reads what the pipeline already wrote (screenplay, timeline, panels and
+their key frames, chapters, master, thumbnail) and returns JSON for Studio's STORYBOARD panel.
+Nothing is generated per project: the kernel serves it at GET /api/pipeline/<slug>/storyboard and
+the files through /api/pipeline/<slug>/view/<path> (frame previews via /thumb).
 """
 from __future__ import annotations
 
 import json
 import re
-import subprocess
 from pathlib import Path
-
-TEMPLATE = Path(__file__).parent / "templates" / "storyboard.html"
 
 
 def _scene_titles(brief: str) -> list[tuple[str, str]]:
@@ -32,18 +26,16 @@ def _chapters(path: Path) -> list[tuple[float, float]]:
     return [(int(a) / 1000, int(b) / 1000) for a, b in re.findall(r"START=(\d+)\nEND=(\d+)", text)]
 
 
-def _preview(src: Path, dest: Path, width: int = 640) -> None:
-    if dest.exists() and dest.stat().st_mtime >= src.stat().st_mtime:
-        return
-    from PIL import Image
-    with Image.open(src) as im:
-        im = im.convert("RGB")
-        im.thumbnail((width, width))
-        im.save(dest, "JPEG", quality=80, optimize=True)
+def _master(video: Path, slug: str) -> Path | None:
+    p = video / f"{slug}_master_v001.mp4"
+    if p.exists():
+        return p
+    found = sorted(video.glob("*master*.mp4"), key=lambda f: f.stat().st_mtime, reverse=True)
+    return found[0] if found else None
 
 
-def build(project_dir: Path, master: Path | None = None) -> Path | None:
-    """Scene clips + storyboard.html for a finished project; None when there is no master yet."""
+def storyboard(project_dir: Path) -> dict:
+    """Everything the Studio storyboard view shows, as project-relative paths."""
     from .edit import episode_title
     from .identity import canonical_name
     from .stages import _shot_slots, shot_frames
@@ -51,57 +43,43 @@ def build(project_dir: Path, master: Path | None = None) -> Path | None:
     project_dir = Path(project_dir)
     slug = project_dir.name
     video = project_dir / "video"
-    master = master or video / f"{slug}_master_v001.mp4"
     sp_path = project_dir / "screenplay" / "screenplay.json"
-    if not master.exists() or not sp_path.exists():
-        return None
+    brief_p = project_dir / "input" / "brief.md"
+    brief = brief_p.read_text(encoding="utf-8", errors="replace") if brief_p.exists() else ""
+    out: dict = {"slug": slug, "title": episode_title(brief, slug), "eyebrow": "", "master": "",
+                 "thumbnail": "", "seconds": 0.0, "scenes": []}
+    series = re.search(r"(?im)^\s*Series:\s*([^—\n]+?)\s*(?:—|$)", brief)
+    ep = re.search(r"(?im)EPISODE\s*(\d+)", brief)
+    out["eyebrow"] = " · ".join(x for x in ((series.group(1).strip() if series else ""),
+                                            f"Episode {int(ep.group(1)):02d}" if ep else "") if x)
+    if not sp_path.exists():
+        return out
     sp = json.loads(sp_path.read_text(encoding="utf-8"))
     tl = project_dir / "audio" / "timeline.json"
     slots = _shot_slots(json.loads(tl.read_text(encoding="utf-8"))) if tl.exists() else {}
-    brief_p = project_dir / "input" / "brief.md"
-    brief = brief_p.read_text(encoding="utf-8", errors="replace") if brief_p.exists() else ""
+    master = _master(video, slug)
+    thumb = video / f"{slug}_thumbnail_v001.png"
+    out["master"] = str(master.relative_to(project_dir)) if master else ""
+    out["thumbnail"] = str(thumb.relative_to(project_dir)) if thumb.exists() else ""
     titles = _scene_titles(brief)
-    bounds = _chapters(video / "chapters.ffmetadata")
-    scenes_dir, frames_dir = video / "scenes", video / "storyboard"
-    scenes_dir.mkdir(parents=True, exist_ok=True)
-    frames_dir.mkdir(parents=True, exist_ok=True)
-
-    scenes = []
+    bounds = _chapters(video / "chapters.ffmetadata") if master else []
+    t = 0.0
     for i, sc in enumerate(sp.get("scenes", [])):
-        if i >= len(bounds):
-            break
-        a, b = bounds[i]
-        clip = scenes_dir / f"{slug}_scene{i + 1:02d}.mp4"
-        if not clip.exists() or clip.stat().st_mtime < master.stat().st_mtime:
-            subprocess.run(["ffmpeg", "-y", "-v", "error", "-ss", f"{a:.3f}", "-to", f"{b:.3f}", "-i", str(master),
-                            "-c:v", "libx264", "-crf", "20", "-preset", "veryfast", "-c:a", "aac", "-b:a", "160k",
-                            "-movflags", "+faststart", str(clip)], check=True, timeout=1800)
         shots = []
         for sh in sc.get("shots", []):
             main = project_dir / "panels" / canonical_name(slug, sh["id"], "panel", "png")
-            frames = []
-            for f in (shot_frames(main) if main.exists() else []):
-                jpg = frames_dir / f"{f.stem}.jpg"
-                _preview(f, jpg)
-                frames.append(f"storyboard/{jpg.name}")
+            frames = [str(f.relative_to(project_dir)) for f in (shot_frames(main) if main.exists() else [])]
             shots.append({"id": main.stem.split("_panel")[0].replace(slug + "_", ""),
-                          "seconds": round(slots.get(sh["id"], 2.5), 1),
+                          "seconds": round(slots.get(sh["id"], 0.0) or sh.get("duration_estimate", 0.0), 1),
                           "narration": sh.get("narration") or "", "speaker": sh.get("character") or "",
                           "line": sh.get("dialogue") or "", "delivery": sh.get("delivery") or "",
                           "frames": frames})
-        title, summary = titles[i] if i < len(titles) else (sc.get("location", "") or f"Scene {i + 1}", "")
-        scenes.append({"n": i + 1, "title": title, "summary": summary, "start": a, "end": b,
-                       "video": f"scenes/{clip.name}", "file": str(clip), "shots": shots})
-    if not scenes:
-        return None
-    series = re.search(r"(?im)^\s*Series:\s*([^—\-\n]+)", brief)
-    ep = re.search(r"(?im)EPISODE\s*(\d+)", brief)
-    eyebrow = " · ".join(x for x in ((series.group(1).strip() if series else slug),
-                                     f"Episode {int(ep.group(1)):02d}" if ep else "") if x)
-    thumb = video / f"{slug}_thumbnail_v001.png"
-    data = {"slug": slug, "title": episode_title(brief, slug), "eyebrow": eyebrow, "scenes": scenes,
-            "thumb": thumb.name if thumb.exists() else ""}
-    (video / "scenes.json").write_text(json.dumps(data, indent=2), encoding="utf-8")
-    page = video / "storyboard.html"
-    page.write_text(TEMPLATE.read_text(encoding="utf-8").replace("/*DATA*/null", json.dumps(data)), encoding="utf-8")
-    return page
+        span = sum(s["seconds"] for s in shots)
+        start, end = bounds[i] if i < len(bounds) else (t, t + span)
+        t = end
+        title, summary = titles[i] if i < len(titles) else (sc.get("location", "") or f"Scene {i + 1}",
+                                                            sc.get("summary", ""))
+        out["scenes"].append({"n": i + 1, "title": title, "summary": summary, "start": round(start, 2),
+                              "end": round(end, 2), "shots": shots})
+    out["seconds"] = round(t, 1)
+    return out

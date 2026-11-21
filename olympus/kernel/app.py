@@ -1701,9 +1701,42 @@ def pipeline_file(slug: str, path: str):
 
 @app.get("/api/pipeline/{slug}/view/{path:path}")
 def pipeline_view(slug: str, path: str):
-    """Path-style project file access so a page's relative links work: stage5's
-    video/storyboard.html loads scenes/*.mp4 and storyboard/*.jpg next to it."""
+    """Path-style project file access (same checks as /file)."""
     return pipeline_file(slug, path)
+
+
+@app.get("/api/pipeline/{slug}/storyboard")
+def pipeline_storyboard(slug: str):
+    """Studio STORYBOARD panel: scenes, shots, key frames, lines, master — read live from the
+    project (pipeline/storyboard_page.py), so every project uses the same page."""
+    project_dir = PIPELINE_ENGINE / "projects" / slug
+    if not project_dir.is_dir():
+        raise HTTPException(404, f"no project: {slug!r}")
+    from pipeline.storyboard_page import storyboard
+    return JSONResponse(storyboard(project_dir), headers=_NO_CACHE)
+
+
+@app.get("/api/pipeline/{slug}/thumb")
+def pipeline_thumb(slug: str, path: str, w: int = 480):
+    """JPEG preview of a project image, cached under <project>/.cache/thumbs (regenerated when
+    the source changes)."""
+    project_dir = PIPELINE_ENGINE / "projects" / slug
+    if not project_dir.is_dir():
+        raise HTTPException(404, f"no project: {slug!r}")
+    src = _safe_project_path(project_dir, path)
+    if not src.is_file() or src.suffix.lower() not in (".png", ".jpg", ".jpeg", ".webp"):
+        raise HTTPException(404, f"no such image: {path!r}")
+    w = max(64, min(int(w), 1920))
+    rel = src.relative_to(project_dir.resolve())
+    dest = project_dir / ".cache" / "thumbs" / f"{str(rel.with_suffix('')).replace('/', '__')}_{w}.jpg"
+    if not dest.exists() or dest.stat().st_mtime < src.stat().st_mtime:
+        from PIL import Image
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        with Image.open(src) as im:
+            im = im.convert("RGB")
+            im.thumbnail((w, w))
+            im.save(dest, "JPEG", quality=82, optimize=True)
+    return FileResponse(dest, media_type="image/jpeg")
 
 
 from fastapi import UploadFile, File as _File  # noqa: E402

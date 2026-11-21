@@ -1848,21 +1848,12 @@ def run_assembly(project_dir: Path, fps: int = 24) -> dict:
             thumb = thumbnail(art, episode_title(brief_t, bp.slug), video / f"{bp.slug}_thumbnail_v001.png",
                               episode=int(ep.group(1)) if ep else None)
 
-    page = None
-    if getattr(edit_cfg, "storyboard", True):
-        # scene clips + storyboard.html in video/ (local; Studio serves it at /api/pipeline/<slug>/view/…)
-        try:
-            from .storyboard_page import build as build_storyboard
-            page = build_storyboard(project_dir, Path(final))
-        except Exception as e:  # noqa: BLE001  (the episode itself is done)
-            print(f"  storyboard page failed: {type(e).__name__}: {e}", flush=True)
-
     with Scores(project_dir / "scores.sqlite") as sc:
         sc.record_globals("stage5", {"av_sync_error_ms": 40.0, "missing_panels": 0.0,
                                      "seconds": round(cursor, 1)})
         sc.stage_done("stage5")
     _mark_done(project_dir, "stage5", 1.0)
-    out = {"video": str(final), "seconds": round(cursor, 1), "storyboard": str(page) if page else ""}
+    out = {"video": str(final), "seconds": round(cursor, 1)}
     if dynamic:
         out.update({"sfx": len(sfx_events), "score": bool(score), "thumbnail": str(thumb) if thumb else ""})
     return out
