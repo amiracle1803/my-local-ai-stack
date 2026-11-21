@@ -278,6 +278,7 @@ class EditConfig(BaseModel):
     music_volume: float = 0.22
     narration_speed: float = 1.0   # TTS speed for narration lines (recap channels read fast)
     thumbnail: bool = True
+    storyboard: bool = True        # video/storyboard.html + video/scenes/*.mp4 (stage5, local)
 
 
 class WriterConfig(BaseModel):

@@ -180,6 +180,7 @@ music_ckpt = "ace_step_1.5_turbo_aio.safetensors"
 music_volume = 0.22
 narration_speed = 1.1
 thumbnail = true
+storyboard = true        # stage5 writes video/storyboard.html + video/scenes/ (local, served by Studio)
 
 [animation]
 # 2026-11-20: OFF — key frames instead of LTX clips. A shot gets one klein frame per still_seconds

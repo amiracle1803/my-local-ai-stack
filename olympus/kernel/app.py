@@ -1646,7 +1646,7 @@ _ARTIFACT_MIME = {
     "json": "application/json", "txt": "text/plain", "md": "text/plain",
     "srt": "text/plain", "ffmetadata": "text/plain",
     "png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "webp": "image/webp",
-    "wav": "audio/wav", "mp3": "audio/mpeg", "mp4": "video/mp4",
+    "wav": "audio/wav", "mp3": "audio/mpeg", "mp4": "video/mp4", "html": "text/html",
 }
 
 
@@ -1697,6 +1697,13 @@ def pipeline_file(slug: str, path: str):
         raise HTTPException(404, f"no such file: {path!r}")
     mime = _ARTIFACT_MIME.get(p.suffix.lower().lstrip("."), "application/octet-stream")
     return FileResponse(p, media_type=mime)
+
+
+@app.get("/api/pipeline/{slug}/view/{path:path}")
+def pipeline_view(slug: str, path: str):
+    """Path-style project file access so a page's relative links work: stage5's
+    video/storyboard.html loads scenes/*.mp4 and storyboard/*.jpg next to it."""
+    return pipeline_file(slug, path)
 
 
 from fastapi import UploadFile, File as _File  # noqa: E402

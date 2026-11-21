@@ -60,6 +60,9 @@ def test_dynamic_assembly_end_to_end(tmp_path, monkeypatch):
     assert out["sfx"] >= 3 and not out["score"] and Path(out["thumbnail"]).exists()
     assert abs(_dur(Path(out["video"])) - 6.0) < 0.2
     assert (project / "video" / "sfx.wav").exists() and (project / "video" / "fx").is_dir()
+    page = Path(out["storyboard"])                     # local storyboard page with relative links
+    assert page.exists() and (project / "video" / "scenes" / "dyn_t_scene01.mp4").exists()
+    assert '"video": "scenes/dyn_t_scene01.mp4"' in page.read_text() and "fonts.googleapis" not in page.read_text()
 
 
 def test_score_loops_short_cues_to_the_episode_length(tmp_path):
