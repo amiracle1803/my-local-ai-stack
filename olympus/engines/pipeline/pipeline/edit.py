@@ -5,7 +5,7 @@ ffmpeg filters (zoompan expression, flash / whip-blur transition, overlays) and 
 sound effects that land on the cuts:
 
   punch / shake  -> white flash in, speed lines, impact SFX
-  pan_* / tilt_* -> whip-blur in, whoosh SFX
+  pan_* / tilt_* -> whip-blur in (silent: a whoosh on every pan cut was too much, 2026-11-21)
   ui (shot)      -> SYSTEM window on the shot's first two frames, chime SFX
   caption (shot) -> caption on the shot's peak frame, riser into it
 """
@@ -94,8 +94,6 @@ def plan_shot(stills: list[Path], total_frames: int, fps: int, directed: dict, f
                 fx.speed_lines(sl, W, H, seed=(seed + j) % 4)
             f.overlays.append((sl, False, 0.6))
             sfx.append((t, "impact"))
-        elif move in WHIP and j + (seed % 2) > 0:     # not every opening pan whooshes
-            sfx.append((max(0.0, t - 0.12), "whoosh"))
         if ui and j < 2:
             win = fx_dir / f"ui_{stem}.png"
             if not win.exists():

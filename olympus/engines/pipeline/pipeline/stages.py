@@ -889,6 +889,16 @@ def direct_project(project_dir: Path) -> dict:
     return run_images(project_dir, direct_only=True)
 
 
+_NEG_PAREN = re.compile(r"\s*\((?:no|without|not)\b[^)]*\)", re.I)
+_NEG_CLAUSE = re.compile(r",\s*(?:no|without)\s+(?!text\b)[^,.]{1,40}(?=[,.]|$)", re.I)
+
+
+def positive_only(prompt: str) -> str:
+    """Drop "(no glasses, no monocle)" / ", no X" from an image prompt. klein runs at cfg 1, so
+    negatives do nothing and the words themselves get drawn (v4: Toma kept his monocle)."""
+    return _NEG_CLAUSE.sub("", _NEG_PAREN.sub("", prompt))
+
+
 def run_images(project_dir: Path, direct_only: bool = False) -> dict:
     project_dir = Path(project_dir)
     bp = Blueprint.load(project_dir)
@@ -1001,6 +1011,7 @@ def run_images(project_dir: Path, direct_only: bool = False) -> dict:
                 with _UploadImage.open(uploads[made % len(uploads)]) as im:
                     im.convert("RGB").save(p)
             elif comfy_render:
+                prompt = positive_only(prompt)
                 _fresh(p, prompt)
                 seed = int(hashlib.sha256(sid.encode()).hexdigest()[:8], 16)
                 sheet_refs = [str(project_dir / sheets[c]) for c in plan.get("character_ids", []) if c in sheets][:3]
@@ -1038,6 +1049,7 @@ def run_images(project_dir: Path, direct_only: bool = False) -> dict:
                     fprompt = f"{FALLBACK_FRAMINGS[(k - 2) % len(FALLBACK_FRAMINGS)]}, {prompt}"
                 fbackend = "placeholder"
                 if comfy_render:
+                    fprompt = positive_only(fprompt)
                     _fresh(fp, fprompt)
                     fseed = int(hashlib.sha256(f"{sid}_f{k}".encode()).hexdigest()[:8], 16)
                     fbackend = render_with_cloud_fallback(

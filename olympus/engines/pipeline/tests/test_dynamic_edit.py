@@ -38,7 +38,7 @@ def test_plan_puts_overlays_and_sfx_on_the_right_frames(tmp_path):
     names = lambda f: [o[0].name.split("_")[0] for o in f.overlays]
     assert names(plan.frames[0]) == ["ui"] and names(plan.frames[1]) == ["speed", "ui", "cap"]
     assert names(plan.frames[2]) == []                                   # window only on 2 frames
-    assert {n for _, n in plan.sfx} == {"chime", "impact", "riser", "whoosh"}
+    assert {n for _, n in plan.sfx} == {"chime", "impact", "riser"}             # no whoosh on cuts
 
 
 def test_dynamic_assembly_end_to_end(tmp_path, monkeypatch):
@@ -102,3 +102,10 @@ def test_changed_prompt_forces_a_new_render(tmp_path):
     assert f.exists()
     stages._fresh(f, "new")
     assert not f.exists()
+
+
+def test_image_prompts_lose_negations():
+    p = ("Toma, left eye clouded milky white (no glasses, no monocle), patched grey robe, no weapons, "
+         "single full-frame illustration, no text")
+    assert stages.positive_only(p) == ("Toma, left eye clouded milky white, patched grey robe, "
+                                       "single full-frame illustration, no text")
