@@ -363,10 +363,34 @@ def _script_prompt(brief: str, word_target: int) -> str:
             f"BRIEF:\n{_brief_for_writer(brief)}")
 
 
+def writer_brief_without_source(brief: str) -> str:
+    """The local fallback gets the source script folded in as the scene list, not appended raw."""
+    from .writer import split_source
+    head, source = split_source(brief)
+    return f"{head}\n\n{source}" if source else brief
+
+
 def _write_script(brief: str, word_target: int) -> str | None:
-    """Brief -> script with the local LLM. A brief with a SCENE list is written one scene at
+    """Brief -> script: pipeline/writer.py ([writer] cloud models, draft/notes/revise) first,
+    then the local LLM. A brief with a SCENE list is written one scene at
     a time (an 8B model asked for 600 words in one go wrote ~300 and blurred the scenes);
     otherwise a single call. None when the LLM is unavailable."""
+    try:
+        from stack.config import cfg as _cfg
+        wcfg = _cfg.writer
+    except Exception:  # noqa: BLE001
+        wcfg = None
+    if (wcfg is not None and wcfg.enabled and wcfg.models
+            and os.environ.get("OLYMPUS_WRITER", "1") != "0"):
+        from . import writer
+        try:
+            text = writer.write_episode(brief, word_target, writer.make_chat(list(wcfg.models)),
+                                        log=lambda m: print(m, flush=True))
+            if text:
+                return text
+        except Exception as e:  # noqa: BLE001  (fall back to the local writer)
+            print(f"  writer failed: {e}", flush=True)
+    brief = writer_brief_without_source(brief)
     beats = re.findall(r"(?im)^\s*SCENE\s+\d+\s*[-—–:.]\s*(.+)$", brief)
     if len(beats) < 2:
         llm = ollama_generate(_script_prompt(brief, word_target), timeout=600,

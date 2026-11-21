@@ -19,7 +19,8 @@ def _isolated_gaming_flag(tmp_path, monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _offline(monkeypatch):
-    """No network in tests: the director LLM pass and cloud image providers are off unless a
+    """No network in tests: the director LLM pass, the cloud writer and cloud image providers are off unless a
     test turns them on (director tests inject a fake llm)."""
     monkeypatch.setenv("OLYMPUS_DIRECTOR", "0")
     monkeypatch.setenv("OLYMPUS_CLOUD_IMAGES", "0")
+    monkeypatch.setenv("OLYMPUS_WRITER", "0")

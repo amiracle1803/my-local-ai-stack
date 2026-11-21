@@ -157,6 +157,14 @@ vram_gb = 8
 # ── Studio animation master switch ──────────────────────────────────────
 # OFF (default): panels mode — stage5 assembles panels with Ken Burns
 # zoom/pan + fades, no GPU video. ON: stage3c renders motion clips.
+# stage0 writer (2026-11-21): the local 8B writer was too weak. A big cloud model drafts the whole
+# episode, an editor pass critiques it, the writer revises (pipeline/writer.py). A brief may embed a
+# source script after a line "SOURCE SCRIPT:" -> adapted keeping every scene + spoken line verbatim.
+# (NIM text models all 403 on this key and deepseek-v4-pro is retired, 2026-11-21.)
+[writer]
+enabled = true
+models = ["groq:openai/gpt-oss-120b", "groq:qwen/qwen3.8-27b", "ollama:qwen3:8b"]
+
 [edit]
 # Manhwa-recap editing for panels mode (2026-11-20): the director picks a camera move per key
 # frame (push/pull/pan/tilt/drift/punch/shake), punch+shake cut in with a white flash + speed

@@ -280,6 +280,15 @@ class EditConfig(BaseModel):
     thumbnail: bool = True
 
 
+class WriterConfig(BaseModel):
+    """stage0 episode writer (pipeline/writer.py): draft -> editor notes -> revision with a big
+    cloud model. models are tried in order, "provider:model" with provider groq / nim / ollama.
+    enabled = false (or every model failing) falls back to the local one-scene-at-a-time writer."""
+
+    enabled: bool = True
+    models: list[str] = Field(default_factory=lambda: ["groq:openai/gpt-oss-120b", "groq:qwen/qwen3.8-27b"])
+
+
 class RenderConfig(BaseModel):
     """[render] profile = name of a [render.profiles.<name>] table; env OLYMPUS_RENDER_PROFILE wins."""
 
@@ -310,6 +319,7 @@ class StackConfig(BaseModel):
     animation: AnimationConfig = Field(default_factory=AnimationConfig)
     render: RenderConfig = Field(default_factory=RenderConfig)
     edit: EditConfig = Field(default_factory=EditConfig)
+    writer: WriterConfig = Field(default_factory=WriterConfig)
     automation: AutomationConfig = Field(default_factory=AutomationConfig)
 
     config_path: Path = Field(default=CONFIG_PATH, exclude=True)
