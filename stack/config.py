@@ -264,6 +264,22 @@ class RenderProfile(BaseModel):
     output_height: int = 720
 
 
+class EditConfig(BaseModel):
+    """stage5 editing style. dynamic = manhwa-recap energy: director-picked camera moves per key
+    frame (punch-in, shake, whip, drift), flash/whip transitions, SYSTEM windows + captions,
+    speed lines, synthesized SFX on the cuts, an ACE-Step score per scene mood, a thumbnail."""
+
+    dynamic: bool = False
+    overlays: bool = True
+    sfx: bool = True
+    sfx_volume: float = 0.45
+    music: bool = True             # ACE-Step 1.5 score per scene (ComfyUI); else audio/music/*.wav
+    music_ckpt: str = "ace_step_1.5_turbo_aio.safetensors"
+    music_volume: float = 0.22
+    narration_speed: float = 1.0   # TTS speed for narration lines (recap channels read fast)
+    thumbnail: bool = True
+
+
 class RenderConfig(BaseModel):
     """[render] profile = name of a [render.profiles.<name>] table; env OLYMPUS_RENDER_PROFILE wins."""
 
@@ -293,6 +309,7 @@ class StackConfig(BaseModel):
     fallback: FallbackConfig = Field(default_factory=FallbackConfig)
     animation: AnimationConfig = Field(default_factory=AnimationConfig)
     render: RenderConfig = Field(default_factory=RenderConfig)
+    edit: EditConfig = Field(default_factory=EditConfig)
     automation: AutomationConfig = Field(default_factory=AutomationConfig)
 
     config_path: Path = Field(default=CONFIG_PATH, exclude=True)

@@ -331,6 +331,20 @@ _SCRIPT_RULES = ("Plain text only: no markdown, no asterisks, no title line. Nar
                  "The gulls scatter as the harbor bell rings.")
 
 
+def _recap_rules(brief: str) -> str:
+    """Brief line "Narration: recap, first person as Aya" -> manhwa-recap channel narration."""
+    m = re.search(r"(?im)^\s*Narration:\s*([^\n]+)", brief or "")
+    if not m or "recap" not in m.group(1).lower():
+        return ""
+    who = re.search(r"(?i)\bas\s+([A-Z][\w' -]{0,30})", m.group(1))
+    pov = f"{who.group(1).strip()}'s" if who else "the main character's"
+    return ("\n\nRECAP STYLE (told like a manhwa recap channel): narration paragraphs are first person "
+            f"from {pov} point of view (I / me / my), present tense, short punchy sentences of 6-14 words, "
+            "one idea per sentence, with inner thoughts and dramatic turns (And that is when every "
+            "lantern died.). Scene 1 opens with a one-line hook: the biggest stake or twist, before "
+            "anything else. End every scene on a small cliffhanger. Spoken lines stay short.")
+
+
 def _brief_for_writer(brief: str) -> str:
     # Voice casting is for the TTS stage; the writer copied it into delivery notes.
     return "\n".join(l for l in brief.splitlines() if not re.match(r"(?i)^\s*voices:", l))[:3000]
@@ -345,7 +359,7 @@ def _script_prompt(brief: str, word_target: int) -> str:
             "NAME: (whispering) <a spoken line with a short delivery note>\n\n"
             "<more narration>\n\n"
             "SCENE 2 — <place>\n…\n\n"
-            f"{_SCRIPT_RULES} Follow the brief's scene list in order.\n\n"
+            f"{_SCRIPT_RULES}{_recap_rules(brief)} Follow the brief's scene list in order.\n\n"
             f"BRIEF:\n{_brief_for_writer(brief)}")
 
 
@@ -362,7 +376,7 @@ def _write_script(brief: str, word_target: int) -> str | None:
     parts: list[str] = []
     for i, beat in enumerate(beats, 1):
         so_far = "\n\n".join(parts)[-1800:] or "(nothing yet)"
-        prompt = (f"{_SCRIPT_RULES}\n\nBRIEF:\n{_brief_for_writer(brief)}\n\nSCRIPT SO FAR:\n{so_far}\n\n"
+        prompt = (f"{_SCRIPT_RULES}{_recap_rules(brief)}\n\nBRIEF:\n{_brief_for_writer(brief)}\n\nSCRIPT SO FAR:\n{so_far}\n\n"
                   f"Write ONLY scene {i} now — {beat.strip()} — about {per} words. First line: "
                   f"SCENE {i} — <place>. Then 3-4 narration paragraphs with 3-6 short spoken lines "
                   "between them. Continue naturally from the script so far; do not write later scenes.")
@@ -806,6 +820,32 @@ FALLBACK_FRAMINGS = (
 )
 
 
+def _edit_cfg():
+    """[edit] table (dynamic recap editing); defaults when the config can't load."""
+    try:
+        from stack.config import cfg as _cfg
+        return _cfg.edit
+    except Exception:  # noqa: BLE001
+        from stack.config import EditConfig
+        return EditConfig()
+
+
+def _narration_speed() -> float:
+    return float(getattr(_edit_cfg(), "narration_speed", 1.0) or 1.0)
+
+
+def _fresh(dest: Path, prompt: str) -> None:
+    """Drop a rendered frame whose sidecar prompt differs: render_panel keeps any existing
+    file (resume), so a changed beat/look used to keep the old image (2026-11-20)."""
+    side = dest.with_suffix(".json")
+    try:
+        old = json.loads(side.read_text(encoding="utf-8")).get("prompt") if side.exists() else None
+    except (OSError, ValueError):
+        old = None
+    if dest.exists() and old != prompt:
+        dest.unlink()
+
+
 def _stills_cfg() -> tuple[bool, float, int]:
     """(animation on?, seconds per key frame, max key frames per shot) from [animation]."""
     try:
@@ -885,6 +925,8 @@ def run_images(project_dir: Path, direct_only: bool = False) -> dict:
     # Director pass (cloud LLM first, local fallback): a detailed text-to-image prompt, an
     # image-to-video motion plan and a text-to-video paragraph per shot -> storyboard/director.json.
     director: dict = {}
+    animated, still_secs, max_stills = _stills_cfg()
+    dynamic = bool(getattr(_edit_cfg(), "dynamic", False))
     if os.environ.get("OLYMPUS_DIRECTOR", "1") == "1":
         from .director import direct, shot_requests
         brief_cast = brief_meta(project_dir)["cast"]
@@ -902,7 +944,8 @@ def run_images(project_dir: Path, direct_only: bool = False) -> dict:
                                              "t2v": ""}
         try:
             director = direct(shot_requests(sp.get("scenes", []), storyboard_by_id, cast_looks, style),
-                              cast_looks, fallbacks, project_dir / "storyboard" / "director.json")
+                              cast_looks, fallbacks, project_dir / "storyboard" / "director.json",
+                              n_beats=3 if animated else max(3, max_stills - 1), dynamic=dynamic)
         except Exception as e:  # noqa: BLE001  (the template prompts still work)
             print(f"  director pass failed: {type(e).__name__}: {e}", flush=True)
     if direct_only:
@@ -918,7 +961,6 @@ def run_images(project_dir: Path, direct_only: bool = False) -> dict:
         if not uploads:
             raise RuntimeError("mode 0i requires uploaded panels in input/panels")
     # Panels mode: long shots become several key frames (stage4's timeline gives screen time).
-    animated, still_secs, max_stills = _stills_cfg()
     tl_path = project_dir / "audio" / "timeline.json"
     slots = _shot_slots(json.loads(tl_path.read_text(encoding="utf-8"))) if tl_path.exists() else {}
     extra_frames = 0
@@ -959,6 +1001,7 @@ def run_images(project_dir: Path, direct_only: bool = False) -> dict:
                 with _UploadImage.open(uploads[made % len(uploads)]) as im:
                     im.convert("RGB").save(p)
             elif comfy_render:
+                _fresh(p, prompt)
                 seed = int(hashlib.sha256(sid.encode()).hexdigest()[:8], 16)
                 sheet_refs = [str(project_dir / sheets[c]) for c in plan.get("character_ids", []) if c in sheets][:3]
                 image_backend = render_with_cloud_fallback(
@@ -995,6 +1038,7 @@ def run_images(project_dir: Path, direct_only: bool = False) -> dict:
                     fprompt = f"{FALLBACK_FRAMINGS[(k - 2) % len(FALLBACK_FRAMINGS)]}, {prompt}"
                 fbackend = "placeholder"
                 if comfy_render:
+                    _fresh(fp, fprompt)
                     fseed = int(hashlib.sha256(f"{sid}_f{k}".encode()).hexdigest()[:8], 16)
                     fbackend = render_with_cloud_fallback(
                         lambda: comfy_render(fprompt, fp, seed=fseed, base_url=_comfy_url, negative=negative,
@@ -1127,12 +1171,14 @@ def run_audio(project_dir: Path) -> dict:
                 if kind == "dialogue" and shot.get("delivery"):
                     style = f"{style}. Delivery: {shot['delivery']}".lstrip(". ")
                 # Resume: keep a finished line only if its text/voice/style are unchanged.
-                key = hashlib.sha256(f"{text}|{profile.get('voice')}|{style}".encode()).hexdigest()[:16]
+                speed = _narration_speed() if kind == "narration" else 1.0
+                key = hashlib.sha256((f"{text}|{profile.get('voice')}|{style}"
+                                      + (f"|{speed}" if speed != 1.0 else "")).encode()).hexdigest()[:16]
                 stamp = dest.with_suffix(".key")
                 if not (dest.exists() and dest.stat().st_size > 1000 and stamp.exists()
                         and stamp.read_text() == key):
                     synth(text, dest, voice=profile.get("voice", "af_heart"),
-                          reference=reference, style=style)
+                          reference=reference, style=style, speed=speed)
                     stamp.write_text(key)
                 dur = _wav_seconds(dest)
                 timeline.append({"shot": shot.get("id"), "kind": kind, "file": str(dest.relative_to(project_dir)),
@@ -1500,7 +1546,7 @@ _FIT = _fit(1280, 720)   # legacy name, kept for importers
 
 
 def _render_segment(png: Path | None, clip: Path | None, seg: Path, frames: int, fps: int,
-                    motion: int = 0) -> None:
+                    motion: int = 0, move: str = "", overlays: list | None = None) -> None:
     """One shot's video: a real animation loops forward-backward; a still gets a slow
     Ken Burns zoom/pan; nothing at all becomes black. Identical encode settings so the
     concat demuxer can join segments without re-encoding."""
@@ -1534,8 +1580,24 @@ def _render_segment(png: Path | None, clip: Path | None, seg: Path, frames: int,
                  f"z='1.08-0.08*on/{n}':{centre}",                              # pull out
                  f"z='1.07':x='(iw-iw/zoom)*on/{n}':y='ih/2-(ih/zoom/2)'",        # pan right
                  f"z='1.07':x='(iw-iw/zoom)*(1-on/{n})':y='ih/2-(ih/zoom/2)'"]    # pan left
-        vf = (f"{fit},scale={W * 3 // 2}:{H * 3 // 2},zoompan={moves[motion % 4]}:d=1:s={W}x{H}:fps={fps},"
-              f"setsar=1")
+        zp = moves[motion % 4]
+        post = ""
+        if move:   # dynamic edit: the director's move + the cut into this frame
+            from .edit import transition, zoompan
+            zp, post = zoompan(move, n), transition(move, fps)
+        vf = (f"{fit},scale={W * 3 // 2}:{H * 3 // 2},zoompan={zp}:d=1:s={W}x{H}:fps={fps},"
+              f"setsar=1{post}")
+        if overlays:
+            ins, chain, last = [], [f"[0:v]{vf}[b0]"], "b0"
+            for i, (ov, fade_in, show_s) in enumerate(overlays, 1):
+                ins += ["-loop", "1", "-framerate", str(fps), "-i", str(ov)]
+                fade = ",fade=t=in:st=0.2:d=0.2:alpha=1" if fade_in else ""
+                enable = f":enable='lt(t,{show_s})'" if show_s else ""
+                chain.append(f"[{i}:v]format=rgba,scale={W}:{H}{fade}[o{i}];[{last}][o{i}]overlay=0:0{enable}[b{i}]")
+                last = f"b{i}"
+            if run(["-loop", "1", "-framerate", str(fps), "-i", str(png), *ins, "-filter_complex",
+                    ";".join(chain), "-map", f"[{last}]", *out]):
+                return
         if run(["-loop", "1", "-framerate", str(fps), "-i", str(png), "-vf", vf, *out]):
             return
         if run(["-loop", "1", "-framerate", str(fps), "-i", str(png), "-vf", fit, *out]):
@@ -1563,6 +1625,15 @@ def run_assembly(project_dir: Path, fps: int = 24) -> dict:
     panels = project_dir / "panels"
     clips = project_dir / "clips"
     last_png: Path | None = None
+    edit_cfg = _edit_cfg()
+    dynamic = bool(getattr(edit_cfg, "dynamic", False))
+    directed_all: dict = {}
+    dpath = project_dir / "storyboard" / "director.json"
+    if dynamic and dpath.exists():
+        directed_all = json.loads(dpath.read_text(encoding="utf-8"))
+    sfx_events: list[tuple[float, str]] = []
+    scene_moods: list[list[str]] = []
+    thumb_shots: list = []
 
     def shot_png(shot_id: str) -> Path | None:
         sid = legacy_stem(shot_id)
@@ -1577,6 +1648,7 @@ def run_assembly(project_dir: Path, fps: int = 24) -> dict:
 
     for scene in sp.get("scenes", []):
         scene_starts.append(cursor)
+        scene_moods.append([])
         for shot in scene.get("shots", []):
             png = shot_png(shot.get("id", "")) or last_png  # a missing panel holds the last one
             last_png = png
@@ -1588,7 +1660,23 @@ def run_assembly(project_dir: Path, fps: int = 24) -> dict:
             clip = clips / f"{png.stem}.mp4" if png else None
             moving = clip if clip is not None and _clip_backend(clip) not in ("", "still") else None
             stills = shot_frames(png)[:max(1, frames // fps)] if (png is not None and moving is None) else []
-            if len(stills) > 1:
+            directed = directed_all.get(shot.get("id", ""), {})
+            if directed.get("mood"):
+                scene_moods[-1].append(directed["mood"])
+            if dynamic and png is not None:
+                thumb_shots.append((directed, png, dur))
+            if dynamic and stills:
+                # Recap edit: director moves, flash/whip cuts, SYSTEM window/caption, SFX cues.
+                from .edit import plan_shot
+                W, H = _out_size()
+                plan = plan_shot(stills, frames, fps, directed, video / "fx",
+                                 overlays=bool(getattr(edit_cfg, "overlays", True)), size=(W, H), seed=idx)
+                for j, fr in enumerate(plan.frames):
+                    sub = video / f"seg_{idx:03d}_{j + 1}.mp4"
+                    _render_segment(fr.png, None, sub, fr.frames, fps, move=fr.move, overlays=fr.overlays)
+                    segs.append(sub)
+                sfx_events += [(cursor + t, name) for t, name in plan.sfx]
+            elif len(stills) > 1:
                 # Panels mode: the shot is a sequence of key frames, hard cuts, a slow move each.
                 left = frames
                 for j, still in enumerate(stills):
@@ -1628,6 +1716,15 @@ def run_assembly(project_dir: Path, fps: int = 24) -> dict:
     subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0",
                     "-i", str(lst), "-c", "copy", str(silent)], check=True, timeout=600)
 
+    # Dynamic edit: an ACE-Step cue per scene mood (ComfyUI) as the music bed.
+    score = None
+    if dynamic and getattr(edit_cfg, "music", True) and os.environ.get("OLYMPUS_REAL_COMFY", "0") == "1":
+        from .music import score_episode
+        bounds_ = scene_starts + [cursor]
+        score = score_episode(project_dir, [{"start": bounds_[i], "seconds": bounds_[i + 1] - bounds_[i],
+                                             "moods": scene_moods[i]} for i in range(len(scene_starts))],
+                              cursor, edit_cfg.music_ckpt)
+
     # Build the audio spine from timeline timestamps, not filename order.
     timeline_files = [e for e in timeline if (project_dir / e.get("file", "")).exists()]
     mixed = video / "mixed.wav"
@@ -1639,16 +1736,17 @@ def run_assembly(project_dir: Path, fps: int = 24) -> dict:
             inputs += ["-i", str(project_dir / event["file"])]
             delay = max(0, int(float(event.get("start", 0)) * 1000))
             label = f"a{i}"
-            filters.append(f"[{i}:a]adelay={delay}|{delay},aresample=22050[{label}]")
+            filters.append(f"[{i}:a]adelay={delay}|{delay},aresample=44100[{label}]")
             labels.append(f"[{label}]")
-        music = sorted((project_dir / "audio" / "music").glob("*.wav"))
+        music = [score] if score else sorted((project_dir / "audio" / "music").glob("*.wav"))
         if music:
             inputs += ["-stream_loop", "-1", "-i", str(music[0])]
             music_index = len(timeline_files)
             # voice -> asplit: one leg stays in the final mix, the other keys
             # the sidechain that ducks the music bed. (A previously chained
             # one-input sidechaincompress made ffmpeg reject the graph.)
-            filters.append(f"[{music_index}:a]volume=0.16,aresample=22050[music]")
+            vol = float(getattr(edit_cfg, "music_volume", 0.22)) if score else 0.16
+            filters.append(f"[{music_index}:a]volume={vol},aresample=44100[music]")
             filters.append(
                 "".join(labels) + f"amix=inputs={len(labels)}:duration=longest:normalize=0,"
                 "asplit=2[voice][vkey];"
@@ -1664,6 +1762,19 @@ def run_assembly(project_dir: Path, fps: int = 24) -> dict:
         subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi",
                         "-i", f"anullsrc=r=22050:cl=mono:d={max(1,int(cursor))}",
                         str(mixed)], check=True, timeout=60)
+
+    if dynamic and getattr(edit_cfg, "sfx", True) and sfx_events:
+        from .edit import sfx_track
+        from .sfx import ensure_library
+        track = sfx_track(sfx_events, ensure_library(project_dir / "audio" / "sfx"), cursor,
+                          video / "sfx.wav", float(getattr(edit_cfg, "sfx_volume", 0.45)))
+        if track:
+            withfx = video / "mixed_fx.wav"
+            subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", str(mixed), "-i", str(track), "-filter_complex",
+                            "[0:a]aresample=44100,aformat=channel_layouts=stereo[v];"
+                            "[v][1:a]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.95[out]",
+                            "-map", "[out]", str(withfx)], check=True, timeout=600)
+            withfx.replace(mixed)
 
     final = video / "final.mp4"
     versioned = video / f"{bp.slug}_master_v001.mp4"
@@ -1689,9 +1800,24 @@ def run_assembly(project_dir: Path, fps: int = 24) -> dict:
         for i, sc in enumerate(sp.get("scenes", [])))
     (video / "chapters.ffmetadata").write_text(chapters, encoding="utf-8")
 
+    thumb = None
+    if dynamic and getattr(edit_cfg, "thumbnail", True):
+        from .edit import episode_title, thumbnail_frame
+        from .fx import thumbnail
+        art = thumbnail_frame(thumb_shots)
+        if art is not None:
+            brief_p = project_dir / "input" / "brief.md"
+            brief_t = brief_p.read_text(encoding="utf-8", errors="replace") if brief_p.exists() else ""
+            ep = re.search(r"_ep(\d+)", bp.slug)
+            thumb = thumbnail(art, episode_title(brief_t, bp.slug), video / f"{bp.slug}_thumbnail_v001.png",
+                              episode=int(ep.group(1)) if ep else None)
+
     with Scores(project_dir / "scores.sqlite") as sc:
         sc.record_globals("stage5", {"av_sync_error_ms": 40.0, "missing_panels": 0.0,
                                      "seconds": round(cursor, 1)})
         sc.stage_done("stage5")
     _mark_done(project_dir, "stage5", 1.0)
-    return {"video": str(final), "seconds": round(cursor, 1)}
+    out = {"video": str(final), "seconds": round(cursor, 1)}
+    if dynamic:
+        out.update({"sfx": len(sfx_events), "score": bool(score), "thumbnail": str(thumb) if thumb else ""})
+    return out

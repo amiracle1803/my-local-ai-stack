@@ -157,14 +157,31 @@ vram_gb = 8
 # ── Studio animation master switch ──────────────────────────────────────
 # OFF (default): panels mode — stage5 assembles panels with Ken Burns
 # zoom/pan + fades, no GPU video. ON: stage3c renders motion clips.
+[edit]
+# Manhwa-recap editing for panels mode (2026-11-20): the director picks a camera move per key
+# frame (push/pull/pan/tilt/drift/punch/shake), punch+shake cut in with a white flash + speed
+# lines + impact SFX, pans whip in with a whoosh, shots can carry a glowing SYSTEM window (chime)
+# or a big caption (riser), ACE-Step 1.5 scores each scene by mood, and stage5 writes a thumbnail.
+# Narration lines read a little faster, like recap channels. dynamic = false = the calm cut.
+dynamic = true
+overlays = true
+sfx = true
+sfx_volume = 0.45
+music = true
+music_ckpt = "ace_step_1.5_turbo_aio.safetensors"
+music_volume = 0.22
+narration_speed = 1.1
+thumbnail = true
+
 [animation]
 # 2026-11-20: OFF — key frames instead of LTX clips. A shot gets one klein frame per still_seconds
+# (2.0 = recap pacing; 3.5 = the calm cut)
 # of screen time (max max_stills): the director's "beats" (reaction close-up, detail insert,
 # reverse angle...), cut together with a slow pan/zoom each. ~35 s per frame vs 2-3 min per clip,
 # and no ping-pong on long shots. Set true to go back to LTX clips (engine below).
 enabled = false
-still_seconds = 3.5
-max_stills = 4
+still_seconds = 2.0
+max_stills = 8
 # svd     - Stable Video Diffusion xt (14 frames, minutes per clip, no prompt control)
 # ltx2b   - Anime-first LTX-Video 0.9.8 distilled: the model/size/upscale come from [render]
 #           (fast = 2B fp8 checkpoint, hq = 13B Q4 GGUF + 2x latent upscale).

@@ -10,8 +10,13 @@ For every storyboard shot it writes (storyboard/director.json, keyed by shot id)
   t2v       - a single chronological paragraph for text-to-video (LTX style: visible subject + action,
               exact appearance, unobstructed composition, background, camera, lighting)
   seconds   - suggested clip length (2-6 s)
-  beats     - up to 3 follow-up key frames (full t2i prompts) for panels mode, where a long shot
-              plays as a sequence of stills instead of a clip
+  beats     - up to n_beats follow-up key frames (full t2i prompts) for panels mode, where a long
+              shot plays as a sequence of stills instead of a clip
+  dynamic edit only ([edit] dynamic = true, manhwa-recap style):
+  moves     - one camera move per frame (t2i frame first, then each beat), see MOVES
+  ui        - "" or one short game-style SYSTEM window text for this shot
+  caption   - "" or a 1-4 word dramatic on-screen caption
+  mood      - the shot's music mood, see MOODS
 
 Cloud first (Groq, OpenAI-compatible, key GROQ_API_KEY from the environment or ~/.hermes/.env),
 then the local Ollama script model. A shot the LLM leaves out or garbles falls back to the
@@ -47,15 +52,38 @@ SYSTEM = (
     "and concrete action; retain exact hair, clothing, and colors while specifying an unobstructed, "
     "fully visible subject and keeping foreground objects out of the sightline. Then describe background, "
     "camera, and lighting. Never drop identity details when tightening composition.\n"
-    "- beats = 3 follow-up key frames of the same shot, in story order, each a full text-to-image prompt "
+    "- beats = __N__ follow-up key frames of the same shot, in story order, each a full text-to-image prompt "
     "(same exact cast looks, location, lighting and style as t2i). Each one moves the action a moment "
     "forward AND changes the framing: e.g. a reaction close-up, a detail insert of hands or a key "
     "object, an over-the-shoulder or reverse angle, a wide. The shot plays as a sequence of stills, "
-    "so every beat must read clearly on its own.\n"
+    "so every beat must read clearly on its own. Keep each beat under 45 words.\n"
     "Reply with JSON only: {\"shots\": [{\"id\": \"...\", \"t2i\": \"...\", \"negative\": \"...\", "
     "\"camera\": \"...\", \"motion\": \"...\", \"strength\": 0.0, \"t2v\": \"...\", \"seconds\": 4, "
-    "\"beats\": [\"...\", \"...\", \"...\"]}]}"
+    "\"beats\": [\"...\"]__DYN_JSON__}]}"
 )
+MOVES = ("push", "pull", "pan_left", "pan_right", "tilt_up", "tilt_down", "drift", "punch", "shake")
+MOODS = ("calm", "mystery", "tension", "action", "sad", "triumph", "wonder")
+DYNAMIC_RULES = (
+    "- This is a fast manhwa-recap edit: every frame is on screen ~2 seconds.\n"
+    "- moves = one camera move per frame (the t2i frame first, then each beat, so len(beats)+1 "
+    "moves) from: " + ", ".join(MOVES) + ". punch = fast zoom-in for a reveal, shock or power "
+    "moment; shake = impact, slam, explosion, scream. Use punch/shake only at real peaks (about one "
+    "frame in five); calm frames drift, push or pan.\n"
+    "- ui = \"\" or ONE short game-style SYSTEM window (max 14 words, e.g. \"[Quest] Find the stolen "
+    "Heart Flame. Reward: ???\") at key story moments only, about one shot in five.\n"
+    "- caption = \"\" or a 1-4 word dramatic caption in capitals for the biggest beats only (about "
+    "one shot in six), e.g. \"EVERY LANTERN DIED\". Never repeat the spoken line.\n"
+    "- mood = the music under this shot, one of: " + ", ".join(MOODS) + ".\n")
+DYNAMIC_JSON = ', \"moves\": [\"push\"], \"ui\": \"\", \"caption\": \"\", \"mood\": \"calm\"'
+
+
+def system_prompt(n_beats: int = 3, dynamic: bool = False) -> str:
+    text = SYSTEM.replace("__N__", str(n_beats))
+    if dynamic:
+        text = text.replace("Reply with JSON only:", DYNAMIC_RULES + "Reply with JSON only:")
+    return text.replace("__DYN_JSON__", DYNAMIC_JSON if dynamic else "")
+
+
 DEFAULT_NEGATIVE = ("low quality, blurry, text, watermark, signature, deformed hands, extra limbs, "
                     "comic page, multiple panels, split screen, speech bubble")
 
@@ -111,7 +139,7 @@ def _parse(text: str) -> list[dict]:
     return [s for s in shots or [] if isinstance(s, dict) and s.get("id")]
 
 
-def _clean(s: dict, fallback: dict) -> dict:
+def _clean(s: dict, fallback: dict, n_beats: int = 3) -> dict:
     def txt(k: str, n: int) -> str:
         v = re.sub(r"\s+", " ", str(s.get(k) or "")).strip()
         return v[:n] if v else fallback.get(k, "")
@@ -128,9 +156,23 @@ def _clean(s: dict, fallback: dict) -> dict:
     t2i = re.sub(r"[\"“”][^\"“”]*[\"“”]", "", t2i)
     beats = [re.sub(r"[\"“”][^\"“”]*[\"“”]", "", re.sub(r"\s+", " ", b)).strip()[:900]
              for b in (s.get("beats") if isinstance(s.get("beats"), list) else []) if isinstance(b, str)]
-    return {"t2i": t2i, "negative": txt("negative", 400) or DEFAULT_NEGATIVE, "camera": txt("camera", 160),
-            "motion": txt("motion", 500), "strength": round(strength, 2), "t2v": txt("t2v", 1400),
-            "seconds": seconds, "beats": [b for b in beats if b][:3], "by": s.get("_by", "")}
+    beats = [b for b in beats if b][:n_beats]
+    out = {"t2i": t2i, "negative": txt("negative", 400) or DEFAULT_NEGATIVE, "camera": txt("camera", 160),
+           "motion": txt("motion", 500), "strength": round(strength, 2), "t2v": txt("t2v", 1400),
+           "seconds": seconds, "beats": beats, "beats_n": n_beats, "by": s.get("_by", "")}
+    if "moves" in s or "ui" in s or "caption" in s or "mood" in s:
+        moves = [str(m).strip().lower().replace("-", "_").replace(" ", "_")
+                 for m in (s.get("moves") if isinstance(s.get("moves"), list) else [])]
+        out["moves"] = [m if m in MOVES else "push" for m in moves][:len(beats) + 1]
+        strip = lambda v, n: re.sub(r"[\"“”]", "", re.sub(r"\s+", " ", str(v or ""))).strip()[:n]
+        out["ui"] = strip(s.get("ui"), 120)
+        out["caption"] = strip(s.get("caption"), 40).upper()
+        mood = str(s.get("mood") or "").strip().lower()
+        out["mood"] = mood if mood in MOODS else ""
+    return out
+
+
+EDIT_KEYS = ("beats", "beats_n", "moves", "ui", "caption", "mood")
 
 
 def shot_requests(scenes: list[dict], storyboard_by_id: dict, cast_looks: dict, style: str) -> list[dict]:
@@ -155,17 +197,21 @@ def shot_requests(scenes: list[dict], storyboard_by_id: dict, cast_looks: dict, 
 
 
 def direct(requests: list[dict], cast_looks: dict, fallbacks: dict, out_path: Path,
-           llm=None) -> dict:
+           llm=None, n_beats: int = 3, dynamic: bool = False) -> dict:
     """Write director.json for the shots that don't have an entry yet (resumable)."""
     out_path = Path(out_path)
     done = json.loads(out_path.read_text(encoding="utf-8")) if out_path.exists() else {}
     # Entries from before beats existed get only their beats filled in (their t2i — and so the
     # rendered panel — stays as it was).
-    todo = [r for r in requests if r["id"] not in done or "beats" not in done[r["id"]]]
+    def stale(e: dict) -> bool:
+        asked = e.get("beats_n", 3 if "beats" in e else -1)
+        return asked < n_beats or (dynamic and "moves" not in e)
+    todo = [r for r in requests if r["id"] not in done or stale(done[r["id"]])]
+    batch_size = BATCH if n_beats <= 3 else 5     # 7 beats/shot: keep each reply well under max_tokens
     cast_block = "\n".join(f"- {k}: {v}" for k, v in cast_looks.items()) or "- (none given)"
-    for i in range(0, len(todo), BATCH):
-        batch = todo[i:i + BATCH]
-        messages = [{"role": "system", "content": SYSTEM},
+    for i in range(0, len(todo), batch_size):
+        batch = todo[i:i + batch_size]
+        messages = [{"role": "system", "content": system_prompt(n_beats, dynamic)},
                     {"role": "user", "content": "CAST (exact looks):\n" + cast_block + "\n\nSHOTS:\n"
                      + json.dumps(batch, ensure_ascii=False, indent=1)}]
         got, by = [], ""
@@ -184,9 +230,17 @@ def direct(requests: list[dict], cast_looks: dict, fallbacks: dict, out_path: Pa
         for r in batch:
             s = by_id.get(r["id"]) or {}
             new = _clean({**s, "_by": by if s else "template"}, fallbacks.get(r["id"], {
-                "t2i": "", "negative": DEFAULT_NEGATIVE, "camera": "", "motion": "", "strength": 0.4, "t2v": ""}))
+                "t2i": "", "negative": DEFAULT_NEGATIVE, "camera": "", "motion": "", "strength": 0.4, "t2v": ""}),
+                n_beats)
             old = done.get(r["id"])
-            done[r["id"]] = {**old, "beats": new["beats"]} if old else new
+            # an existing shot keeps its t2i (so its rendered panel); only the edit plan is redone
+            if old:
+                # beats already written at this count stay (their frames are rendered)
+                keep = old.get("beats_n", 3 if "beats" in old else -1) >= n_beats
+                done[r["id"]] = {**old, **{k: new[k] for k in EDIT_KEYS
+                                           if k in new and not (keep and k in ("beats", "beats_n"))}}
+            else:
+                done[r["id"]] = new
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_text(json.dumps(done, indent=2, ensure_ascii=False), encoding="utf-8")
     return done
